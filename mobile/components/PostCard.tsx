@@ -9,9 +9,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import type { Post } from "../types/type";
+import type { Post } from "@/types/type";
 import ProfilePicture from "./ProfilePicture";
-import { useAdminStatus } from "../hooks/useAdminStatus";
+import { useAdminStatus } from "@/hooks/useAdminStatus";
+import PostCardMenu from "./PostCardMenu";
 
 type RootStackParamList = {
   PostDetails: { post: Post };
@@ -82,15 +83,32 @@ export default function PostCard({ post, descriptionSearch = "", adminStatuses }
         })
       }
     >
-      <Image
-        source={
-          typeof post.images[0] === "string"
-            ? { uri: post.images[0] as string }
-            : (post.images[0] as any)
-        }
-        className="w-full h-80 rounded-t-md"
-        resizeMode="cover"
-      />
+      <View className="relative">
+        <Image
+          source={
+            typeof post.images[0] === "string"
+              ? { uri: post.images[0] as string }
+              : (post.images[0] as any)
+          }
+          className="w-full h-80 rounded-t-md"
+          resizeMode="cover"
+        />
+        
+        {/* Triple dot menu positioned at top right of image */}
+        <View className="absolute top-3 right-3">
+          <PostCardMenu
+            postId={post.id}
+            postTitle={post.title}
+            postOwnerId={post.creatorId || post.postedById}
+            postOwnerUserData={post.user}
+            isFlagged={post.isFlagged}
+            flaggedBy={post.flaggedBy}
+            onFlagSuccess={() => {
+              // You can add any callback logic here if needed
+            }}
+          />
+        </View>
+      </View>
 
       <View className="p-3">
         <View className="flex-row items-center gap-2">

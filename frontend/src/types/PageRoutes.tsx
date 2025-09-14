@@ -36,6 +36,7 @@ import { ToastProvider } from "@/context/ToastContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { MessageProvider } from "@/context/MessageContext";
 import { NotificationProvider } from "@/context/NotificationContext";
+import { AnnouncementProvider } from "@/context/AnnouncementContext";
 import PageWrapper from "@/components/PageWrapper";
 import ScrollToTop from "@/context/ScrollTop";
 
@@ -48,7 +49,7 @@ function AppRoutesWithAuth() {
     <NotificationProvider>
       <MessageProvider userId={user?.uid || null}>
         <Routes>
-        {/* Public routes */}
+        {/* Public routes - no AnnouncementProvider needed */}
         <Route
           path="/login"
           element={
@@ -96,9 +97,11 @@ function AppRoutesWithAuth() {
         <Route
           path="/"
           element={
-            <EmailVerificationRoute>
-              <MainHome />
-            </EmailVerificationRoute>
+            <AnnouncementProvider>
+              <EmailVerificationRoute>
+                <MainHome />
+              </EmailVerificationRoute>
+            </AnnouncementProvider>
           }
         >
           <Route
@@ -187,9 +190,11 @@ function AppRoutesWithAuth() {
         <Route
           path="/admin"
           element={
-            <ProtectedRoute>
-              <AdminLayout />
-            </ProtectedRoute>
+            <AnnouncementProvider>
+              <ProtectedRoute>
+                <AdminLayout />
+              </ProtectedRoute>
+            </AnnouncementProvider>
           }
         >
           <Route

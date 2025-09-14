@@ -72,21 +72,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setNeedsEmailVerification(false);
           }
           
-          // Initialize notifications for authenticated user
-          try {
-            const messagingInitialized = await notificationService.initializeMessaging();
-            if (messagingInitialized) {
-              // Get FCM token and save it
-              const fcmToken = (notificationService as any).fcmToken;
-              if (fcmToken) {
-                await notificationService.saveFCMToken(firebaseUser.uid, fcmToken);
-                console.log('FCM notifications initialized for user:', firebaseUser.uid);
+          // Initialize notifications for authenticated user (only if email is verified)
+          if (fetchedUserData.emailVerified) {
+            try {
+              const messagingInitialized = await notificationService.initializeMessaging();
+              if (messagingInitialized) {
+                // Get FCM token and save it
+                const fcmToken = (notificationService as any).fcmToken;
+                if (fcmToken) {
+                  await notificationService.saveFCMToken(firebaseUser.uid, fcmToken);
+                  console.log('FCM notifications initialized for user:', firebaseUser.uid);
+                }
+                // Set up message listener for foreground notifications
+                notificationService.setupMessageListener();
               }
-              // Set up message listener for foreground notifications
-              notificationService.setupMessageListener();
+            } catch (error) {
+              console.error('Error initializing notifications:', error);
             }
-          } catch (error) {
-            console.error('Error initializing notifications:', error);
+          } else {
+            console.log('📧 User email not verified, skipping notification initialization');
           }
           
           // Start monitoring this specific user for ban status changes
