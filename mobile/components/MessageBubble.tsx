@@ -245,8 +245,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           {handoverData.postTitle}
         </Text>
 
-        {/* Show ID photo if uploaded */}
-        {handoverData.idPhotoUrl && (
+        {/* Show ID photo if uploaded and not deleted */}
+        {handoverData.idPhotoUrl && !handoverData.photosDeleted && (
           <View className="mb-3 p-2 bg-white rounded border">
             <Text className="text-xs text-gray-600 mb-1">Finder ID Photo:</Text>
             <TouchableOpacity
@@ -266,6 +266,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 Tap to view full size
               </Text>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Show photos deleted indicator if photos were deleted */}
+        {handoverData.photosDeleted && (
+          <View className="mb-3 p-2 bg-red-50 rounded border border-red-200">
+            <Text className="text-xs text-red-600 font-medium mb-1">
+              🗑️ Photos Deleted
+            </Text>
+            <Text className="text-xs text-red-500">
+              All photos have been removed from this request
+            </Text>
           </View>
         )}
 
@@ -293,8 +305,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           </View>
         )}
 
-        {/* Show item photos if uploaded */}
-        {handoverData.itemPhotos && handoverData.itemPhotos.length > 0 && (
+        {/* Show item photos if uploaded and not deleted */}
+        {handoverData.itemPhotos && handoverData.itemPhotos.length > 0 && !handoverData.photosDeleted && (
           <View className="mb-3 p-2 bg-white rounded border">
             <Text className="text-xs text-gray-600 mb-1 font-medium">
               Item Photos:
@@ -444,8 +456,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           </View>
         )}
 
-        {/* Show claimer's ID photo if uploaded */}
-        {claimData.idPhotoUrl && (
+        {/* Show claimer's ID photo if uploaded and not deleted */}
+        {claimData.idPhotoUrl && !claimData.photosDeleted && (
           <View className="mb-3 p-2 bg-white rounded border">
             <Text className="text-xs text-gray-600 mb-1">
               Claimer ID Photo:
@@ -482,6 +494,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 Tap to view full size
               </Text>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Show photos deleted indicator if photos were deleted */}
+        {claimData.photosDeleted && (
+          <View className="mb-3 p-2 bg-red-50 rounded border border-red-200">
+            <Text className="text-xs text-red-600 font-medium mb-1">
+              🗑️ Photos Deleted
+            </Text>
+            <Text className="text-xs text-red-500">
+              All photos have been removed from this request
+            </Text>
           </View>
         )}
 
@@ -524,8 +548,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           </View>
         )}
 
-        {/* Show evidence photos if uploaded */}
-        {claimData.evidencePhotos && claimData.evidencePhotos.length > 0 && (
+        {/* Show evidence photos if uploaded and not deleted */}
+        {claimData.evidencePhotos && claimData.evidencePhotos.length > 0 && !claimData.photosDeleted && (
           <View className="mb-3 p-2 bg-white rounded border">
             <Text className="text-xs text-gray-600 mb-1 font-medium">
               Evidence Photos:

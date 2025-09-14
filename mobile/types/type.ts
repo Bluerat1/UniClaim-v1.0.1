@@ -239,6 +239,9 @@ export interface Message {
     itemPhotosConfirmedAt?: any; // When the item photos were confirmed
     itemPhotosConfirmedBy?: string; // User ID who confirmed the item photos
     ownerIdPhoto?: string; // ID photo of the item owner
+    // Photo deletion tracking
+    photosDeleted?: boolean; // Whether photos were deleted after rejection
+    photosDeletedAt?: any; // When photos were deleted
   };
   // Fields for claim requests
   claimData?: {
@@ -274,6 +277,9 @@ export interface Message {
     photosConfirmed?: boolean; // Whether the item owner confirmed the verification photos
     photosConfirmedAt?: any; // When the photos were confirmed
     photosConfirmedBy?: string; // User ID who confirmed the verification photos
+    // Photo deletion tracking
+    photosDeleted?: boolean; // Whether photos were deleted after rejection
+    photosDeletedAt?: any; // When photos were deleted
   };
 }
 

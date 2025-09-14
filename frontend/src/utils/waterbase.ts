@@ -834,7 +834,9 @@ export const messageService = {
                         // Step 2: Delete photos from Cloudinary
                         if (imageUrls.length > 0) {
                             try {
-                                await deleteMessageImages(imageUrls);
+                                console.log('🗑️ Attempting to delete photos:', imageUrls);
+                                const deletionResult = await deleteMessageImages(imageUrls);
+                                console.log('🗑️ Deletion result:', deletionResult);
                                 console.log('✅ Photos deleted after claim rejection:', imageUrls.length);
 
                                 // Step 3: Clear photo URLs from the message data in database
@@ -860,10 +862,14 @@ export const messageService = {
                                     photoCleanupData['claimData.verificationPhotos'] = [];
                                 }
 
-                                // Update the message to remove photo references
+                                // Add photos deleted indicator to the message
+                                photoCleanupData['claimData.photosDeleted'] = true;
+                                photoCleanupData['claimData.photosDeletedAt'] = serverTimestamp();
+
+                                // Update the message to remove photo references and add deletion indicator
                                 if (Object.keys(photoCleanupData).length > 0) {
                                     await updateDoc(messageRef, photoCleanupData);
-                                    console.log('✅ Photo URLs cleared from database:', photoCleanupData);
+                                    console.log('✅ Photo URLs cleared from database and deletion indicator added:', photoCleanupData);
                                 }
 
                             } catch (photoError: any) {
@@ -1092,7 +1098,9 @@ export const messageService = {
                         // Step 2: Delete photos from Cloudinary
                         if (imageUrls.length > 0) {
                             try {
-                                await deleteMessageImages(imageUrls);
+                                console.log('🗑️ Attempting to delete photos:', imageUrls);
+                                const deletionResult = await deleteMessageImages(imageUrls);
+                                console.log('🗑️ Deletion result:', deletionResult);
                                 console.log('✅ Photos deleted after handover rejection:', imageUrls.length);
 
                                 // Step 3: Clear photo URLs from the message data in database
@@ -1113,10 +1121,14 @@ export const messageService = {
                                     photoCleanupData['handoverData.itemPhotos'] = [];
                                 }
 
-                                // Update the message to remove photo references
+                                // Add photos deleted indicator to the message
+                                photoCleanupData['handoverData.photosDeleted'] = true;
+                                photoCleanupData['handoverData.photosDeletedAt'] = serverTimestamp();
+
+                                // Update the message to remove photo references and add deletion indicator
                                 if (Object.keys(photoCleanupData).length > 0) {
                                     await updateDoc(messageRef, photoCleanupData);
-                                    console.log('✅ Photo URLs cleared from database:', photoCleanupData);
+                                    console.log('✅ Photo URLs cleared from database and deletion indicator added:', photoCleanupData);
                                 }
 
                             } catch (photoError: any) {

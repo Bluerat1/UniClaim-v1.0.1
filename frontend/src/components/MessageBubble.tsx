@@ -337,8 +337,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           <strong>Handover Request:</strong> {handoverData.postTitle}
         </div>
 
-        {/* Show ID photo if uploaded */}
-        {handoverData.idPhotoUrl && (
+        {/* Show ID photo if uploaded and not deleted */}
+        {handoverData.idPhotoUrl && !handoverData.photosDeleted && (
           <div className="mb-3 p-2 bg-white rounded border">
             <div className="text-xs text-gray-600 mb-1">Finder ID Photo:</div>
             <div className="relative">
@@ -359,6 +359,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             </div>
             <div className="text-xs text-gray-500 mt-1">
               Click the photo to view full size
+            </div>
+          </div>
+        )}
+
+        {/* Show photos deleted indicator if photos were deleted */}
+        {handoverData.photosDeleted && (
+          <div className="mb-3 p-2 bg-red-50 rounded border border-red-200">
+            <div className="text-xs text-red-600 font-medium mb-1">
+              🗑️ Photos Deleted
+            </div>
+            <div className="text-xs text-red-500">
+              All photos have been removed from this request
             </div>
           </div>
         )}
@@ -425,8 +437,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           }
         })()}
 
-        {/* Show item photos if uploaded */}
-        {handoverData.itemPhotos && handoverData.itemPhotos.length > 0 && (
+        {/* Show item photos if uploaded and not deleted */}
+        {handoverData.itemPhotos && handoverData.itemPhotos.length > 0 && !handoverData.photosDeleted && (
           <div className="mb-3 p-2 bg-white rounded border">
             <div className="text-xs text-gray-600 mb-1 font-medium">
               Item Photos:
@@ -572,8 +584,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           </div>
         )}
 
-        {/* Show claimer's ID photo if uploaded */}
-        {claimData.idPhotoUrl && (
+        {/* Show claimer's ID photo if uploaded and not deleted */}
+        {claimData.idPhotoUrl && !claimData.photosDeleted && (
           <div className="mb-3 p-2 bg-white rounded border">
             <div className="text-xs text-gray-600 mb-1 font-medium">
               Claimer ID Photo:
@@ -596,6 +608,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             </div>
             <div className="text-xs text-gray-500 mt-1">
               Click the photo to view full size
+            </div>
+          </div>
+        )}
+
+        {/* Show photos deleted indicator if photos were deleted */}
+        {claimData.photosDeleted && (
+          <div className="mb-3 p-2 bg-red-50 rounded border border-red-200">
+            <div className="text-xs text-red-600 font-medium mb-1">
+              🗑️ Photos Deleted
+            </div>
+            <div className="text-xs text-red-500">
+              All photos have been removed from this request
             </div>
           </div>
         )}
@@ -628,8 +652,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           </div>
         )}
 
-        {/* Show evidence photos if uploaded */}
-        {claimData.evidencePhotos && claimData.evidencePhotos.length > 0 && (
+        {/* Show evidence photos if uploaded and not deleted */}
+        {claimData.evidencePhotos && claimData.evidencePhotos.length > 0 && !claimData.photosDeleted && (
           <div className="mb-3 p-2 bg-white rounded border">
             <div className="text-xs text-gray-600 mb-1 font-medium">
               Evidence Photos:

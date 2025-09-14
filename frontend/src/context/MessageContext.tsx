@@ -134,7 +134,9 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
 
   const updateHandoverResponse = async (conversationId: string, messageId: string, status: 'accepted' | 'rejected'): Promise<void> => {
     try {
-      await messageService.updateHandoverResponse(conversationId, messageId, status, userId!);
+      // Use the waterbase service which has photo deletion logic
+      const { messageService: waterbaseMessageService } = await import('../utils/waterbase');
+      await waterbaseMessageService.updateHandoverResponse(conversationId, messageId, status, userId!);
     } catch (error: any) {
       throw new Error(error.message || 'Failed to update handover response');
     }
@@ -175,7 +177,9 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
     try {
       console.log('🔄 MessageContext: Calling updateClaimResponse with status:', status);
       console.log('🔄 MessageContext: Parameters:', { conversationId, messageId, status, responderId: userId });
-      await messageService.updateClaimResponse(conversationId, messageId, status, userId!);
+      // Use the waterbase service which has photo deletion logic
+      const { messageService: waterbaseMessageService } = await import('../utils/waterbase');
+      await waterbaseMessageService.updateClaimResponse(conversationId, messageId, status, userId!);
       console.log('✅ MessageContext: updateClaimResponse completed successfully');
     } catch (error: any) {
       console.error('❌ MessageContext: updateClaimResponse failed:', error);
