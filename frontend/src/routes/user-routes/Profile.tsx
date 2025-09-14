@@ -397,7 +397,7 @@ const Profile = () => {
 
   return (
     <>
-      <div className="lg:pt-1">
+      <div className="lg:pt-1 pb-20">
         <MobileNavInfo
           title="My Profile"
           description="Your info all in one place"
