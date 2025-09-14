@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, ImageStyle } from 'react-native';
+import { Image, ImageStyle, View, Text } from 'react-native';
 
 interface ProfilePictureProps {
   src?: string | null;
@@ -12,7 +12,7 @@ const ProfilePicture: React.FC<ProfilePictureProps> = ({
   size = 'md',
   style
 }) => {
-  // Default profile picture - you can replace this with your default image
+  // Default profile picture image
   const defaultProfilePicture = require('../assets/images/empty_profile.jpg');
   
   const sizeStyles = {
@@ -27,8 +27,19 @@ const ProfilePicture: React.FC<ProfilePictureProps> = ({
     '5xl': { width: 160, height: 160 }
   };
 
-  const imageSource = src ? { uri: src } : defaultProfilePicture;
   const sizeStyle = sizeStyles[size];
+  
+  // More robust check for valid source
+  const hasValidSrc = src && 
+    typeof src === 'string' && 
+    src.trim() !== '' && 
+    src !== 'null' && 
+    src !== 'undefined' &&
+    !src.includes('undefined') &&
+    src.startsWith('http'); // Only accept valid URLs
+
+  // Use default image if no valid source
+  const imageSource = hasValidSrc ? { uri: src } : defaultProfilePicture;
 
   return (
     <Image
@@ -36,16 +47,15 @@ const ProfilePicture: React.FC<ProfilePictureProps> = ({
       style={[
         {
           ...sizeStyle,
-          borderRadius: sizeStyle.width / 2, // Make it circular
+          borderRadius: sizeStyle.width / 2,
           borderWidth: 1,
-          borderColor: '#e5e7eb', // Light gray border
+          borderColor: '#e5e7eb',
         },
         style
       ]}
-      // Fallback to default image if the source fails to load
       onError={() => {
-        // React Native Image doesn't have onError like web, but we can handle this
-        // by using the default image as fallback
+        // Note: React Native Image onError doesn't work the same as web
+        // The fallback is handled by the conditional logic above
       }}
     />
   );
