@@ -1,6 +1,7 @@
 import { useEffect, useMemo, memo } from "react";
 import type { Post } from "@/types/Post";
 import ProfilePicture from "./ProfilePicture";
+import PostCardMenu from "./PostCardMenu";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 
 interface PostCardProps {
@@ -81,9 +82,25 @@ function PostCard({
 
   return (
     <div
-      className="bg-white rounded shadow/2 cursor-pointer overflow-hidden hover:shadow-md/5 transition"
+      className="bg-white rounded shadow/2 cursor-pointer overflow-hidden hover:shadow-md/5 transition relative"
       onClick={onClick}
     >
+      {/* Triple dot menu */}
+      <div className="absolute top-2 right-2 z-10">
+        <PostCardMenu
+          postId={post.id}
+          postTitle={post.title}
+          postOwnerId={post.creatorId || post.postedById || ""}
+          postOwnerUserData={post.user}
+          isFlagged={post.isFlagged}
+          flaggedBy={post.flaggedBy}
+          onFlagSuccess={() => {
+            // Optionally refresh the post data or update UI
+            console.log("Post flagged successfully");
+          }}
+        />
+      </div>
+
       {previewUrl ? (
         <img
           src={previewUrl}

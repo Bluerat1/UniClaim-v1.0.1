@@ -1,0 +1,198 @@
+import { useState, useRef, useEffect } from "react";
+import { IoEllipsisVertical, IoFlagOutline, IoChatbubbleOutline } from "react-icons/io5";
+import { useNavigate } from "react-router-dom";
+import FlagModal from "./FlagModal";
+import { postService } from "@/services/firebase/posts";
+import { messageService } from "@/services/firebase/messages";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/context/ToastContext";
+
+interface PostCardMenuProps {
+  postId: string;
+  postTitle: string;
+  postOwnerId: string;
+  postOwnerUserData: any;
+  isFlagged?: boolean;
+  flaggedBy?: string;
+  onFlagSuccess?: () => void;
+  className?: string;
+}
+
+export default function PostCardMenu({
+  postId,
+  postTitle,
+  postOwnerId,
+  postOwnerUserData,
+  isFlagged = false,
+  flaggedBy,
+  onFlagSuccess,
+  className = "",
+}: PostCardMenuProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [showFlagModal, setShowFlagModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
+  const { user, userData } = useAuth();
+  const { showToast } = useToast();
+  const navigate = useNavigate();
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const handleMenuClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the post card click
+    e.preventDefault();
+    setIsOpen(!isOpen);
+  };
+
+  const handleFlagClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!user) {
+      showToast("error", "Please log in to flag posts");
+      return;
+    }
+    setIsOpen(false);
+    setShowFlagModal(true);
+  };
+
+  const handleFlagSubmit = async (reason: string) => {
+    if (!user) return;
+
+    setIsLoading(true);
+    try {
+      await postService.flagPost(postId, user.uid, reason);
+      setShowFlagModal(false);
+      showToast("success", "Post has been flagged for review");
+      onFlagSuccess?.();
+    } catch (error: any) {
+      showToast("error", error.message || "Failed to flag post");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSendMessage = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    if (!userData) {
+      showToast("error", "Please log in to send messages");
+      return;
+    }
+
+    // Check if user is trying to message themselves
+    if (postOwnerId === userData.uid) {
+      showToast("error", "You cannot send a message to yourself");
+      return;
+    }
+
+    try {
+      setIsCreatingConversation(true);
+      setIsOpen(false);
+
+      // Create conversation and get the conversation ID
+      const conversationId = await messageService.createConversation(
+        postId,
+        postTitle,
+        postOwnerId,
+        userData.uid,
+        userData,
+        postOwnerUserData
+      );
+
+      // Navigate to messages page with the specific conversation
+      navigate(`/messages?conversation=${conversationId}`);
+    } catch (error: any) {
+      console.error("Error creating conversation:", error);
+      showToast("error", error.message || "Failed to start conversation");
+    } finally {
+      setIsCreatingConversation(false);
+    }
+  };
+
+  // Check if current user has already flagged this post
+  const isAlreadyFlaggedByUser = isFlagged && flaggedBy === user?.uid;
+
+  return (
+    <>
+      <div className={`relative ${className}`} ref={menuRef}>
+        {/* Triple dot button */}
+        <button
+          onClick={handleMenuClick}
+          className="p-1 rounded-full hover:bg-gray-100 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          title="More options"
+        >
+          <IoEllipsisVertical className="w-5 h-5 text-gray-600" />
+        </button>
+
+        {/* Dropdown menu */}
+        {isOpen && (
+          <div className="absolute right-0 top-8 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+            <div className="py-1">
+              {/* Send Message Button */}
+              <button
+                onClick={handleSendMessage}
+                disabled={isCreatingConversation || postOwnerId === userData?.uid}
+                className={`
+                  w-full px-4 py-2 text-left text-sm flex items-center gap-2
+                  transition-colors duration-200
+                  ${
+                    isCreatingConversation || postOwnerId === userData?.uid
+                      ? "text-gray-400 cursor-not-allowed"
+                      : "text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+                  }
+                `}
+              >
+                <IoChatbubbleOutline className="w-4 h-4" />
+                {isCreatingConversation ? "Starting Chat..." : "Send Message"}
+              </button>
+              
+              {/* Flag Post Button */}
+              <button
+                onClick={handleFlagClick}
+                disabled={isAlreadyFlaggedByUser || isLoading}
+                className={`
+                  w-full px-4 py-2 text-left text-sm flex items-center gap-2
+                  transition-colors duration-200
+                  ${
+                    isAlreadyFlaggedByUser || isLoading
+                      ? "text-gray-400 cursor-not-allowed"
+                      : "text-gray-700 hover:bg-red-50 hover:text-red-700"
+                  }
+                `}
+              >
+                <IoFlagOutline className="w-4 h-4" />
+                {isAlreadyFlaggedByUser ? "Already Flagged" : "Flag Post"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Flag Modal */}
+      {showFlagModal && (
+        <FlagModal
+          onClose={() => setShowFlagModal(false)}
+          onSubmit={handleFlagSubmit}
+          isLoading={isLoading}
+        />
+      )}
+    </>
+  );
+}
