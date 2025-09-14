@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { Post } from "@/types/Post";
 
 // components
@@ -16,8 +16,17 @@ function fuzzyMatch(text: string, query: string): boolean {
   const cleanedText = text.toLowerCase();
   const queryWords = query.toLowerCase().split(/\W+/).filter(Boolean);
 
-  // Make sure every keyword appears in the text
-  return queryWords.every((word) => cleanedText.includes(word));
+  // If no query words, return true
+  if (queryWords.length === 0) return true;
+
+  // For single word queries, use partial matching
+  if (queryWords.length === 1) {
+    return cleanedText.includes(queryWords[0]);
+  }
+
+  // For multiple words, require at least 70% of words to match (more flexible)
+  const matchedWords = queryWords.filter((word) => cleanedText.includes(word));
+  return matchedWords.length >= Math.ceil(queryWords.length * 0.7);
 }
 
 export default function HomePage() {
@@ -46,6 +55,9 @@ export default function HomePage() {
 
   const handleSearch = async (query: string, filters: any) => {
     setLastDescriptionKeyword(filters.description || "");
+    
+    // Always reset pagination when searching (now only manual searches)
+    setCurrentPage(1);
 
     // Use appropriate posts based on current viewType
     const postsToSearch = viewType === "completed" ? resolvedPosts : posts;
@@ -120,8 +132,14 @@ export default function HomePage() {
 
   const postsToDisplay = getPostsToDisplay();
 
-  // Check if there are more posts to load
-  const hasMorePosts = postsToDisplay.length > currentPage * itemsPerPage;
+  // Reset pagination when category filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategoryFilter]);
+
+  // Check if there are more posts to load - more accurate calculation
+  const totalPostsToShow = Math.min(postsToDisplay.length, currentPage * itemsPerPage);
+  const hasMorePosts = postsToDisplay.length > totalPostsToShow;
   
   // Function to load more posts when scrolling
   const handleLoadMore = useCallback(() => {
@@ -148,6 +166,7 @@ export default function HomePage() {
               setSearchQuery("");
               setSelectedCategoryFilter("All"); // ✅ Reset category filter when clearing
               setCurrentPage(1); // Reset pagination when clearing search
+              setIsLoading(false); // Reset loading state
             }}
             query={searchQuery}
             setQuery={setSearchQuery}
@@ -193,6 +212,7 @@ export default function HomePage() {
             setIsLoading(true);
             setViewType("lost");
             setCurrentPage(1); // Reset pagination when switching views
+            setRawResults(null); // Clear search results when switching views
             setTimeout(() => setIsLoading(false), 200);
           }}
         >
@@ -209,6 +229,7 @@ export default function HomePage() {
             setIsLoading(true);
             setViewType("found");
             setCurrentPage(1); // Reset pagination when switching views
+            setRawResults(null); // Clear search results when switching views
             setTimeout(() => setIsLoading(false), 200);
           }}
         >
@@ -225,6 +246,7 @@ export default function HomePage() {
             setIsLoading(true);
             setViewType("completed");
             setCurrentPage(1); // Reset pagination when switching views
+            setRawResults(null); // Clear search results when switching views
             setTimeout(() => setIsLoading(false), 200);
           }}
         >
@@ -258,7 +280,7 @@ export default function HomePage() {
           postsToDisplay
             .slice()
             .reverse()
-            .slice(0, currentPage * itemsPerPage)
+            .slice(0, totalPostsToShow)
             .map((post) => (
               <PostCard
                 key={post.id}

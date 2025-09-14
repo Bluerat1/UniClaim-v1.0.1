@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useMessage } from "@/context/MessageContext";
 import type { Message } from "@/types/type";
 import ImagePicker from "@/components/ImagePicker";
+import { handoverClaimService, type HandoverClaimCallbacks } from "@/utils/handoverClaimService";
 
 interface MessageBubbleProps {
   message: Message;
@@ -45,9 +46,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 }) => {
   const {
     deleteMessage,
-    confirmHandoverIdPhoto,
-    confirmClaimIdPhoto,
-    updateClaimResponse,
   } = useMessage();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showIdPhotoModal, setShowIdPhotoModal] = useState(false);
@@ -65,144 +63,128 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const handleHandoverResponse = async (status: "accepted" | "rejected") => {
     if (!onHandoverResponse) return;
 
+    // If accepting, show ID photo modal
     if (status === "accepted") {
       setShowIdPhotoModal(true);
       return;
     }
 
-    try {
-      const { messageService } = await import("@/utils/firebase");
-      await messageService.updateHandoverResponse(
-        conversationId,
-        message.id,
-        status,
-        currentUserId
-      );
-      onHandoverResponse(message.id, status);
-    } catch (error) {
-      console.error("Failed to update handover response:", error);
-    }
+    // For rejection, use the consolidated service
+    const callbacks: HandoverClaimCallbacks = {
+      onHandoverResponse,
+      onError: (error) => Alert.alert("Error", error),
+    };
+
+    await handoverClaimService.handleHandoverResponse(
+      conversationId,
+      message.id,
+      status,
+      currentUserId,
+      callbacks
+    );
   };
 
   const handleIdPhotoUpload = async (photoUri: string) => {
-    try {
-      setIsUploadingIdPhoto(true);
+    setIsUploadingIdPhoto(true);
 
-      // Upload ID photo to Cloudinary
-      const { cloudinaryService } = await import("@/utils/cloudinary");
-      const uploadedUrl = await cloudinaryService.uploadImage(
-        photoUri,
-        "id_photos"
-      );
+    const callbacks: HandoverClaimCallbacks = {
+      onHandoverResponse,
+      onSuccess: (message) => {
+        Alert.alert("Success", message);
+        setShowIdPhotoModal(false);
+      },
+      onError: (error) => Alert.alert("Upload Error", error),
+    };
 
-      // Update handover response with ID photo
-      const { messageService } = await import("@/utils/firebase");
-      await messageService.updateHandoverResponse(
-        conversationId,
-        message.id,
-        "accepted",
-        currentUserId,
-        uploadedUrl
-      );
+    await handoverClaimService.handleIdPhotoUploadMobile(
+      photoUri,
+      conversationId,
+      message.id,
+      currentUserId,
+      'handover',
+      callbacks
+    );
 
-      onHandoverResponse?.(message.id, "accepted");
-      setShowIdPhotoModal(false);
-
-      Alert.alert(
-        "Success",
-        "ID photo uploaded successfully! The item owner will now review and confirm."
-      );
-    } catch (error: any) {
-      console.error("Failed to upload ID photo:", error);
-      Alert.alert(
-        "Upload Error",
-        "Failed to upload ID photo. Please try again."
-      );
-    } finally {
-      setIsUploadingIdPhoto(false);
-    }
+    setIsUploadingIdPhoto(false);
   };
 
   const handleConfirmIdPhoto = async () => {
-    try {
-      await confirmHandoverIdPhoto(conversationId, message.id);
-    } catch (error: any) {
-      console.error("Failed to confirm ID photo:", error);
-      Alert.alert("Error", "Failed to confirm ID photo. Please try again.");
-    }
+    const callbacks: HandoverClaimCallbacks = {
+      onSuccess: (message) => Alert.alert("Success", message),
+      onError: (error) => Alert.alert("Error", error),
+      onClearConversation: onConfirmIdPhotoSuccess,
+    };
+
+    await handoverClaimService.handleConfirmIdPhoto(
+      conversationId,
+      message.id,
+      currentUserId,
+      callbacks
+    );
   };
 
   const handleClaimResponse = async (status: "accepted" | "rejected") => {
     if (!onClaimResponse) return;
 
+    // If accepting, show ID photo modal
     if (status === "accepted") {
       setShowIdPhotoModal(true);
       return;
     }
 
-    try {
-      await updateClaimResponse(conversationId, message.id, status);
-      onClaimResponse(message.id, status);
-    } catch (error) {
-      console.error("Failed to update claim response:", error);
-      Alert.alert(
-        "Error",
-        "Failed to update claim response. Please try again."
-      );
-    }
+    // For rejection, use the consolidated service
+    const callbacks: HandoverClaimCallbacks = {
+      onClaimResponse,
+      onError: (error) => Alert.alert("Error", error),
+    };
+
+    await handoverClaimService.handleClaimResponse(
+      conversationId,
+      message.id,
+      status,
+      currentUserId,
+      callbacks
+    );
   };
 
   const handleClaimIdPhotoUpload = async (photoUri: string) => {
-    try {
-      setIsUploadingIdPhoto(true);
+    setIsUploadingIdPhoto(true);
 
-      // Upload ID photo to Cloudinary
-      const { cloudinaryService } = await import("@/utils/cloudinary");
-      const uploadedUrl = await cloudinaryService.uploadImage(
-        photoUri,
-        "id_photos"
-      );
+    const callbacks: HandoverClaimCallbacks = {
+      onClaimResponse,
+      onSuccess: (message) => {
+        Alert.alert("Success", message);
+        setShowIdPhotoModal(false);
+      },
+      onError: (error) => Alert.alert("Upload Error", error),
+    };
 
-      // Update claim response with ID photo
-      const { messageService } = await import("@/utils/firebase");
-      await messageService.updateClaimResponse(
-        conversationId,
-        message.id,
-        "accepted",
-        currentUserId,
-        uploadedUrl
-      );
+    await handoverClaimService.handleIdPhotoUploadMobile(
+      photoUri,
+      conversationId,
+      message.id,
+      currentUserId,
+      'claim',
+      callbacks
+    );
 
-      onClaimResponse?.(message.id, "accepted");
-      setShowIdPhotoModal(false);
-
-      Alert.alert(
-        "Success",
-        "ID photo uploaded successfully! The post owner will now review and confirm your claim."
-      );
-    } catch (error: any) {
-      console.error("Failed to upload claim ID photo:", error);
-      Alert.alert(
-        "Upload Error",
-        "Failed to upload ID photo. Please try again."
-      );
-    } finally {
-      setIsUploadingIdPhoto(false);
-    }
+    setIsUploadingIdPhoto(false);
   };
 
   const handleConfirmClaimIdPhoto = async () => {
-    try {
-      await confirmClaimIdPhoto(conversationId, message.id);
-      // Call the callback to update UI
-      onClaimResponse?.(message.id, "accepted");
+    const callbacks: HandoverClaimCallbacks = {
+      onClaimResponse,
+      onSuccess: (message) => Alert.alert("Success", message),
+      onError: (error) => Alert.alert("Error", error),
+      onConfirmIdPhotoSuccess,
+    };
 
-      // Call the success callback for navigation
-      onConfirmIdPhotoSuccess?.(message.id);
-    } catch (error: any) {
-      console.error("Failed to confirm claim ID photo:", error);
-      Alert.alert("Error", "Failed to confirm ID photo. Please try again.");
-    }
+    await handoverClaimService.handleConfirmClaimIdPhoto(
+      conversationId,
+      message.id,
+      currentUserId,
+      callbacks
+    );
   };
 
   const handleDeleteMessage = async () => {
@@ -257,8 +239,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           {handoverData.postTitle}
         </Text>
 
-        {/* Show ID photo if uploaded */}
-        {handoverData.idPhotoUrl && (
+        {/* Show ID photo if uploaded and not deleted */}
+        {handoverData.idPhotoUrl && !handoverData.photosDeleted && (
           <View className="mb-3 p-2 bg-white rounded border">
             <Text className="text-xs text-gray-600 mb-1">Finder ID Photo:</Text>
             <TouchableOpacity
@@ -278,6 +260,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 Tap to view full size
               </Text>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Show photos deleted indicator if photos were deleted */}
+        {handoverData.photosDeleted && (
+          <View className="mb-3 p-2 bg-red-50 rounded border border-red-200">
+            <Text className="text-xs text-red-600 font-medium mb-1">
+              🗑️ Photos Deleted
+            </Text>
+            <Text className="text-xs text-red-500">
+              All photos have been removed from this request
+            </Text>
           </View>
         )}
 
@@ -305,8 +299,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           </View>
         )}
 
-        {/* Show item photos if uploaded */}
-        {handoverData.itemPhotos && handoverData.itemPhotos.length > 0 && (
+        {/* Show item photos if uploaded and not deleted */}
+        {handoverData.itemPhotos && handoverData.itemPhotos.length > 0 && !handoverData.photosDeleted && (
           <View className="mb-3 p-2 bg-white rounded border">
             <Text className="text-xs text-gray-600 mb-1 font-medium">
               Item Photos:
@@ -458,8 +452,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           </View>
         )}
 
-        {/* Show claimer's ID photo if uploaded */}
-        {claimData.idPhotoUrl && (
+        {/* Show claimer's ID photo if uploaded and not deleted */}
+        {claimData.idPhotoUrl && !claimData.photosDeleted && (
           <View className="mb-3 p-2 bg-white rounded border">
             <Text className="text-xs text-gray-600 mb-1">
               Claimer ID Photo:
@@ -496,6 +490,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 Tap to view full size
               </Text>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Show photos deleted indicator if photos were deleted */}
+        {claimData.photosDeleted && (
+          <View className="mb-3 p-2 bg-red-50 rounded border border-red-200">
+            <Text className="text-xs text-red-600 font-medium mb-1">
+              🗑️ Photos Deleted
+            </Text>
+            <Text className="text-xs text-red-500">
+              All photos have been removed from this request
+            </Text>
           </View>
         )}
 
@@ -538,8 +544,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           </View>
         )}
 
-        {/* Show evidence photos if uploaded */}
-        {claimData.evidencePhotos && claimData.evidencePhotos.length > 0 && (
+        {/* Show evidence photos if uploaded and not deleted */}
+        {claimData.evidencePhotos && claimData.evidencePhotos.length > 0 && !claimData.photosDeleted && (
           <View className="mb-3 p-2 bg-white rounded border">
             <Text className="text-xs text-gray-600 mb-1 font-medium">
               Evidence Photos:

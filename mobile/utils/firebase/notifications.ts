@@ -425,6 +425,38 @@ export class NotificationService {
         }
     }
 
+    // Create a new notification
+    async createNotification(notificationData: {
+        userId: string;
+        type: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted';
+        title: string;
+        body: string;
+        data?: any;
+        postId?: string;
+        conversationId?: string;
+    }): Promise<string> {
+        try {
+            const notificationsRef = collection(db, 'notifications');
+            const docRef = await addDoc(notificationsRef, {
+                userId: notificationData.userId,
+                type: notificationData.type,
+                title: notificationData.title,
+                body: notificationData.body,
+                data: notificationData.data || {},
+                read: false,
+                createdAt: serverTimestamp(),
+                postId: notificationData.postId || null,
+                conversationId: notificationData.conversationId || null
+            });
+
+            console.log('Successfully created notification:', docRef.id);
+            return docRef.id;
+        } catch (error) {
+            console.error('Error creating notification:', error);
+            throw error;
+        }
+    }
+
     // Set up real-time listener for notifications
     setupRealtimeListener(
         userId: string,
