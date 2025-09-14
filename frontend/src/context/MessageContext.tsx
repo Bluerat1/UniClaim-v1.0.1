@@ -132,11 +132,11 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
     }
   };
 
-  const updateHandoverResponse = async (conversationId: string, messageId: string, status: 'accepted' | 'rejected'): Promise<void> => {
+  const updateHandoverResponse = async (conversationId: string, messageId: string, status: 'accepted' | 'rejected', idPhotoUrl?: string): Promise<void> => {
     try {
       // Use the waterbase service which has photo deletion logic
       const { messageService: waterbaseMessageService } = await import('../utils/waterbase');
-      await waterbaseMessageService.updateHandoverResponse(conversationId, messageId, status, userId!);
+      await waterbaseMessageService.updateHandoverResponse(conversationId, messageId, status, userId!, idPhotoUrl);
     } catch (error: any) {
       throw new Error(error.message || 'Failed to update handover response');
     }
@@ -173,13 +173,13 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
     }
   };
 
-  const updateClaimResponse = async (conversationId: string, messageId: string, status: 'accepted' | 'rejected'): Promise<void> => {
+  const updateClaimResponse = async (conversationId: string, messageId: string, status: 'accepted' | 'rejected', idPhotoUrl?: string): Promise<void> => {
     try {
       console.log('🔄 MessageContext: Calling updateClaimResponse with status:', status);
       console.log('🔄 MessageContext: Parameters:', { conversationId, messageId, status, responderId: userId });
       // Use the waterbase service which has photo deletion logic
       const { messageService: waterbaseMessageService } = await import('../utils/waterbase');
-      await waterbaseMessageService.updateClaimResponse(conversationId, messageId, status, userId!);
+      await waterbaseMessageService.updateClaimResponse(conversationId, messageId, status, userId!, idPhotoUrl);
       console.log('✅ MessageContext: updateClaimResponse completed successfully');
     } catch (error: any) {
       console.error('❌ MessageContext: updateClaimResponse failed:', error);

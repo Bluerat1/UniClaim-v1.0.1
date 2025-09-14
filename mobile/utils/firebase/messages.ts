@@ -378,12 +378,21 @@ export const messageService: MessageService = {
     async updateHandoverResponse(conversationId: string, messageId: string, status: 'accepted' | 'rejected', userId: string, idPhotoUrl?: string): Promise<void> {
         try {
             const messageRef = doc(db, `conversations/${conversationId}/messages`, messageId);
-            await updateDoc(messageRef, {
+
+            // Update the handover message with the response and ID photo
+            const updateData: any = {
                 'handoverData.status': status,
                 'handoverData.respondedAt': serverTimestamp(),
-                'handoverData.respondedBy': userId,
-                ...(idPhotoUrl && { 'handoverData.idPhotoUrl': idPhotoUrl })
-            });
+                'handoverData.respondedBy': userId
+            };
+
+            // If accepting with ID photo, add the owner photo URL and change status to pending confirmation
+            if (status === 'accepted' && idPhotoUrl) {
+                updateData['handoverData.ownerIdPhoto'] = idPhotoUrl; // Store owner's photo with correct field name
+                updateData['handoverData.status'] = 'pending_confirmation'; // New status for photo confirmation
+            }
+
+            await updateDoc(messageRef, updateData);
         } catch (error: any) {
             throw new Error(error.message || 'Failed to update handover response');
         }
@@ -419,12 +428,21 @@ export const messageService: MessageService = {
     async updateClaimResponse(conversationId: string, messageId: string, status: 'accepted' | 'rejected', userId: string, idPhotoUrl?: string): Promise<void> {
         try {
             const messageRef = doc(db, `conversations/${conversationId}/messages`, messageId);
-            await updateDoc(messageRef, {
+
+            // Update the claim message with the response and ID photo
+            const updateData: any = {
                 'claimData.status': status,
                 'claimData.respondedAt': serverTimestamp(),
-                'claimData.respondedBy': userId,
-                ...(idPhotoUrl && { 'claimData.idPhotoUrl': idPhotoUrl })
-            });
+                'claimData.respondedBy': userId
+            };
+
+            // If accepting with ID photo, add the owner photo URL and change status to pending confirmation
+            if (status === 'accepted' && idPhotoUrl) {
+                updateData['claimData.ownerIdPhoto'] = idPhotoUrl; // Store owner's photo with correct field name
+                updateData['claimData.status'] = 'pending_confirmation'; // New status for photo confirmation
+            }
+
+            await updateDoc(messageRef, updateData);
         } catch (error: any) {
             throw new Error(error.message || 'Failed to update claim response');
         }

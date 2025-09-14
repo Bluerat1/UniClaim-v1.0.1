@@ -4,6 +4,7 @@ import ProfilePicture from "./ProfilePicture";
 import { useMessage } from "../context/MessageContext";
 import ImagePicker from "./ImagePicker";
 import ImageModal from "./ImageModal";
+import { handoverClaimService, type HandoverClaimCallbacks } from "../services/handoverClaimService";
 
 interface MessageBubbleProps {
   message: Message;
@@ -39,10 +40,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 }) => {
   const {
     deleteMessage,
-    updateHandoverResponse,
-    confirmHandoverIdPhoto,
-    confirmClaimIdPhoto,
-    updateClaimResponse,
   } = useMessage();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -89,212 +86,148 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const handleHandoverResponse = async (status: "accepted" | "rejected") => {
     if (!onHandoverResponse) return;
 
-    try {
-      // If accepting, show ID photo modal
-      if (status === "accepted") {
-        setShowIdPhotoModal(true);
-        return;
-      }
-
-      // For rejection, proceed as normal
-      await updateHandoverResponse(conversationId, message.id, status);
-
-      // Call the callback to update UI
-      onHandoverResponse(message.id, status);
-    } catch (error) {
-      console.error("Failed to update handover response:", error);
+    // If accepting, show ID photo modal
+    if (status === "accepted") {
+      setShowIdPhotoModal(true);
+      return;
     }
+
+    // For rejection, use the consolidated service
+    const callbacks: HandoverClaimCallbacks = {
+      onHandoverResponse,
+      onError: (error) => alert(error),
+    };
+
+    await handoverClaimService.handleHandoverResponse(
+      conversationId,
+      message.id,
+      status,
+      currentUserId,
+      callbacks
+    );
   };
 
   const handleIdPhotoUpload = async (photoFile: File) => {
-    try {
-      setIsUploadingIdPhoto(true);
+    setIsUploadingIdPhoto(true);
 
-      console.log("📸 Starting ID photo upload...", photoFile.name);
+    const callbacks: HandoverClaimCallbacks = {
+      onHandoverResponse,
+      onSuccess: (message) => {
+        alert(message);
+        setShowIdPhotoModal(false);
+        setSelectedIdPhoto(null);
+      },
+      onError: (error) => {
+        let errorMessage = error;
+        if (error.includes("Network request failed")) {
+          errorMessage = "Network error. Please check your internet connection and try again.";
+        } else if (error.includes("Cloudinary cloud name not configured")) {
+          errorMessage = "Cloudinary not configured. Please contact support.";
+        } else if (error.includes("Upload preset not configured")) {
+          errorMessage = "Upload configuration error. Please contact support.";
+        }
+        alert("Upload Error: " + errorMessage);
+      },
+    };
 
-      // Upload ID photo to Cloudinary
-      const { cloudinaryService } = await import("../utils/cloudinary");
-      const uploadedUrl = await cloudinaryService.uploadImage(
-        photoFile,
-        "id_photos"
-      );
+    await handoverClaimService.handleIdPhotoUpload(
+      photoFile,
+      conversationId,
+      message.id,
+      currentUserId,
+      callbacks
+    );
 
-      console.log("✅ ID photo uploaded successfully:", uploadedUrl);
-
-      // Update handover response with ID photo
-      const { messageService } = await import("../utils/firebase");
-      await messageService.updateHandoverResponse(
-        conversationId,
-        message.id,
-        "accepted",
-        currentUserId,
-        uploadedUrl
-      );
-
-      console.log("✅ Handover response updated with ID photo");
-
-      // Call the callback to update UI
-      onHandoverResponse?.(message.id, "accepted");
-
-      // Close modal and reset state
-      setShowIdPhotoModal(false);
-      setSelectedIdPhoto(null);
-
-      // Show success message
-      alert(
-        "ID photo uploaded successfully! The item owner will now review and confirm."
-      );
-    } catch (error: any) {
-      console.error("❌ Failed to upload ID photo:", error);
-
-      let errorMessage = "Failed to upload ID photo. Please try again.";
-
-      if (error.message?.includes("Network request failed")) {
-        errorMessage =
-          "Network error. Please check your internet connection and try again.";
-      } else if (
-        error.message?.includes("Cloudinary cloud name not configured")
-      ) {
-        errorMessage = "Cloudinary not configured. Please contact support.";
-      } else if (error.message?.includes("Upload preset not configured")) {
-        errorMessage = "Upload configuration error. Please contact support.";
-      }
-
-      alert("Upload Error: " + errorMessage);
-    } finally {
-      setIsUploadingIdPhoto(false);
-    }
+    setIsUploadingIdPhoto(false);
   };
 
   const handleConfirmIdPhoto = async () => {
-    try {
-      const result = await confirmHandoverIdPhoto(conversationId, message.id);
+    const callbacks: HandoverClaimCallbacks = {
+      onSuccess: (message) => alert(message),
+      onError: (error) => alert(error),
+      onClearConversation,
+    };
 
-      if (result.success) {
-        if (result.conversationDeleted) {
-          // Handover confirmed and conversation deleted successfully
-          alert(
-            "✅ Handover confirmed successfully! The conversation has been archived and the post is now marked as completed."
-          );
-          // Clear conversation to show "Select a conversation" screen
-          onClearConversation?.();
-        } else {
-          // Handover confirmed but conversation not deleted (fallback case)
-          alert(
-            "✅ Handover confirmed successfully! The post is now marked as completed."
-          );
-          // Clear conversation to show "Select a conversation" screen
-          onClearConversation?.();
-        }
-      } else {
-        // Handover failed
-        const errorMessage = result.error || "Unknown error occurred";
-        alert(`❌ Failed to confirm handover: ${errorMessage}`);
-      }
-    } catch (error: any) {
-      console.error("Failed to confirm ID photo:", error.message);
-      alert("Failed to confirm ID photo. Please try again.");
-    }
+    await handoverClaimService.handleConfirmIdPhoto(
+      conversationId,
+      message.id,
+      currentUserId,
+      callbacks
+    );
   };
 
   const handleClaimResponse = async (status: "accepted" | "rejected") => {
     if (!onClaimResponse) return;
 
-    try {
-      // If accepting, show ID photo modal for verification
-      if (status === "accepted") {
-        setShowIdPhotoModal(true);
-        return;
-      }
-
-      // For rejection, proceed as normal
-      await updateClaimResponse(conversationId, message.id, status);
-
-      // Call the callback to update UI
-      onClaimResponse(message.id, status);
-    } catch (error) {
-      console.error("Failed to update claim response:", error);
-      alert("Failed to update claim response. Please try again.");
+    // If accepting, show ID photo modal for verification
+    if (status === "accepted") {
+      setShowIdPhotoModal(true);
+      return;
     }
+
+    // For rejection, use the consolidated service
+    const callbacks: HandoverClaimCallbacks = {
+      onClaimResponse,
+      onError: (error) => alert(error),
+    };
+
+    await handoverClaimService.handleClaimResponse(
+      conversationId,
+      message.id,
+      status,
+      currentUserId,
+      callbacks
+    );
   };
 
   const handleClaimIdPhotoUpload = async (photoFile: File) => {
-    try {
-      setIsUploadingIdPhoto(true);
+    setIsUploadingIdPhoto(true);
 
-      console.log("📸 Starting claim ID photo upload...", photoFile.name);
-      console.log("📸 Message type:", message.messageType);
-      console.log("📸 Conversation ID:", conversationId);
+    const callbacks: HandoverClaimCallbacks = {
+      onClaimResponse,
+      onSuccess: (message) => {
+        alert(message);
+        setShowIdPhotoModal(false);
+        setSelectedIdPhoto(null);
+      },
+      onError: (error) => {
+        let errorMessage = error;
+        if (error.includes("Network request failed")) {
+          errorMessage = "Network error. Please check your internet connection and try again.";
+        } else if (error.includes("Cloudinary cloud name not configured")) {
+          errorMessage = "Cloudinary not configured. Please contact support.";
+        } else if (error.includes("Upload preset not configured")) {
+          errorMessage = "Upload configuration error. Please contact support.";
+        }
+        alert("Upload Error: " + errorMessage);
+      },
+    };
 
-      // Upload ID photo to Cloudinary
-      const { cloudinaryService } = await import("../utils/cloudinary");
-      const uploadedUrl = await cloudinaryService.uploadImage(
-        photoFile,
-        "id_photos"
-      );
+    await handoverClaimService.handleClaimIdPhotoUpload(
+      photoFile,
+      conversationId,
+      message.id,
+      currentUserId,
+      callbacks
+    );
 
-      console.log("✅ Claim ID photo uploaded successfully:", uploadedUrl);
-
-      // Update claim response with verification photo
-      const { messageService } = await import("../utils/firebase");
-      await messageService.updateClaimResponse(
-        conversationId,
-        message.id,
-        "accepted",
-        currentUserId,
-        uploadedUrl
-      );
-
-      console.log("✅ Claim response updated with ID photo");
-
-      // Call the callback to update UI
-      onClaimResponse?.(message.id, "accepted");
-
-      // Close modal and reset state
-      setShowIdPhotoModal(false);
-      setSelectedIdPhoto(null);
-
-      // Show success message
-      alert(
-        "ID photo uploaded successfully! The post owner will now review and confirm your claim."
-      );
-    } catch (error: any) {
-      console.error("❌ Failed to upload claim ID photo:", error);
-
-      let errorMessage = "Failed to upload ID photo. Please try again.";
-
-      if (error.message?.includes("Network request failed")) {
-        errorMessage =
-          "Network error. Please check your internet connection and try again.";
-      } else if (
-        error.message?.includes("Cloudinary cloud name not configured")
-      ) {
-        errorMessage = "Cloudinary not configured. Please contact support.";
-      } else if (error.message?.includes("Upload preset not configured")) {
-        errorMessage = "Upload configuration error. Please contact support.";
-      }
-
-      alert("Upload Error: " + errorMessage);
-    } finally {
-      setIsUploadingIdPhoto(false);
-    }
+    setIsUploadingIdPhoto(false);
   };
 
   const handleConfirmClaimIdPhoto = async () => {
-    try {
-      await confirmClaimIdPhoto(conversationId, message.id);
-      // Call the callback to update UI
-      onClaimResponse?.(message.id, "accepted");
+    const callbacks: HandoverClaimCallbacks = {
+      onClaimResponse,
+      onSuccess: (message) => alert(message),
+      onError: (error) => alert(error),
+      onClearConversation,
+    };
 
-      // Show success message
-      alert("✅ Claim ID photo confirmed successfully!");
-
-      // Clear conversation to show "Select a conversation" screen
-      onClearConversation?.();
-    } catch (error: any) {
-      console.error("Failed to confirm claim ID photo:", error);
-      alert("Failed to confirm ID photo. Please try again.");
-    }
+    await handoverClaimService.handleConfirmClaimIdPhoto(
+      conversationId,
+      message.id,
+      currentUserId,
+      callbacks
+    );
   };
 
   const handleDeleteMessage = async () => {

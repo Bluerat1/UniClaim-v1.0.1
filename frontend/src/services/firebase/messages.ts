@@ -536,13 +536,20 @@ export const messageService = {
                 throw new Error('Message is not a handover request');
             }
 
-            // Update the handover request status
-            await updateDoc(messageRef, {
+            // Update the handover message with the response and ID photo
+            const updateData: any = {
                 'handoverData.status': status,
                 'handoverData.respondedAt': serverTimestamp(),
-                'handoverData.responderId': userId,
-                'handoverData.responderIdPhoto': idPhotoUrl || ''
-            });
+                'handoverData.responderId': userId
+            };
+
+            // If accepting with ID photo, add the owner photo URL and change status to pending confirmation
+            if (status === 'accepted' && idPhotoUrl) {
+                updateData['handoverData.ownerIdPhoto'] = idPhotoUrl; // Store owner's photo with correct field name
+                updateData['handoverData.status'] = 'pending_confirmation'; // New status for photo confirmation
+            }
+
+            await updateDoc(messageRef, updateData);
 
             // Update conversation status
             await updateDoc(doc(db, 'conversations', conversationId), {
@@ -626,13 +633,20 @@ export const messageService = {
                 throw new Error('Message is not a claim request');
             }
 
-            // Update the claim request status
-            await updateDoc(messageRef, {
+            // Update the claim message with the response and ID photo
+            const updateData: any = {
                 'claimData.status': status,
                 'claimData.respondedAt': serverTimestamp(),
-                'claimData.responderId': userId,
-                'claimData.responderIdPhoto': idPhotoUrl || ''
-            });
+                'claimData.responderId': userId
+            };
+
+            // If accepting with ID photo, add the owner photo URL and change status to pending confirmation
+            if (status === 'accepted' && idPhotoUrl) {
+                updateData['claimData.ownerIdPhoto'] = idPhotoUrl; // Store owner's photo with correct field name
+                updateData['claimData.status'] = 'pending_confirmation'; // New status for photo confirmation
+            }
+
+            await updateDoc(messageRef, updateData);
 
             // Update conversation status
             await updateDoc(doc(db, 'conversations', conversationId), {
