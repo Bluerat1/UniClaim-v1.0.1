@@ -40,9 +40,9 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load notifications when user is authenticated
+  // Load notifications when user is authenticated and email verified
   useEffect(() => {
-    if (isAuthenticated && userData?.uid) {
+    if (isAuthenticated && userData?.uid && userData?.emailVerified) {
       // Add a small delay to ensure authentication is fully processed
       const timer = setTimeout(() => {
         loadNotifications();
@@ -53,11 +53,11 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       setNotifications([]);
       setUnreadCount(0);
     }
-  }, [isAuthenticated, userData?.uid]);
+  }, [isAuthenticated, userData?.uid, userData?.emailVerified]);
 
   // Set up real-time listener for notifications
   useEffect(() => {
-    if (!isAuthenticated || !userData?.uid) return;
+    if (!isAuthenticated || !userData?.uid || !userData?.emailVerified) return;
 
     // Set up periodic refresh every 30 seconds
     const interval = setInterval(() => {
@@ -65,7 +65,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [isAuthenticated, userData?.uid]);
+  }, [isAuthenticated, userData?.uid, userData?.emailVerified]);
 
   // Handle playing notification sounds asynchronously
   const playNotificationSounds = async (newNotifications: any[], userId: string) => {

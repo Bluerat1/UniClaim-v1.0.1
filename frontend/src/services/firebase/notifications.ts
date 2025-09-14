@@ -213,6 +213,13 @@ export class NotificationService {
       const userDoc = await getDoc(doc(db, 'users', userId));
       if (userDoc.exists()) {
         const userData = userDoc.data();
+
+        // Check if user's email is verified before proceeding
+        if (!userData.emailVerified) {
+          console.log('📧 User email not verified, skipping notification preferences');
+          return this.getDefaultPreferences();
+        }
+
         const preferences = userData.notificationPreferences || this.getDefaultPreferences();
 
         // Ensure user has a subscription record (background operation)
@@ -271,6 +278,13 @@ export class NotificationService {
   // Ensure user has a subscription record (for existing users)
   async ensureUserHasSubscription(userId: string): Promise<void> {
     try {
+      // First check if user's email is verified
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (!userDoc.exists() || !userDoc.data().emailVerified) {
+        console.log('📧 User email not verified, skipping subscription creation');
+        return;
+      }
+
       // Check if subscription exists
       const existingSubscription = await notificationSubscriptionService.getSubscription(userId);
 
@@ -372,7 +386,8 @@ export class NotificationService {
         enabled: false,
         start: '22:00',
         end: '08:00'
-      }
+      },
+      soundEnabled: true
     };
   }
 
