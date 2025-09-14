@@ -7,14 +7,14 @@ interface MessageContextType {
   loading: boolean;
   totalUnreadCount: number; // Add total unread count like web version
   sendMessage: (conversationId: string, senderId: string, senderName: string, text: string, senderProfilePicture?: string) => Promise<void>;
-  createConversation: (postId: string, postTitle: string, postOwnerId: string, currentUserId: string, currentUserData: any, postOwnerUserData?: any) => Promise<string>;
+  createConversation: (postId: string, postTitle: string, postOwnerId: string, currentUserId: string, currentUserData: any, postOwnerUserData?: any, postType?: string, postStatus?: string, foundAction?: string) => Promise<string>;
   getConversationMessages: (conversationId: string, callback: (messages: Message[]) => void, limit?: number) => () => void;
   getOlderMessages: (conversationId: string, lastMessageTimestamp: any, limit?: number) => Promise<Message[]>;
   getConversation: (conversationId: string) => Promise<any>;
   deleteMessage: (conversationId: string, messageId: string) => Promise<void>;
   markMessageAsRead: (conversationId: string, messageId: string) => Promise<void>;
   markAllUnreadMessagesAsRead: (conversationId: string, userId: string) => Promise<void>;
-  sendHandoverRequest: (conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string) => Promise<void>;
+  sendHandoverRequest: (conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, handoverReason?: string, idPhotoUrl?: string, itemPhotos?: { url: string; uploadedAt: any; description?: string }[]) => Promise<void>;
   updateHandoverResponse: (conversationId: string, messageId: string, status: 'accepted' | 'rejected') => Promise<void>;
   confirmHandoverIdPhoto: (conversationId: string, messageId: string) => Promise<void>;
   sendClaimRequest: (conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, claimReason?: string, idPhotoUrl?: string, evidencePhotos?: { url: string; uploadedAt: any; description?: string }[]) => Promise<void>;
@@ -71,9 +71,9 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
     }
   };
 
-  const createConversation = async (postId: string, postTitle: string, postOwnerId: string, currentUserId: string, currentUserData: any, postOwnerUserData?: any): Promise<string> => {
+  const createConversation = async (postId: string, postTitle: string, postOwnerId: string, currentUserId: string, currentUserData: any, postOwnerUserData?: any, postType?: string, postStatus?: string, foundAction?: string): Promise<string> => {
     try {
-      return await messageService.createConversation(postId, postTitle, postOwnerId, currentUserId, currentUserData, postOwnerUserData);
+      return await messageService.createConversation(postId, postTitle, postOwnerId, currentUserId, currentUserData, postOwnerUserData, postType, postStatus, foundAction);
     } catch (error: any) {
       throw new Error(error.message || 'Failed to create conversation');
     }
@@ -143,9 +143,9 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
     }
   };
 
-  const sendHandoverRequest = async (conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string): Promise<void> => {
+  const sendHandoverRequest = async (conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, handoverReason?: string, idPhotoUrl?: string, itemPhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void> => {
     try {
-      await messageService.sendHandoverRequest(conversationId, senderId, senderName, senderProfilePicture, postId, postTitle);
+      await messageService.sendHandoverRequest(conversationId, senderId, senderName, senderProfilePicture, postId, postTitle, handoverReason, idPhotoUrl, itemPhotos);
     } catch (error: any) {
       throw new Error(error.message || 'Failed to send handover request');
     }

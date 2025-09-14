@@ -92,7 +92,10 @@ export default function PostDetailsScreen() {
                   postTitle: post.title,
                   postId: post.id,
                   postOwnerId: postOwnerId,
-                  postOwnerUserData: post.user // Pass the post owner's user data
+                  postOwnerUserData: post.user, // Pass the post owner's user data
+                  postType: post.type, // Pass post type (lost/found)
+                  postStatus: post.status || 'pending', // Pass post status
+                  foundAction: post.foundAction // Pass found action for found items
                 });
               } else {
                 // Fallback: show alert that messaging is not available

@@ -23,6 +23,9 @@ interface PostCardMenuProps {
   postTitle: string;
   postOwnerId: string;
   postOwnerUserData?: any;
+  postType?: string;
+  postStatus?: string;
+  foundAction?: string;
   isFlagged?: boolean;
   flaggedBy?: string;
   onFlagSuccess?: () => void;
@@ -34,6 +37,9 @@ export default function PostCardMenu({
   postTitle,
   postOwnerId,
   postOwnerUserData,
+  postType,
+  postStatus,
+  foundAction,
   isFlagged = false,
   flaggedBy,
   onFlagSuccess,
@@ -97,7 +103,10 @@ export default function PostCardMenu({
         postTitle,
         postId,
         postOwnerId,
-        postOwnerUserData
+        postOwnerUserData,
+        postType: postType, // Pass post type (lost/found)
+        postStatus: postStatus || 'pending', // Pass post status
+        foundAction: foundAction // Pass found action for found items
       });
     } catch (error: any) {
       console.error('Error creating conversation:', error);

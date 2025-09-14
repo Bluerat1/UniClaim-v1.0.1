@@ -101,6 +101,9 @@ export default function PostCard({ post, descriptionSearch = "", adminStatuses }
             postTitle={post.title}
             postOwnerId={post.creatorId || post.postedById}
             postOwnerUserData={post.user}
+            postType={post.type}
+            postStatus={post.status}
+            foundAction={post.foundAction}
             isFlagged={post.isFlagged}
             flaggedBy={post.flaggedBy}
             onFlagSuccess={() => {

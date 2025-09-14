@@ -218,12 +218,26 @@ export default function Message() {
   const [refreshing, setRefreshing] = useState(false);
 
   const handleConversationPress = (conversation: Conversation) => {
+    console.log("🔍 DEBUG: Navigating to Chat with conversation data:", {
+      conversationId: conversation.id,
+      postTitle: conversation.postTitle,
+      postOwnerId: conversation.postCreatorId,
+      postId: conversation.postId,
+      postType: conversation.postType,
+      postStatus: conversation.postStatus,
+      foundAction: conversation.foundAction,
+      fullConversation: conversation
+    });
+    
     navigation.navigate("Chat", {
       conversationId: conversation.id,
       postTitle: conversation.postTitle,
       postOwnerId: conversation.postCreatorId,
       postId: conversation.postId,
       postOwnerUserData: conversation.participants?.[conversation.postCreatorId] || {},
+      postType: conversation.postType,
+      postStatus: conversation.postStatus,
+      foundAction: conversation.foundAction,
     });
   };
 

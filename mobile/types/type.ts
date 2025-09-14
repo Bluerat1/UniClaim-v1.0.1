@@ -10,7 +10,7 @@ export type RootStackParamList = {
   Profile: undefined;
   MyTicket: undefined;
   Message: undefined;
-  Chat: { conversationId?: string; postTitle: string; postId?: string; postOwnerId?: string; postOwnerUserData?: any };
+  Chat: { conversationId?: string; postTitle: string; postId?: string; postOwnerId?: string; postOwnerUserData?: any; postType?: string; postStatus?: string; foundAction?: string };
   RootBottomTabs: undefined;
   InitialRouter: undefined;
   ItemDetails: undefined;
