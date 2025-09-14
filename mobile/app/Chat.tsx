@@ -15,6 +15,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useMessage } from "@/context/MessageContext";
 import { useAuth } from "@/context/AuthContext";
+import ProfilePicture from "@/components/ProfilePicture";
 import type { Message, RootStackParamList } from "@/types/type";
 import MessageBubble from "@/components/MessageBubble";
 
@@ -66,6 +67,17 @@ export default function Chat() {
 
   const flatListRef = useRef<FlatList>(null);
 
+  // Get the other participant's profile picture (exclude current user)
+  const getOtherParticipantProfilePicture = () => {
+    if (!userData || !conversationData) return null;
+
+    const otherParticipant = Object.entries(
+      conversationData.participants || {}
+    ).find(([uid]) => uid !== userData.uid);
+
+    return otherParticipant ? otherParticipant[1].profilePicture : null;
+  };
+
   // Create conversation if needed
   useEffect(() => {
     if (
@@ -73,14 +85,13 @@ export default function Chat() {
       !postId ||
       !postTitle ||
       !postOwnerId ||
-      !user?.uid ||
       !userData?.uid
     ) {
       return;
     }
 
     // Prevent self-conversation
-    if (postOwnerId === user.uid) {
+    if (postOwnerId === userData.uid) {
       Alert.alert(
         "Cannot Start Chat",
         "You cannot start a conversation with yourself.",
@@ -96,7 +107,7 @@ export default function Chat() {
           postId,
           postTitle,
           postOwnerId,
-          user.uid,
+          userData.uid,
           userData,
           postOwnerUserData
         );
@@ -115,7 +126,6 @@ export default function Chat() {
     postId,
     postTitle,
     postOwnerId,
-    user?.uid,
     userData,
     postOwnerUserData,
     createConversation,
@@ -201,7 +211,7 @@ export default function Chat() {
 
   // Send message
   const handleSendMessage = async () => {
-    if (!conversationId || !newMessage.trim()) return;
+    if (!conversationId || !newMessage.trim() || !userData) return;
 
     const messageText = newMessage.trim();
 
@@ -210,10 +220,10 @@ export default function Chat() {
 
       await sendMessage(
         conversationId,
-        user!.uid,
-        `${userData!.firstName} ${userData!.lastName}`,
+        userData.uid,
+        `${userData.firstName} ${userData.lastName}`,
         messageText,
-        userData!.profilePicture
+        userData.profilePicture
       );
 
       scrollToBottom();
@@ -378,6 +388,17 @@ export default function Chat() {
         <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3">
           <Ionicons name="arrow-back" size={24} color="#374151" />
         </TouchableOpacity>
+        
+        {/* Profile Picture - only show for other user's conversations */}
+        {postOwnerId && userData && postOwnerId !== userData.uid && (
+          <View className="mr-3">
+            <ProfilePicture
+              src={getOtherParticipantProfilePicture()}
+              size="sm"
+            />
+          </View>
+        )}
+        
         <View className="flex-1">
           <Text
             className="font-semibold text-lg text-gray-800"
@@ -467,9 +488,9 @@ export default function Chat() {
             renderItem={({ item }) => (
               <MessageBubble
                 message={item}
-                isOwnMessage={item.senderId === user.uid}
+                isOwnMessage={item.senderId === userData?.uid}
                 conversationId={conversationId}
-                currentUserId={user?.uid || ""}
+                currentUserId={userData?.uid || ""}
                 isCurrentUserPostOwner={postOwnerId === userData?.uid}
                 onHandoverResponse={handleHandoverResponse}
                 onClaimResponse={handleClaimResponse}

@@ -46,17 +46,42 @@ export const messageService: MessageService = {
     // Create conversation
     async createConversation(postId: string, postTitle: string, postOwnerId: string, currentUserId: string, currentUserData: any, postOwnerUserData?: any): Promise<string> {
         try {
+            // Check for existing conversation first (same logic as web)
+            const userConversationsQuery = query(
+                collection(db, 'conversations'),
+                where(`participants.${currentUserId}`, '!=', null)
+            );
+            const userConversationsSnapshot = await getDocs(userConversationsQuery);
+            const existingConversation = userConversationsSnapshot.docs.find((docSnap) => {
+                const data: any = docSnap.data();
+                return data.postId === postId && data.participants && data.participants[postOwnerId];
+            });
+
+            if (existingConversation) {
+                console.log('Reusing existing conversation:', existingConversation.id);
+                return existingConversation.id;
+            }
+
+            // Create new conversation if none exists
             const conversationRef = await addDoc(collection(db, 'conversations'), {
                 postId,
                 postTitle,
                 postOwnerId,
                 participants: {
-                    [postOwnerId]: true,
-                    [currentUserId]: true
-                },
-                participantData: {
-                    [postOwnerId]: postOwnerUserData || {},
-                    [currentUserId]: currentUserData
+                    [currentUserId]: {
+                        uid: currentUserId,
+                        firstName: currentUserData.firstName,
+                        lastName: currentUserData.lastName,
+                        profilePicture: currentUserData.profilePicture || currentUserData.profileImageUrl || null,
+                        joinedAt: serverTimestamp()
+                    },
+                    [postOwnerId]: {
+                        uid: postOwnerId,
+                        firstName: postOwnerUserData?.firstName || '',
+                        lastName: postOwnerUserData?.lastName || '',
+                        profilePicture: postOwnerUserData?.profilePicture || postOwnerUserData?.profileImageUrl || null,
+                        joinedAt: serverTimestamp()
+                    }
                 },
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),

@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useMessage } from "@/context/MessageContext";
 import type { Message } from "@/types/type";
 import ImagePicker from "@/components/ImagePicker";
+import ProfilePicture from "@/components/ProfilePicture";
 import { handoverClaimService, type HandoverClaimCallbacks } from "@/utils/handoverClaimService";
 
 interface MessageBubbleProps {
@@ -763,58 +764,72 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   return (
     <View className={`mb-3 ${isOwnMessage ? "items-end" : "items-start"}`}>
       {renderIdPhotoModal()}
-      <View
-        className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-          isOwnMessage
-            ? "bg-navyblue rounded-br-md"
-            : "bg-zinc-200 rounded-bl-md"
-        }`}
-      >
-        <Text
-          className={`text-base font-inter ${
-            isOwnMessage ? "text-white" : "text-gray-800"
-          }`}
-        >
-          {message.text}
-        </Text>
+      <View className={`flex-row items-end gap-2 ${isOwnMessage ? "flex-row-reverse" : ""}`}>
+        {/* Profile Picture - only show for other user's messages */}
+        {!isOwnMessage && (
+          <ProfilePicture
+            src={message.senderProfilePicture}
+            size="sm"
+            style={{ marginBottom: 4 }}
+          />
+        )}
+        
+        <View className="flex-1">
+          <View
+            className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+              isOwnMessage
+                ? "bg-navyblue rounded-br-md"
+                : "bg-zinc-200 rounded-bl-md"
+            }`}
+          >
+            <Text
+              className={`text-base font-inter ${
+                isOwnMessage ? "text-white" : "text-gray-800"
+              }`}
+            >
+              {message.text}
+            </Text>
 
-        {/* Render special message types */}
-        {renderHandoverRequest()}
-        {renderHandoverResponse()}
-        {renderClaimRequest()}
-        {renderClaimResponse()}
-        {renderSystemMessage()}
-      </View>
-      <View className="flex-row items-center justify-between mt-1 mx-2">
-        <View className="flex-row items-center gap-1">
-          <Text className="text-xs text-gray-500">
-            {formatTime(message.timestamp)}
-          </Text>
-          {isOwnMessage && (
-            <View>
-              {message.readBy && message.readBy.length > 1 ? (
-                <Ionicons name="eye" size={12} color="#3b82f6" />
-              ) : (
-                <Ionicons name="checkmark" size={12} color="#9ca3af" />
+            {/* Render special message types */}
+            {renderHandoverRequest()}
+            {renderHandoverResponse()}
+            {renderClaimRequest()}
+            {renderClaimResponse()}
+            {renderSystemMessage()}
+          </View>
+          
+          <View className={`flex-row items-center justify-between mt-1 mx-2 ${isOwnMessage ? "flex-row-reverse" : ""}`}>
+            <View className="flex-row items-center gap-1">
+              <Text className="text-xs text-gray-500">
+                {formatTime(message.timestamp)}
+              </Text>
+              {isOwnMessage && (
+                <View>
+                  {message.readBy && message.readBy.length > 1 ? (
+                    <Ionicons name="eye" size={12} color="#3b82f6" />
+                  ) : (
+                    <Ionicons name="checkmark" size={12} color="#9ca3af" />
+                  )}
+                </View>
               )}
             </View>
-          )}
-        </View>
 
-        {/* Delete button for own messages */}
-        {isOwnMessage && (
-          <TouchableOpacity
-            onPress={handleDeleteMessage}
-            disabled={isDeleting}
-            className="ml-2 p-1"
-          >
-            <Ionicons
-              name="trash-outline"
-              size={16}
-              color={isDeleting ? "#9ca3af" : "#ef4444"}
-            />
-          </TouchableOpacity>
-        )}
+            {/* Delete button for own messages */}
+            {isOwnMessage && (
+              <TouchableOpacity
+                onPress={handleDeleteMessage}
+                disabled={isDeleting}
+                className="ml-2 p-1"
+              >
+                <Ionicons
+                  name="trash-outline"
+                  size={16}
+                  color={isDeleting ? "#9ca3af" : "#ef4444"}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
       </View>
     </View>
   );

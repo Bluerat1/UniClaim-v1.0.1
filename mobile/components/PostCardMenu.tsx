@@ -57,10 +57,10 @@ export default function PostCardMenu({
 
   const handleSendMessage = async () => {
     console.log('Send Message button pressed');
-    console.log('User:', !!user, 'UserData:', !!userData);
+    console.log('UserData:', !!userData);
     console.log('PostOwnerId:', postOwnerId);
     
-    if (!user || !userData) {
+    if (!userData) {
       Alert.alert('Login Required', 'Please log in to send messages');
       return;
     }
@@ -70,7 +70,7 @@ export default function PostCardMenu({
       return;
     }
 
-    if (postOwnerId === user.uid) {
+    if (postOwnerId === userData.uid) {
       Alert.alert('Cannot Send Message', 'You cannot send a message to yourself');
       return;
     }
@@ -85,7 +85,7 @@ export default function PostCardMenu({
         postId,
         postTitle,
         postOwnerId,
-        user.uid,
+        userData.uid,
         userData,
         postOwnerUserData
       );
