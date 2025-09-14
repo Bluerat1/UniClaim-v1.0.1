@@ -1,5 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { IoEllipsisVertical, IoFlagOutline, IoChatbubbleOutline } from "react-icons/io5";
+import {
+  IoEllipsisVertical,
+  IoFlagOutline,
+  IoChatbubbleOutline,
+} from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
 import FlagModal from "./FlagModal";
 import { postService } from "@/services/firebase/posts";
@@ -90,7 +94,7 @@ export default function PostCardMenu({
   const handleSendMessage = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    
+
     if (!userData) {
       showToast("error", "Please log in to send messages");
       return;
@@ -135,34 +139,36 @@ export default function PostCardMenu({
         {/* Triple dot button */}
         <button
           onClick={handleMenuClick}
-          className="p-1 rounded-full hover:bg-gray-100 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="p-1 mt-2 mr-2 bg-black/25 rounded-full cursor-pointer transition duration-300"
           title="More options"
         >
-          <IoEllipsisVertical className="w-5 h-5 text-gray-600" />
+          <IoEllipsisVertical className="size-5 text-white" />
         </button>
 
         {/* Dropdown menu */}
         {isOpen && (
-          <div className="absolute right-0 top-8 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+          <div className="absolute right-2 top-12 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
             <div className="py-1">
               {/* Send Message Button */}
               <button
                 onClick={handleSendMessage}
-                disabled={isCreatingConversation || postOwnerId === userData?.uid}
+                disabled={
+                  isCreatingConversation || postOwnerId === userData?.uid
+                }
                 className={`
                   w-full px-4 py-2 text-left text-sm flex items-center gap-2
                   transition-colors duration-200
                   ${
                     isCreatingConversation || postOwnerId === userData?.uid
                       ? "text-gray-400 cursor-not-allowed"
-                      : "text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+                      : "text-gray-700 hover:bg-navyblue/10 hover:text-navyblue"
                   }
                 `}
               >
                 <IoChatbubbleOutline className="w-4 h-4" />
                 {isCreatingConversation ? "Starting Chat..." : "Send Message"}
               </button>
-              
+
               {/* Flag Post Button */}
               <button
                 onClick={handleFlagClick}
@@ -178,7 +184,7 @@ export default function PostCardMenu({
                 `}
               >
                 <IoFlagOutline className="w-4 h-4" />
-                {isAlreadyFlaggedByUser ? "Already Flagged" : "Flag Post"}
+                {isAlreadyFlaggedByUser ? "Already Flagged" : "Flag this post"}
               </button>
             </div>
           </div>
