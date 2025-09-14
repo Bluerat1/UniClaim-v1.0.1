@@ -18,7 +18,7 @@ const Profile = () => {
   const { showToast } = useToast();
   const [isEdit, setIsEdit] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  
+
   // Delete account states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
@@ -399,38 +399,58 @@ const Profile = () => {
 
   const handleConfirmDelete = async () => {
     if (deleteConfirmation !== "DELETE") {
-      showToast("error", "Invalid Confirmation", "Please type 'DELETE' exactly to confirm account deletion.");
+      showToast(
+        "error",
+        "Invalid Confirmation",
+        "Please type 'DELETE' exactly to confirm account deletion."
+      );
       return;
     }
 
     if (!deletePassword) {
-      showToast("error", "Password Required", "Please enter your password to confirm account deletion.");
+      showToast(
+        "error",
+        "Password Required",
+        "Please enter your password to confirm account deletion."
+      );
       return;
     }
 
     if (!user) {
-      showToast("error", "Authentication Error", "You must be logged in to delete your account.");
+      showToast(
+        "error",
+        "Authentication Error",
+        "You must be logged in to delete your account."
+      );
       return;
     }
 
     try {
       setIsDeleting(true);
-      
+
       // Show initial toast
-      showToast("info", "Deleting Account", "Please wait while we delete your account and all associated data...");
-      
+      showToast(
+        "info",
+        "Deleting Account",
+        "Please wait while we delete your account and all associated data..."
+      );
+
       // Call the deletion service with password for re-authentication
       await userDeletionService.deleteUserAccount(user, deletePassword);
-      
+
       // Show success message
-      showToast("success", "Account Deleted", "Your account and all data have been permanently deleted.");
-      
+      showToast(
+        "success",
+        "Account Deleted",
+        "Your account and all data have been permanently deleted."
+      );
+
       // Close modal first
       handleCloseDeleteModal();
-      
+
       // Reset loading state
       setIsDeleting(false);
-      
+
       // Force logout and redirect to login
       try {
         await logout();
@@ -438,22 +458,32 @@ const Profile = () => {
         // If logout fails (user account already deleted), force redirect
         console.log("Logout failed, forcing redirect to login:", logoutError);
       }
-      
+
       // Force redirect to login page after a short delay
       setTimeout(() => {
-        window.location.href = '/login';
+        window.location.href = "/login";
       }, 1000);
-      
     } catch (error: any) {
       console.error("Error deleting account:", error);
-      
+
       // Handle specific error cases
       if (error.message.includes("re-enter your password")) {
         showToast("error", "Re-authentication Required", error.message);
-      } else if (error.message.includes("invalid-credential") || error.message.includes("wrong-password")) {
-        showToast("error", "Invalid Password", "The password you entered is incorrect. Please try again.");
+      } else if (
+        error.message.includes("invalid-credential") ||
+        error.message.includes("wrong-password")
+      ) {
+        showToast(
+          "error",
+          "Invalid Password",
+          "The password you entered is incorrect. Please try again."
+        );
       } else {
-        showToast("error", "Deletion Failed", error.message || "Failed to delete account. Please try again.");
+        showToast(
+          "error",
+          "Deletion Failed",
+          error.message || "Failed to delete account. Please try again."
+        );
       }
     } finally {
       setIsDeleting(false);
@@ -690,6 +720,24 @@ const Profile = () => {
                 <h1 className="text-sm text-gray-600">Email</h1>
                 <span className="text-gray-800 text-sm">{userInfo.email}</span>
               </div>
+
+              {/* Student ID */}
+              <div className="bg-gray-100 border border-gray-700 flex items-center justify-between  rounded px-4 py-2.5">
+                <h1 className="text-sm text-gray-600">Student ID</h1>
+                {isEdit ? (
+                  <input
+                    type="text"
+                    value={userInfo.studentId}
+                    onChange={(e) => handleChange("studentId", e.target.value)}
+                    className="w-60 max-w-sm bg-white border border-gray-300 rounded px-3 py-1.5 text-sm"
+                    placeholder="10 digits"
+                  />
+                ) : (
+                  <span className="text-gray-800 text-sm">
+                    {userInfo.studentId}
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="space-y-5">
@@ -711,7 +759,7 @@ const Profile = () => {
               </div>
 
               {/* Contact Number */}
-              <div className="bg-gray-100 border border-gray-700 flex items-center justify-between  rounded px-4 py-2.5">
+              <div className="bg-gray-100 border border-gray-700 flex items-center justify-between rounded px-4 py-2.5">
                 <h1 className="text-sm text-gray-600">Contact Number</h1>
                 {isEdit ? (
                   <input
@@ -727,40 +775,32 @@ const Profile = () => {
                 )}
               </div>
 
-              {/* Student ID */}
-              <div className="bg-gray-100 border border-gray-700 flex items-center justify-between  rounded px-4 py-2.5">
-                <h1 className="text-sm text-gray-600">Student ID</h1>
-                {isEdit ? (
-                  <input
-                    type="text"
-                    value={userInfo.studentId}
-                    onChange={(e) => handleChange("studentId", e.target.value)}
-                    className="w-60 max-w-sm bg-white border border-gray-300 rounded px-3 py-1.5 text-sm"
-                    placeholder="10 digits"
-                  />
-                ) : (
-                  <span className="text-gray-800 text-sm">
-                    {userInfo.studentId}
-                  </span>
-                )}
-              </div>
+              {/* Delete Account Button */}
+              {!isEdit && (
+                <div className="">
+                  <button
+                    onClick={handleDeleteAccount}
+                    disabled={isDeleting}
+                    className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-medium px-4 py-2.5 rounded-md transition-colors duration-200 flex items-center justify-center gap-2"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                    {isDeleting ? "Deleting Account..." : "Delete Account"}
+                  </button>
+                </div>
+              )}
             </div>
-
-            {/* Delete Account Button */}
-            {!isEdit && (
-              <div className="mt-8">
-                <button
-                  onClick={handleDeleteAccount}
-                  disabled={isDeleting}
-                  className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  {isDeleting ? "Deleting Account..." : "Delete Account"}
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -771,16 +811,29 @@ const Profile = () => {
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                  />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">Delete Account</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Delete Account
+              </h3>
             </div>
-            
+
             <div className="mb-6">
               <p className="text-gray-600 mb-4">
-                This action cannot be undone. This will permanently delete your account and remove all data from our servers, including:
+                This action cannot be undone. This will permanently delete your
+                account and remove all data from our servers, including:
               </p>
               <ul className="text-sm text-gray-500 space-y-1 mb-4">
                 <li>• Your profile and personal information</li>
@@ -789,7 +842,9 @@ const Profile = () => {
                 <li>• All notifications and settings</li>
               </ul>
               <p className="text-red-600 font-medium">
-                Type <span className="font-mono bg-red-50 px-1 rounded">DELETE</span> to confirm:
+                Type{" "}
+                <span className="font-mono bg-red-50 px-1 rounded">DELETE</span>{" "}
+                to confirm:
               </p>
             </div>
 
@@ -802,7 +857,7 @@ const Profile = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
                 disabled={isDeleting}
               />
-              
+
               <input
                 type="password"
                 value={deletePassword}
@@ -811,7 +866,7 @@ const Profile = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
                 disabled={isDeleting}
               />
-              
+
               <div className="flex gap-3">
                 <button
                   onClick={handleCloseDeleteModal}
@@ -822,7 +877,11 @@ const Profile = () => {
                 </button>
                 <button
                   onClick={handleConfirmDelete}
-                  disabled={isDeleting || deleteConfirmation !== "DELETE" || !deletePassword}
+                  disabled={
+                    isDeleting ||
+                    deleteConfirmation !== "DELETE" ||
+                    !deletePassword
+                  }
                   className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-lg transition-colors duration-200 disabled:opacity-50"
                 >
                   {isDeleting ? "Deleting..." : "Delete Account"}

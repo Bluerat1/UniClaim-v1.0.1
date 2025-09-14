@@ -32,19 +32,26 @@ function fuzzyMatch(text: string, query: string): boolean {
 export default function HomePage() {
   // ✅ Use the custom hooks for real-time posts
   const { posts, loading, error } = usePosts();
-  const { posts: resolvedPosts, loading: resolvedLoading, error: resolvedError } = useResolvedPosts();
-  
+  const {
+    posts: resolvedPosts,
+    loading: resolvedLoading,
+    error: resolvedError,
+  } = useResolvedPosts();
+
   // Get admin statuses for all posts
   const allPosts = [...posts, ...resolvedPosts];
   const adminStatuses = useAdminStatus(allPosts);
-  const [viewType, setViewType] = useState<"all" | "lost" | "found" | "completed">("all");
+  const [viewType, setViewType] = useState<
+    "all" | "lost" | "found" | "completed"
+  >("all");
   const [lastDescriptionKeyword, setLastDescriptionKeyword] = useState("");
   const [rawResults, setRawResults] = useState<Post[] | null>(null); // store-search-result-without-viewType-filter
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // ✅ New state for instant category filtering
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("All");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] =
+    useState<string>("All");
 
   // e modify rani siya sa backend django
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -55,7 +62,7 @@ export default function HomePage() {
 
   const handleSearch = async (query: string, filters: any) => {
     setLastDescriptionKeyword(filters.description || "");
-    
+
     // Always reset pagination when searching (now only manual searches)
     setCurrentPage(1);
 
@@ -93,37 +100,46 @@ export default function HomePage() {
 
   // Determine which posts to display based on viewType and category filter
   const getPostsToDisplay = () => {
-    const basePosts = rawResults ?? (viewType === "completed" ? resolvedPosts : posts) ?? [];
+    const basePosts =
+      rawResults ?? (viewType === "completed" ? resolvedPosts : posts) ?? [];
 
     // Filter out unclaimed posts and items awaiting turnover confirmation from all views
     const filteredPosts = basePosts.filter((post) => {
       // Filter out unclaimed posts
-      if (post.status === 'unclaimed') return false;
-      
+      if (post.status === "unclaimed") return false;
+
       // Filter out hidden posts (flagged posts that admin chose to hide)
       if (post.isHidden === true) return false;
-      
+
       // Filter out items with turnoverStatus: "declared" ONLY for OSA turnover (awaiting OSA confirmation)
       // Campus Security items with "transferred" status should be visible
-      if (post.turnoverDetails && 
-          post.turnoverDetails.turnoverStatus === "declared" && 
-          post.turnoverDetails.turnoverAction === "turnover to OSA") {
+      if (
+        post.turnoverDetails &&
+        post.turnoverDetails.turnoverStatus === "declared" &&
+        post.turnoverDetails.turnoverAction === "turnover to OSA"
+      ) {
         return false;
       }
-      
+
       return true;
     });
 
     // Apply view type filtering
     let viewFilteredPosts;
     if (viewType === "all") viewFilteredPosts = filteredPosts;
-    else if (viewType === "completed") viewFilteredPosts = filteredPosts; // resolvedPosts already filtered
-    else viewFilteredPosts = filteredPosts.filter((post) => post.type.toLowerCase() === viewType);
+    else if (viewType === "completed")
+      viewFilteredPosts = filteredPosts; // resolvedPosts already filtered
+    else
+      viewFilteredPosts = filteredPosts.filter(
+        (post) => post.type.toLowerCase() === viewType
+      );
 
     // ✅ Apply instant category filtering
     if (selectedCategoryFilter && selectedCategoryFilter !== "All") {
-      return viewFilteredPosts.filter((post) => 
-        post.category && post.category.toLowerCase() === selectedCategoryFilter.toLowerCase()
+      return viewFilteredPosts.filter(
+        (post) =>
+          post.category &&
+          post.category.toLowerCase() === selectedCategoryFilter.toLowerCase()
       );
     }
 
@@ -138,9 +154,12 @@ export default function HomePage() {
   }, [selectedCategoryFilter]);
 
   // Check if there are more posts to load - more accurate calculation
-  const totalPostsToShow = Math.min(postsToDisplay.length, currentPage * itemsPerPage);
+  const totalPostsToShow = Math.min(
+    postsToDisplay.length,
+    currentPage * itemsPerPage
+  );
   const hasMorePosts = postsToDisplay.length > totalPostsToShow;
-  
+
   // Function to load more posts when scrolling
   const handleLoadMore = useCallback(() => {
     if (hasMorePosts && !isLoading) {
@@ -254,15 +273,16 @@ export default function HomePage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 mx-6 mt-7 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 mx-6 mt-7 sm:grid-cols-2 lg:grid-cols-3">
         {/* ✅ Handle Firebase loading state */}
-        {(loading || resolvedLoading || isLoading) ? (
+        {loading || resolvedLoading || isLoading ? (
           <div className="col-span-full flex items-center justify-center h-80">
             <span className="text-gray-400">
-              Loading {viewType === "completed" ? "completed" : viewType} report items...
+              Loading {viewType === "completed" ? "completed" : viewType} report
+              items...
             </span>
           </div>
-        ) : (error || resolvedError) ? (
+        ) : error || resolvedError ? (
           <div className="col-span-full flex items-center justify-center h-80 text-red-500">
             <p>Error loading posts: {error || resolvedError}</p>
             <button
@@ -295,23 +315,25 @@ export default function HomePage() {
 
       {/* Invisible loading indicator for scroll-to-load */}
       {hasMorePosts && (
-        <div 
+        <div
           ref={loadingRef}
           className="h-10 flex items-center justify-center my-6"
         >
           {isLoading ? (
             <div className="text-gray-500 text-sm">Loading more posts...</div>
           ) : (
-            <div className="text-gray-400 text-sm">Scroll down to load more</div>
+            <div className="text-gray-400 text-sm">
+              Scroll down to load more
+            </div>
           )}
         </div>
       )}
 
       {selectedPost && (
-        <PostModal 
-          post={selectedPost} 
-          onClose={() => setSelectedPost(null)} 
-          hideSendMessage={viewType === "completed"} 
+        <PostModal
+          post={selectedPost}
+          onClose={() => setSelectedPost(null)}
+          hideSendMessage={viewType === "completed"}
         />
       )}
     </div>

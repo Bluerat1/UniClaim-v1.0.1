@@ -14,6 +14,7 @@ import NavText from "./NavText";
 import Logo from "../assets/uniclaim_logo.png";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
+import { IoFlagOutline } from "react-icons/io5";
 
 interface AdminSideNavProps {
   isOpen: boolean;
@@ -123,7 +124,7 @@ export default function AdminSideNav({
             />
 
             <NavText
-              icon={<HiOutlineFlag className="size-6 stroke-[1.5px]" />}
+              icon={<IoFlagOutline className="size-6 stroke-[1.5px]" />}
               label="Flagged Posts"
               to="/admin/flagged-posts"
               isOpen={isOpen}
@@ -232,7 +233,7 @@ export default function AdminSideNav({
                 />
 
                 <NavText
-                  icon={<HiOutlineFlag className="size-6 stroke-[1.5px]" />}
+                  icon={<IoFlagOutline className="size-6 stroke-[1.5px]" />}
                   label="Flagged Posts"
                   to="/admin/flagged-posts"
                   isOpen={isOpen}
