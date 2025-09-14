@@ -24,9 +24,17 @@ export default function Header() {
   const [isVisible, setIsVisible] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
   const slideAnim = useState(new Animated.Value(SCREEN_WIDTH))[0];
-  
-  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, deleteAllNotifications } = useNotifications();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    deleteAllNotifications,
+  } = useNotifications();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const openPanel = () => {
     setIsVisible(true);
@@ -94,7 +102,7 @@ export default function Header() {
           {unreadCount > 0 && (
             <View className="absolute -top-1 -right-1 bg-red-500 rounded-full h-5 w-5 items-center justify-center">
               <Text className="text-white text-xs font-bold">
-                {unreadCount > 9 ? '9+' : unreadCount}
+                {unreadCount > 9 ? "9+" : unreadCount}
               </Text>
             </View>
           )}
@@ -135,7 +143,7 @@ export default function Header() {
                   )}
                 </View>
                 <View className="flex-row items-center space-x-2">
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     onPress={() => setShowPreferences(true)}
                     className="p-1"
                   >
@@ -156,15 +164,15 @@ export default function Header() {
                     </Text>
                   </View>
                 ) : (
-                  <View className="space-y-2">
+                  <View className="flex-col gap-3">
                     {notifications.map((notification) => (
                       <TouchableOpacity
                         key={notification.id}
                         onPress={() => handleNotificationPress(notification)}
                         className={`p-3 rounded-lg border-l-4 ${
-                          notification.read 
-                            ? 'bg-gray-50 border-gray-200' 
-                            : 'bg-blue-50 border-blue-500'
+                          notification.read
+                            ? "bg-gray-50 border-gray-200"
+                            : "bg-yellow-50 border-yellow-500"
                         }`}
                       >
                         <View className="flex-row justify-between items-start">
@@ -176,12 +184,15 @@ export default function Header() {
                               {notification.body}
                             </Text>
                             <Text className="text-gray-400 text-xs mt-2">
-                              {new Date(notification.createdAt?.toDate?.() || notification.createdAt).toLocaleString()}
+                              {new Date(
+                                notification.createdAt?.toDate?.() ||
+                                  notification.createdAt
+                              ).toLocaleString()}
                             </Text>
                           </View>
                           <View className="flex-row items-center ml-2">
                             {!notification.read && (
-                              <View className="w-2 h-2 bg-blue-500 rounded-full mr-2" />
+                              <View className="w-2 h-2 bg-red-500 rounded-full mr-2" />
                             )}
                             <TouchableOpacity
                               onPress={(e) => {
@@ -201,20 +212,20 @@ export default function Header() {
               </ScrollView>
 
               {notifications.length > 0 && (
-                <View className="mt-4 pt-4 border-t border-gray-200 space-y-2">
+                <View className="mt-4 pt-4 border-t border-gray-200 flex-col gap-3">
                   <TouchableOpacity
                     onPress={markAllAsRead}
-                    className="w-full py-2"
+                    className="w-full p-4 rounded-lg border border-navyblue"
                   >
-                    <Text className="text-center text-blue-600 font-medium">
+                    <Text className="text-center font-manrope-medium text-navyblue">
                       Mark all as read
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={deleteAllNotifications}
-                    className="w-full py-2"
+                    className="w-full p-4 rounded-lg border border-red-500"
                   >
-                    <Text className="text-center text-red-600 font-medium">
+                    <Text className="text-center text-red-500 font-manrope-medium">
                       Delete all
                     </Text>
                   </TouchableOpacity>
@@ -232,7 +243,9 @@ export default function Header() {
           animationType="slide"
           presentationStyle="pageSheet"
         >
-          <NotificationPreferencesModal onClose={() => setShowPreferences(false)} />
+          <NotificationPreferencesModal
+            onClose={() => setShowPreferences(false)}
+          />
         </Modal>
       )}
     </>

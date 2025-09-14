@@ -52,7 +52,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showIdPhotoModal, setShowIdPhotoModal] = useState(false);
   const [isUploadingIdPhoto, setIsUploadingIdPhoto] = useState(false);
-  
+
   const formatTime = (timestamp: any) => {
     if (!timestamp) return "";
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -114,7 +114,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       );
     } catch (error: any) {
       console.error("Failed to upload ID photo:", error);
-      Alert.alert("Upload Error", "Failed to upload ID photo. Please try again.");
+      Alert.alert(
+        "Upload Error",
+        "Failed to upload ID photo. Please try again."
+      );
     } finally {
       setIsUploadingIdPhoto(false);
     }
@@ -142,7 +145,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       onClaimResponse(message.id, status);
     } catch (error) {
       console.error("Failed to update claim response:", error);
-      Alert.alert("Error", "Failed to update claim response. Please try again.");
+      Alert.alert(
+        "Error",
+        "Failed to update claim response. Please try again."
+      );
     }
   };
 
@@ -176,7 +182,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       );
     } catch (error: any) {
       console.error("Failed to upload claim ID photo:", error);
-      Alert.alert("Upload Error", "Failed to upload ID photo. Please try again.");
+      Alert.alert(
+        "Upload Error",
+        "Failed to upload ID photo. Please try again."
+      );
     } finally {
       setIsUploadingIdPhoto(false);
     }
@@ -235,8 +244,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     if (!handoverData) return null;
 
     const canRespond = handoverData.status === "pending" && !isOwnMessage;
-    const canConfirm = handoverData.status === "pending_confirmation" && !!isCurrentUserPostOwner;
-    const isCompleted = handoverData.status === "accepted" || handoverData.status === "rejected";
+    const canConfirm =
+      handoverData.status === "pending_confirmation" &&
+      !!isCurrentUserPostOwner;
+    const isCompleted =
+      handoverData.status === "accepted" || handoverData.status === "rejected";
 
     return (
       <View className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
@@ -434,8 +446,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     if (!claimData) return null;
 
     const canRespond = claimData.status === "pending" && !isOwnMessage;
-    const canConfirm = claimData.status === "pending_confirmation" && !!isCurrentUserPostOwner;
-    const isCompleted = claimData.status === "accepted" || claimData.status === "rejected";
+    const canConfirm =
+      claimData.status === "pending_confirmation" && !!isCurrentUserPostOwner;
+    const isCompleted =
+      claimData.status === "accepted" || claimData.status === "rejected";
 
     return (
       <View className="mt-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
@@ -770,12 +784,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       <View
         className={`max-w-[80%] rounded-2xl px-4 py-3 ${
           isOwnMessage
-            ? "bg-blue-500 rounded-br-md"
-            : "bg-gray-200 rounded-bl-md"
+            ? "bg-navyblue rounded-br-md"
+            : "bg-zinc-200 rounded-bl-md"
         }`}
       >
         <Text
-          className={`text-base ${
+          className={`text-base font-inter ${
             isOwnMessage ? "text-white" : "text-gray-800"
           }`}
         >

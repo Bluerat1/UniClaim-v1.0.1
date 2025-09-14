@@ -29,7 +29,7 @@ export default function ContactDetails({
       </View>
 
       {/* name sa nag post dari ibutang */}
-      <View className="mb-3">
+      <View className="mb-3 mt-3">
         <Text className="mb-2 text-base font-manrope-semibold">Full Name</Text>
         <View className="bg-zinc-100 justify-center w-full p-3 h-[3.5rem] border border-zinc-200 rounded-md">
           <Text className="text-base capitalize font-manrope-medium text-black">

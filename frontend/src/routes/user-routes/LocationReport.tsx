@@ -87,7 +87,7 @@ const LocationReport = ({
         <div className="flex items-start">
           <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 mt-2"></div>
           <div className="text-blue-800 text-sm">
-            <p className="font-medium mb-1">How to use:</p>
+            <p className="mb-1 font-medium">How to use:</p>
             <ul className="list-disc list-inside space-y-1 text-xs">
               <li>Click on the map to pin a location</li>
               <li>Make sure to pin within a building or campus area</li>

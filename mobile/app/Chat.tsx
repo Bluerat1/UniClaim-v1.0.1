@@ -46,13 +46,15 @@ export default function Chat() {
     confirmHandoverIdPhoto,
     confirmClaimIdPhoto,
   } = useMessage();
-  
+
   const { user, userData } = useAuth();
 
   // Simple state management
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [conversationId, setConversationId] = useState<string>(initialConversationId || "");
+  const [conversationId, setConversationId] = useState<string>(
+    initialConversationId || ""
+  );
   const [loading, setLoading] = useState<boolean>(false);
   const [conversationData, setConversationData] = useState<any>(null);
 
@@ -66,16 +68,23 @@ export default function Chat() {
 
   // Create conversation if needed
   useEffect(() => {
-    if (conversationId || !postId || !postTitle || !postOwnerId || !user?.uid || !userData?.uid) {
+    if (
+      conversationId ||
+      !postId ||
+      !postTitle ||
+      !postOwnerId ||
+      !user?.uid ||
+      !userData?.uid
+    ) {
       return;
     }
 
     // Prevent self-conversation
     if (postOwnerId === user.uid) {
       Alert.alert(
-        'Cannot Start Chat',
-        'You cannot start a conversation with yourself.',
-        [{ text: 'Go Back', onPress: () => navigation.goBack() }]
+        "Cannot Start Chat",
+        "You cannot start a conversation with yourself.",
+        [{ text: "Go Back", onPress: () => navigation.goBack() }]
       );
       return;
     }
@@ -93,7 +102,7 @@ export default function Chat() {
         );
         setConversationId(newConversationId);
       } catch (error: any) {
-        Alert.alert('Error', 'Failed to start conversation. Please try again.');
+        Alert.alert("Error", "Failed to start conversation. Please try again.");
         navigation.goBack();
       } finally {
         setLoading(false);
@@ -101,7 +110,17 @@ export default function Chat() {
     };
 
     createNewConversation();
-  }, [conversationId, postId, postTitle, postOwnerId, user?.uid, userData, postOwnerUserData, createConversation, navigation]);
+  }, [
+    conversationId,
+    postId,
+    postTitle,
+    postOwnerId,
+    user?.uid,
+    userData,
+    postOwnerUserData,
+    createConversation,
+    navigation,
+  ]);
 
   // Load messages when conversation changes
   useEffect(() => {
@@ -110,14 +129,17 @@ export default function Chat() {
       return;
     }
 
-    const unsubscribe = getConversationMessages(conversationId, (loadedMessages) => {
-      setMessages(loadedMessages);
-      
-      // Scroll to bottom on new messages
-      if (loadedMessages.length > 0) {
-        setTimeout(() => scrollToBottom(), 100);
+    const unsubscribe = getConversationMessages(
+      conversationId,
+      (loadedMessages) => {
+        setMessages(loadedMessages);
+
+        // Scroll to bottom on new messages
+        if (loadedMessages.length > 0) {
+          setTimeout(() => scrollToBottom(), 100);
+        }
       }
-    });
+    );
 
     return () => unsubscribe();
   }, [conversationId, getConversationMessages]);
@@ -126,11 +148,13 @@ export default function Chat() {
   useEffect(() => {
     if (!conversationId) return;
 
-    getConversation(conversationId).then((data) => {
-      setConversationData(data);
-    }).catch(() => {
-      console.log('Failed to get conversation data');
-    });
+    getConversation(conversationId)
+      .then((data) => {
+        setConversationData(data);
+      })
+      .catch(() => {
+        console.log("Failed to get conversation data");
+      });
   }, [conversationId, getConversation]);
 
   // Mark conversation as read
@@ -140,24 +164,27 @@ export default function Chat() {
     try {
       markConversationAsRead(conversationId, userData.uid);
     } catch {
-      console.log('Failed to mark conversation as read');
+      console.log("Failed to mark conversation as read");
     }
   }, [conversationId, userData, messages.length, markConversationAsRead]);
 
   // Handle message visibility changes to mark messages as read
-  const handleViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: any[] }) => {
-    if (!conversationId || !userData?.uid) return;
+  const handleViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: any[] }) => {
+      if (!conversationId || !userData?.uid) return;
 
-    // Get all visible message IDs
-    const visibleMessageIds = viewableItems
-      .filter(item => item.item.senderId !== userData?.uid) // Only mark other people's messages as read
-      .map(item => item.item.id);
+      // Get all visible message IDs
+      const visibleMessageIds = viewableItems
+        .filter((item) => item.item.senderId !== userData?.uid) // Only mark other people's messages as read
+        .map((item) => item.item.id);
 
-    // Mark each visible message as read
-    visibleMessageIds.forEach(messageId => {
-      markMessageAsRead(conversationId, messageId);
-    });
-  }, [conversationId, userData?.uid, markMessageAsRead]);
+      // Mark each visible message as read
+      visibleMessageIds.forEach((messageId) => {
+        markMessageAsRead(conversationId, messageId);
+      });
+    },
+    [conversationId, userData?.uid, markMessageAsRead]
+  );
 
   // Configuration for when items are considered visible
   const viewabilityConfig = {
@@ -177,10 +204,10 @@ export default function Chat() {
     if (!conversationId || !newMessage.trim()) return;
 
     const messageText = newMessage.trim();
-    
+
     try {
       setNewMessage("");
-      
+
       await sendMessage(
         conversationId,
         user!.uid,
@@ -188,10 +215,10 @@ export default function Chat() {
         messageText,
         userData!.profilePicture
       );
-      
+
       scrollToBottom();
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to send message. Please try again.');
+      Alert.alert("Error", "Failed to send message. Please try again.");
       setNewMessage(messageText); // Restore message on error
     }
   };
@@ -210,13 +237,16 @@ export default function Chat() {
     if (postOwnerId === userData.uid) return false;
     if (conversationData?.postType !== "found") return false;
     if (conversationData?.postStatus !== "pending") return false;
-    
+
     // Allow claiming for "keep" and "turnover to Campus Security" posts
     // Only exclude posts that are disposed or donated
-    if (conversationData?.foundAction === "disposed" || conversationData?.foundAction === "donated") {
+    if (
+      conversationData?.foundAction === "disposed" ||
+      conversationData?.foundAction === "donated"
+    ) {
       return false;
     }
-    
+
     return true;
   };
 
@@ -241,7 +271,10 @@ export default function Chat() {
       setShowHandoverModal(false);
       Alert.alert("Success", "Handover request sent successfully!");
     } catch (error: any) {
-      Alert.alert("Error", "Failed to send handover request. Please try again.");
+      Alert.alert(
+        "Error",
+        "Failed to send handover request. Please try again."
+      );
     } finally {
       setIsHandoverSubmitting(false);
     }
@@ -274,26 +307,38 @@ export default function Chat() {
   };
 
   // Handle handover response (like web version)
-  const handleHandoverResponse = async (messageId: string, status: "accepted" | "rejected") => {
+  const handleHandoverResponse = async (
+    messageId: string,
+    status: "accepted" | "rejected"
+  ) => {
     if (!conversationId || !user?.uid) return;
 
     try {
       await updateHandoverResponse(conversationId, messageId, status);
       Alert.alert("Success", `Handover request ${status}!`);
     } catch (error: any) {
-      Alert.alert("Error", `Failed to ${status} handover request. Please try again.`);
+      Alert.alert(
+        "Error",
+        `Failed to ${status} handover request. Please try again.`
+      );
     }
   };
 
   // Handle claim response (like web version)
-  const handleClaimResponse = async (messageId: string, status: "accepted" | "rejected") => {
+  const handleClaimResponse = async (
+    messageId: string,
+    status: "accepted" | "rejected"
+  ) => {
     if (!conversationId || !user?.uid) return;
 
     try {
       await updateClaimResponse(conversationId, messageId, status);
       Alert.alert("Success", `Claim request ${status}!`);
     } catch (error: any) {
-      Alert.alert("Error", `Failed to ${status} claim request. Please try again.`);
+      Alert.alert(
+        "Error",
+        `Failed to ${status} claim request. Please try again.`
+      );
     }
   };
 
@@ -303,7 +348,7 @@ export default function Chat() {
 
     try {
       // Determine if it's a handover or claim message
-      const message = messages.find(m => m.id === messageId);
+      const message = messages.find((m) => m.id === messageId);
       if (!message) return;
 
       if (message.messageType === "handover_request") {
@@ -327,14 +372,17 @@ export default function Chat() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-white pt-3">
       {/* Header */}
       <View className="bg-white border-b border-gray-200 pt-3 pb-4 px-4 mt-6 flex-row items-center">
         <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3">
           <Ionicons name="arrow-back" size={24} color="#374151" />
         </TouchableOpacity>
         <View className="flex-1">
-          <Text className="font-semibold text-lg text-gray-800" numberOfLines={1}>
+          <Text
+            className="font-semibold text-lg text-gray-800"
+            numberOfLines={1}
+          >
             {postTitle}
           </Text>
           <Text className="text-sm text-gray-500">
@@ -379,12 +427,17 @@ export default function Chat() {
           <View className="flex-1 items-center justify-center p-6">
             {postOwnerId === user?.uid ? (
               <>
-                <Ionicons name="person-circle-outline" size={64} color="#F59E0B" />
+                <Ionicons
+                  name="person-circle-outline"
+                  size={64}
+                  color="#F59E0B"
+                />
                 <Text className="text-gray-700 text-center mt-4 mb-2 text-lg font-semibold">
                   This is your post
                 </Text>
                 <Text className="text-gray-500 text-center mt-2 mb-6 leading-6">
-                  You cannot start a conversation with yourself about &quot;{postTitle}&quot;
+                  You cannot start a conversation with yourself about &quot;
+                  {postTitle}&quot;
                 </Text>
                 <TouchableOpacity
                   onPress={() => navigation.goBack()}
@@ -395,7 +448,11 @@ export default function Chat() {
               </>
             ) : (
               <>
-                <Ionicons name="chatbubbles-outline" size={64} color="#9CA3AF" />
+                <Ionicons
+                  name="chatbubbles-outline"
+                  size={64}
+                  color="#9CA3AF"
+                />
                 <Text className="text-gray-500 text-center mt-4">
                   Start the conversation about &quot;{postTitle}&quot;
                 </Text>
@@ -408,17 +465,17 @@ export default function Chat() {
             data={messages}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-                             <MessageBubble
-                 message={item}
-                 isOwnMessage={item.senderId === user.uid}
-                 conversationId={conversationId}
-                 currentUserId={user?.uid || ""}
-                 isCurrentUserPostOwner={postOwnerId === userData?.uid}
-                 onHandoverResponse={handleHandoverResponse}
-                 onClaimResponse={handleClaimResponse}
-                 onConfirmIdPhotoSuccess={handleConfirmIdPhotoSuccess}
-                 onImageClick={() => {}}
-               />
+              <MessageBubble
+                message={item}
+                isOwnMessage={item.senderId === user.uid}
+                conversationId={conversationId}
+                currentUserId={user?.uid || ""}
+                isCurrentUserPostOwner={postOwnerId === userData?.uid}
+                onHandoverResponse={handleHandoverResponse}
+                onClaimResponse={handleClaimResponse}
+                onConfirmIdPhotoSuccess={handleConfirmIdPhotoSuccess}
+                onImageClick={() => {}}
+              />
             )}
             contentContainerStyle={{ padding: 16 }}
             showsVerticalScrollIndicator={false}
@@ -436,7 +493,7 @@ export default function Chat() {
                 value={newMessage}
                 onChangeText={setNewMessage}
                 placeholder="Type a message..."
-                className="border rounded-full px-4 py-3 text-base border-gray-300 bg-white"
+                className="border rounded-full font-inter  px-4 py-3 text-base border-gray-300 bg-white"
                 multiline
                 maxLength={200}
                 editable={!loading}
@@ -446,7 +503,7 @@ export default function Chat() {
               onPress={handleSendMessage}
               disabled={!newMessage.trim() || loading}
               className={`w-12 h-12 rounded-full items-center justify-center ${
-                newMessage.trim() && !loading ? "bg-blue-500" : "bg-gray-300"
+                newMessage.trim() && !loading ? "bg-yellow-500" : "bg-gray-300"
               }`}
             >
               <Ionicons
@@ -461,45 +518,71 @@ export default function Chat() {
 
       {/* Claim Verification Modal - Like Web Version */}
       {showClaimModal && (
-        <View style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 2000,
-        }}>
-          <View style={{
-            backgroundColor: 'white',
-            borderRadius: 12,
-            padding: 20,
-            margin: 20,
-            width: '90%',
-            maxWidth: 400,
-          }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' }}>
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 2000,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "white",
+              borderRadius: 12,
+              padding: 20,
+              margin: 20,
+              width: "90%",
+              maxWidth: 400,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "bold",
+                marginBottom: 16,
+                textAlign: "center",
+              }}
+            >
               Verify Claim Request
             </Text>
-            <Text style={{ fontSize: 14, color: '#666', marginBottom: 20, textAlign: 'center' }}>
+            <Text
+              style={{
+                fontSize: 14,
+                color: "#666",
+                marginBottom: 20,
+                textAlign: "center",
+              }}
+            >
               Please upload a photo of your ID to verify your claim.
             </Text>
-            
-            <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginTop: 20 }}>
+
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-around",
+                marginTop: 20,
+              }}
+            >
               <TouchableOpacity
                 onPress={() => setShowClaimModal(false)}
                 style={{
                   paddingHorizontal: 20,
                   paddingVertical: 10,
                   borderRadius: 8,
-                  backgroundColor: '#6b7280',
+                  backgroundColor: "#6b7280",
                 }}
               >
-                <Text style={{ color: 'white', fontWeight: '500' }}>Cancel</Text>
+                <Text style={{ color: "white", fontWeight: "500" }}>
+                  Cancel
+                </Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 onPress={handleClaimRequestSubmit}
                 disabled={isClaimSubmitting}
@@ -507,11 +590,11 @@ export default function Chat() {
                   paddingHorizontal: 20,
                   paddingVertical: 10,
                   borderRadius: 8,
-                  backgroundColor: isClaimSubmitting ? '#9ca3af' : '#3b82f6',
+                  backgroundColor: isClaimSubmitting ? "#9ca3af" : "#3b82f6",
                 }}
               >
-                <Text style={{ color: 'white', fontWeight: '500' }}>
-                  {isClaimSubmitting ? 'Processing...' : 'Continue'}
+                <Text style={{ color: "white", fontWeight: "500" }}>
+                  {isClaimSubmitting ? "Processing..." : "Continue"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -521,45 +604,71 @@ export default function Chat() {
 
       {/* Handover Verification Modal - Like Web Version */}
       {showHandoverModal && (
-        <View style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 2000,
-        }}>
-          <View style={{
-            backgroundColor: 'white',
-            borderRadius: 12,
-            padding: 20,
-            margin: 20,
-            width: '90%',
-            maxWidth: 400,
-          }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' }}>
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 2000,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "white",
+              borderRadius: 12,
+              padding: 20,
+              margin: 20,
+              width: "90%",
+              maxWidth: 400,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "bold",
+                marginBottom: 16,
+                textAlign: "center",
+              }}
+            >
               Verify Handover Request
             </Text>
-            <Text style={{ fontSize: 14, color: '#666', marginBottom: 20, textAlign: 'center' }}>
+            <Text
+              style={{
+                fontSize: 14,
+                color: "#666",
+                marginBottom: 20,
+                textAlign: "center",
+              }}
+            >
               Please upload a photo of your ID to verify the handover.
             </Text>
-            
-            <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginTop: 20 }}>
+
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-around",
+                marginTop: 20,
+              }}
+            >
               <TouchableOpacity
                 onPress={() => setShowHandoverModal(false)}
                 style={{
                   paddingHorizontal: 20,
                   paddingVertical: 10,
                   borderRadius: 8,
-                  backgroundColor: '#6b7280',
+                  backgroundColor: "#6b7280",
                 }}
               >
-                <Text style={{ color: 'white', fontWeight: '500' }}>Cancel</Text>
+                <Text style={{ color: "white", fontWeight: "500" }}>
+                  Cancel
+                </Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 onPress={handleHandoverRequestSubmit}
                 disabled={isHandoverSubmitting}
@@ -567,11 +676,11 @@ export default function Chat() {
                   paddingHorizontal: 20,
                   paddingVertical: 10,
                   borderRadius: 8,
-                  backgroundColor: isHandoverSubmitting ? '#9ca3af' : '#3b82f6',
+                  backgroundColor: isHandoverSubmitting ? "#9ca3af" : "#3b82f6",
                 }}
               >
-                <Text style={{ color: 'white', fontWeight: '500' }}>
-                  {isHandoverSubmitting ? 'Processing...' : 'Continue'}
+                <Text style={{ color: "white", fontWeight: "500" }}>
+                  {isHandoverSubmitting ? "Processing..." : "Continue"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -581,4 +690,3 @@ export default function Chat() {
     </SafeAreaView>
   );
 }
-

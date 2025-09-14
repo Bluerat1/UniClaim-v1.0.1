@@ -266,7 +266,7 @@ export default function ItemDetails({
       {/* Location */}
       <View className="mb-4">
         <Text className="text-base font-manrope-semibold mb-2">Location</Text>
-        <Text className="text-sm text-gray-600 mb-3">
+        <Text className="text-sm text-gray-600 mb-3 font-inter">
           Pin a location on the map to automatically detect the building or area
         </Text>
 
@@ -321,14 +321,14 @@ export default function ItemDetails({
           <View className="flex-row items-start">
             <View className="w-2 h-2 bg-blue-500 rounded-full mr-2 mt-2" />
             <View className="flex-1">
-              <Text className="text-blue-800 text-sm font-medium mb-1">
+              <Text className="text-blue-800 text-sm font-inter font-medium mb-1">
                 How to use:
               </Text>
-              <Text className="text-blue-700 text-xs">
+              <Text className="text-blue-700 text-xs font-inter">
                 • Click on the map to pin a location{"\n"}• Make sure to pin
                 within a building or campus area{"\n"}• The system will
                 automatically detect the location name{"\n"}• If no location is
-                detected, try pinning more precisely within a building
+                detected, pin it more precisely inside the building.
               </Text>
             </View>
           </View>
