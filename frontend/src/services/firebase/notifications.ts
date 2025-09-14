@@ -9,7 +9,7 @@ import { notificationSubscriptionService } from './notificationSubscriptions';
 export interface NotificationData {
   id: string;
   userId: string;
-  type: 'new_post' | 'message' | 'claim_update' | 'admin_alert';
+  type: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted';
   title: string;
   body: string;
   data?: any;
@@ -323,6 +323,38 @@ export class NotificationService {
       console.log(`Successfully deleted ${snapshot.size} notifications for user:`, userId);
     } catch (error) {
       console.error('Error deleting all notifications:', error);
+      throw error;
+    }
+  }
+
+  // Create a new notification
+  async createNotification(notificationData: {
+    userId: string;
+    type: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted';
+    title: string;
+    body: string;
+    data?: any;
+    postId?: string;
+    conversationId?: string;
+  }): Promise<string> {
+    try {
+      const notificationsRef = collection(db, 'notifications');
+      const docRef = await addDoc(notificationsRef, {
+        userId: notificationData.userId,
+        type: notificationData.type,
+        title: notificationData.title,
+        body: notificationData.body,
+        data: notificationData.data || {},
+        read: false,
+        createdAt: serverTimestamp(),
+        postId: notificationData.postId || null,
+        conversationId: notificationData.conversationId || null
+      });
+
+      console.log('Successfully created notification:', docRef.id);
+      return docRef.id;
+    } catch (error) {
+      console.error('Error creating notification:', error);
       throw error;
     }
   }
