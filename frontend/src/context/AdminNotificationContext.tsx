@@ -26,8 +26,8 @@ export const AdminNotificationProvider = ({ children }: { children: ReactNode })
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Check if current user is admin
-  const isAdmin = userData?.role === 'admin';
+  // Check if current user is admin or campus security
+  const isAdmin = userData?.role === 'admin' || userData?.role === 'campus_security';
 
   // Debug logging
   console.log('🔍 AdminNotificationProvider state:', {
@@ -48,7 +48,7 @@ export const AdminNotificationProvider = ({ children }: { children: ReactNode })
     });
 
     if (isAuthenticated && userData?.uid && isAdmin) {
-      console.log('✅ Admin conditions met, loading admin notifications...');
+      console.log('✅ Admin/Campus Security conditions met, loading admin notifications...');
       if (!userData?.emailVerified) {
         console.log('⚠️ Email not verified, but proceeding for testing purposes');
       }

@@ -92,12 +92,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // Check if user is admin
         const userIsAdmin = checkIfAdmin(firebaseUser.email);
-        setIsAdmin(userIsAdmin);
 
         // Fetch user data from Firestore
         try {
           const fetchedUserData = await authService.getUserData(firebaseUser.uid);
           setUserData(fetchedUserData);
+          
+          // Update admin status based on role data (includes campus_security)
+          const isAdminOrCampusSecurity = userIsAdmin || 
+            fetchedUserData?.role === 'admin' || 
+            fetchedUserData?.role === 'campus_security';
+          setIsAdmin(isAdminOrCampusSecurity);
 
           // Check deactivation status efficiently (with backward compatibility)
           if (fetchedUserData && (fetchedUserData.status === 'deactivated' || fetchedUserData.status === 'banned')) {
