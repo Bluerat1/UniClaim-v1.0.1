@@ -252,7 +252,7 @@ export default function HomeHeader({
                     className={`p-3 mb-2 rounded-lg border-l-4 cursor-pointer transition-colors ${
                       notification.read
                         ? "bg-gray-50 border-gray-200"
-                        : "bg-blue-50 border-blue-500"
+                        : "bg-yellow-50 border-yellow-500"
                     }`}
                     onClick={() => handleNotificationClick(notification)}
                   >
@@ -273,7 +273,7 @@ export default function HomeHeader({
                       </div>
                       <div className="flex items-center ml-2">
                         {!notification.read && (
-                          <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                          <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
                         )}
                         <button
                           onClick={(e) => {
@@ -294,16 +294,16 @@ export default function HomeHeader({
           </div>
 
           {notifications.length > 0 && (
-            <div className="p-4 border-t border-gray-200 space-y-2">
+            <div className="p-4 border-t border-gray-200 space-y-3">
               <button
                 onClick={markAllAsRead}
-                className="w-full text-center text-blue-600 hover:text-blue-800 text-sm font-medium"
+                className="w-full text-center bg-navyblue hover:bg-blue-900 transition-colors duration-300 py-2.5 text-white rounded-md text-sm font-medium"
               >
                 Mark all as read
               </button>
               <button
                 onClick={deleteAllNotifications}
-                className="w-full text-center text-red-600 hover:text-red-800 text-sm font-medium"
+                className="w-full text-center transition-colors bg-red-50 hover:bg-red-200 rounded-md text-red-500 py-2.5 duration-300 text-sm font-medium"
               >
                 Delete all
               </button>
