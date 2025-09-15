@@ -94,19 +94,19 @@ export class AdminNotificationService {
     // Notify all admins about a new post
     async notifyAdminsNewPost(postData: NewPostNotificationData): Promise<void> {
         try {
-            // Get all admin users
+            // Get all admin and campus security users
             const adminIds = await this.getAllAdminIds();
 
             if (adminIds.length === 0) {
-                console.log('No admin users found to notify');
+                console.log('No admin or campus security users found to notify');
                 return;
             }
 
-            // Create notification for each admin (or use 'all' for broadcast)
+            // Create notification for each admin and campus security user (or use 'all' for broadcast)
             const title = `New ${postData.postType === 'lost' ? 'Lost' : 'Found'} Item Posted`;
             const message = `${postData.creatorName} posted a new ${postData.postType} item: "${postData.postTitle}" in ${postData.postCategory} category at ${postData.postLocation}.`;
 
-            // Create notifications for all admins using 'all' adminId
+            // Create notifications for all admins and campus security using 'all' adminId
             await this.createAdminNotification({
                 type: 'new_post',
                 title,
@@ -137,18 +137,33 @@ export class AdminNotificationService {
         }
     }
 
-    // Helper method to get all admin user IDs
+    // Helper method to get all admin user IDs (includes campus_security)
     private async getAllAdminIds(): Promise<string[]> {
         try {
             const usersRef = collection(db, 'users');
-            const q = query(usersRef, where('role', '==', 'admin'));
-            const snapshot = await getDocs(q);
+
+            // Get both admin and campus_security users
+            const adminQuery = query(usersRef, where('role', '==', 'admin'));
+            const campusSecurityQuery = query(usersRef, where('role', '==', 'campus_security'));
+
+            const [adminSnapshot, campusSecuritySnapshot] = await Promise.all([
+                getDocs(adminQuery),
+                getDocs(campusSecurityQuery)
+            ]);
 
             const adminIds: string[] = [];
-            snapshot.forEach((doc) => {
+
+            // Add admin users
+            adminSnapshot.forEach((doc) => {
                 adminIds.push(doc.id);
             });
 
+            // Add campus security users
+            campusSecuritySnapshot.forEach((doc) => {
+                adminIds.push(doc.id);
+            });
+
+            console.log(`Found ${adminSnapshot.size} admin users and ${campusSecuritySnapshot.size} campus security users`);
             return adminIds;
         } catch (error) {
             console.error('Error getting admin user IDs:', error);
