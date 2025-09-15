@@ -1,24 +1,18 @@
-import React, { useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  Animated,
-  Dimensions,
-  StyleSheet,
-} from 'react-native';
+import React, { useEffect, useRef } from "react";
+import { View, Text, Animated, Dimensions, StyleSheet } from "react-native";
 
 interface AnnouncementBannerProps {
   message: string;
   isVisible: boolean;
-  priority?: 'normal' | 'urgent';
+  priority?: "normal" | "urgent";
 }
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+const SCREEN_WIDTH = Dimensions.get("window").width;
 
-export default function AnnouncementBanner({ 
-  message, 
-  isVisible, 
-  priority = 'normal' 
+export default function AnnouncementBanner({
+  message,
+  isVisible,
+  priority = "normal",
 }: AnnouncementBannerProps) {
   const scrollAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -52,10 +46,10 @@ export default function AnnouncementBanner({
     // Calculate the distance to scroll (message width + some padding)
     const messageWidth = message.length * 8; // Approximate character width
     const scrollDistance = messageWidth + SCREEN_WIDTH;
-    
+
     // Reset position
     scrollAnim.setValue(0);
-    
+
     // Start scrolling animation
     Animated.loop(
       Animated.timing(scrollAnim, {
@@ -72,10 +66,12 @@ export default function AnnouncementBanner({
   }
 
   return (
-    <View style={[
-      styles.container,
-      priority === 'urgent' ? styles.urgentContainer : styles.normalContainer
-    ]}>
+    <View
+      style={[
+        styles.container,
+        priority === "urgent" ? styles.urgentContainer : styles.normalContainer,
+      ]}
+    >
       {/* Scrolling text container */}
       <View style={styles.textContainer}>
         <Animated.View
@@ -83,36 +79,42 @@ export default function AnnouncementBanner({
             styles.scrollingText,
             {
               opacity: fadeAnim,
-              transform: [{ translateX: scrollAnim }]
-            }
+              transform: [{ translateX: scrollAnim }],
+            },
           ]}
         >
           {/* Repeat message for seamless scrolling */}
-          <Text style={[
-            styles.text,
-            priority === 'urgent' ? styles.urgentText : styles.normalText
-          ]}>
+          <Text
+            style={[
+              styles.text,
+              priority === "urgent" ? styles.urgentText : styles.normalText,
+            ]}
+          >
             {message}
           </Text>
-          <Text style={[
-            styles.text,
-            priority === 'urgent' ? styles.urgentText : styles.normalText,
-            styles.spacing
-          ]}>
+          <Text
+            style={[
+              styles.text,
+              priority === "urgent" ? styles.urgentText : styles.normalText,
+              styles.spacing,
+            ]}
+          >
             {message}
           </Text>
-          <Text style={[
-            styles.text,
-            priority === 'urgent' ? styles.urgentText : styles.normalText,
-            styles.spacing
-          ]}>
+          <Text
+            style={[
+              styles.text,
+              priority === "urgent" ? styles.urgentText : styles.normalText,
+              styles.spacing,
+            ]}
+          >
             {message}
           </Text>
         </Animated.View>
       </View>
 
       {/* Priority indicator for urgent announcements */}
-      {priority === 'urgent' && (
+      {priority === "urgent" && (
         <View style={styles.urgentIndicator}>
           <View style={styles.urgentDot} />
           <Text style={styles.urgentLabel}>URGENT</Text>
@@ -126,51 +128,51 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     marginHorizontal: 8,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderRadius: 6,
     paddingVertical: 6,
     paddingHorizontal: 8,
     minHeight: 32,
     maxHeight: 40,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   normalContainer: {
-    backgroundColor: '#FFFFFF', // White background for normal
+    backgroundColor: "#FFFFFF", // White background for normal
   },
   urgentContainer: {
-    backgroundColor: '#FFFFFF', // White background for urgent
+    backgroundColor: "#FFFFFF", // White background for urgent
   },
   textContainer: {
     flex: 1,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   scrollingText: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   text: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#000000', // Black text
+    fontWeight: "600",
+    color: "#000000", // Black text
     letterSpacing: 0.3,
   },
   normalText: {
-    color: '#000000', // Black text
+    color: "#000000", // Black text
   },
   urgentText: {
-    color: '#000000', // Black text
-    fontWeight: '700',
+    color: "#000000", // Black text
+    fontWeight: "700",
   },
   spacing: {
     marginLeft: 48, // Space between repeated messages
   },
   urgentIndicator: {
-    position: 'absolute',
+    position: "absolute",
     top: 2,
     right: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF2F2', // Light red background
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF2F2", // Light red background
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 3,
@@ -178,13 +180,13 @@ const styles = StyleSheet.create({
   urgentDot: {
     width: 4,
     height: 4,
-    backgroundColor: '#EF4444', // Red dot
+    backgroundColor: "#EF4444", // Red dot
     borderRadius: 2,
     marginRight: 3,
   },
   urgentLabel: {
-    color: '#EF4444', // Red text
+    color: "#EF4444", // Red text
     fontSize: 8,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 });

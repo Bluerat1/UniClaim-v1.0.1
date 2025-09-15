@@ -38,8 +38,6 @@ export default function Chat() {
     foundAction,
   } = route.params;
 
-
-
   const {
     sendMessage,
     createConversation,
@@ -72,45 +70,47 @@ export default function Chat() {
   const [showHandoverModal, setShowHandoverModal] = useState(false);
   const [isClaimSubmitting, setIsClaimSubmitting] = useState(false);
   const [isHandoverSubmitting, setIsHandoverSubmitting] = useState(false);
-  
 
   const flatListRef = useRef<FlatList>(null);
 
   // Fetch post data from Firestore
   const fetchPostData = async (postId: string) => {
     try {
-      const { getDoc, doc } = await import('firebase/firestore');
-      const { db } = await import('@/utils/firebase/config');
-      const postDoc = await getDoc(doc(db, 'posts', postId));
+      const { getDoc, doc } = await import("firebase/firestore");
+      const { db } = await import("@/utils/firebase/config");
+      const postDoc = await getDoc(doc(db, "posts", postId));
       if (postDoc.exists()) {
         return postDoc.data();
       }
       return null;
     } catch (error) {
-      console.error('Error fetching post data:', error);
+      console.error("Error fetching post data:", error);
       return null;
     }
   };
 
   // Update conversation data in Firestore
-  const updateConversationData = async (conversationId: string, updatedData: any) => {
+  const updateConversationData = async (
+    conversationId: string,
+    updatedData: any
+  ) => {
     try {
-      const { updateDoc, doc } = await import('firebase/firestore');
-      const { db } = await import('@/utils/firebase/config');
-      await updateDoc(doc(db, 'conversations', conversationId), {
+      const { updateDoc, doc } = await import("firebase/firestore");
+      const { db } = await import("@/utils/firebase/config");
+      await updateDoc(doc(db, "conversations", conversationId), {
         postType: updatedData.postType,
         postStatus: updatedData.postStatus,
         foundAction: updatedData.foundAction,
-        postCreatorId: updatedData.postCreatorId
+        postCreatorId: updatedData.postCreatorId,
       });
     } catch (error) {
-      console.error('Error updating conversation data:', error);
+      console.error("Error updating conversation data:", error);
     }
   };
 
   // Track if we've already updated this conversation to prevent spam
   const [hasUpdatedConversation, setHasUpdatedConversation] = useState(false);
-  
+
   // Track if we're currently loading to prevent multiple simultaneous loads
   const isLoadingRef = useRef(false);
 
@@ -124,7 +124,11 @@ export default function Chat() {
         conversationData.participants || {}
       ).find(([uid]) => uid !== userData.uid);
 
-      if (otherParticipant && otherParticipant[1] && (otherParticipant[1] as any).profilePicture) {
+      if (
+        otherParticipant &&
+        otherParticipant[1] &&
+        (otherParticipant[1] as any).profilePicture
+      ) {
         return (otherParticipant[1] as any).profilePicture;
       }
     }
@@ -221,7 +225,6 @@ export default function Chat() {
     if (!conversationId) return;
     if (isLoadingRef.current) return; // Prevent multiple simultaneous loads
 
-
     isLoadingRef.current = true;
     setIsConversationDataReady(false);
     setHasUpdatedConversation(false);
@@ -231,43 +234,52 @@ export default function Chat() {
     getConversation(conversationId)
       .then((data) => {
         if (!isMounted) return; // Don't update state if component unmounted
-        
+
         // Check if conversation data has the required fields, if not, fetch from post
         if (data && (!data.postType || !data.postStatus)) {
           // Fetch post data to get the correct values
           if (data.postId) {
-            fetchPostData(data.postId).then((postData) => {
-              if (!isMounted) return; // Don't update state if component unmounted
-              
-              if (postData) {
-                // Update conversation data with post data
-                const updatedConversationData = {
-                  ...data,
-                  postType: postData.type || data.postType || 'lost',
-                  postStatus: postData.status || data.postStatus || 'pending',
-                  foundAction: postData.foundAction || data.foundAction || null,
-                  postCreatorId: postData.creatorId || data.postCreatorId || data.postOwnerId
-                };
-                setConversationData(updatedConversationData);
-                setIsConversationDataReady(true);
-                isLoadingRef.current = false;
-                
-                // Also update the conversation in Firestore for future use (only once)
-                if (!hasUpdatedConversation) {
-                  updateConversationData(conversationId, updatedConversationData);
-                  setHasUpdatedConversation(true);
+            fetchPostData(data.postId)
+              .then((postData) => {
+                if (!isMounted) return; // Don't update state if component unmounted
+
+                if (postData) {
+                  // Update conversation data with post data
+                  const updatedConversationData = {
+                    ...data,
+                    postType: postData.type || data.postType || "lost",
+                    postStatus: postData.status || data.postStatus || "pending",
+                    foundAction:
+                      postData.foundAction || data.foundAction || null,
+                    postCreatorId:
+                      postData.creatorId ||
+                      data.postCreatorId ||
+                      data.postOwnerId,
+                  };
+                  setConversationData(updatedConversationData);
+                  setIsConversationDataReady(true);
+                  isLoadingRef.current = false;
+
+                  // Also update the conversation in Firestore for future use (only once)
+                  if (!hasUpdatedConversation) {
+                    updateConversationData(
+                      conversationId,
+                      updatedConversationData
+                    );
+                    setHasUpdatedConversation(true);
+                  }
+                } else {
+                  setConversationData(data);
+                  setIsConversationDataReady(true);
+                  isLoadingRef.current = false;
                 }
-              } else {
+              })
+              .catch((error) => {
+                if (!isMounted) return; // Don't update state if component unmounted
                 setConversationData(data);
                 setIsConversationDataReady(true);
                 isLoadingRef.current = false;
-              }
-            }).catch((error) => {
-              if (!isMounted) return; // Don't update state if component unmounted
-              setConversationData(data);
-              setIsConversationDataReady(true);
-              isLoadingRef.current = false;
-            });
+              });
           } else {
             setConversationData(data);
             setIsConversationDataReady(true);
@@ -363,7 +375,7 @@ export default function Chat() {
     // Use conversation data if available, otherwise fall back to route params
     const currentPostType = conversationData?.postType || postType;
     const currentPostStatus = conversationData?.postStatus || postStatus;
-    
+
     if (!userData || !postOwnerId) return false;
     if (postOwnerId === userData.uid) return false;
     if (currentPostType !== "lost") return false;
@@ -376,7 +388,7 @@ export default function Chat() {
     const currentPostType = conversationData?.postType || postType;
     const currentPostStatus = conversationData?.postStatus || postStatus;
     const currentFoundAction = conversationData?.foundAction || foundAction;
-    
+
     if (!userData || !postOwnerId) return false;
     if (postOwnerId === userData.uid) return false;
     if (currentPostType !== "found") return false;
@@ -384,10 +396,7 @@ export default function Chat() {
 
     // Allow claiming for "keep" and "turnover to Campus Security" posts
     // Only exclude posts that are disposed or donated
-    if (
-      currentFoundAction === "disposed" ||
-      currentFoundAction === "donated"
-    ) {
+    if (currentFoundAction === "disposed" || currentFoundAction === "donated") {
       return false;
     }
 
@@ -494,7 +503,6 @@ export default function Chat() {
     }
   };
 
-
   // Handle ID photo confirmation (like web version)
   const handleConfirmIdPhotoSuccess = async (messageId: string) => {
     if (!conversationId || !user?.uid) return;
@@ -525,13 +533,13 @@ export default function Chat() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white pt-3">
+    <SafeAreaView className="flex-1 bg-white">
       {/* Header */}
-      <View className="bg-white border-b border-gray-200 pt-3 pb-4 px-4 mt-6 flex-row items-center">
+      <View className="bg-white border-b border-gray-200 pb-4 px-4 mt-3 flex-row items-center">
         <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3">
           <Ionicons name="arrow-back" size={24} color="#374151" />
         </TouchableOpacity>
-        
+
         {/* Profile Picture - only show for other user's conversations */}
         {postOwnerId && userData && postOwnerId !== userData.uid && (
           <View className="mr-3">
@@ -541,7 +549,7 @@ export default function Chat() {
             />
           </View>
         )}
-        
+
         <View className="flex-1">
           <Text
             className="font-semibold text-lg text-gray-800"
@@ -557,7 +565,6 @@ export default function Chat() {
               : "About this lost/found item"}
           </Text>
         </View>
-
 
         {/* Action Buttons */}
         {shouldShowHandoverButton() && (
@@ -651,7 +658,7 @@ export default function Chat() {
         )}
 
         {/* Message Input */}
-        <View className="border-t border-gray-200 bg-white p-4 mb-10">
+        <View className="border-t border-gray-200 bg-white p-4">
           <View className="flex-row items-center gap-3">
             <View className="flex-1">
               <TextInput
@@ -698,7 +705,6 @@ export default function Chat() {
         isLoading={isHandoverSubmitting}
         postTitle={postTitle}
       />
-
     </SafeAreaView>
   );
 }
