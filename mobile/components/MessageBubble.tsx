@@ -777,18 +777,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           <ProfilePicture
             src={message.senderProfilePicture}
             size="sm"
-            style={{ marginBottom: 4 }}
+            style={{ marginBottom: 6 }}
           />
         )}
 
         <View className="flex-1">
           <View
-            className={`flex-row mb-2 ${
+            className={`flex-row ${
               isOwnMessage ? "justify-end" : "justify-start"
             }`}
           >
             <View
-              className={`w-[20rem] rounded-2xl px-4 py-3 ${
+              className={`max-w-[75%] rounded-2xl px-4 py-3 ${
                 isOwnMessage
                   ? "bg-navyblue rounded-br-md"
                   : "bg-zinc-200 rounded-bl-md"

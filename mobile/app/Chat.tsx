@@ -1,6 +1,5 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
-  SafeAreaView,
   Text,
   FlatList,
   TouchableOpacity,
@@ -10,6 +9,7 @@ import {
   Platform,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
@@ -533,7 +533,7 @@ export default function Chat() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-white" edges={["top", "bottom"]}>
       {/* Header */}
       <View className="bg-white border-b border-gray-200 pb-4 px-4 mt-3 flex-row items-center">
         <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3">

@@ -35,13 +35,13 @@ export default function Header() {
     deleteNotification,
     deleteAllNotifications,
   } = useNotifications();
-  
+
   const {
     currentAnnouncement,
     hasActiveAnnouncements,
     loading: announcementLoading,
   } = useCurrentAnnouncement();
-  
+
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
@@ -158,7 +158,7 @@ export default function Header() {
                     </View>
                   )}
                 </View>
-                <View className="flex-row items-center space-x-2">
+                <View className="flex-row items-center gap-4">
                   <TouchableOpacity
                     onPress={() => setShowPreferences(true)}
                     className="p-1"
@@ -172,10 +172,13 @@ export default function Header() {
               </View>
 
               {/* Notification content */}
-              <ScrollView className="flex-1">
+              <ScrollView
+                className="flex-1"
+                showsVerticalScrollIndicator={false}
+              >
                 {notifications.length === 0 ? (
-                  <View className="items-center justify-center flex-1">
-                    <Text className="text-lg font-inter text-gray-700">
+                  <View className="flex-1 items-center justify-center">
+                    <Text className="text-lg font-inter text-gray-700 mt-60">
                       📣 You have no new notifications.
                     </Text>
                   </View>
@@ -187,19 +190,19 @@ export default function Header() {
                         onPress={() => handleNotificationPress(notification)}
                         className={`p-3 rounded-lg border-l-4 ${
                           notification.read
-                            ? "bg-gray-50 border-gray-200"
+                            ? "bg-gray-50 border-navyblue/50"
                             : "bg-yellow-50 border-yellow-500"
                         }`}
                       >
                         <View className="flex-row justify-between items-start">
                           <View className="flex-1">
-                            <Text className="font-medium text-gray-900 text-sm">
+                            <Text className="font-manrope-semibold text-gray-900 text-sm">
                               {notification.title}
                             </Text>
-                            <Text className="text-gray-600 text-xs mt-1">
+                            <Text className="text-gray-600 font-inter text-xs mt-1">
                               {notification.body}
                             </Text>
-                            <Text className="text-gray-400 text-xs mt-2">
+                            <Text className="text-gray-400 text-xs font-inter mt-2">
                               {new Date(
                                 notification.createdAt?.toDate?.() ||
                                   notification.createdAt
@@ -231,7 +234,7 @@ export default function Header() {
                 <View className="mt-4 pt-4 border-t border-gray-200 flex-col gap-3">
                   <TouchableOpacity
                     onPress={markAllAsRead}
-                    className="w-full p-4 rounded-lg border border-navyblue"
+                    className="w-full p-3 rounded-lg border border-navyblue"
                   >
                     <Text className="text-center font-manrope-medium text-navyblue">
                       Mark all as read
@@ -239,7 +242,7 @@ export default function Header() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={deleteAllNotifications}
-                    className="w-full p-4 rounded-lg border border-red-500"
+                    className="w-full p-3 rounded-lg border border-red-500"
                   >
                     <Text className="text-center text-red-500 font-manrope-medium">
                       Delete all

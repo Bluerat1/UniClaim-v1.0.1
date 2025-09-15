@@ -93,7 +93,7 @@ export default function AdminHeader({
                 <HiOutlineBell className="size-8 text-white stroke-[1.3px] cursor-pointer hover:text-brand" />
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] h-5 flex items-center justify-center">
-                    {unreadCount > 99 ? '99+' : unreadCount}
+                    {unreadCount > 99 ? "99+" : unreadCount}
                   </span>
                 )}
               </button>
@@ -163,7 +163,7 @@ export default function AdminHeader({
                 Admin Notifications
               </h2>
               {unreadCount > 0 && (
-                <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1">
+                <span className="ml-2 bg-red-500 text-white text-[10px] rounded-full py-1 px-2">
                   {unreadCount}
                 </span>
               )}
@@ -180,34 +180,50 @@ export default function AdminHeader({
           <div className="flex-1 overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="p-4">
-                <p className="text-gray-500 text-center">No admin notifications.</p>
+                <p className="text-gray-500 text-center">
+                  No admin notifications.
+                </p>
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`p-4 hover:bg-gray-50 transition-colors ${
-                      !notification.read ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                    className={`p-4 hover:bg-yellow-100 transition-colors ${
+                      !notification.read
+                        ? "bg-blue/10 border-l-4 border-yellow-500"
+                        : ""
                     }`}
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <h3 className={`text-sm font-medium ${
-                            !notification.read ? 'text-blue-900' : 'text-gray-900'
-                          }`}>
+                          <h3
+                            className={`text-sm font-medium ${
+                              !notification.read
+                                ? "text-blue-900"
+                                : "text-gray-900"
+                            }`}
+                          >
                             {notification.title}
                           </h3>
                           <div className="flex items-center space-x-1">
-                            {notification.priority === 'high' && (
-                              <span className="inline-block w-2 h-2 bg-orange-500 rounded-full" title="High priority"></span>
+                            {notification.priority === "high" && (
+                              <span
+                                className="inline-block w-2 h-2 bg-orange-500 rounded-full"
+                                title="High priority"
+                              ></span>
                             )}
-                            {notification.priority === 'critical' && (
-                              <span className="inline-block w-2 h-2 bg-red-500 rounded-full" title="Critical"></span>
+                            {notification.priority === "critical" && (
+                              <span
+                                className="inline-block w-2 h-2 bg-red-500 rounded-full"
+                                title="Critical"
+                              ></span>
                             )}
                             <button
-                              onClick={() => deleteNotification(notification.id)}
+                              onClick={() =>
+                                deleteNotification(notification.id)
+                              }
                               className="text-gray-400 hover:text-red-600 p-1"
                               title="Delete notification"
                             >
@@ -215,27 +231,38 @@ export default function AdminHeader({
                             </button>
                           </div>
                         </div>
-                        <p className={`text-sm mt-1 ${
-                          !notification.read ? 'text-blue-800' : 'text-gray-600'
-                        }`}>
+                        <p
+                          className={`text-sm mt-1 ${
+                            !notification.read
+                              ? "text-blue-800"
+                              : "text-gray-600"
+                          }`}
+                        >
                           {notification.message}
                         </p>
                         <div className="flex items-center justify-between mt-2">
                           <span className="text-xs text-gray-500">
-                            {notification.type === 'new_post' && '📝 New Post'}
-                            {notification.type === 'flagged_post' && '🚩 Flagged Post'}
-                            {notification.type === 'user_report' && '👤 User Report'}
-                            {notification.type === 'system_alert' && '⚠️ System Alert'}
-                            {notification.type === 'activity_summary' && '📊 Activity Summary'}
+                            {notification.type === "new_post" && "📝 New Post"}
+                            {notification.type === "flagged_post" &&
+                              "🚩 Flagged Post"}
+                            {notification.type === "user_report" &&
+                              "👤 User Report"}
+                            {notification.type === "system_alert" &&
+                              "⚠️ System Alert"}
+                            {notification.type === "activity_summary" &&
+                              "📊 Activity Summary"}
                           </span>
                           <span className="text-xs text-gray-500">
-                            {notification.createdAt?.toDate?.()?.toLocaleDateString() || 'Recently'}
+                            {notification.createdAt
+                              ?.toDate?.()
+                              ?.toLocaleDateString() || "Recently"}
                           </span>
                         </div>
                         {notification.relatedEntity && (
                           <div className="mt-2">
                             <span className="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">
-                              {notification.relatedEntity.type}: {notification.relatedEntity.name}
+                              {notification.relatedEntity.type}:{" "}
+                              {notification.relatedEntity.name}
                             </span>
                           </div>
                         )}
