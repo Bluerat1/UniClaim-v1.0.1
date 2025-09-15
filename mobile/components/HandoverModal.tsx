@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import ImagePicker from './ImagePicker';
-import { uploadToCloudinary } from '../utils/cloudinary';
+import { cloudinaryService } from '../utils/cloudinary';
 
 interface HandoverModalProps {
   visible: boolean;
@@ -31,85 +31,79 @@ export default function HandoverModal({
   postTitle,
 }: HandoverModalProps) {
   const [handoverReason, setHandoverReason] = useState('');
-  const [idPhotoUrl, setIdPhotoUrl] = useState('');
-  const [itemPhotos, setItemPhotos] = useState<{ url: string; uploadedAt: any; description?: string }[]>([]);
+  const [idPhotoUri, setIdPhotoUri] = useState('');
+  const [itemPhotoUris, setItemPhotoUris] = useState<string[]>([]);
   const [isUploadingIdPhoto, setIsUploadingIdPhoto] = useState(false);
   const [isUploadingItemPhoto, setIsUploadingItemPhoto] = useState(false);
+  const [isHandoverSubmitting, setIsHandoverSubmitting] = useState(false);
   const [showIdPhotoPicker, setShowIdPhotoPicker] = useState(false);
   const [showItemPhotoPicker, setShowItemPhotoPicker] = useState(false);
 
-  const handleIdPhotoUpload = async (photoUri: string) => {
-    try {
-      setIsUploadingIdPhoto(true);
-      const uploadedUrl = await uploadToCloudinary(photoUri);
-      setIdPhotoUrl(uploadedUrl);
-      setShowIdPhotoPicker(false);
-      Alert.alert('Success', 'ID photo uploaded successfully!');
-    } catch (error) {
-      console.error('Error uploading ID photo:', error);
-      Alert.alert('Error', 'Failed to upload ID photo. Please try again.');
-    } finally {
-      setIsUploadingIdPhoto(false);
-    }
+  const handleIdPhotoSelect = (photoUri: string) => {
+    setIdPhotoUri(photoUri);
+    setShowIdPhotoPicker(false);
   };
 
-  const handleItemPhotoUpload = async (photoUri: string) => {
-    try {
-      setIsUploadingItemPhoto(true);
-      const uploadedUrl = await uploadToCloudinary(photoUri);
-      const newPhoto = {
-        url: uploadedUrl,
-        uploadedAt: new Date(),
-        description: '',
-      };
-      setItemPhotos(prev => [...prev, newPhoto]);
-      setShowItemPhotoPicker(false);
-      Alert.alert('Success', 'Item photo uploaded successfully!');
-    } catch (error) {
-      console.error('Error uploading item photo:', error);
-      Alert.alert('Error', 'Failed to upload item photo. Please try again.');
-    } finally {
-      setIsUploadingItemPhoto(false);
-    }
+  const handleItemPhotoSelect = (photoUri: string) => {
+    setItemPhotoUris(prev => [...prev, photoUri]);
+    setShowItemPhotoPicker(false);
   };
 
   const removeItemPhoto = (index: number) => {
-    setItemPhotos(prev => prev.filter((_, i) => i !== index));
+    setItemPhotoUris(prev => prev.filter((_, i) => i !== index));
   };
 
-  const updateItemPhotoDescription = (index: number, description: string) => {
-    setItemPhotos(prev => prev.map((photo, i) => 
-      i === index ? { ...photo, description } : photo
-    ));
-  };
-
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!handoverReason.trim()) {
       Alert.alert('Error', 'Please provide a reason for the handover request.');
       return;
     }
 
-    if (!idPhotoUrl) {
-      Alert.alert('Error', 'Please upload your ID photo for verification.');
+    if (!idPhotoUri) {
+      Alert.alert('Error', 'Please select your ID photo for verification.');
       return;
     }
 
-    if (itemPhotos.length === 0) {
-      Alert.alert('Error', 'Please upload at least one photo of the item.');
+    if (itemPhotoUris.length === 0) {
+      Alert.alert('Error', 'Please select at least one photo of the item.');
       return;
     }
 
-    onSubmit({
-      handoverReason: handoverReason.trim(),
-      idPhotoUrl,
-      itemPhotos,
-    });
+    try {
+      setIsHandoverSubmitting(true);
+
+      // Upload ID photo
+      const idPhotoUrl = await cloudinaryService.uploadImage(idPhotoUri, 'id_photos');
+
+      // Upload item photos
+      const itemPhotos = await Promise.all(
+        itemPhotoUris.map(async (uri) => {
+          const url = await cloudinaryService.uploadImage(uri, 'item_photos');
+          return {
+            url,
+            uploadedAt: new Date(),
+            description: '',
+          };
+        })
+      );
+
+      onSubmit({
+        handoverReason: handoverReason.trim(),
+        idPhotoUrl,
+        itemPhotos,
+      });
+    } catch (error) {
+      console.error('Error uploading photos:', error);
+      Alert.alert('Error', 'Failed to upload photos. Please try again.');
+    } finally {
+      setIsHandoverSubmitting(false);
+    }
   };
 
   const resetForm = () => {
     setHandoverReason('');
-    setIdPhotoUrl('');
-    setItemPhotos([]);
+    setIdPhotoUri('');
+    setItemPhotoUris([]);
   };
 
   const handleClose = () => {
@@ -190,18 +184,18 @@ export default function HandoverModal({
             />
           </View>
 
-          {/* ID Photo Upload */}
+          {/* ID Photo Selection */}
           <View style={{ marginBottom: 20 }}>
             <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>
               ID Photo for Verification *
             </Text>
-            {idPhotoUrl ? (
+            {idPhotoUri ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                 <Text style={{ color: '#10b981', fontSize: 14, flex: 1 }}>
-                  ✓ ID photo uploaded
+                  ✓ ID photo selected
                 </Text>
                 <TouchableOpacity
-                  onPress={() => setIdPhotoUrl('')}
+                  onPress={() => setIdPhotoUri('')}
                   style={{ padding: 4 }}
                 >
                   <Text style={{ color: '#ef4444', fontSize: 14 }}>Remove</Text>
@@ -210,7 +204,6 @@ export default function HandoverModal({
             ) : (
               <TouchableOpacity
                 onPress={() => setShowIdPhotoPicker(true)}
-                disabled={isUploadingIdPhoto}
                 style={{
                   borderWidth: 2,
                   borderColor: '#d1d5db',
@@ -218,36 +211,30 @@ export default function HandoverModal({
                   borderRadius: 8,
                   padding: 20,
                   alignItems: 'center',
-                  backgroundColor: isUploadingIdPhoto ? '#f9fafb' : 'white',
+                  backgroundColor: 'white',
                 }}
               >
-                {isUploadingIdPhoto ? (
-                  <ActivityIndicator size="small" color="#3b82f6" />
-                ) : (
-                  <>
-                    <Text style={{ color: '#6b7280', fontSize: 14, marginBottom: 4 }}>
-                      📷 Tap to upload ID photo
-                    </Text>
-                    <Text style={{ color: '#9ca3af', fontSize: 12 }}>
-                      Required for verification
-                    </Text>
-                  </>
-                )}
+                <Text style={{ color: '#6b7280', fontSize: 14, marginBottom: 4 }}>
+                  📷 Tap to select ID photo
+                </Text>
+                <Text style={{ color: '#9ca3af', fontSize: 12 }}>
+                  Required for verification
+                </Text>
               </TouchableOpacity>
             )}
           </View>
 
-          {/* Item Photos Upload */}
+          {/* Item Photos Selection */}
           <View style={{ marginBottom: 20 }}>
             <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>
               Item Photos *
             </Text>
             <Text style={{ color: '#6b7280', fontSize: 12, marginBottom: 8 }}>
-              Upload photos of the item (up to 3 photos)
+              Select photos of the item (up to 3 photos)
             </Text>
 
-            {/* Existing Item Photos */}
-            {itemPhotos.map((photo, index) => (
+            {/* Selected Item Photos */}
+            {itemPhotoUris.map((uri, index) => (
               <View
                 key={index}
                 style={{
@@ -260,7 +247,7 @@ export default function HandoverModal({
                 }}
               >
                 <Text style={{ color: '#10b981', fontSize: 14, flex: 1 }}>
-                  ✓ Photo {index + 1} uploaded
+                  ✓ Photo {index + 1} selected
                 </Text>
                 <TouchableOpacity
                   onPress={() => removeItemPhoto(index)}
@@ -272,10 +259,9 @@ export default function HandoverModal({
             ))}
 
             {/* Add Item Photo Button */}
-            {itemPhotos.length < 3 && (
+            {itemPhotoUris.length < 3 && (
               <TouchableOpacity
                 onPress={() => setShowItemPhotoPicker(true)}
-                disabled={isUploadingItemPhoto}
                 style={{
                   borderWidth: 2,
                   borderColor: '#d1d5db',
@@ -283,21 +269,15 @@ export default function HandoverModal({
                   borderRadius: 8,
                   padding: 16,
                   alignItems: 'center',
-                  backgroundColor: isUploadingItemPhoto ? '#f9fafb' : 'white',
+                  backgroundColor: 'white',
                 }}
               >
-                {isUploadingItemPhoto ? (
-                  <ActivityIndicator size="small" color="#3b82f6" />
-                ) : (
-                  <>
-                    <Text style={{ color: '#6b7280', fontSize: 14, marginBottom: 4 }}>
-                      📷 Add Item Photo ({itemPhotos.length}/3)
-                    </Text>
-                    <Text style={{ color: '#9ca3af', fontSize: 12 }}>
-                      Tap to upload
-                    </Text>
-                  </>
-                )}
+                <Text style={{ color: '#6b7280', fontSize: 14, marginBottom: 4 }}>
+                  📷 Add Item Photo ({itemPhotoUris.length}/3)
+                </Text>
+                <Text style={{ color: '#9ca3af', fontSize: 12 }}>
+                  Tap to select
+                </Text>
               </TouchableOpacity>
             )}
           </View>
@@ -326,16 +306,16 @@ export default function HandoverModal({
 
             <TouchableOpacity
               onPress={handleSubmit}
-              disabled={isLoading || !handoverReason.trim() || !idPhotoUrl || itemPhotos.length === 0}
+              disabled={isLoading || isHandoverSubmitting || !handoverReason.trim() || !idPhotoUri || itemPhotoUris.length === 0}
               style={{
                 paddingHorizontal: 20,
                 paddingVertical: 12,
                 borderRadius: 8,
-                backgroundColor: isLoading || !handoverReason.trim() || !idPhotoUrl || itemPhotos.length === 0 ? '#9ca3af' : '#10b981',
+                backgroundColor: isLoading || isHandoverSubmitting || !handoverReason.trim() || !idPhotoUri || itemPhotoUris.length === 0 ? '#9ca3af' : '#10b981',
               }}
             >
               <Text style={{ color: 'white', fontWeight: '500' }}>
-                {isLoading ? 'Sending...' : 'Send Request'}
+                {isLoading || isHandoverSubmitting ? 'Uploading & Sending...' : 'Send Request'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -345,17 +325,17 @@ export default function HandoverModal({
       {/* Image Pickers */}
       {showIdPhotoPicker && (
         <ImagePicker
-          onImageSelect={handleIdPhotoUpload}
+          onImageSelect={handleIdPhotoSelect}
           onClose={() => setShowIdPhotoPicker(false)}
-          isUploading={isUploadingIdPhoto}
+          isUploading={false}
         />
       )}
 
       {showItemPhotoPicker && (
         <ImagePicker
-          onImageSelect={handleItemPhotoUpload}
+          onImageSelect={handleItemPhotoSelect}
           onClose={() => setShowItemPhotoPicker(false)}
-          isUploading={isUploadingItemPhoto}
+          isUploading={false}
         />
       )}
     </View>

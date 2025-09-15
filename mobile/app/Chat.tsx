@@ -72,6 +72,7 @@ export default function Chat() {
   const [showHandoverModal, setShowHandoverModal] = useState(false);
   const [isClaimSubmitting, setIsClaimSubmitting] = useState(false);
   const [isHandoverSubmitting, setIsHandoverSubmitting] = useState(false);
+  
 
   const flatListRef = useRef<FlatList>(null);
 
@@ -468,16 +469,10 @@ export default function Chat() {
     messageId: string,
     status: "accepted" | "rejected"
   ) => {
-    if (!conversationId || !user?.uid) return;
-
-    try {
-      await updateHandoverResponse(conversationId, messageId, status);
-      Alert.alert("Success", `Handover request ${status}!`);
-    } catch (error: any) {
-      Alert.alert(
-        "Error",
-        `Failed to ${status} handover request. Please try again.`
-      );
+    // MessageBubble handles the actual logic
+    // This function is called by MessageBubble after successful rejection
+    if (status === "rejected") {
+      Alert.alert("Success", "Handover request rejected!");
     }
   };
 
@@ -498,6 +493,7 @@ export default function Chat() {
       );
     }
   };
+
 
   // Handle ID photo confirmation (like web version)
   const handleConfirmIdPhotoSuccess = async (messageId: string) => {
@@ -702,6 +698,7 @@ export default function Chat() {
         isLoading={isHandoverSubmitting}
         postTitle={postTitle}
       />
+
     </SafeAreaView>
   );
 }

@@ -613,6 +613,8 @@ export const deleteMessageImages = async (imageUrls: string[]): Promise<{ delete
         }
 
         console.log(`🗑️ Mobile: Attempting to delete ${imageUrls.length} images from Cloudinary`);
+        console.log('🗑️ Mobile: Cloudinary API Key available:', !!CLOUDINARY_API_KEY);
+        console.log('🗑️ Mobile: Cloudinary API Secret available:', !!CLOUDINARY_API_SECRET);
         const deleted: string[] = [];
         const failed: string[] = [];
 

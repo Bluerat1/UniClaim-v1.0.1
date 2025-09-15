@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { notificationService } from '../utils/firebase/notifications';
 import { NotificationPreferences } from '../types/Notification';
 import { Bell, BellOff, Clock, MapPin, Tag, X } from 'lucide-react-native';
+import { ITEM_CATEGORIES } from '../constants/categories';
 
 interface NotificationPreferencesComponentProps {
   onClose: () => void;
@@ -29,11 +30,8 @@ export default function NotificationPreferencesModal({ onClose }: NotificationPr
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Available categories for filtering
-  const availableCategories = [
-    'Electronics', 'Clothing', 'Accessories', 'Books', 'Bags', 
-    'Keys', 'Documents', 'Jewelry', 'Sports Equipment', 'Other'
-  ];
+  // Available categories for filtering - using the same categories as items
+  const availableCategories = ITEM_CATEGORIES;
 
   useEffect(() => {
     loadPreferences();

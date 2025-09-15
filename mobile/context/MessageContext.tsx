@@ -15,7 +15,7 @@ interface MessageContextType {
   markMessageAsRead: (conversationId: string, messageId: string) => Promise<void>;
   markAllUnreadMessagesAsRead: (conversationId: string, userId: string) => Promise<void>;
   sendHandoverRequest: (conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, handoverReason?: string, idPhotoUrl?: string, itemPhotos?: { url: string; uploadedAt: any; description?: string }[]) => Promise<void>;
-  updateHandoverResponse: (conversationId: string, messageId: string, status: 'accepted' | 'rejected') => Promise<void>;
+  updateHandoverResponse: (conversationId: string, messageId: string, status: 'accepted' | 'rejected', idPhotoUrl?: string) => Promise<void>;
   confirmHandoverIdPhoto: (conversationId: string, messageId: string) => Promise<void>;
   sendClaimRequest: (conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, claimReason?: string, idPhotoUrl?: string, evidencePhotos?: { url: string; uploadedAt: any; description?: string }[]) => Promise<void>;
   updateClaimResponse: (conversationId: string, messageId: string, status: 'accepted' | 'rejected') => Promise<void>;
@@ -135,9 +135,9 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
     }
   };
 
-  const updateHandoverResponse = async (conversationId: string, messageId: string, status: 'accepted' | 'rejected'): Promise<void> => {
+  const updateHandoverResponse = async (conversationId: string, messageId: string, status: 'accepted' | 'rejected', idPhotoUrl?: string): Promise<void> => {
     try {
-      await messageService.updateHandoverResponse(conversationId, messageId, status, userId!);
+      await messageService.updateHandoverResponse(conversationId, messageId, status, userId!, idPhotoUrl);
     } catch (error: any) {
       throw new Error(error.message || 'Failed to update handover response');
     }
