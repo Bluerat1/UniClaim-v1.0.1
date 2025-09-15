@@ -48,6 +48,7 @@ const ConversationItem = ({
   const getOtherParticipantName = () => {
     if (!userData) return "Unknown User";
 
+    // Try new structure first (participants with user data)
     const otherParticipants = Object.entries(conversation.participants || {})
       .filter(([uid]) => uid !== userData.uid) // Exclude current user
       .map(([, participant]) =>
@@ -55,20 +56,52 @@ const ConversationItem = ({
       )
       .filter((name) => name.length > 0);
 
-    return otherParticipants.length > 0
-      ? otherParticipants.join(", ")
-      : "Unknown User";
+    if (otherParticipants.length > 0) {
+      return otherParticipants.join(", ");
+    }
+
+    // Fallback to old structure (participantData)
+    if (conversation.participantData) {
+      const otherParticipantData = Object.entries(conversation.participantData || {})
+        .filter(([uid]) => uid !== userData.uid)
+        .map(([, participant]) =>
+          `${participant.firstName} ${participant.lastName}`.trim()
+        )
+        .filter((name) => name.length > 0);
+
+      if (otherParticipantData.length > 0) {
+        return otherParticipantData.join(", ");
+      }
+    }
+
+    return "Unknown User";
   };
 
   // Get the other participant's profile picture (exclude current user)
   const getOtherParticipantProfilePicture = () => {
     if (!userData) return null;
 
+    // Try new structure first (participants with user data)
     const otherParticipant = Object.entries(
       conversation.participants || {}
     ).find(([uid]) => uid !== userData.uid);
 
-    return otherParticipant ? otherParticipant[1].profilePicture : null;
+    if (otherParticipant && otherParticipant[1].profilePicture) {
+      return otherParticipant[1].profilePicture;
+    }
+
+    // Fallback to old structure (participantData)
+    if (conversation.participantData) {
+      const otherParticipantData = Object.entries(
+        conversation.participantData || {}
+      ).find(([uid]) => uid !== userData.uid);
+      
+      if (otherParticipantData) {
+        return otherParticipantData[1].profilePicture || otherParticipantData[1].profileImageUrl;
+      }
+    }
+    
+    return null;
   };
 
   // Get the name of the user who sent the last message
@@ -80,7 +113,7 @@ const ConversationItem = ({
       return "You";
     }
 
-    // Find the sender in participants
+    // Find the sender in participants (new structure)
     const sender = Object.entries(conversation.participants || {}).find(
       ([uid]) => uid === conversation.lastMessage.senderId
     );
@@ -89,6 +122,19 @@ const ConversationItem = ({
       const firstName = sender[1].firstName || "";
       const lastName = sender[1].lastName || "";
       return `${firstName} ${lastName}`.trim() || "Unknown User";
+    }
+
+    // Fallback to old structure (participantData)
+    if (conversation.participantData) {
+      const senderData = Object.entries(conversation.participantData || {}).find(
+        ([uid]) => uid === conversation.lastMessage.senderId
+      );
+
+      if (senderData) {
+        const firstName = senderData[1].firstName || "";
+        const lastName = senderData[1].lastName || "";
+        return `${firstName} ${lastName}`.trim() || "Unknown User";
+      }
     }
 
     return "Unknown User";
@@ -172,12 +218,26 @@ export default function Message() {
   const [refreshing, setRefreshing] = useState(false);
 
   const handleConversationPress = (conversation: Conversation) => {
+    console.log("🔍 DEBUG: Navigating to Chat with conversation data:", {
+      conversationId: conversation.id,
+      postTitle: conversation.postTitle,
+      postOwnerId: conversation.postCreatorId,
+      postId: conversation.postId,
+      postType: conversation.postType,
+      postStatus: conversation.postStatus,
+      foundAction: conversation.foundAction,
+      fullConversation: conversation
+    });
+    
     navigation.navigate("Chat", {
       conversationId: conversation.id,
       postTitle: conversation.postTitle,
       postOwnerId: conversation.postCreatorId,
       postId: conversation.postId,
-      postOwnerUserData: conversation.participantData?.[conversation.postCreatorId] || {},
+      postOwnerUserData: conversation.participants?.[conversation.postCreatorId] || {},
+      postType: conversation.postType,
+      postStatus: conversation.postStatus,
+      foundAction: conversation.foundAction,
     });
   };
 

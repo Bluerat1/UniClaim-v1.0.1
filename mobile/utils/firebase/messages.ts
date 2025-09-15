@@ -22,14 +22,14 @@ import {
 
 // Message service interface
 interface MessageService {
-    createConversation(postId: string, postTitle: string, postOwnerId: string, currentUserId: string, currentUserData: any, postOwnerUserData?: any): Promise<string>;
+    createConversation(postId: string, postTitle: string, postOwnerId: string, currentUserId: string, currentUserData: any, postOwnerUserData?: any, postType?: string, postStatus?: string, foundAction?: string): Promise<string>;
     sendMessage(conversationId: string, senderId: string, senderName: string, text: string, senderProfilePicture?: string): Promise<void>;
     getConversationMessages(conversationId: string, callback: (messages: any[]) => void, messageLimit?: number): () => void;
     getUserConversations(userId: string, callback: (conversations: any[]) => void): () => void;
     markConversationAsRead(conversationId: string, userId: string): Promise<void>;
     markMessageAsRead(conversationId: string, messageId: string, userId: string): Promise<void>;
     markAllUnreadMessagesAsRead(conversationId: string, userId: string): Promise<void>;
-    sendHandoverRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, handoverReason?: string, idPhotoUrl?: string): Promise<void>;
+    sendHandoverRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, handoverReason?: string, idPhotoUrl?: string, itemPhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void>;
     sendClaimRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, claimReason?: string, idPhotoUrl?: string, evidencePhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void>;
     updateHandoverResponse(conversationId: string, messageId: string, status: 'accepted' | 'rejected', userId: string, idPhotoUrl?: string): Promise<void>;
     updateClaimResponse(conversationId: string, messageId: string, status: 'accepted' | 'rejected', userId: string, idPhotoUrl?: string): Promise<void>;
@@ -44,19 +44,75 @@ interface MessageService {
 // Message service implementation
 export const messageService: MessageService = {
     // Create conversation
-    async createConversation(postId: string, postTitle: string, postOwnerId: string, currentUserId: string, currentUserData: any, postOwnerUserData?: any): Promise<string> {
+    async createConversation(postId: string, postTitle: string, postOwnerId: string, currentUserId: string, currentUserData: any, postOwnerUserData?: any, postType?: string, postStatus?: string, foundAction?: string): Promise<string> {
         try {
+            // Fetch post details to get type, status, and creator ID (like web version)
+            let actualPostType: "lost" | "found" = postType as "lost" | "found" || "lost";
+            let actualPostStatus: "pending" | "resolved" | "unclaimed" = postStatus as "pending" | "resolved" | "unclaimed" || "pending";
+            let actualPostCreatorId = postOwnerId; // Default to post owner ID
+            let actualFoundAction: "keep" | "turnover to OSA" | "turnover to Campus Security" | null = foundAction as "keep" | "turnover to OSA" | "turnover to Campus Security" | null || null;
+
+            try {
+                const postDoc = await getDoc(doc(db, 'posts', postId));
+                if (postDoc.exists()) {
+                    const postData = postDoc.data();
+                    actualPostType = postData.type || actualPostType;
+                    actualPostStatus = postData.status || actualPostStatus;
+                    actualPostCreatorId = postData.creatorId || postOwnerId;
+                    // Only set foundAction if it exists and is valid, otherwise keep as null
+                    if (postData.foundAction && typeof postData.foundAction === 'string') {
+                        // Validate that foundAction is one of the expected values
+                        const validFoundActions = ["keep", "turnover to OSA", "turnover to Campus Security"];
+                        if (validFoundActions.includes(postData.foundAction)) {
+                            actualFoundAction = postData.foundAction as "keep" | "turnover to OSA" | "turnover to Campus Security";
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('Could not fetch post data:', error);
+                // Continue with provided values if fetch fails
+            }
+
+            // Check for existing conversation first (same logic as web)
+            const userConversationsQuery = query(
+                collection(db, 'conversations'),
+                where(`participants.${currentUserId}`, '!=', null)
+            );
+            const userConversationsSnapshot = await getDocs(userConversationsQuery);
+            const existingConversation = userConversationsSnapshot.docs.find((docSnap) => {
+                const data: any = docSnap.data();
+                return data.postId === postId && data.participants && data.participants[postOwnerId];
+            });
+
+            if (existingConversation) {
+                console.log('Reusing existing conversation:', existingConversation.id);
+                return existingConversation.id;
+            }
+
+            // Create new conversation if none exists
             const conversationRef = await addDoc(collection(db, 'conversations'), {
                 postId,
                 postTitle,
                 postOwnerId,
+                postCreatorId: actualPostCreatorId, // Use the actual post creator ID
+                postType: actualPostType, // Use the actual post type
+                postStatus: actualPostStatus, // Use the actual post status
+                foundAction: actualFoundAction, // Use the actual found action
                 participants: {
-                    [postOwnerId]: true,
-                    [currentUserId]: true
-                },
-                participantData: {
-                    [postOwnerId]: postOwnerUserData || {},
-                    [currentUserId]: currentUserData
+                    [currentUserId]: {
+                        uid: currentUserId,
+                        firstName: currentUserData.firstName,
+                        lastName: currentUserData.lastName,
+                        profilePicture: currentUserData.profilePicture || currentUserData.profileImageUrl || null,
+                        joinedAt: serverTimestamp()
+                    },
+                    [postOwnerId]: {
+                        uid: postOwnerId,
+                        firstName: postOwnerUserData?.firstName || '',
+                        lastName: postOwnerUserData?.lastName || '',
+                        profilePicture: postOwnerUserData?.profilePicture || postOwnerUserData?.profileImageUrl || null,
+                        joinedAt: serverTimestamp()
+                    }
                 },
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
@@ -352,24 +408,59 @@ export const messageService: MessageService = {
     },
 
     // Send handover request
-    async sendHandoverRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string): Promise<void> {
+    async sendHandoverRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, handoverReason?: string, idPhotoUrl?: string, itemPhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void> {
         try {
-            await addDoc(collection(db, `conversations/${conversationId}/messages`), {
+            console.log('🔄 Mobile: sendHandoverRequest called with:', { conversationId, senderId, senderName, postId, postTitle, handoverReason, idPhotoUrl, itemPhotos });
+
+            // Validate ID photo URL
+            if (idPhotoUrl && !idPhotoUrl.startsWith('http')) {
+                console.error('❌ Invalid ID photo URL in sendHandoverRequest:', { idPhotoUrl });
+                throw new Error('Invalid ID photo URL provided to sendHandoverRequest');
+            }
+
+            // Validate item photos array
+            if (itemPhotos && (!Array.isArray(itemPhotos) || itemPhotos.some(photo => !photo.url || !photo.url.startsWith('http')))) {
+                console.error('❌ Invalid item photos array in sendHandoverRequest:', { itemPhotos });
+                throw new Error('Invalid item photos array provided to sendHandoverRequest');
+            }
+
+            const messageData = {
+                text: `Handover Request: ${handoverReason || 'No reason provided'}`,
                 senderId,
                 senderName,
                 senderProfilePicture,
-                text: `Requesting handover of item: ${postTitle}`,
                 timestamp: serverTimestamp(),
                 readBy: [senderId],
                 messageType: 'handover_request',
                 handoverData: {
                     postId,
                     postTitle,
-                    status: 'pending',
-                    requestedAt: serverTimestamp()
+                    handoverReason: handoverReason || 'No reason provided',
+                    idPhotoUrl: idPhotoUrl || '',
+                    itemPhotos: itemPhotos || [],
+                    requestedAt: serverTimestamp(),
+                    status: 'pending'
+                }
+            };
+
+            // Add message to conversation
+            const messageRef = await addDoc(collection(db, `conversations/${conversationId}/messages`), messageData);
+
+            // Update conversation with handover request flag
+            const conversationRef = doc(db, 'conversations', conversationId);
+            await updateDoc(conversationRef, {
+                handoverRequested: true,
+                updatedAt: serverTimestamp(),
+                lastMessage: {
+                    text: messageData.text,
+                    senderId,
+                    timestamp: serverTimestamp()
                 }
             });
+
+            console.log('✅ Mobile: Handover request sent successfully');
         } catch (error: any) {
+            console.error('❌ Mobile: Failed to send handover request:', error);
             throw new Error(error.message || 'Failed to send handover request');
         }
     },
@@ -378,6 +469,13 @@ export const messageService: MessageService = {
     async updateHandoverResponse(conversationId: string, messageId: string, status: 'accepted' | 'rejected', userId: string, idPhotoUrl?: string): Promise<void> {
         try {
             const messageRef = doc(db, `conversations/${conversationId}/messages`, messageId);
+            const messageDoc = await getDoc(messageRef);
+
+            if (!messageDoc.exists()) {
+                throw new Error('Message not found');
+            }
+
+            const messageData = messageDoc.data();
 
             // Update the handover message with the response and ID photo
             const updateData: any = {
@@ -392,6 +490,72 @@ export const messageService: MessageService = {
                 updateData['handoverData.status'] = 'pending_confirmation'; // New status for photo confirmation
             }
 
+            // If rejecting, delete all photos from Cloudinary and clear photo URLs (like web version)
+            if (status === 'rejected') {
+                console.log('🗑️ Mobile: REJECTION DETECTED - Starting photo deletion process for handover rejection');
+                console.log('🗑️ Mobile: Message data:', JSON.stringify(messageData, null, 2));
+                try {
+                    const { extractMessageImages, deleteMessageImages } = await import('../cloudinary');
+                    const imageUrls = extractMessageImages(messageData);
+
+                    console.log(`🗑️ Mobile: Found ${imageUrls.length} images to delete for handover rejection`);
+                    console.log('🗑️ Mobile: Full image URLs:', imageUrls);
+                    if (imageUrls.length > 0) {
+                        console.log('🗑️ Mobile: Images to delete:', imageUrls.map(url => url.split('/').pop()));
+
+                        // Try to delete from Cloudinary
+                        let cloudinaryDeletionSuccess = false;
+                        try {
+                            const imageDeletionResult = await deleteMessageImages(imageUrls);
+                            cloudinaryDeletionSuccess = imageDeletionResult.success;
+
+                            if (!imageDeletionResult.success) {
+                                console.warn(`⚠️ Mobile: Cloudinary deletion completed with some failures. Deleted: ${imageDeletionResult.deleted.length}, Failed: ${imageDeletionResult.failed.length}`);
+                            } else {
+                                console.log('✅ Mobile: Photos deleted from Cloudinary after handover rejection:', imageUrls.length);
+                            }
+                        } catch (cloudinaryError: any) {
+                            console.warn('Mobile: Cloudinary deletion failed (likely missing API credentials):', cloudinaryError.message);
+                            // Continue with database cleanup even if Cloudinary deletion fails
+                        }
+
+                        // Always clear photo URLs from the message data in database
+                        const photoCleanupData: any = {};
+
+                        // Clear ID photo URL
+                        if (messageData.handoverData?.idPhotoUrl) {
+                            photoCleanupData['handoverData.idPhotoUrl'] = null;
+                        }
+
+                        // Clear owner's ID photo URL
+                        if (messageData.handoverData?.ownerIdPhoto) {
+                            photoCleanupData['handoverData.ownerIdPhoto'] = null;
+                        }
+
+                        // Clear item photos array
+                        if (messageData.handoverData?.itemPhotos && messageData.handoverData.itemPhotos.length > 0) {
+                            photoCleanupData['handoverData.itemPhotos'] = [];
+                        }
+
+                        // Add photos deleted indicator to the message
+                        photoCleanupData['handoverData.photosDeleted'] = true;
+                        photoCleanupData['handoverData.photosDeletedAt'] = serverTimestamp();
+                        photoCleanupData['handoverData.cloudinaryDeletionSuccess'] = cloudinaryDeletionSuccess;
+
+                        // Merge photo cleanup data with update data
+                        Object.assign(updateData, photoCleanupData);
+                        console.log('✅ Mobile: Photo URLs cleared from database and deletion indicator added');
+
+                        if (!cloudinaryDeletionSuccess) {
+                            console.log('ℹ️ Mobile: Note - Photos may still exist in Cloudinary due to missing API credentials. Consider adding EXPO_PUBLIC_CLOUDINARY_API_KEY and EXPO_PUBLIC_CLOUDINARY_API_SECRET to your .env file for complete cleanup.');
+                        }
+                    }
+                } catch (photoError: any) {
+                    console.warn('Mobile: Failed to process photo deletion during handover rejection, but continuing with rejection:', photoError.message);
+                    // Continue with rejection even if photo deletion fails
+                }
+            }
+
             await updateDoc(messageRef, updateData);
         } catch (error: any) {
             throw new Error(error.message || 'Failed to update handover response');
@@ -401,25 +565,57 @@ export const messageService: MessageService = {
     // Send claim request
     async sendClaimRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, claimReason?: string, idPhotoUrl?: string, evidencePhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void> {
         try {
-            await addDoc(collection(db, `conversations/${conversationId}/messages`), {
+            console.log('🔄 Mobile: sendClaimRequest called with:', { conversationId, senderId, senderName, postId, postTitle, claimReason, idPhotoUrl, evidencePhotos });
+
+            // Validate ID photo URL
+            if (idPhotoUrl && !idPhotoUrl.startsWith('http')) {
+                console.error('❌ Invalid ID photo URL in sendClaimRequest:', { idPhotoUrl });
+                throw new Error('Invalid ID photo URL provided to sendClaimRequest');
+            }
+
+            // Validate evidence photos array
+            if (evidencePhotos && (!Array.isArray(evidencePhotos) || evidencePhotos.some(photo => !photo.url || !photo.url.startsWith('http')))) {
+                console.error('❌ Invalid evidence photos array in sendClaimRequest:', { evidencePhotos });
+                throw new Error('Invalid evidence photos array provided to sendClaimRequest');
+            }
+
+            const messageData = {
+                text: `Claim Request: ${claimReason || 'No reason provided'}`,
                 senderId,
                 senderName,
                 senderProfilePicture,
-                text: `Requesting claim of item: ${postTitle}`,
                 timestamp: serverTimestamp(),
                 readBy: [senderId],
                 messageType: 'claim_request',
                 claimData: {
                     postId,
                     postTitle,
-                    status: 'pending',
+                    claimReason: claimReason || 'No reason provided',
+                    idPhotoUrl: idPhotoUrl || '',
+                    evidencePhotos: evidencePhotos || [],
                     requestedAt: serverTimestamp(),
-                    claimReason,
-                    idPhotoUrl,
-                    evidencePhotos
+                    status: 'pending'
+                }
+            };
+
+            // Add message to conversation
+            const messageRef = await addDoc(collection(db, `conversations/${conversationId}/messages`), messageData);
+
+            // Update conversation with claim request flag
+            const conversationRef = doc(db, 'conversations', conversationId);
+            await updateDoc(conversationRef, {
+                claimRequested: true,
+                updatedAt: serverTimestamp(),
+                lastMessage: {
+                    text: messageData.text,
+                    senderId,
+                    timestamp: serverTimestamp()
                 }
             });
+
+            console.log('✅ Mobile: Claim request sent successfully');
         } catch (error: any) {
+            console.error('❌ Mobile: Failed to send claim request:', error);
             throw new Error(error.message || 'Failed to send claim request');
         }
     },

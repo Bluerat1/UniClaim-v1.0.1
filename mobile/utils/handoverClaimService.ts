@@ -75,7 +75,9 @@ export const handleHandoverResponse = async (
         }
 
         // For rejection, proceed as normal
+        console.log('🔄 Mobile handoverClaimService: Starting rejection process');
         await updateHandoverResponse(conversationId, messageId, status, currentUserId);
+        console.log('✅ Mobile handoverClaimService: Rejection process completed');
         callbacks.onHandoverResponse(messageId, status);
     } catch (error: any) {
         console.error('Failed to update handover response:', error);

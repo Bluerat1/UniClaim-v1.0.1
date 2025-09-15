@@ -15,8 +15,11 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useMessage } from "@/context/MessageContext";
 import { useAuth } from "@/context/AuthContext";
+import ProfilePicture from "@/components/ProfilePicture";
 import type { Message, RootStackParamList } from "@/types/type";
 import MessageBubble from "@/components/MessageBubble";
+import HandoverModal from "@/components/HandoverModal";
+import ClaimModal from "@/components/ClaimModal";
 
 type ChatRouteProp = RouteProp<RootStackParamList, "Chat">;
 type ChatNavigationProp = NativeStackNavigationProp<RootStackParamList, "Chat">;
@@ -30,7 +33,12 @@ export default function Chat() {
     postId,
     postOwnerId,
     postOwnerUserData,
+    postType,
+    postStatus,
+    foundAction,
   } = route.params;
+
+
 
   const {
     sendMessage,
@@ -57,14 +65,77 @@ export default function Chat() {
   );
   const [loading, setLoading] = useState<boolean>(false);
   const [conversationData, setConversationData] = useState<any>(null);
+  const [isConversationDataReady, setIsConversationDataReady] = useState(false);
 
   // Modal states (like web version)
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [showHandoverModal, setShowHandoverModal] = useState(false);
   const [isClaimSubmitting, setIsClaimSubmitting] = useState(false);
   const [isHandoverSubmitting, setIsHandoverSubmitting] = useState(false);
+  
 
   const flatListRef = useRef<FlatList>(null);
+
+  // Fetch post data from Firestore
+  const fetchPostData = async (postId: string) => {
+    try {
+      const { getDoc, doc } = await import('firebase/firestore');
+      const { db } = await import('@/utils/firebase/config');
+      const postDoc = await getDoc(doc(db, 'posts', postId));
+      if (postDoc.exists()) {
+        return postDoc.data();
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching post data:', error);
+      return null;
+    }
+  };
+
+  // Update conversation data in Firestore
+  const updateConversationData = async (conversationId: string, updatedData: any) => {
+    try {
+      const { updateDoc, doc } = await import('firebase/firestore');
+      const { db } = await import('@/utils/firebase/config');
+      await updateDoc(doc(db, 'conversations', conversationId), {
+        postType: updatedData.postType,
+        postStatus: updatedData.postStatus,
+        foundAction: updatedData.foundAction,
+        postCreatorId: updatedData.postCreatorId
+      });
+    } catch (error) {
+      console.error('Error updating conversation data:', error);
+    }
+  };
+
+  // Track if we've already updated this conversation to prevent spam
+  const [hasUpdatedConversation, setHasUpdatedConversation] = useState(false);
+  
+  // Track if we're currently loading to prevent multiple simultaneous loads
+  const isLoadingRef = useRef(false);
+
+  // Get the other participant's profile picture (exclude current user)
+  const getOtherParticipantProfilePicture = () => {
+    if (!userData) return null;
+
+    // First try to get from conversation data
+    if (conversationData && conversationData.participants) {
+      const otherParticipant = Object.entries(
+        conversationData.participants || {}
+      ).find(([uid]) => uid !== userData.uid);
+
+      if (otherParticipant && otherParticipant[1] && (otherParticipant[1] as any).profilePicture) {
+        return (otherParticipant[1] as any).profilePicture;
+      }
+    }
+
+    // Fallback to postOwnerUserData from route params
+    if (postOwnerUserData && postOwnerUserData.profilePicture) {
+      return postOwnerUserData.profilePicture;
+    }
+
+    return null;
+  };
 
   // Create conversation if needed
   useEffect(() => {
@@ -73,14 +144,13 @@ export default function Chat() {
       !postId ||
       !postTitle ||
       !postOwnerId ||
-      !user?.uid ||
       !userData?.uid
     ) {
       return;
     }
 
     // Prevent self-conversation
-    if (postOwnerId === user.uid) {
+    if (postOwnerId === userData.uid) {
       Alert.alert(
         "Cannot Start Chat",
         "You cannot start a conversation with yourself.",
@@ -96,9 +166,12 @@ export default function Chat() {
           postId,
           postTitle,
           postOwnerId,
-          user.uid,
+          userData.uid,
           userData,
-          postOwnerUserData
+          postOwnerUserData,
+          postType,
+          postStatus,
+          foundAction
         );
         setConversationId(newConversationId);
       } catch (error: any) {
@@ -115,7 +188,6 @@ export default function Chat() {
     postId,
     postTitle,
     postOwnerId,
-    user?.uid,
     userData,
     postOwnerUserData,
     createConversation,
@@ -147,15 +219,78 @@ export default function Chat() {
   // Load conversation data
   useEffect(() => {
     if (!conversationId) return;
+    if (isLoadingRef.current) return; // Prevent multiple simultaneous loads
+
+
+    isLoadingRef.current = true;
+    setIsConversationDataReady(false);
+    setHasUpdatedConversation(false);
+
+    let isMounted = true; // Flag to prevent state updates if component unmounts
 
     getConversation(conversationId)
       .then((data) => {
-        setConversationData(data);
+        if (!isMounted) return; // Don't update state if component unmounted
+        
+        // Check if conversation data has the required fields, if not, fetch from post
+        if (data && (!data.postType || !data.postStatus)) {
+          // Fetch post data to get the correct values
+          if (data.postId) {
+            fetchPostData(data.postId).then((postData) => {
+              if (!isMounted) return; // Don't update state if component unmounted
+              
+              if (postData) {
+                // Update conversation data with post data
+                const updatedConversationData = {
+                  ...data,
+                  postType: postData.type || data.postType || 'lost',
+                  postStatus: postData.status || data.postStatus || 'pending',
+                  foundAction: postData.foundAction || data.foundAction || null,
+                  postCreatorId: postData.creatorId || data.postCreatorId || data.postOwnerId
+                };
+                setConversationData(updatedConversationData);
+                setIsConversationDataReady(true);
+                isLoadingRef.current = false;
+                
+                // Also update the conversation in Firestore for future use (only once)
+                if (!hasUpdatedConversation) {
+                  updateConversationData(conversationId, updatedConversationData);
+                  setHasUpdatedConversation(true);
+                }
+              } else {
+                setConversationData(data);
+                setIsConversationDataReady(true);
+                isLoadingRef.current = false;
+              }
+            }).catch((error) => {
+              if (!isMounted) return; // Don't update state if component unmounted
+              setConversationData(data);
+              setIsConversationDataReady(true);
+              isLoadingRef.current = false;
+            });
+          } else {
+            setConversationData(data);
+            setIsConversationDataReady(true);
+            isLoadingRef.current = false;
+          }
+        } else {
+          setConversationData(data);
+          setIsConversationDataReady(true);
+          isLoadingRef.current = false;
+        }
       })
-      .catch(() => {
-        console.log("Failed to get conversation data");
+      .catch((error) => {
+        if (!isMounted) return; // Don't update state if component unmounted
+        setIsConversationDataReady(true);
+        isLoadingRef.current = false;
       });
-  }, [conversationId, getConversation]);
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      isLoadingRef.current = false;
+    };
+  }, [conversationId]); // Remove getConversation from dependencies
 
   // Mark conversation as read
   useEffect(() => {
@@ -201,7 +336,7 @@ export default function Chat() {
 
   // Send message
   const handleSendMessage = async () => {
-    if (!conversationId || !newMessage.trim()) return;
+    if (!conversationId || !newMessage.trim() || !userData) return;
 
     const messageText = newMessage.trim();
 
@@ -210,10 +345,10 @@ export default function Chat() {
 
       await sendMessage(
         conversationId,
-        user!.uid,
-        `${userData!.firstName} ${userData!.lastName}`,
+        userData.uid,
+        `${userData.firstName} ${userData.lastName}`,
         messageText,
-        userData!.profilePicture
+        userData.profilePicture
       );
 
       scrollToBottom();
@@ -225,24 +360,33 @@ export default function Chat() {
 
   // Check if buttons should be shown
   const shouldShowHandoverButton = () => {
+    // Use conversation data if available, otherwise fall back to route params
+    const currentPostType = conversationData?.postType || postType;
+    const currentPostStatus = conversationData?.postStatus || postStatus;
+    
     if (!userData || !postOwnerId) return false;
     if (postOwnerId === userData.uid) return false;
-    if (conversationData?.postType !== "lost") return false;
-    if (conversationData?.postStatus !== "pending") return false;
+    if (currentPostType !== "lost") return false;
+    if (currentPostStatus !== "pending") return false;
     return true;
   };
 
   const shouldShowClaimItemButton = () => {
+    // Use conversation data if available, otherwise fall back to route params
+    const currentPostType = conversationData?.postType || postType;
+    const currentPostStatus = conversationData?.postStatus || postStatus;
+    const currentFoundAction = conversationData?.foundAction || foundAction;
+    
     if (!userData || !postOwnerId) return false;
     if (postOwnerId === userData.uid) return false;
-    if (conversationData?.postType !== "found") return false;
-    if (conversationData?.postStatus !== "pending") return false;
+    if (currentPostType !== "found") return false;
+    if (currentPostStatus !== "pending") return false;
 
     // Allow claiming for "keep" and "turnover to Campus Security" posts
     // Only exclude posts that are disposed or donated
     if (
-      conversationData?.foundAction === "disposed" ||
-      conversationData?.foundAction === "donated"
+      currentFoundAction === "disposed" ||
+      currentFoundAction === "donated"
     ) {
       return false;
     }
@@ -255,7 +399,11 @@ export default function Chat() {
     setShowHandoverModal(true);
   };
 
-  const handleHandoverRequestSubmit = async () => {
+  const handleHandoverRequestSubmit = async (data: {
+    handoverReason: string;
+    idPhotoUrl: string;
+    itemPhotos: { url: string; uploadedAt: any; description?: string }[];
+  }) => {
     if (!conversationId || !user || !userData) return;
 
     try {
@@ -266,7 +414,10 @@ export default function Chat() {
         `${userData.firstName} ${userData.lastName}`,
         userData.profilePicture || "",
         conversationData?.postId || "",
-        postTitle
+        postTitle,
+        data.handoverReason,
+        data.idPhotoUrl,
+        data.itemPhotos
       );
       setShowHandoverModal(false);
       Alert.alert("Success", "Handover request sent successfully!");
@@ -284,7 +435,11 @@ export default function Chat() {
     setShowClaimModal(true);
   };
 
-  const handleClaimRequestSubmit = async () => {
+  const handleClaimRequestSubmit = async (data: {
+    claimReason: string;
+    idPhotoUrl: string;
+    evidencePhotos: { url: string; uploadedAt: any; description?: string }[];
+  }) => {
     if (!conversationId || !user || !userData) return;
 
     try {
@@ -295,7 +450,10 @@ export default function Chat() {
         `${userData.firstName} ${userData.lastName}`,
         userData.profilePicture || "",
         conversationData?.postId || "",
-        postTitle
+        postTitle,
+        data.claimReason,
+        data.idPhotoUrl,
+        data.evidencePhotos
       );
       setShowClaimModal(false);
       Alert.alert("Success", "Claim request sent successfully!");
@@ -311,16 +469,10 @@ export default function Chat() {
     messageId: string,
     status: "accepted" | "rejected"
   ) => {
-    if (!conversationId || !user?.uid) return;
-
-    try {
-      await updateHandoverResponse(conversationId, messageId, status);
-      Alert.alert("Success", `Handover request ${status}!`);
-    } catch (error: any) {
-      Alert.alert(
-        "Error",
-        `Failed to ${status} handover request. Please try again.`
-      );
+    // MessageBubble handles the actual logic
+    // This function is called by MessageBubble after successful rejection
+    if (status === "rejected") {
+      Alert.alert("Success", "Handover request rejected!");
     }
   };
 
@@ -341,6 +493,7 @@ export default function Chat() {
       );
     }
   };
+
 
   // Handle ID photo confirmation (like web version)
   const handleConfirmIdPhotoSuccess = async (messageId: string) => {
@@ -378,6 +531,17 @@ export default function Chat() {
         <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3">
           <Ionicons name="arrow-back" size={24} color="#374151" />
         </TouchableOpacity>
+        
+        {/* Profile Picture - only show for other user's conversations */}
+        {postOwnerId && userData && postOwnerId !== userData.uid && (
+          <View className="mr-3">
+            <ProfilePicture
+              src={getOtherParticipantProfilePicture()}
+              size="sm"
+            />
+          </View>
+        )}
+        
         <View className="flex-1">
           <Text
             className="font-semibold text-lg text-gray-800"
@@ -393,6 +557,7 @@ export default function Chat() {
               : "About this lost/found item"}
           </Text>
         </View>
+
 
         {/* Action Buttons */}
         {shouldShowHandoverButton() && (
@@ -467,9 +632,9 @@ export default function Chat() {
             renderItem={({ item }) => (
               <MessageBubble
                 message={item}
-                isOwnMessage={item.senderId === user.uid}
+                isOwnMessage={item.senderId === userData?.uid}
                 conversationId={conversationId}
-                currentUserId={user?.uid || ""}
+                currentUserId={userData?.uid || ""}
                 isCurrentUserPostOwner={postOwnerId === userData?.uid}
                 onHandoverResponse={handleHandoverResponse}
                 onClaimResponse={handleClaimResponse}
@@ -516,177 +681,24 @@ export default function Chat() {
         </View>
       </KeyboardAvoidingView>
 
-      {/* Claim Verification Modal - Like Web Version */}
-      {showClaimModal && (
-        <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 2000,
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: "white",
-              borderRadius: 12,
-              padding: 20,
-              margin: 20,
-              width: "90%",
-              maxWidth: 400,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 18,
-                fontWeight: "bold",
-                marginBottom: 16,
-                textAlign: "center",
-              }}
-            >
-              Verify Claim Request
-            </Text>
-            <Text
-              style={{
-                fontSize: 14,
-                color: "#666",
-                marginBottom: 20,
-                textAlign: "center",
-              }}
-            >
-              Please upload a photo of your ID to verify your claim.
-            </Text>
+      {/* Enhanced Claim Modal */}
+      <ClaimModal
+        visible={showClaimModal}
+        onClose={() => setShowClaimModal(false)}
+        onSubmit={handleClaimRequestSubmit}
+        isLoading={isClaimSubmitting}
+        postTitle={postTitle}
+      />
 
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-around",
-                marginTop: 20,
-              }}
-            >
-              <TouchableOpacity
-                onPress={() => setShowClaimModal(false)}
-                style={{
-                  paddingHorizontal: 20,
-                  paddingVertical: 10,
-                  borderRadius: 8,
-                  backgroundColor: "#6b7280",
-                }}
-              >
-                <Text style={{ color: "white", fontWeight: "500" }}>
-                  Cancel
-                </Text>
-              </TouchableOpacity>
+      {/* Enhanced Handover Modal */}
+      <HandoverModal
+        visible={showHandoverModal}
+        onClose={() => setShowHandoverModal(false)}
+        onSubmit={handleHandoverRequestSubmit}
+        isLoading={isHandoverSubmitting}
+        postTitle={postTitle}
+      />
 
-              <TouchableOpacity
-                onPress={handleClaimRequestSubmit}
-                disabled={isClaimSubmitting}
-                style={{
-                  paddingHorizontal: 20,
-                  paddingVertical: 10,
-                  borderRadius: 8,
-                  backgroundColor: isClaimSubmitting ? "#9ca3af" : "#3b82f6",
-                }}
-              >
-                <Text style={{ color: "white", fontWeight: "500" }}>
-                  {isClaimSubmitting ? "Processing..." : "Continue"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* Handover Verification Modal - Like Web Version */}
-      {showHandoverModal && (
-        <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 2000,
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: "white",
-              borderRadius: 12,
-              padding: 20,
-              margin: 20,
-              width: "90%",
-              maxWidth: 400,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 18,
-                fontWeight: "bold",
-                marginBottom: 16,
-                textAlign: "center",
-              }}
-            >
-              Verify Handover Request
-            </Text>
-            <Text
-              style={{
-                fontSize: 14,
-                color: "#666",
-                marginBottom: 20,
-                textAlign: "center",
-              }}
-            >
-              Please upload a photo of your ID to verify the handover.
-            </Text>
-
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-around",
-                marginTop: 20,
-              }}
-            >
-              <TouchableOpacity
-                onPress={() => setShowHandoverModal(false)}
-                style={{
-                  paddingHorizontal: 20,
-                  paddingVertical: 10,
-                  borderRadius: 8,
-                  backgroundColor: "#6b7280",
-                }}
-              >
-                <Text style={{ color: "white", fontWeight: "500" }}>
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handleHandoverRequestSubmit}
-                disabled={isHandoverSubmitting}
-                style={{
-                  paddingHorizontal: 20,
-                  paddingVertical: 10,
-                  borderRadius: 8,
-                  backgroundColor: isHandoverSubmitting ? "#9ca3af" : "#3b82f6",
-                }}
-              >
-                <Text style={{ color: "white", fontWeight: "500" }}>
-                  {isHandoverSubmitting ? "Processing..." : "Continue"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      )}
     </SafeAreaView>
   );
 }

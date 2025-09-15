@@ -28,6 +28,7 @@ import {
 } from "react-icons/hi";
 import { FiX } from "react-icons/fi";
 import { SoundUtils } from "../utils/soundUtils";
+import { ITEM_CATEGORIES } from "../constants/categories";
 
 interface NotificationPreferencesComponentProps {
   onClose: () => void;
@@ -57,19 +58,8 @@ export default function NotificationPreferencesModal({
   const [audioStatus, setAudioStatus] = useState<any>(null);
   const [testingSound, setTestingSound] = useState(false);
 
-  // Available categories for filtering
-  const availableCategories = [
-    "Electronics",
-    "Clothing",
-    "Accessories",
-    "Books",
-    "Bags",
-    "Keys",
-    "Documents",
-    "Jewelry",
-    "Sports Equipment",
-    "Other",
-  ];
+  // Available categories for filtering - using the same categories as items
+  const availableCategories = ITEM_CATEGORIES;
 
   useEffect(() => {
     loadPreferences();

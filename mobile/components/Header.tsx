@@ -14,7 +14,9 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNotifications } from "../context/NotificationContext";
+import { useCurrentAnnouncement } from "../context/AnnouncementContext";
 import NotificationPreferencesModal from "./NotificationPreferences";
+import AnnouncementBanner from "./AnnouncementBanner";
 import { postService } from "../utils/firebase/posts";
 import type { RootStackParamList } from "../types/type";
 
@@ -33,6 +35,13 @@ export default function Header() {
     deleteNotification,
     deleteAllNotifications,
   } = useNotifications();
+  
+  const {
+    currentAnnouncement,
+    hasActiveAnnouncements,
+    loading: announcementLoading,
+  } = useCurrentAnnouncement();
+  
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
@@ -95,6 +104,13 @@ export default function Header() {
             Claim
           </Text>
         </View>
+
+        {/* Center: Announcement Banner */}
+        <AnnouncementBanner
+          message={currentAnnouncement?.message || ""}
+          isVisible={hasActiveAnnouncements && !announcementLoading}
+          priority={currentAnnouncement?.priority || "normal"}
+        />
 
         {/* Right: Bell Icon */}
         <TouchableOpacity onPress={openPanel} className="relative">
