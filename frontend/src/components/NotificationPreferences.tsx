@@ -307,7 +307,7 @@ export default function NotificationPreferencesModal({
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   {preferences.soundEnabled ? (
-                    <HiVolumeUp className="mr-2 text-green-600" />
+                    <HiVolumeUp className="mr-2 text-yellow-500" />
                   ) : (
                     <HiVolumeOff className="mr-2 text-gray-400" />
                   )}
@@ -371,8 +371,10 @@ export default function NotificationPreferencesModal({
               {/* Test Sound Button */}
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-gray-700">Test Notification Sound</span>
-                  <p className="text-sm text-gray-500">
+                  <span className="text-gray-700 text-sm lg:text-base">
+                    Test Notification Sound
+                  </span>
+                  <p className="text-xs lg:text-sm text-gray-500">
                     Click to test if notification sounds are working
                   </p>
                 </div>
@@ -394,7 +396,7 @@ export default function NotificationPreferencesModal({
           {/* Quiet Hours */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <HiClock className="mr-2 text-indigo-600" />
+              <HiClock className="mr-2 text-yellow-500" />
               Quiet Hours
             </h3>
             <div className="space-y-3">
