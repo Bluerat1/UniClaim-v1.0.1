@@ -77,11 +77,14 @@ export default function ResetPassword() {
                   Check Your Email
                 </h1>
                 <p className="text-sm text-gray-600 text-center mb-4">
-                  If an account exists for this email address, you will receive a password reset link shortly.
+                  If an account exists for this email address, you will receive
+                  a password reset link shortly.
                 </p>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6">
                   <p className="text-xs text-blue-800 text-center">
-                    📧 <strong>Don't see the email?</strong> Check your spam/junk folder. Password reset emails sometimes end up there.
+                    📧 <strong>Don't see the email?</strong> Check your
+                    spam/junk folder. Password reset emails sometimes end up
+                    there.
                   </p>
                 </div>
               </div>
@@ -89,18 +92,18 @@ export default function ResetPassword() {
               <div className="space-y-3">
                 <Link
                   to="/login"
-                  className="block w-full bg-brand hover:bg-teal-600 text-white text-center py-2 rounded-lg transition-all duration-200"
+                  className="block w-full bg-brand hover:bg-yellow-600 text-white text-center py-2 rounded-lg transition-all duration-200"
                 >
                   Back to Login
                 </Link>
-                
+
                 <button
                   onClick={() => {
                     setIsSuccess(false);
                     setEmail("");
                     setError({ email: "", general: "" });
                   }}
-                  className="block w-full border text-center text-brand hover:text-teal-600 hover:border-teal-600 py-2 border-brand rounded-lg transition-all duration-200"
+                  className="block w-full border text-center text-brand hover:text-yellow-600 hover:border-yellow-600 py-2 border-brand rounded-lg transition-all duration-200"
                 >
                   Try Another Email
                 </button>
@@ -125,7 +128,8 @@ export default function ResetPassword() {
               Forgot your password?
             </h1>
             <p className="text-sm text-gray-600 text-center">
-              Enter your email address and we'll send you a link to reset your password.
+              Enter your email address and we'll send you a link to reset your
+              password.
             </p>
 
             <form onSubmit={handleResetPassword}>
@@ -157,7 +161,7 @@ export default function ResetPassword() {
                   className={`w-full py-2 text-white rounded-lg transition-all duration-200 ${
                     isLoading
                       ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-brand hover:bg-teal-600 hover:cursor-pointer"
+                      : "bg-brand hover:bg-yellow-600 hover:cursor-pointer"
                   }`}
                   type="submit"
                   disabled={isLoading}
@@ -174,7 +178,7 @@ export default function ResetPassword() {
 
                 <Link
                   to="/login"
-                  className="block w-full border text-center text-brand hover:text-teal-600 hover:border-teal-600 py-2 border-brand rounded-lg transition-all duration-200"
+                  className="block w-full border text-center text-brand hover:text-yellow-600 hover:border-yellow-600 py-2 border-brand rounded-lg transition-all duration-200"
                 >
                   Back to Login
                 </Link>
