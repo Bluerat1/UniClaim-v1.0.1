@@ -23,7 +23,10 @@ import PageLayout from "../../layout/PageLayout";
 import type { RootStackParamList } from "../../types/type";
 import { useAuth } from "../../context/AuthContext";
 import { profileUpdateService } from "../../utils/profileUpdateService";
-import { cloudinaryService, deleteOldProfilePicture } from "../../utils/cloudinary";
+import {
+  cloudinaryService,
+  deleteOldProfilePicture,
+} from "../../utils/cloudinary";
 import { imageService, userService } from "../../utils/firebase";
 import { postUpdateService } from "../../utils/postUpdateService";
 import { userDeletionService } from "../../utils/firebase/userDeletion";
@@ -35,7 +38,7 @@ export default function Profile() {
   const [isLoading, setIsLoading] = useState(false);
   const navigation = useNavigation<NavigationProp>();
   const { logout, userData, user, refreshUserData } = useAuth();
-  
+
   // Delete account states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
@@ -48,14 +51,17 @@ export default function Profile() {
     email: userData?.email || "",
     contactNumber: userData?.contactNum || "",
     studentId: userData?.studentId || "",
-    imageUri: userData?.profilePicture 
+    imageUri: userData?.profilePicture
       ? { uri: userData.profilePicture }
       : require("../../assets/images/squarepic.jpg"), // default local asset
   });
   const [hasImageChanged, setHasImageChanged] = useState(false);
 
   // State for pending deletion (Option 1: Immediate Preview + Deferred Action)
-  const [isProfilePictureMarkedForDeletion, setIsProfilePictureMarkedForDeletion] = useState(false);
+  const [
+    isProfilePictureMarkedForDeletion,
+    setIsProfilePictureMarkedForDeletion,
+  ] = useState(false);
 
   // Update profile when userData changes
   React.useEffect(() => {
@@ -66,7 +72,7 @@ export default function Profile() {
         email: userData.email || "",
         contactNumber: userData.contactNum || "",
         studentId: userData.studentId || "",
-        imageUri: userData.profilePicture 
+        imageUri: userData.profilePicture
           ? { uri: userData.profilePicture }
           : require("../../assets/images/squarepic.jpg"),
       });
@@ -83,54 +89,83 @@ export default function Profile() {
 
     try {
       setIsLoading(true);
-      
+
       let profileImageUrl = userData.profilePicture;
 
       // Handle profile picture changes
       if (hasImageChanged) {
-        if (profile.imageUri && typeof profile.imageUri === 'object' && 'uri' in profile.imageUri) {
+        if (
+          profile.imageUri &&
+          typeof profile.imageUri === "object" &&
+          "uri" in profile.imageUri
+        ) {
           // New image uploaded - check if it's a local file or Cloudinary URL
-          if (profile.imageUri.uri.startsWith('file://') || profile.imageUri.uri.startsWith('content://')) {
+          if (
+            profile.imageUri.uri.startsWith("file://") ||
+            profile.imageUri.uri.startsWith("content://")
+          ) {
             // Local file - upload to Cloudinary
             try {
-              const uploadedUrls = await cloudinaryService.uploadImages([profile.imageUri.uri], 'profiles');
+              const uploadedUrls = await cloudinaryService.uploadImages(
+                [profile.imageUri.uri],
+                "profiles"
+              );
               profileImageUrl = uploadedUrls[0];
-              
+
               // Automatically delete the old profile picture if it exists and is different from the new one
-              if (userData.profilePicture && userData.profilePicture !== profileImageUrl) {
+              if (
+                userData.profilePicture &&
+                userData.profilePicture !== profileImageUrl
+              ) {
                 try {
-                  const deletionSuccess = await deleteOldProfilePicture(userData.profilePicture);
+                  const deletionSuccess = await deleteOldProfilePicture(
+                    userData.profilePicture
+                  );
                   if (deletionSuccess) {
                     // Old profile picture deleted successfully
                   } else {
                     // Failed to delete old profile picture, but continuing with profile update
                   }
                 } catch (deleteError: any) {
-                  console.error('Error deleting old profile picture:', deleteError.message);
+                  console.error(
+                    "Error deleting old profile picture:",
+                    deleteError.message
+                  );
                   // Don't fail the save operation - continue with profile update
                 }
               }
             } catch (imageError: any) {
-              console.error('Error uploading profile image:', imageError);
-              Alert.alert("Warning", "Failed to upload profile image, but other changes will be saved.");
+              console.error("Error uploading profile image:", imageError);
+              Alert.alert(
+                "Warning",
+                "Failed to upload profile image, but other changes will be saved."
+              );
               // Revert to original image
               profileImageUrl = userData.profilePicture;
             }
-          } else if (profile.imageUri.uri.includes('cloudinary.com')) {
+          } else if (profile.imageUri.uri.includes("cloudinary.com")) {
             // Already a Cloudinary URL - use it directly
             profileImageUrl = profile.imageUri.uri;
-            
+
             // Automatically delete the old profile picture if it exists and is different from the new one
-            if (userData.profilePicture && userData.profilePicture !== profileImageUrl) {
+            if (
+              userData.profilePicture &&
+              userData.profilePicture !== profileImageUrl
+            ) {
               try {
-                const deletionSuccess = await deleteOldProfilePicture(userData.profilePicture);
+                const deletionSuccess = await deleteOldProfilePicture(
+                  userData.profilePicture
+                );
                 if (deletionSuccess) {
                   // Old profile picture deleted successfully
                 } else {
                   // Failed to delete old profile picture, but continuing with profile update
                 }
               } catch (deleteError: any) {
-                console.error('Error deleting old profile picture:', deleteError.message);
+                console.error(
+                  "Error deleting old profile picture:",
+                  deleteError.message
+                );
                 // Don't fail the save operation - continue with profile update
               }
             }
@@ -141,18 +176,23 @@ export default function Profile() {
         } else {
           // No image - set to empty string (profile picture removed)
           profileImageUrl = "";
-          
+
           // Automatically delete the old profile picture if it exists
           if (userData.profilePicture) {
             try {
-              const deletionSuccess = await deleteOldProfilePicture(userData.profilePicture);
+              const deletionSuccess = await deleteOldProfilePicture(
+                userData.profilePicture
+              );
               if (deletionSuccess) {
                 // Old profile picture deleted successfully after removal
               } else {
                 // Failed to delete old profile picture after removal, but continuing with profile update
               }
             } catch (deleteError: any) {
-              console.error('Error deleting old profile picture after removal:', deleteError.message);
+              console.error(
+                "Error deleting old profile picture after removal:",
+                deleteError.message
+              );
               // Don't fail the save operation - continue with profile update
             }
           }
@@ -163,15 +203,26 @@ export default function Profile() {
 
         if (userData.profilePicture) {
           try {
-            const deletionSuccess = await deleteOldProfilePicture(userData.profilePicture);
+            const deletionSuccess = await deleteOldProfilePicture(
+              userData.profilePicture
+            );
             if (deletionSuccess) {
               Alert.alert("Success", "Profile picture removed successfully!");
             } else {
-              Alert.alert("Warning", "Profile picture removed, but there was an issue deleting it from storage.");
+              Alert.alert(
+                "Warning",
+                "Profile picture removed, but there was an issue deleting it from storage."
+              );
             }
           } catch (deleteError: any) {
-            console.error('Error deleting profile picture:', deleteError.message);
-            Alert.alert("Warning", "Profile picture removed from profile, but there was an issue deleting it from storage.");
+            console.error(
+              "Error deleting profile picture:",
+              deleteError.message
+            );
+            Alert.alert(
+              "Warning",
+              "Profile picture removed from profile, but there was an issue deleting it from storage."
+            );
           }
         }
 
@@ -198,9 +249,15 @@ export default function Profile() {
       // Update all existing posts with the new profile picture (or removal)
       if (hasImageChanged) {
         try {
-          await postUpdateService.updateUserPostsWithProfilePicture(user.uid, profileImageUrl || null);
+          await postUpdateService.updateUserPostsWithProfilePicture(
+            user.uid,
+            profileImageUrl || null
+          );
         } catch (postUpdateError: any) {
-          console.error('Failed to update posts with profile picture change:', postUpdateError.message);
+          console.error(
+            "Failed to update posts with profile picture change:",
+            postUpdateError.message
+          );
           // Don't fail the save operation - profile was updated successfully
         }
       }
@@ -208,10 +265,7 @@ export default function Profile() {
       // Refresh user data to ensure UI shows updated information
       await refreshUserData();
 
-      Alert.alert(
-        "Success", 
-        "Profile updated successfully!"
-      );
+      Alert.alert("Success", "Profile updated successfully!");
       setIsEditing(false);
       setHasImageChanged(false);
     } catch (error: any) {
@@ -230,7 +284,7 @@ export default function Profile() {
         email: userData.email || "",
         contactNumber: userData.contactNum || "",
         studentId: userData.studentId || "",
-        imageUri: userData.profilePicture 
+        imageUri: userData.profilePicture
           ? { uri: userData.profilePicture }
           : require("../../assets/images/squarepic.jpg"),
       });
@@ -241,34 +295,30 @@ export default function Profile() {
   };
 
   const handleLogout = async () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await logout();
+            // Wait a moment for auth state to update
+            setTimeout(() => {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "Login" }],
+              });
+            }, 100);
+          } catch (error: any) {
+            Alert.alert("Logout Failed", error.message);
+          }
         },
-        {
-          text: "Logout",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await logout();
-              // Wait a moment for auth state to update
-              setTimeout(() => {
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: "Login" }],
-                });
-              }, 100);
-            } catch (error: any) {
-              Alert.alert("Logout Failed", error.message);
-            }
-          },
-        },
-      ]
-    );
+      },
+    ]);
   };
 
   // Delete account handlers
@@ -286,67 +336,94 @@ export default function Profile() {
 
   const handleConfirmDelete = async () => {
     if (deleteConfirmation !== "DELETE") {
-      Alert.alert("Invalid Confirmation", "Please type 'DELETE' exactly to confirm account deletion.");
+      Alert.alert(
+        "Invalid Confirmation",
+        "Please type 'DELETE' exactly to confirm account deletion."
+      );
       return;
     }
 
     if (!deletePassword) {
-      Alert.alert("Password Required", "Please enter your password to confirm account deletion.");
+      Alert.alert(
+        "Password Required",
+        "Please enter your password to confirm account deletion."
+      );
       return;
     }
 
     if (!user) {
-      Alert.alert("Authentication Error", "You must be logged in to delete your account.");
+      Alert.alert(
+        "Authentication Error",
+        "You must be logged in to delete your account."
+      );
       return;
     }
 
     try {
       setIsDeleting(true);
-      
+
       // Show initial alert
-      Alert.alert("Deleting Account", "Please wait while we delete your account and all associated data...");
-      
+      Alert.alert(
+        "Deleting Account",
+        "Please wait while we delete your account and all associated data..."
+      );
+
       // Call the deletion service with password for re-authentication
       await userDeletionService.deleteUserAccount(user, deletePassword);
-      
+
       // Show success message and logout
-      Alert.alert("Account Deleted", "Your account and all data have been permanently deleted.", [
-        {
-          text: "OK",
-          onPress: async () => {
-            handleCloseDeleteModal();
-            
-            // Reset loading state
-            setIsDeleting(false);
-            
-            // Try to logout, but don't fail if it doesn't work
-            try {
-              await logout();
-            } catch (logoutError) {
-              console.log("Logout failed, forcing redirect to login:", logoutError);
-            }
-            
-            // Force redirect to login screen
-            setTimeout(() => {
-              navigation.reset({
-                index: 0,
-                routes: [{ name: "Login" }],
-              });
-            }, 500);
-          }
-        }
-      ]);
-      
+      Alert.alert(
+        "Account Deleted",
+        "Your account and all data have been permanently deleted.",
+        [
+          {
+            text: "OK",
+            onPress: async () => {
+              handleCloseDeleteModal();
+
+              // Reset loading state
+              setIsDeleting(false);
+
+              // Try to logout, but don't fail if it doesn't work
+              try {
+                await logout();
+              } catch (logoutError) {
+                console.log(
+                  "Logout failed, forcing redirect to login:",
+                  logoutError
+                );
+              }
+
+              // Force redirect to login screen
+              setTimeout(() => {
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: "Login" }],
+                });
+              }, 500);
+            },
+          },
+        ]
+      );
     } catch (error: any) {
       console.error("Error deleting account:", error);
-      
+
       // Handle specific error cases
       if (error.message.includes("re-enter your password")) {
         Alert.alert("Re-authentication Required", error.message);
-      } else if (error.message.includes("invalid-credential") || error.message.includes("wrong-password")) {
-        Alert.alert("Invalid Password", "The password you entered is incorrect. Please try again.");
+      } else if (
+        error.message.includes("invalid-credential") ||
+        error.message.includes("wrong-password")
+      ) {
+        Alert.alert(
+          "Invalid Password",
+          "The password you entered is incorrect. Please try again."
+        );
       } else {
-        Alert.alert("Deletion Failed", error.message || "Failed to delete account. Please try again.");
+        Alert.alert(
+          "Deletion Failed",
+          error.message || "Failed to delete account. Please try again."
+        );
       }
     } finally {
       setIsDeleting(false);
@@ -382,10 +459,14 @@ export default function Profile() {
 
   const handleRemoveProfilePicture = () => {
     // Check if there's a current profile picture to mark for deletion
-    const hasCurrentPicture = userData?.profilePicture && userData.profilePicture.trim() !== '';
+    const hasCurrentPicture =
+      userData?.profilePicture && userData.profilePicture.trim() !== "";
 
     if (!hasCurrentPicture) {
-      Alert.alert("No Profile Picture", "You don't have a profile picture to remove.");
+      Alert.alert(
+        "No Profile Picture",
+        "You don't have a profile picture to remove."
+      );
       return;
     }
 
@@ -508,7 +589,11 @@ export default function Profile() {
                   </View>
                   {isProfilePictureMarkedForDeletion && (
                     <View className="bg-orange-500 p-1 rounded-full">
-                      <Ionicons name="warning-outline" size={18} color="white" />
+                      <Ionicons
+                        name="warning-outline"
+                        size={18}
+                        color="white"
+                      />
                     </View>
                   )}
                 </View>
@@ -520,18 +605,24 @@ export default function Profile() {
               <TouchableOpacity
                 className={`mt-2 rounded-md py-2 px-3 flex-row items-center gap-2 ${
                   isProfilePictureMarkedForDeletion
-                    ? 'bg-orange-500'
-                    : 'bg-red-500'
+                    ? "bg-orange-500"
+                    : "bg-red-500"
                 }`}
                 onPress={handleRemoveProfilePicture}
               >
                 <Ionicons
-                  name={isProfilePictureMarkedForDeletion ? "warning-outline" : "trash-outline"}
+                  name={
+                    isProfilePictureMarkedForDeletion
+                      ? "warning-outline"
+                      : "trash-outline"
+                  }
                   size={16}
                   color="white"
                 />
                 <Text className="text-white text-sm font-manrope-medium">
-                  {isProfilePictureMarkedForDeletion ? "Marked for Removal" : "Remove Photo"}
+                  {isProfilePictureMarkedForDeletion
+                    ? "Marked for Removal"
+                    : "Remove Photo"}
                 </Text>
               </TouchableOpacity>
             )}
@@ -564,7 +655,7 @@ export default function Profile() {
               ) : (
                 <>
                   <TouchableOpacity
-                    className={`rounded-md py-3 px-4 flex-row items-center justify-center ${isLoading ? 'bg-gray-400' : 'bg-green-600'}`}
+                    className={`rounded-md py-3 px-4 flex-row items-center justify-center ${isLoading ? "bg-gray-400" : "bg-green-600"}`}
                     onPress={handleSave}
                     disabled={isLoading}
                   >
@@ -669,62 +760,83 @@ export default function Profile() {
 
       {/* Delete Account Confirmation Modal */}
       {showDeleteModal && (
-        <View className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <View className="absolute inset-0 bg-black/50 flex-1 flex items-center justify-center z-60 p-4">
           <View className="bg-white rounded-lg max-w-md w-full p-6">
             <View className="flex-row items-center gap-3 mb-4">
-              <View className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+              <View className="size-10 bg-red-100 rounded-full flex items-center justify-center">
                 <Ionicons name="warning" size={24} color="#dc2626" />
               </View>
-              <Text className="text-lg font-semibold text-gray-900">Delete Account</Text>
-            </View>
-            
-            <View className="mb-6">
-              <Text className="text-gray-600 mb-4">
-                This action cannot be undone. This will permanently delete your account and remove all data from our servers, including:
-              </Text>
-              <View className="space-y-1 mb-4">
-                <Text className="text-sm text-gray-500">• Your profile and personal information</Text>
-                <Text className="text-sm text-gray-500">• All your posts and images</Text>
-                <Text className="text-sm text-gray-500">• All conversations and messages</Text>
-                <Text className="text-sm text-gray-500">• All notifications and settings</Text>
-              </View>
-              <Text className="text-red-600 font-medium">
-                Type <Text className="font-mono bg-red-50 px-1 rounded">DELETE</Text> to confirm:
+              <Text className="text-lg font-manrope-semibold text-gray-900">
+                Delete Account
               </Text>
             </View>
 
-            <View className="space-y-4">
+            <View className="mb-4">
+              <Text className="text-gray-700 mb-4 font-manrope-medium text-sm">
+                This action cannot be undone. This will permanently delete your
+                account and remove all data from our servers, including:
+              </Text>
+              <View className="space-y-1 mb-4">
+                <Text className="text-sm text-gray-500 font-inter">
+                  • Your profile and personal information
+                </Text>
+                <Text className="text-sm text-gray-500 font-inter">
+                  • All your posts and images
+                </Text>
+                <Text className="text-sm text-gray-500 font-inter">
+                  • All conversations and messages
+                </Text>
+                <Text className="text-sm text-gray-500 font-inter">
+                  • All notifications and settings
+                </Text>
+              </View>
+              <Text className="text-red-600 font-manrope-medium">
+                Type{" "}
+                <Text className="bg-red-50 px-1 rounded font-manrope-bold">
+                  DELETE
+                </Text>{" "}
+                to confirm:
+              </Text>
+            </View>
+
+            <View className="flex-col gap-3">
               <TextInput
                 value={deleteConfirmation}
                 onChangeText={setDeleteConfirmation}
                 placeholder="Type DELETE to confirm"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-3 py-3 border font-inter border-gray-300 rounded-lg"
                 editable={!isDeleting}
               />
-              
+
               <TextInput
                 value={deletePassword}
                 onChangeText={setDeletePassword}
                 placeholder="Enter your password to confirm"
                 secureTextEntry={true}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-3 py-3 border font-inter border-gray-300 rounded-lg"
                 editable={!isDeleting}
               />
-              
+
               <View className="flex-row gap-3">
                 <TouchableOpacity
                   onPress={handleCloseDeleteModal}
                   disabled={isDeleting}
-                  className="flex-1 px-4 py-2 bg-gray-100 rounded-lg"
+                  className="flex-1 px-4 py-3 bg-gray-100 rounded-lg"
                 >
-                  <Text className="text-center text-gray-700 font-medium">Cancel</Text>
+                  <Text className="text-center font-manrope-medium text-gray-700 font-medium">
+                    Cancel
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={handleConfirmDelete}
-                  disabled={isDeleting || deleteConfirmation !== "DELETE" || !deletePassword}
-                  className="flex-1 px-4 py-2 bg-red-600 rounded-lg"
+                  disabled={
+                    isDeleting ||
+                    deleteConfirmation !== "DELETE" ||
+                    !deletePassword
+                  }
+                  className="flex-1 px-4 py-3 bg-red-600 rounded-lg"
                 >
-                  <Text className="text-center text-white font-medium">
+                  <Text className="text-center font-manrope-medium text-white font-medium">
                     {isDeleting ? "Deleting..." : "Delete Account"}
                   </Text>
                 </TouchableOpacity>
