@@ -2171,11 +2171,13 @@ export const postService = {
             try {
                 // Import notification sender dynamically to avoid circular dependencies
                 const { notificationSender } = await import('../services/firebase/notificationSender');
+                const { adminNotificationService } = await import('../services/firebase/adminNotifications');
 
                 // Get creator information for the notification
                 const creatorDoc = await getDoc(doc(db, 'users', creatorId));
                 const creatorData = creatorDoc.exists() ? creatorDoc.data() : null;
                 const creatorName = creatorData ? `${creatorData.firstName} ${creatorData.lastName}` : 'Someone';
+                const creatorEmail = creatorData?.email || 'Unknown';
 
                 // Send notifications to all users
                 await notificationSender.sendNewPostNotification({
@@ -2188,7 +2190,19 @@ export const postService = {
                     creatorName: creatorName
                 });
 
-                console.log('Notifications sent for new post:', postId);
+                // Send notification to admins about the new post
+                await adminNotificationService.notifyAdminsNewPost({
+                    postId: postId,
+                    postTitle: post.title,
+                    postType: post.type,
+                    postCategory: post.category,
+                    postLocation: post.location,
+                    creatorId: creatorId,
+                    creatorName: creatorName,
+                    creatorEmail: creatorEmail
+                });
+
+                console.log('Notifications sent to users and admins for new post:', postId);
             } catch (notificationError) {
                 // Don't fail post creation if notifications fail
                 console.error('Error sending notifications for post:', postId, notificationError);

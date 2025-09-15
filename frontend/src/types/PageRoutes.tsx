@@ -36,6 +36,7 @@ import { ToastProvider } from "@/context/ToastContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { MessageProvider } from "@/context/MessageContext";
 import { NotificationProvider } from "@/context/NotificationContext";
+import { AdminNotificationProvider } from "@/context/AdminNotificationContext";
 import { AnnouncementProvider } from "@/context/AnnouncementContext";
 import PageWrapper from "@/components/PageWrapper";
 import ScrollToTop from "@/context/ScrollTop";
@@ -191,9 +192,11 @@ function AppRoutesWithAuth() {
           path="/admin"
           element={
             <AnnouncementProvider>
-              <ProtectedRoute>
-                <AdminLayout />
-              </ProtectedRoute>
+              <AdminNotificationProvider>
+                <ProtectedRoute>
+                  <AdminLayout />
+                </ProtectedRoute>
+              </AdminNotificationProvider>
             </AnnouncementProvider>
           }
         >

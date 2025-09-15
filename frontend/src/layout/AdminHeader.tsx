@@ -4,6 +4,7 @@ import {
   HiOutlineUser,
   HiOutlineX,
   HiOutlineShieldCheck,
+  HiOutlineTrash,
 } from "react-icons/hi";
 import { IoLogOutOutline } from "react-icons/io5";
 import Logo from "../assets/uniclaim_logo.png";
@@ -11,6 +12,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useAdminView } from "@/context/AdminViewContext";
+import { useAdminNotifications } from "@/context/AdminNotificationContext";
 import ProfilePicture from "@/components/ProfilePicture";
 
 interface AdminHeaderProps {
@@ -30,6 +32,14 @@ export default function AdminHeader({
 
   const { logout, userData } = useAuth();
   const { switchToUserView } = useAdminView();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    deleteAllNotifications,
+  } = useAdminNotifications();
   const navigate = useNavigate();
 
   const handleProfileClick = () => {
@@ -81,6 +91,11 @@ export default function AdminHeader({
               {/* notification-bell */}
               <button onClick={toggleNotif} className="relative">
                 <HiOutlineBell className="size-8 text-white stroke-[1.3px] cursor-pointer hover:text-brand" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] h-5 flex items-center justify-center">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
               </button>
 
               {/* profile picture */}
@@ -137,14 +152,22 @@ export default function AdminHeader({
 
         {/* notification dropdown */}
         <div
-          className={`fixed font-manrope p-3 top-0 right-0 h-full bg-white shadow-lg transition-transform duration-300 z-40 ${
+          className={`fixed font-manrope top-0 right-0 h-full bg-white shadow-lg transition-transform duration-300 z-40 ${
             showNotif ? "translate-x-0" : "translate-x-full"
-          } w-full md:w-2/3 lg:w-1/3`}
+          } w-full md:w-2/3 lg:w-1/3 flex flex-col`}
         >
-          <div className="p-4 flex justify-between items-center border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-navyblue">
-              Admin Notifications
-            </h2>
+          {/* Header */}
+          <div className="p-4 flex justify-between items-center border-b border-gray-200 flex-shrink-0">
+            <div className="flex items-center">
+              <h2 className="text-lg font-semibold text-navyblue">
+                Admin Notifications
+              </h2>
+              {unreadCount > 0 && (
+                <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1">
+                  {unreadCount}
+                </span>
+              )}
+            </div>
             <button
               onClick={toggleNotif}
               className="text-lg lg:text-gray-500 lg:hover:text-gray-800"
@@ -152,9 +175,105 @@ export default function AdminHeader({
               <HiOutlineX className="size-6 stroke-[1.5px]" />
             </button>
           </div>
-          <div className="p-4">
-            <p className="text-gray-500">No new notifications.</p>
+
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto">
+            {notifications.length === 0 ? (
+              <div className="p-4">
+                <p className="text-gray-500 text-center">No admin notifications.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {notifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className={`p-4 hover:bg-gray-50 transition-colors ${
+                      !notification.read ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h3 className={`text-sm font-medium ${
+                            !notification.read ? 'text-blue-900' : 'text-gray-900'
+                          }`}>
+                            {notification.title}
+                          </h3>
+                          <div className="flex items-center space-x-1">
+                            {notification.priority === 'high' && (
+                              <span className="inline-block w-2 h-2 bg-orange-500 rounded-full" title="High priority"></span>
+                            )}
+                            {notification.priority === 'critical' && (
+                              <span className="inline-block w-2 h-2 bg-red-500 rounded-full" title="Critical"></span>
+                            )}
+                            <button
+                              onClick={() => deleteNotification(notification.id)}
+                              className="text-gray-400 hover:text-red-600 p-1"
+                              title="Delete notification"
+                            >
+                              <HiOutlineTrash className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <p className={`text-sm mt-1 ${
+                          !notification.read ? 'text-blue-800' : 'text-gray-600'
+                        }`}>
+                          {notification.message}
+                        </p>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-xs text-gray-500">
+                            {notification.type === 'new_post' && '📝 New Post'}
+                            {notification.type === 'flagged_post' && '🚩 Flagged Post'}
+                            {notification.type === 'user_report' && '👤 User Report'}
+                            {notification.type === 'system_alert' && '⚠️ System Alert'}
+                            {notification.type === 'activity_summary' && '📊 Activity Summary'}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {notification.createdAt?.toDate?.()?.toLocaleDateString() || 'Recently'}
+                          </span>
+                        </div>
+                        {notification.relatedEntity && (
+                          <div className="mt-2">
+                            <span className="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">
+                              {notification.relatedEntity.type}: {notification.relatedEntity.name}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {!notification.read && (
+                      <div className="mt-2">
+                        <button
+                          onClick={() => markAsRead(notification.id)}
+                          className="text-xs text-blue-600 hover:text-blue-800"
+                        >
+                          Mark as read
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* Fixed Bottom Buttons */}
+          {notifications.length > 0 && (
+            <div className="p-4 border-t border-gray-200 space-y-3 flex-shrink-0">
+              <button
+                onClick={markAllAsRead}
+                className="w-full text-center bg-navyblue hover:bg-blue-900 transition-colors duration-300 py-2.5 text-white rounded-md text-sm font-medium"
+              >
+                Mark all as read
+              </button>
+              <button
+                onClick={deleteAllNotifications}
+                className="w-full text-center transition-colors bg-red-50 hover:bg-red-200 rounded-md text-red-500 py-2.5 duration-300 text-sm font-medium"
+              >
+                Delete all
+              </button>
+            </div>
+          )}
         </div>
 
         {showNotif && (

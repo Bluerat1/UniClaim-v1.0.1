@@ -275,8 +275,8 @@ export default function ReportPage() {
         createdPost.coordinates = coordinates;
       }
 
-      // Use Firebase service to create post
-      const { postService } = await import("../../utils/firebase");
+      // Use Firebase service to create post (with admin notifications)
+      const { postService } = await import("../../services/firebase/posts");
       const postId = await postService.createPost(
         createdPost,
         shouldTransferToCampusSecurity ? campusSecurityUserId! : userData.uid

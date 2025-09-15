@@ -205,11 +205,12 @@ export default function HomeHeader({
 
         {/* notification dropdown */}
         <div
-          className={`fixed font-manrope p-3 right-0 h-full bg-white shadow-lg transition-transform duration-300 z-40 ${
+          className={`fixed font-manrope right-0 h-full bg-white shadow-lg transition-transform duration-300 z-40 ${
             showNotif ? "translate-x-0" : "translate-x-full"
-          } w-full md:w-2/3 lg:w-1/3 top-0`}
+          } w-full md:w-2/3 lg:w-1/3 top-0 flex flex-col`}
         >
-          <div className="p-4 flex justify-between items-center border-b border-gray-200">
+          {/* Header */}
+          <div className="p-4 flex justify-between items-center border-b border-gray-200 flex-shrink-0">
             <div className="flex items-center">
               <h2 className="text-lg font-semibold text-navyblue">
                 Notifications
@@ -237,6 +238,7 @@ export default function HomeHeader({
             </div>
           </div>
 
+          {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="p-4">
@@ -293,8 +295,9 @@ export default function HomeHeader({
             )}
           </div>
 
+          {/* Fixed Bottom Buttons */}
           {notifications.length > 0 && (
-            <div className="p-4 border-t border-gray-200 space-y-3">
+            <div className="p-4 border-t border-gray-200 space-y-3 flex-shrink-0">
               <button
                 onClick={markAllAsRead}
                 className="w-full text-center bg-navyblue hover:bg-blue-900 transition-colors duration-300 py-2.5 text-white rounded-md text-sm font-medium"

@@ -17,6 +17,7 @@ import {
 
 // Import notification sender (mobile service)
 import { notificationSender } from './notificationSender';
+import { adminNotificationService } from './adminNotifications';
 
 // Post service
 export const postService = {
@@ -169,6 +170,7 @@ export const postService = {
                 const creatorDoc = await getDoc(doc(db, 'users', postData.creatorId || postData.user?.uid));
                 const creatorData = creatorDoc.exists() ? creatorDoc.data() : null;
                 const creatorName = creatorData ? `${creatorData.firstName} ${creatorData.lastName}` : 'Someone';
+                const creatorEmail = creatorData?.email || 'Unknown';
 
                 // Send notifications to all users
                 await notificationSender.sendNewPostNotification({
@@ -181,7 +183,19 @@ export const postService = {
                     creatorName: creatorName
                 });
 
-                console.log('Notifications sent for new post:', postRef.id);
+                // Send notification to admins about the new post
+                await adminNotificationService.notifyAdminsNewPost({
+                    postId: postRef.id,
+                    postTitle: postData.title,
+                    postType: postData.type,
+                    postCategory: postData.category,
+                    postLocation: postData.location,
+                    creatorId: postData.creatorId || postData.user?.uid,
+                    creatorName: creatorName,
+                    creatorEmail: creatorEmail
+                });
+
+                console.log('Notifications sent to users and admins for new post:', postRef.id);
             } catch (notificationError) {
                 // Don't fail post creation if notifications fail
                 console.error('Error sending notifications for post:', postRef.id, notificationError);

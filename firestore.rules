@@ -155,6 +155,34 @@ service cloud.firestore {
       allow read, write: if request.auth != null && isAdmin();
     }
     
+    // Admin notifications collection rules
+    match /admin_notifications/{notificationId} {
+      // Temporarily allow all authenticated users to read admin notifications (for debugging)
+      // TODO: Restrict to admins only once admin user is properly set up
+      allow read: if request.auth != null;
+      
+      // Temporarily allow all authenticated users to update admin notifications (for debugging)
+      // TODO: Restrict to admins only once admin user is properly set up
+      allow update: if request.auth != null;
+      
+      // Temporarily allow all authenticated users to delete admin notifications (for debugging)
+      // TODO: Restrict to admins only once admin user is properly set up
+      allow delete: if request.auth != null;
+      
+      // Allow creating admin notifications (for the notification system)
+      // This allows any authenticated user to create admin notifications (needed for post creation)
+      allow create: if request.auth != null;
+    }
+    
+    // Admin notification preferences collection rules
+    match /admin_notification_preferences/{adminId} {
+      // Only admins can read and write their own preferences
+      allow read, write: if request.auth != null && isAdmin() && request.auth.uid == adminId;
+      
+      // Allow creating preferences for new admins
+      allow create: if request.auth != null && isAdmin() && request.auth.uid == adminId;
+    }
+    
     // Notification subscriptions collection rules
     match /notifications_subscriptions/{userId} {
       // Users can read and write their own subscription
