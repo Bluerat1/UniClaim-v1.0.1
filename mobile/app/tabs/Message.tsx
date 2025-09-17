@@ -162,7 +162,7 @@ const ConversationItem = ({
             <View className="flex-1">
               <View className="flex-row items-center gap-2">
                 <Text
-                  className="font-semibold text-gray-800 text-base"
+                  className="font-manrope-semibold text-gray-800 text-base"
                   numberOfLines={1}
                 >
                   {conversation.postTitle}
@@ -178,11 +178,14 @@ const ConversationItem = ({
                   </Text>
                 </View>
               </View>
-              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>
+              <Text
+                className="text-gray-500 font-manrope-medium text-xs mt-1"
+                numberOfLines={1}
+              >
                 {getOtherParticipantName()}
               </Text>
               <Text
-                className={`text-sm mt-1 ${conversation.unreadCounts?.[userData?.uid || ""] > 0 ? "font-bold text-gray-800" : "text-gray-600"}`}
+                className={`text-sm mt-2 font-inter ${conversation.unreadCounts?.[userData?.uid || ""] > 0 ? "font-bold text-gray-800" : "text-gray-600"}`}
                 numberOfLines={2}
               >
                 {conversation.lastMessage ? (
@@ -198,7 +201,7 @@ const ConversationItem = ({
               </Text>
             </View>
             <View className="ml-2">
-              <Text className="text-gray-500 text-xs">
+              <Text className="text-gray-500 text-xs font-manrope">
                 {formatTime(conversation.lastMessage?.timestamp)}
               </Text>
               {/* Get the current user's unread count from this conversation */}
