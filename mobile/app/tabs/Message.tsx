@@ -62,7 +62,9 @@ const ConversationItem = ({
 
     // Fallback to old structure (participantData)
     if (conversation.participantData) {
-      const otherParticipantData = Object.entries(conversation.participantData || {})
+      const otherParticipantData = Object.entries(
+        conversation.participantData || {}
+      )
         .filter(([uid]) => uid !== userData.uid)
         .map(([, participant]) =>
           `${participant.firstName} ${participant.lastName}`.trim()
@@ -95,12 +97,15 @@ const ConversationItem = ({
       const otherParticipantData = Object.entries(
         conversation.participantData || {}
       ).find(([uid]) => uid !== userData.uid);
-      
+
       if (otherParticipantData) {
-        return otherParticipantData[1].profilePicture || otherParticipantData[1].profileImageUrl;
+        return (
+          otherParticipantData[1].profilePicture ||
+          otherParticipantData[1].profileImageUrl
+        );
       }
     }
-    
+
     return null;
   };
 
@@ -126,9 +131,9 @@ const ConversationItem = ({
 
     // Fallback to old structure (participantData)
     if (conversation.participantData) {
-      const senderData = Object.entries(conversation.participantData || {}).find(
-        ([uid]) => uid === conversation.lastMessage.senderId
-      );
+      const senderData = Object.entries(
+        conversation.participantData || {}
+      ).find(([uid]) => uid === conversation.lastMessage.senderId);
 
       if (senderData) {
         const firstName = senderData[1].firstName || "";
@@ -200,7 +205,9 @@ const ConversationItem = ({
               {conversation.unreadCounts?.[userData?.uid || ""] > 0 && (
                 <View className="bg-blue-500 rounded-full px-2 py-1 mt-1 self-end min-w-[20px] items-center justify-center">
                   <Text className="text-white text-xs font-bold">
-                    {conversation.unreadCounts[userData?.uid || ""] > 99 ? '99+' : conversation.unreadCounts[userData?.uid || ""]}
+                    {conversation.unreadCounts[userData?.uid || ""] > 99
+                      ? "99+"
+                      : conversation.unreadCounts[userData?.uid || ""]}
                   </Text>
                 </View>
               )}
@@ -226,15 +233,16 @@ export default function Message() {
       postType: conversation.postType,
       postStatus: conversation.postStatus,
       foundAction: conversation.foundAction,
-      fullConversation: conversation
+      fullConversation: conversation,
     });
-    
+
     navigation.navigate("Chat", {
       conversationId: conversation.id,
       postTitle: conversation.postTitle,
       postOwnerId: conversation.postCreatorId,
       postId: conversation.postId,
-      postOwnerUserData: conversation.participants?.[conversation.postCreatorId] || {},
+      postOwnerUserData:
+        conversation.participants?.[conversation.postCreatorId] || {},
       postType: conversation.postType,
       postStatus: conversation.postStatus,
       foundAction: conversation.foundAction,
@@ -246,7 +254,7 @@ export default function Message() {
     try {
       await refreshConversations();
     } catch (error) {
-      console.error('Failed to refresh conversations:', error);
+      console.error("Failed to refresh conversations:", error);
     } finally {
       setRefreshing(false);
     }
@@ -289,8 +297,6 @@ export default function Message() {
     );
   }
 
-
-
   return (
     <PageLayout>
       <SafeAreaView className="flex-1 bg-gray-50">
@@ -306,19 +312,19 @@ export default function Message() {
             </Text>
           </View>
         ) : (
-                     <FlatList
-             data={sortedConversations}
-             keyExtractor={(item) => item.id}
-             renderItem={({ item }) => (
-               <ConversationItem
-                 conversation={item}
-                 onPress={() => handleConversationPress(item)}
-               />
-             )}
-             showsVerticalScrollIndicator={false}
-             refreshing={refreshing}
-             onRefresh={handleRefresh}
-           />
+          <FlatList
+            data={sortedConversations}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <ConversationItem
+                conversation={item}
+                onPress={() => handleConversationPress(item)}
+              />
+            )}
+            showsVerticalScrollIndicator={false}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+          />
         )}
       </SafeAreaView>
     </PageLayout>

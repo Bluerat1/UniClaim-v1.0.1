@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text } from 'react-native';
+import React from "react";
+import { View, Text } from "react-native";
 
 export default function PostCardSkeleton() {
   return (
@@ -12,19 +12,19 @@ export default function PostCardSkeleton() {
           <View className="w-16 h-3 bg-gray-200 rounded" />
         </View>
       </View>
-      
+
       {/* Title skeleton */}
       <View className="w-3/4 h-5 bg-gray-200 rounded mb-3" />
-      
+
       {/* Description skeleton */}
       <View className="space-y-2 mb-3">
         <View className="w-full h-4 bg-gray-200 rounded" />
         <View className="w-2/3 h-4 bg-gray-200 rounded" />
       </View>
-      
+
       {/* Image skeleton */}
       <View className="w-full h-32 bg-gray-200 rounded mb-3" />
-      
+
       {/* Footer skeleton */}
       <View className="flex-row justify-between items-center">
         <View className="flex-row space-x-3">
@@ -39,7 +39,7 @@ export default function PostCardSkeleton() {
 
 export function PostCardSkeletonList({ count = 3 }: { count?: number }) {
   return (
-    <View className="mt-4">
+    <View className="flex-col gap-3">
       {Array.from({ length: count }).map((_, index) => (
         <PostCardSkeleton key={index} />
       ))}
