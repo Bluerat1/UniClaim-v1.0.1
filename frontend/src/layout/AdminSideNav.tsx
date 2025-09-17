@@ -8,7 +8,7 @@ import {
   HiOutlineCog,
   HiOutlineFlag,
 } from "react-icons/hi";
-import { HiOutlineEnvelope, HiOutlineSpeakerWave } from "react-icons/hi2";
+import { HiOutlineEnvelope } from "react-icons/hi2";
 import { LuLayoutDashboard } from "react-icons/lu";
 import NavText from "./NavText";
 import Logo from "../assets/uniclaim_logo.png";
@@ -28,7 +28,7 @@ export default function AdminSideNav({
   isSideNavMobileOpen,
   onMobNavClose,
 }: AdminSideNavProps) {
-  // ✅ Hook to detect mobile screen width
+  // Hook to detect mobile screen width
   function useIsMobile() {
     const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
     useEffect(() => {
@@ -43,7 +43,7 @@ export default function AdminSideNav({
 
   const isMobile = useIsMobile();
 
-  // ✅ Lock scroll on body only for mobile nav open
+  // Lock scroll on body only for mobile nav open
   useEffect(() => {
     if (isMobile && isSideNavMobileOpen) {
       document.body.style.overflow = "hidden";
@@ -59,7 +59,7 @@ export default function AdminSideNav({
   return (
     <>
       <div className="flex overflow-x-hidden relative">
-        {/* ✅ Desktop Sidebar */}
+        {/* Desktop Sidebar */}
         <aside
           className={`fixed top-0 left-0 hidden z-20 bg-white text-black pt-22 px-4.5 h-full ${
             isOpen ? "w-60" : "w-21"
@@ -103,19 +103,6 @@ export default function AdminSideNav({
               to="/admin/messages"
               isOpen={isOpen}
               className="mt-2 hover:bg-gray-100"
-              iconClassName="text-black"
-              textClassName="text-black"
-              tooltipIconClassName="text-navyblue text-xl"
-              tooltipTextClassName="text-navyblue text-base"
-              hoverContainerBgClass="bg-gray-100"
-            />
-
-            <NavText
-              icon={<HiOutlineSpeakerWave className="size-6 stroke-[1.5px]" />}
-              label="Announcements"
-              to="/admin/announcements"
-              isOpen={isOpen}
-              className="hover:bg-gray-100"
               iconClassName="text-black"
               textClassName="text-black"
               tooltipIconClassName="text-navyblue text-xl"
@@ -220,14 +207,6 @@ export default function AdminSideNav({
                 />
 
                 <NavText
-                  icon={
-                    <HiOutlineSpeakerWave className="size-6 stroke-[1.5px]" />
-                  }
-                  label="Announcements"
-                  to="/admin/announcements"
-                  isOpen={isOpen}
-                  onClick={onMobNavClose}
-                  className="hover:bg-gray-50 rounded pl-4 justify-start"
                   iconClassName="text-black"
                   textClassName="font-manrope"
                 />

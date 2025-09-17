@@ -14,7 +14,6 @@ import ScreenWrapper from "../components/ScreenWrapper";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { MessageProvider } from "../context/MessageContext";
 import { NotificationProvider } from "../context/NotificationContext";
-import { AnnouncementProvider } from "../context/AnnouncementContext";
 import { CoordinatesProvider } from "../context/CoordinatesContext";
 
 // utils
@@ -49,25 +48,8 @@ const AppContent = ({
   // NEW: If user is banned, show login screen
   if (isBanned) {
     return (
-      <AnnouncementProvider>
-        <NotificationProvider>
-          <MessageProvider userId={null}>
-            <Navigation
-              hasSeenOnBoarding={hasSeenOnBoarding}
-              setHasSeenOnBoarding={setHasSeenOnBoarding}
-              hasPassedIndex={hasPassedIndex}
-              setHasPassedIndex={setHasPassedIndex}
-            />
-          </MessageProvider>
-        </NotificationProvider>
-      </AnnouncementProvider>
-    );
-  }
-
-  return (
-    <AnnouncementProvider>
       <NotificationProvider>
-        <MessageProvider userId={user?.uid || null}>
+        <MessageProvider userId={null}>
           <Navigation
             hasSeenOnBoarding={hasSeenOnBoarding}
             setHasSeenOnBoarding={setHasSeenOnBoarding}
@@ -76,7 +58,20 @@ const AppContent = ({
           />
         </MessageProvider>
       </NotificationProvider>
-    </AnnouncementProvider>
+    );
+  }
+
+  return (
+    <NotificationProvider>
+      <MessageProvider userId={user?.uid || null}>
+        <Navigation
+          hasSeenOnBoarding={hasSeenOnBoarding}
+          setHasSeenOnBoarding={setHasSeenOnBoarding}
+          hasPassedIndex={hasPassedIndex}
+          setHasPassedIndex={setHasPassedIndex}
+        />
+      </MessageProvider>
+    </NotificationProvider>
   );
 };
 
