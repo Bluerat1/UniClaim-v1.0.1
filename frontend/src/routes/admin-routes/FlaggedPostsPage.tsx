@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { postService } from '../../services/firebase/posts';
 import { useToast } from '../../context/ToastContext';
 import type { Post } from '../../types/Post';
@@ -40,7 +40,7 @@ export default function FlaggedPostsPage() {
       setFlaggedPosts(posts);
     } catch (err: any) {
       setError(err.message || 'Failed to load flagged posts');
-      showToast('Failed to load flagged posts', 'error');
+      showToast('error', 'Error', 'Failed to load flagged posts');
     } finally {
       setLoading(false);
     }
@@ -63,28 +63,38 @@ export default function FlaggedPostsPage() {
       switch (type) {
         case 'approve':
           await postService.unflagPost(postId);
-          setFlaggedPosts(prev => prev.filter(p => p.id !== postId));
-          showToast('Post approved and unflagged successfully', 'success');
+          // Instead of removing, update the post's isFlagged status
+          setFlaggedPosts(prev => prev.map(p => 
+            p.id === postId ? { ...p, isFlagged: false } : p
+          ));
+          showToast('success', 'Success', 'Post approved and unflagged successfully');
           break;
         case 'hide':
           await postService.hidePost(postId);
-          setFlaggedPosts(prev => prev.filter(p => p.id !== postId));
-          showToast('Post hidden from public view successfully', 'success');
+          // Update the post's isHidden status instead of removing it
+          setFlaggedPosts(prev => prev.map(p => 
+            p.id === postId ? { ...p, isHidden: true } : p
+          ));
+          showToast('success', 'Success', 'Post hidden from public view successfully');
           break;
         case 'unhide':
           await postService.unhidePost(postId);
-          setFlaggedPosts(prev => prev.filter(p => p.id !== postId));
-          showToast('Post unhidden and visible to public successfully', 'success');
+          // Update the post's isHidden status
+          setFlaggedPosts(prev => prev.map(p => 
+            p.id === postId ? { ...p, isHidden: false } : p
+          ));
+          showToast('success', 'Success', 'Post unhidden and visible to public successfully');
           break;
         case 'delete':
           await postService.deletePost(postId);
+          // Only remove from list if the post is actually deleted
           setFlaggedPosts(prev => prev.filter(p => p.id !== postId));
-          showToast('Post deleted successfully', 'success');
+          showToast('success', 'Success', 'Post deleted successfully');
           break;
       }
     } catch (err: any) {
       const actionText = type === 'approve' ? 'approve' : type === 'hide' ? 'hide' : type === 'unhide' ? 'unhide' : 'delete';
-      showToast(err.message || `Failed to ${actionText} post`, 'error');
+      showToast('error', 'Error', err.message || `Failed to ${actionText} post`);
     } finally {
       setActionLoading(null);
       setShowConfirmModal(false);
@@ -120,7 +130,7 @@ export default function FlaggedPostsPage() {
 
   const handleBulkActionClick = (action: 'approve' | 'hide' | 'unhide' | 'delete') => {
     if (selectedPosts.size === 0) {
-      showToast('Please select posts to perform bulk action', 'warning');
+      showToast('error', 'Error', 'Please select posts to perform bulk action');
       return;
     }
     setBulkAction({ type: action, count: selectedPosts.size });
@@ -166,12 +176,12 @@ export default function FlaggedPostsPage() {
       setSelectedPosts(new Set());
 
       if (errorCount === 0) {
-        showToast(`Successfully processed ${successCount} posts`, 'success');
+        showToast('success', 'Success', `Successfully processed ${successCount} posts`);
       } else {
-        showToast(`Processed ${successCount} posts successfully, ${errorCount} failed`, 'warning');
+        showToast('warning', 'Warning', `Processed ${successCount} posts successfully, ${errorCount} failed`);
       }
     } catch (err: any) {
-      showToast(err.message || 'Failed to process bulk action', 'error');
+      showToast('error', 'Error', 'Failed to process bulk action');
     } finally {
       setActionLoading(null);
       setShowBulkConfirmModal(false);
@@ -339,11 +349,22 @@ export default function FlaggedPostsPage() {
                         <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
                           {post.category}
                         </span>
-                        {post.isHidden && (
-                          <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
+                        {post.isHidden ? (
+                          <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+                              <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                            </svg>
                             Hidden
                           </span>
-                        )}
+                        ) : post.isFlagged ? (
+                          <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
+                            </svg>
+                            Flagged
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                     
@@ -472,15 +493,15 @@ export default function FlaggedPostsPage() {
               <div className="space-y-4">
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-medium text-gray-900 mb-2">Post Details:</h4>
-                  <p className="text-sm text-gray-700 mb-1"><strong>Title:</strong> {confirmAction.post.title}</p>
-                  <p className="text-sm text-gray-700 mb-1"><strong>Type:</strong> {confirmAction.post.type === 'lost' ? 'Lost Item' : 'Found Item'}</p>
-                  <p className="text-sm text-gray-700"><strong>Category:</strong> {confirmAction.post.category}</p>
+                  <p className="text-sm text-gray-700 mb-1"><strong>Title:</strong> {confirmAction.post?.title || 'N/A'}</p>
+                  <p className="text-sm text-gray-700 mb-1"><strong>Type:</strong> {confirmAction.post?.type ? (confirmAction.post.type === 'lost' ? 'Lost Item' : 'Found Item') : 'N/A'}</p>
+                  <p className="text-sm text-gray-700"><strong>Category:</strong> {confirmAction.post?.category || 'N/A'}</p>
                 </div>
 
                 <div className="bg-red-50 p-4 rounded-lg">
                   <h4 className="font-medium text-red-900 mb-2">Flag Information:</h4>
-                  <p className="text-sm text-red-700 mb-1"><strong>Reason:</strong> {confirmAction.post.flagReason}</p>
-                  <p className="text-sm text-red-700"><strong>Flagged by:</strong> {confirmAction.post.user?.firstName} {confirmAction.post.user?.lastName}</p>
+                  <p className="text-sm text-red-700 mb-1"><strong>Reason:</strong> {confirmAction.post?.flagReason || 'N/A'}</p>
+                  <p className="text-sm text-red-700"><strong>Flagged by:</strong> {confirmAction.post?.user ? `${confirmAction.post.user.firstName || ''} ${confirmAction.post.user.lastName || ''}`.trim() || 'Unknown' : 'Unknown'}</p>
                 </div>
 
                 <div className="bg-yellow-50 p-4 rounded-lg">
@@ -503,7 +524,7 @@ export default function FlaggedPostsPage() {
                 </button>
                 <button
                   onClick={handleConfirmAction}
-                  disabled={actionLoading === confirmAction.post.id}
+                  disabled={!confirmAction.post || actionLoading === confirmAction.post.id}
                   className={`px-4 py-2 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                     confirmAction.type === 'approve' 
                       ? 'bg-green-600 hover:bg-green-700' 
@@ -514,7 +535,7 @@ export default function FlaggedPostsPage() {
                       : 'bg-red-600 hover:bg-red-700'
                   }`}
                 >
-                  {actionLoading === confirmAction.post.id ? 'Processing...' : 
+                  {confirmAction.post && actionLoading === confirmAction.post.id ? 'Processing...' : 
                     confirmAction.type === 'approve' ? 'Approve Post' :
                     confirmAction.type === 'hide' ? 'Hide Post' :
                     confirmAction.type === 'unhide' ? 'Unhide Post' : 'Delete Post'
