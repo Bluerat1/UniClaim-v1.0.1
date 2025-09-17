@@ -275,7 +275,7 @@ export default function ItemDetails({
           <View className="mb-3 p-3 bg-green-50 border border-green-200 rounded-md">
             <View className="flex-row items-center">
               <View className="w-2 h-2 bg-green-500 rounded-full mr-2" />
-              <Text className="text-green-800 font-medium">
+              <Text className="text-green-800 font-manrope-semibold">
                 Detected Location: {selectedLocation}
               </Text>
             </View>
@@ -324,7 +324,7 @@ export default function ItemDetails({
               <Text className="text-blue-800 text-sm font-inter font-medium mb-1">
                 How to use:
               </Text>
-              <Text className="text-blue-700 text-xs font-inter">
+              <Text className="text-blue-700 text-sm font-inter">
                 • Click on the map to pin a location{"\n"}• Make sure to pin
                 within a building or campus area{"\n"}• The system will
                 automatically detect the location name{"\n"}• If no location is
