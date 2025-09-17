@@ -103,11 +103,11 @@ export default function AdminAnnouncementsPage() {
       setIsSubmitting(true);
       await createAnnouncement(formData);
 
-      showToast("Announcement created successfully", "success");
+      showToast("success", "Announcement created successfully");
       setShowCreateModal(false);
       resetForm();
     } catch (error) {
-      showToast("Failed to create announcement", "error");
+      showToast("error", "Failed to create announcement");
       console.error("Error creating announcement:", error);
     } finally {
       setIsSubmitting(false);
@@ -124,11 +124,11 @@ export default function AdminAnnouncementsPage() {
       setIsSubmitting(true);
       await updateAnnouncement(selectedAnnouncement.id, formData);
 
-      showToast("Announcement updated successfully", "success");
+      showToast("success", "Announcement updated successfully");
       setShowEditModal(false);
       resetForm();
     } catch (error) {
-      showToast("Failed to update announcement", "error");
+      showToast("error", "Failed to update announcement");
       console.error("Error updating announcement:", error);
     } finally {
       setIsSubmitting(false);
@@ -141,12 +141,13 @@ export default function AdminAnnouncementsPage() {
 
     try {
       await deleteAnnouncement(selectedAnnouncement.id);
-      showToast("Announcement deleted successfully", "success");
+      showToast("success", "Announcement deleted successfully");
       setShowDeleteModal(false);
       setSelectedAnnouncement(null);
     } catch (error) {
-      showToast("Failed to delete announcement", "error");
+      showToast("error", "Failed to delete announcement");
       console.error("Error deleting announcement:", error);
+      s;
     }
   };
 
@@ -161,7 +162,7 @@ export default function AdminAnnouncementsPage() {
         "success"
       );
     } catch (error) {
-      showToast("Failed to toggle announcement status", "error");
+      showToast("error", "Failed to toggle announcement status");
       console.error("Error toggling announcement status:", error);
     }
   };
@@ -241,7 +242,7 @@ export default function AdminAnnouncementsPage() {
     <PageWrapper title="Announcements">
       <div className="w-full mx-auto">
         {/* Page Header */}
-        <div className="hidden px-4 py-3 sm:px-6 lg:px-8 lg:flex items-center justify-between fixed left-20 top-18 right-0 z-10 bg-gray-50 border-b border-zinc-200">
+        <div className="hidden px-4.5 py-3 sm:px-6 lg:px-8 lg:flex items-center justify-between fixed left-20 top-18 right-0 z-10 bg-gray-50 border-b border-zinc-200">
           <div className="">
             <h1 className="text-base font-medium text-gray-900">
               Announcements Management
@@ -262,7 +263,7 @@ export default function AdminAnnouncementsPage() {
         </div>
 
         {/* Mobile nav */}
-        <div className="lg:hidden p-4 bg-white border-b border-gray-200">
+        <div className="lg:hidden py-4 px-4.5 bg-white border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-lg font-semibold text-gray-900">
@@ -337,11 +338,11 @@ export default function AdminAnnouncementsPage() {
                         </span>
                       </div>
 
-                      <p className="text-gray-900 font-medium mb-2">
+                      <p className="text-gray-900 font-medium my-4">
                         {announcement.message}
                       </p>
 
-                      <div className="text-sm text-gray-500 space-y-1">
+                      <div className="text-xs text-gray-500 space-y-1">
                         <p>Created: {formatDate(announcement.createdAt)}</p>
                         {announcement.expiresAt && (
                           <p>Expires: {formatDate(announcement.expiresAt)}</p>
@@ -394,7 +395,7 @@ export default function AdminAnnouncementsPage() {
 
       {/* Create/Edit Modal */}
       {(showCreateModal || showEditModal) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/55 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
@@ -414,7 +415,7 @@ export default function AdminAnnouncementsPage() {
                   {/* Message */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Message *
+                      Message <span className="text-red-500">*</span>
                     </label>
                     <textarea
                       name="message"
@@ -523,17 +524,17 @@ export default function AdminAnnouncementsPage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && selectedAnnouncement && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/55 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full">
             <div className="p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
                 Delete Announcement
               </h2>
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-600 mb-5 text-base">
                 Are you sure you want to delete this announcement? This action
                 cannot be undone.
               </p>
-              <div className="bg-gray-50 p-3 rounded-lg mb-6">
+              <div className="bg-gray-50 border border-gray-100 p-3 rounded-md mb-6">
                 <p className="text-sm text-gray-700">
                   {selectedAnnouncement.message}
                 </p>

@@ -72,7 +72,7 @@ export default function AdminSideNav({
               to="/admin"
               isOpen={isOpen}
               className={clsx(
-                "bg-brand px-4 rounded-lg hover:bg-teal-600",
+                "bg-brand px-4 rounded-lg hover:bg-yellow-600",
                 isOpen && "my-1 mb-3"
               )}
               iconClassName="text-navyblue"
