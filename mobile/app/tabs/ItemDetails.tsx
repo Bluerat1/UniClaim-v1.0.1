@@ -119,7 +119,7 @@ export default function ItemDetails({
   return (
     <View className="flex-1">
       <View
-        className={`gap-3 ${showLostInfo || showFoundInfo ? "mt-3" : "mt-0"}`}
+        className={`gap-3 ${showLostInfo || showFoundInfo ? "mt-1" : "mt-0"}`}
       >
         {showLostInfo && (
           <Info type="lost" onClose={() => setShowLostInfo(false)} />
@@ -130,7 +130,7 @@ export default function ItemDetails({
       </View>
 
       {/* Report Type */}
-      <View className="space-y-3 mt-4">
+      <View className="space-y-3 mt-3">
         <Text className="text-base font-manrope-semibold mb-3">
           Item Report
         </Text>

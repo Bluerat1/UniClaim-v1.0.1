@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -6,17 +6,17 @@ import {
   Modal,
   Pressable,
   Alert,
-  ActivityIndicator
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useAuth } from '@/context/AuthContext';
-import { messageService } from '@/utils/firebase/messages';
-import { postService } from '@/utils/firebase/posts';
-import FlagModal from './FlagModal';
-import Toast from './Toast';
-import type { RootStackParamList } from '@/types/type';
+  ActivityIndicator,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useAuth } from "@/context/AuthContext";
+import { messageService } from "@/utils/firebase/messages";
+import { postService } from "@/utils/firebase/posts";
+import FlagModal from "./FlagModal";
+import Toast from "./Toast";
+import type { RootStackParamList } from "@/types/type";
 
 interface PostCardMenuProps {
   postId: string;
@@ -51,33 +51,42 @@ export default function PostCardMenu({
   const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
-  const [toastType, setToastType] = useState<"success" | "error" | "warning" | "info">("success");
-  
+  const [toastType, setToastType] = useState<
+    "success" | "error" | "warning" | "info"
+  >("success");
+
   const { user, userData } = useAuth();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const handleMenuPress = () => {
-    console.log('Triple dot pressed, isOpen:', isOpen);
+    console.log("Triple dot pressed, isOpen:", isOpen);
     setIsOpen(!isOpen);
   };
 
   const handleSendMessage = async () => {
-    console.log('Send Message button pressed');
-    console.log('UserData:', !!userData);
-    console.log('PostOwnerId:', postOwnerId);
-    
+    console.log("Send Message button pressed");
+    console.log("UserData:", !!userData);
+    console.log("PostOwnerId:", postOwnerId);
+
     if (!userData) {
-      Alert.alert('Login Required', 'Please log in to send messages');
+      Alert.alert("Login Required", "Please log in to send messages");
       return;
     }
 
     if (!postOwnerId) {
-      Alert.alert('Messaging Unavailable', 'Unable to start conversation. Post owner information is missing.');
+      Alert.alert(
+        "Messaging Unavailable",
+        "Unable to start conversation. Post owner information is missing."
+      );
       return;
     }
 
     if (postOwnerId === userData.uid) {
-      Alert.alert('Cannot Send Message', 'You cannot send a message to yourself');
+      Alert.alert(
+        "Cannot Send Message",
+        "You cannot send a message to yourself"
+      );
       return;
     }
 
@@ -85,7 +94,7 @@ export default function PostCardMenu({
     setIsOpen(false);
 
     try {
-      console.log('Creating conversation...');
+      console.log("Creating conversation...");
       // Create conversation
       const conversationId = await messageService.createConversation(
         postId,
@@ -96,21 +105,21 @@ export default function PostCardMenu({
         postOwnerUserData
       );
 
-      console.log('Conversation created, navigating to chat...');
+      console.log("Conversation created, navigating to chat...");
       // Navigate to chat
-      navigation.navigate('Chat', {
+      navigation.navigate("Chat", {
         conversationId,
         postTitle,
         postId,
         postOwnerId,
         postOwnerUserData,
         postType: postType, // Pass post type (lost/found)
-        postStatus: postStatus || 'pending', // Pass post status
-        foundAction: foundAction // Pass found action for found items
+        postStatus: postStatus || "pending", // Pass post status
+        foundAction: foundAction, // Pass found action for found items
       });
     } catch (error: any) {
-      console.error('Error creating conversation:', error);
-      Alert.alert('Error', error.message || 'Failed to start conversation');
+      console.error("Error creating conversation:", error);
+      Alert.alert("Error", error.message || "Failed to start conversation");
     } finally {
       setIsCreatingConversation(false);
     }
@@ -118,7 +127,7 @@ export default function PostCardMenu({
 
   const handleFlagClick = () => {
     if (!user) {
-      Alert.alert('Login Required', 'Please log in to flag posts');
+      Alert.alert("Login Required", "Please log in to flag posts");
       return;
     }
     setIsOpen(false);
@@ -158,7 +167,7 @@ export default function PostCardMenu({
         {/* Triple dot button */}
         <TouchableOpacity
           onPress={handleMenuPress}
-          className="p-2 rounded-full"
+          className="p-2 rounded-full bg-black/30"
           hitSlop={10}
         >
           <Ionicons name="ellipsis-vertical" size={20} color="#FFFFFF" />
@@ -167,65 +176,75 @@ export default function PostCardMenu({
         {/* Dropdown menu positioned beside the triple dot */}
         {isOpen && (
           <View className="absolute top-0 right-12 bg-white rounded-lg shadow-lg border border-gray-200 w-48 z-50">
-            {console.log('Rendering dropdown menu')}
+            {console.log("Rendering dropdown menu")}
             {/* Send Message Button */}
             <TouchableOpacity
               onPress={() => {
-                console.log('Send Message button tapped!');
+                console.log("Send Message button tapped!");
                 handleSendMessage();
               }}
               disabled={isCreatingConversation || postOwnerId === userData?.uid}
               className={`flex-row items-center px-4 py-3 border-b border-gray-200 ${
                 isCreatingConversation || postOwnerId === userData?.uid
-                  ? 'opacity-50'
-                  : 'active:bg-gray-50'
+                  ? "opacity-50"
+                  : "active:bg-gray-50"
               }`}
               style={{ minHeight: 48 }} // Ensure minimum touch target
             >
               {isCreatingConversation ? (
-                <ActivityIndicator size="small" color="#3B82F6" className="mr-3" />
+                <ActivityIndicator
+                  size="small"
+                  color="#3B82F6"
+                  className="mr-3"
+                />
               ) : (
-                <Ionicons name="chatbubble-outline" size={20} color="#3B82F6" className="mr-3" />
+                <Ionicons
+                  name="chatbubble-outline"
+                  size={20}
+                  color="#3B82F6"
+                  className="mr-3"
+                />
               )}
-              <Text className={`text-base font-manrope-medium ${
-                isCreatingConversation || postOwnerId === userData?.uid
-                  ? 'text-gray-400'
-                  : 'text-gray-700'
-              }`}>
-                {isCreatingConversation ? 'Starting Chat...' : 'Send Message'}
+              <Text
+                className={`text-base font-manrope-medium ${
+                  isCreatingConversation || postOwnerId === userData?.uid
+                    ? "text-gray-400"
+                    : "text-gray-700"
+                }`}
+              >
+                {isCreatingConversation ? "Starting Chat..." : "Send Message"}
               </Text>
             </TouchableOpacity>
-            
+
             {/* Flag Post Button */}
             <TouchableOpacity
               onPress={() => {
-                console.log('Flag Post button tapped!');
+                console.log("Flag Post button tapped!");
                 handleFlagClick();
               }}
               disabled={isAlreadyFlaggedByUser}
               className={`flex-row items-center px-4 py-3 ${
-                isAlreadyFlaggedByUser
-                  ? 'opacity-50'
-                  : 'active:bg-gray-50'
+                isAlreadyFlaggedByUser ? "opacity-50" : "active:bg-gray-50"
               }`}
               style={{ minHeight: 48 }} // Ensure minimum touch target
             >
-              <Ionicons 
-                name="flag-outline" 
-                size={20} 
-                color={isAlreadyFlaggedByUser ? "#9CA3AF" : "#DC2626"} 
-                className="mr-3" 
+              <Ionicons
+                name="flag-outline"
+                size={20}
+                color={isAlreadyFlaggedByUser ? "#9CA3AF" : "#DC2626"}
+                className="mr-3"
               />
-              <Text className={`text-base font-manrope-medium ${
-                isAlreadyFlaggedByUser ? 'text-gray-400' : 'text-gray-700'
-              }`}>
-                {isAlreadyFlaggedByUser ? 'Already Flagged' : 'Flag Post'}
+              <Text
+                className={`text-base font-manrope-medium ${
+                  isAlreadyFlaggedByUser ? "text-gray-400" : "text-gray-700"
+                }`}
+              >
+                {isAlreadyFlaggedByUser ? "Already Flagged" : "Flag Post"}
               </Text>
             </TouchableOpacity>
           </View>
         )}
       </View>
-
 
       {/* Flag Modal */}
       {showFlagModal && (

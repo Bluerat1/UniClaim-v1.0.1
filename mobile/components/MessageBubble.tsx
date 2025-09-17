@@ -12,7 +12,10 @@ import { useMessage } from "@/context/MessageContext";
 import type { Message } from "@/types/type";
 import ImagePicker from "@/components/ImagePicker";
 import ProfilePicture from "@/components/ProfilePicture";
-import { handoverClaimService, type HandoverClaimCallbacks } from "@/utils/handoverClaimService";
+import {
+  handoverClaimService,
+  type HandoverClaimCallbacks,
+} from "@/utils/handoverClaimService";
 
 interface MessageBubbleProps {
   message: Message;
@@ -45,9 +48,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onMessageSeen,
   onImageClick,
 }) => {
-  const {
-    deleteMessage,
-  } = useMessage();
+  const { deleteMessage } = useMessage();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showIdPhotoModal, setShowIdPhotoModal] = useState(false);
   const [isUploadingIdPhoto, setIsUploadingIdPhoto] = useState(false);
@@ -102,7 +103,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       conversationId,
       message.id,
       currentUserId,
-      'handover',
+      "handover",
       callbacks
     );
 
@@ -165,7 +166,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       conversationId,
       message.id,
       currentUserId,
-      'claim',
+      "claim",
       callbacks
     );
 
@@ -301,39 +302,41 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         )}
 
         {/* Show item photos if uploaded and not deleted */}
-        {handoverData.itemPhotos && handoverData.itemPhotos.length > 0 && !handoverData.photosDeleted && (
-          <View className="mb-3 p-2 bg-white rounded border">
-            <Text className="text-xs text-gray-600 mb-1 font-medium">
-              Item Photos:
-            </Text>
-            <View className="gap-2">
-              {handoverData.itemPhotos.map((photo, index) => (
-                <View key={index}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (onImageClick) {
-                        // Use image modal like web version
-                        onImageClick(photo.url, `Item Photo ${index + 1}`);
-                      }
-                    }}
-                  >
-                    <Image
-                      source={{ uri: photo.url }}
-                      className="w-full h-32 rounded"
-                      resizeMode="cover"
-                    />
-                    <Text className="text-xs text-gray-500 mt-1">
-                      Item photo {index + 1}
-                    </Text>
-                    <Text className="text-xs text-blue-500 text-center mt-1">
-                      Tap to view full size
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
+        {handoverData.itemPhotos &&
+          handoverData.itemPhotos.length > 0 &&
+          !handoverData.photosDeleted && (
+            <View className="mb-3 p-2 bg-white rounded border">
+              <Text className="text-xs text-gray-600 mb-1 font-medium">
+                Item Photos:
+              </Text>
+              <View className="gap-2">
+                {handoverData.itemPhotos.map((photo, index) => (
+                  <View key={index}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (onImageClick) {
+                          // Use image modal like web version
+                          onImageClick(photo.url, `Item Photo ${index + 1}`);
+                        }
+                      }}
+                    >
+                      <Image
+                        source={{ uri: photo.url }}
+                        className="w-full h-32 rounded"
+                        resizeMode="cover"
+                      />
+                      <Text className="text-xs text-gray-500 mt-1">
+                        Item photo {index + 1}
+                      </Text>
+                      <Text className="text-xs text-blue-500 text-center mt-1">
+                        Tap to view full size
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
             </View>
-          </View>
-        )}
+          )}
 
         {/* Action buttons */}
         {canRespond ? (
@@ -546,48 +549,50 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         )}
 
         {/* Show evidence photos if uploaded and not deleted */}
-        {claimData.evidencePhotos && claimData.evidencePhotos.length > 0 && !claimData.photosDeleted && (
-          <View className="mb-3 p-2 bg-white rounded border">
-            <Text className="text-xs text-gray-600 mb-1 font-medium">
-              Evidence Photos:
-            </Text>
-            <View className="gap-2">
-              {claimData.evidencePhotos.map((photo, index) => (
-                <View key={index}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      Alert.alert(
-                        `View Evidence Photo ${index + 1}`,
-                        "Would you like to view the full-size evidence photo?",
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          {
-                            text: "View Full Size",
-                            onPress: () => {
-                              Linking.openURL(photo.url);
+        {claimData.evidencePhotos &&
+          claimData.evidencePhotos.length > 0 &&
+          !claimData.photosDeleted && (
+            <View className="mb-3 p-2 bg-white rounded border">
+              <Text className="text-xs text-gray-600 mb-1 font-medium">
+                Evidence Photos:
+              </Text>
+              <View className="gap-2">
+                {claimData.evidencePhotos.map((photo, index) => (
+                  <View key={index}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        Alert.alert(
+                          `View Evidence Photo ${index + 1}`,
+                          "Would you like to view the full-size evidence photo?",
+                          [
+                            { text: "Cancel", style: "cancel" },
+                            {
+                              text: "View Full Size",
+                              onPress: () => {
+                                Linking.openURL(photo.url);
+                              },
                             },
-                          },
-                        ]
-                      );
-                    }}
-                  >
-                    <Image
-                      source={{ uri: photo.url }}
-                      className="w-full h-32 rounded"
-                      resizeMode="cover"
-                    />
-                    <Text className="text-xs text-gray-500 mt-1">
-                      Evidence photo {index + 1}
-                    </Text>
-                    <Text className="text-xs text-blue-500 text-center mt-1">
-                      Tap to view full size
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
+                          ]
+                        );
+                      }}
+                    >
+                      <Image
+                        source={{ uri: photo.url }}
+                        className="w-full h-32 rounded"
+                        resizeMode="cover"
+                      />
+                      <Text className="text-xs text-gray-500 mt-1">
+                        Evidence photo {index + 1}
+                      </Text>
+                      <Text className="text-xs text-blue-500 text-center mt-1">
+                        Tap to view full size
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
             </View>
-          </View>
-        )}
+          )}
 
         {/* Show legacy verification photos if exists (for backward compatibility) */}
         {claimData.verificationPhotos &&
@@ -764,42 +769,52 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   return (
     <View className={`mb-3 ${isOwnMessage ? "items-end" : "items-start"}`}>
       {renderIdPhotoModal()}
-      <View className={`flex-row items-end gap-2 ${isOwnMessage ? "flex-row-reverse" : ""}`}>
+      <View
+        className={`flex-row items-end gap-2 ${isOwnMessage ? "flex-row-reverse" : ""}`}
+      >
         {/* Profile Picture - only show for other user's messages */}
         {!isOwnMessage && (
           <ProfilePicture
             src={message.senderProfilePicture}
             size="sm"
-            style={{ marginBottom: 4 }}
+            style={{ marginBottom: 6 }}
           />
         )}
-        
+
         <View className="flex-1">
           <View
-            className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-              isOwnMessage
-                ? "bg-navyblue rounded-br-md"
-                : "bg-zinc-200 rounded-bl-md"
+            className={`flex-row ${
+              isOwnMessage ? "justify-end" : "justify-start"
             }`}
           >
-            <Text
-              className={`text-base font-inter ${
-                isOwnMessage ? "text-white" : "text-gray-800"
+            <View
+              className={`max-w-[75%] rounded-2xl px-4 py-3 ${
+                isOwnMessage
+                  ? "bg-navyblue rounded-br-md"
+                  : "bg-zinc-200 rounded-bl-md"
               }`}
             >
-              {message.text}
-            </Text>
+              <Text
+                className={`text-base font-inter ${
+                  isOwnMessage ? "text-white" : "text-gray-800"
+                }`}
+              >
+                {message.text}
+              </Text>
 
-            {/* Render special message types */}
-            {renderHandoverRequest()}
-            {renderHandoverResponse()}
-            {renderClaimRequest()}
-            {renderClaimResponse()}
-            {renderSystemMessage()}
+              {/* Render special message types */}
+              {renderHandoverRequest()}
+              {renderHandoverResponse()}
+              {renderClaimRequest()}
+              {renderClaimResponse()}
+              {renderSystemMessage()}
+            </View>
           </View>
-          
-          <View className={`flex-row items-center justify-between mt-1 mx-2 ${isOwnMessage ? "flex-row-reverse" : ""}`}>
-            <View className="flex-row items-center gap-1">
+
+          <View
+            className={`flex-row items-center justify-start mt-1 mx-1 ${isOwnMessage ? "flex-row-reverse" : ""}`}
+          >
+            <View className="flex-row items-center gap-2">
               <Text className="text-xs text-gray-500">
                 {formatTime(message.timestamp)}
               </Text>
@@ -819,7 +834,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               <TouchableOpacity
                 onPress={handleDeleteMessage}
                 disabled={isDeleting}
-                className="ml-2 p-1"
+                className="mr-2 p-1"
               >
                 <Ionicons
                   name="trash-outline"

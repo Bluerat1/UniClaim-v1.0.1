@@ -44,18 +44,13 @@ export default function ContactDetails({
 
   return (
     <View className="">
-      <View className={`flex-col gap-3 ${showAnyInfo ? "mt-3" : "mt-0"}`}>
+      <View className={`flex-col gap-3 ${showAnyInfo ? "mt-1" : "mt-0"}`}>
         {showLostInfo && (
           <Info type="lost" onClose={() => setShowLostInfo(false)} />
         )}
         {showFoundInfo && (
           <Info type="found" onClose={() => setShowFoundInfo(false)} />
         )}
-      </View>
-
-      {/* Your contact details section */}
-      <View className="mb-3 mt-3">
-        <Text className="mb-2 text-base font-manrope-semibold">Your contact details</Text>
       </View>
 
       {/* Full Name */}
@@ -75,7 +70,7 @@ export default function ContactDetails({
         </Text>
         <View className="bg-zinc-100 justify-center w-full p-3 h-[3.5rem] border border-zinc-200 rounded-md">
           <Text className="text-base capitalize font-manrope-medium text-black">
-            {userData.contactNum || 'Not provided'}
+            {userData.contactNum || "Not provided"}
           </Text>
         </View>
       </View>
@@ -84,7 +79,7 @@ export default function ContactDetails({
       <View className="mt-1 mb-3">
         <Text className="mb-2 text-base font-manrope-semibold">Email</Text>
         <View className="bg-zinc-100 justify-center w-full p-3 h-[3.5rem] border border-zinc-200 rounded-md">
-          <Text className="text-base capitalize font-manrope-medium text-black">
+          <Text className="text-base font-manrope-medium text-black">
             {userData.email}
           </Text>
         </View>
