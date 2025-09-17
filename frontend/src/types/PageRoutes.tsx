@@ -6,7 +6,6 @@ import AdminHomePage from "../routes/admin-routes/AdminHomePage";
 import AdminProfile from "../routes/admin-routes/AdminProfile";
 import AdminUserManagement from "../routes/admin-routes/AdminUserManagement";
 import AdminMessagesPage from "../routes/admin-routes/AdminMessagesPage";
-import AdminAnnouncementsPage from "../routes/admin-routes/AdminAnnouncementsPage";
 import FlaggedPostsPage from "../routes/admin-routes/FlaggedPostsPage";
 import ConversationCleanupAdmin from "../components/ConversationCleanupAdmin";
 
@@ -37,7 +36,6 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { MessageProvider } from "@/context/MessageContext";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { AdminNotificationProvider } from "@/context/AdminNotificationContext";
-import { AnnouncementProvider } from "@/context/AnnouncementContext";
 import PageWrapper from "@/components/PageWrapper";
 import ScrollToTop from "@/context/ScrollTop";
 
@@ -50,7 +48,7 @@ function AppRoutesWithAuth() {
     <NotificationProvider>
       <MessageProvider userId={user?.uid || null}>
         <Routes>
-        {/* Public routes - no AnnouncementProvider needed */}
+        {/* Public routes */}
         <Route
           path="/login"
           element={
@@ -98,11 +96,9 @@ function AppRoutesWithAuth() {
         <Route
           path="/"
           element={
-            <AnnouncementProvider>
               <EmailVerificationRoute>
                 <MainHome />
               </EmailVerificationRoute>
-            </AnnouncementProvider>
           }
         >
           <Route
@@ -191,13 +187,11 @@ function AppRoutesWithAuth() {
         <Route
           path="/admin"
           element={
-            <AnnouncementProvider>
-              <AdminNotificationProvider>
-                <ProtectedRoute>
-                  <AdminLayout />
-                </ProtectedRoute>
-              </AdminNotificationProvider>
-            </AnnouncementProvider>
+            <AdminNotificationProvider>
+              <ProtectedRoute>
+                <AdminLayout />
+              </ProtectedRoute>
+            </AdminNotificationProvider>
           }
         >
           <Route
@@ -221,14 +215,6 @@ function AppRoutesWithAuth() {
             element={
               <PageWrapper title="Admin Messages">
                 <AdminMessagesPage />
-              </PageWrapper>
-            }
-          />
-          <Route
-            path="announcements"
-            element={
-              <PageWrapper title="Announcements">
-                <AdminAnnouncementsPage />
               </PageWrapper>
             }
           />

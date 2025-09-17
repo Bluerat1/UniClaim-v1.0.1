@@ -12,11 +12,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useAdminView } from "@/context/AdminViewContext";
 import { useNotifications } from "@/context/NotificationContext";
-import { useCurrentAnnouncement } from "@/context/AnnouncementContext";
 import ProfilePicture from "@/components/ProfilePicture";
 import NotificationPreferencesModal from "@/components/NotificationPreferences";
 import PostModal from "@/components/PostModal";
-import AnnouncementBanner from "@/components/AnnouncementBanner";
 import { postService } from "@/services/firebase/posts";
 import type { Post } from "@/types/Post";
 import { authService } from "@/utils/firebase";
@@ -49,11 +47,6 @@ export default function HomeHeader({
     deleteNotification,
     deleteAllNotifications,
   } = useNotifications();
-  const {
-    currentAnnouncement,
-    hasActiveAnnouncements,
-    loading: announcementLoading,
-  } = useCurrentAnnouncement();
   const [isAdmin, setIsAdmin] = useState(false);
 
   const navigate = useNavigate();
@@ -132,13 +125,6 @@ export default function HomeHeader({
                 />
               )}
             </div>
-
-            {/* Announcement Banner - positioned between menu and notifications */}
-            <AnnouncementBanner
-              message={currentAnnouncement?.message || ""}
-              isVisible={hasActiveAnnouncements && !announcementLoading}
-              priority={currentAnnouncement?.priority || "normal"}
-            />
 
             {/* notification-bell-w-profile-container */}
             <div className="flex items-center gap-4 relative">

@@ -198,21 +198,6 @@ service cloud.firestore {
       allow read, write: if request.auth != null && isAdmin();
     }
     
-    // Announcements collection rules
-    match /announcements/{announcementId} {
-      // All authenticated users can read announcements (for banner display)
-      allow read: if request.auth != null;
-      
-      // Only admins can create announcements
-      allow create: if request.auth != null && isAdmin();
-      
-      // Only admins can update announcements
-      allow update: if request.auth != null && isAdmin();
-      
-      // Only admins can delete announcements
-      allow delete: if request.auth != null && isAdmin();
-    }
-    
     // Helper functions
     function isValidPost(data) {
       return data.keys().hasAll(['title', 'description', 'category', 'location', 'type', 'user', 'status'])
@@ -241,27 +226,6 @@ service cloud.firestore {
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'deactivated' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'banned');
     }
     
-    // NEW: Validate announcement data for creation
-    function isValidAnnouncement(data) {
-      return data.keys().hasAll(['message', 'priority', 'isActive', 'createdBy', 'createdAt', 'updatedAt'])
-        && data.message is string && data.message.size() > 0 && data.message.size() <= 200
-        && data.priority in ['normal', 'urgent']
-        && data.isActive is bool
-        && data.createdBy is string && data.createdBy.size() > 0
-        && data.createdAt is timestamp
-        && data.updatedAt is timestamp
-        && (data.expiresAt == null || data.expiresAt is timestamp);
-    }
-    
-    // NEW: Validate announcement data for updates
-    function isValidAnnouncementUpdate(data) {
-      return (data.keys().hasAny(['message', 'priority', 'isActive', 'updatedAt', 'expiresAt']) || data.keys().hasAll(['message', 'priority', 'isActive', 'createdBy', 'createdAt', 'updatedAt']))
-        && (data.message == null || (data.message is string && data.message.size() > 0 && data.message.size() <= 200))
-        && (data.priority == null || data.priority in ['normal', 'urgent'])
-        && (data.isActive == null || data.isActive is bool)
-        && (data.updatedAt == null || data.updatedAt is timestamp)
-        && (data.expiresAt == null || data.expiresAt is timestamp);
-    }
     
   }
 }
