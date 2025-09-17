@@ -140,7 +140,44 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
 
   const getParticipantNames = (conversation: Conversation) => {
     const participantIds = Object.keys(conversation.participants || {});
-    return participantIds.map(id => conversation.participants[id]?.name || 'Unknown User').join(', ');
+    
+    return participantIds.map(id => {
+      const participant = conversation.participants[id];
+      
+      // If we have both first and last name, combine them
+      if (participant?.firstName && participant?.lastName) {
+        return `${participant.firstName} ${participant.lastName}`.trim();
+      }
+      
+      // If we have just first name
+      if (participant?.firstName) {
+        return participant.firstName;
+      }
+      
+      // If we have just last name
+      if (participant?.lastName) {
+        return participant.lastName;
+      }
+      
+      // Fallback to name if it exists (for backward compatibility)
+      if (participant?.name) {
+        return participant.name;
+      }
+      
+      // If we have a userId but no name, use the ID
+      if (participant?.userId) {
+        return `User ${participant.userId.substring(0, 6)}`;
+      }
+      
+      // If we only have the ID, use that
+      if (id) {
+        return `User ${id.substring(0, 6)}`;
+      }
+      
+      // Last resort fallback
+      return 'Unknown User';
+    }).filter(name => name !== 'User System') // Filter out system user
+      .join(', ');
   };
 
   if (loading) {

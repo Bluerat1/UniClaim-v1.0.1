@@ -120,26 +120,49 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
     }
   };
 
-  const getOtherParticipantName = (conversation: Conversation) => {
+  const getOtherParticipant = (conversation: Conversation) => {
     const participantIds = Object.keys(conversation.participants || {});
-    const otherParticipantId = participantIds.find(
-      (id) => id !== userData?.uid
-    );
-    return (
-      conversation.participants[otherParticipantId || ""]?.name ||
-      "Unknown User"
-    );
+    const otherParticipantId = participantIds.find(id => id !== userData?.uid);
+    return conversation.participants[otherParticipantId || ""] || null;
+  };
+
+  const getOtherParticipantName = (conversation: Conversation) => {
+    const participant = getOtherParticipant(conversation);
+    
+    if (!participant) return "Unknown User";
+    
+    // If we have both first and last name, combine them
+    if (participant.firstName && participant.lastName) {
+      return `${participant.firstName} ${participant.lastName}`.trim();
+    }
+    
+    // If we have just first name
+    if (participant.firstName) {
+      return participant.firstName;
+    }
+    
+    // If we have just last name
+    if (participant.lastName) {
+      return participant.lastName;
+    }
+    
+    // Fallback to name if it exists (for backward compatibility)
+    if (participant.name) {
+      return participant.name;
+    }
+    
+    // If we have a userId but no name, use the ID
+    if (participant.userId) {
+      return `User ${participant.userId.substring(0, 6)}`;
+    }
+    
+    // Last resort fallback
+    return 'Unknown User';
   };
 
   const getOtherParticipantProfilePicture = (conversation: Conversation) => {
-    const participantIds = Object.keys(conversation.participants || {});
-    const otherParticipantId = participantIds.find(
-      (id) => id !== userData?.uid
-    );
-    return (
-      conversation.participants[otherParticipantId || ""]?.profilePicture ||
-      null
-    );
+    const participant = getOtherParticipant(conversation);
+    return participant?.profilePicture || participant?.profileImageUrl || null;
   };
 
   if (!conversation) {
