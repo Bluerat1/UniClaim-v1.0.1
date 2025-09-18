@@ -27,30 +27,15 @@ export default function Home() {
 
   // Determine which posts to display based on activeButton
   const getPostsToDisplay = () => {
-    let basePosts;
-    if (activeButton === "completed") {
-      basePosts = resolvedPosts || [];
-    } else {
-      basePosts = posts || [];
-    }
+    // Get the appropriate posts based on active tab
+    let basePosts = activeButton === "completed" ? (resolvedPosts || []) : (posts || []);
     
-    // Filter out unclaimed posts and items awaiting turnover confirmation from all views
-    return basePosts.filter((post) => {
-      // Filter out unclaimed posts
-      if (post.movedToUnclaimed) return false;
-      
-      // Filter out hidden posts (flagged posts that admin chose to hide)
-      if (post.isHidden === true) return false;
-      
-      // Filter out items with turnoverStatus: "declared" ONLY for OSA turnover (awaiting OSA confirmation)
-      // Campus Security items with "transferred" status should be visible
-      if (post.turnoverDetails && 
-          post.turnoverDetails.turnoverStatus === "declared" && 
-          post.turnoverDetails.turnoverAction === "turnover to OSA") {
-        return false;
-      }
-      
-      return true;
+    // Create a new array to avoid mutating the original
+    // Sort by createdAt in descending order (newest first)
+    return [...basePosts].sort((a, b) => {
+      const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+      const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+      return dateB.getTime() - dateA.getTime(); // Newest first
     });
   };
 
@@ -59,6 +44,19 @@ export default function Home() {
   const filteredPosts = postsToDisplay.filter((post) => {
     // ✅ Add data validation to prevent crashes
     if (!post || !post.title || !post.description || !post.category || !post.location) {
+      return false;
+    }
+    
+    // Filter out any posts that might have been missed by the service
+    // This is just an extra safety check
+    if (post.movedToUnclaimed || post.isHidden === true) {
+      return false;
+    }
+    
+    // Filter out items with turnoverStatus: "declared" for OSA turnover
+    if (post.turnoverDetails && 
+        post.turnoverDetails.turnoverStatus === "declared" && 
+        post.turnoverDetails.turnoverAction === "turnover to OSA") {
       return false;
     }
     
@@ -82,19 +80,13 @@ export default function Home() {
       ? post.location === locationSearch
       : true;
 
-    // Handle different activeButton states
-    const typeMatch = 
-      activeButton === "all" ? post.status !== "resolved" && !post.movedToUnclaimed : // Show all ACTIVE posts (exclude completed and unclaimed)
-      activeButton === "completed" ? true : // Show all resolved posts (already filtered by data source)
-      post.type === activeButton && post.status !== "resolved" && !post.movedToUnclaimed; // Show posts matching specific type AND are active (not completed and not unclaimed)
+    // For active posts, make sure they're not resolved
+    // For completed view, we don't need to check status as resolvedPosts already contains only resolved posts
+    const typeMatch = activeButton === "completed" || 
+                     (post.status !== "resolved" && 
+                      (activeButton === "all" || post.type === activeButton));
 
-    return (
-      typeMatch &&
-      titleMatch &&
-      categoryMatch &&
-      locationMatch &&
-      descriptionMatch
-    );
+    return typeMatch && titleMatch && categoryMatch && locationMatch && descriptionMatch;
   });
 
   return (

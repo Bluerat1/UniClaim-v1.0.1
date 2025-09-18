@@ -21,11 +21,21 @@ import { adminNotificationService } from './adminNotifications';
 
 // Post service
 export const postService = {
-    // Get all posts
+    // Get all posts (deprecated - use getActivePosts instead)
     getAllPosts(callback: (posts: any[]) => void) {
+        // For backward compatibility, call getActivePosts
+        return this.getActivePosts(callback);
+    },
+
+    // Get only active (non-expired) posts
+    getActivePosts(callback: (posts: any[]) => void) {
+        const now = new Date();
+        
+        // Create query for active posts only (not moved to unclaimed)
         const q = query(
             collection(db, 'posts'),
-            orderBy('createdAt', 'desc')
+            where('movedToUnclaimed', '==', false),
+            orderBy('createdAt', 'desc') // Sort by newest first for pagination
         );
 
         return onSnapshot(q, (snapshot) => {
@@ -33,7 +43,30 @@ export const postService = {
                 id: doc.id,
                 ...doc.data()
             }));
-            callback(posts);
+            
+            // Filter out expired posts and resolved posts on the client side
+            const activePosts = posts.filter(post => {
+                if (post.movedToUnclaimed) return false;
+                if (post.status === 'resolved') return false;
+                if (post.isHidden === true) return false;
+                
+                // Filter out items with turnoverStatus: "declared" for OSA turnover
+                if (post.turnoverDetails &&
+                    post.turnoverDetails.turnoverStatus === "declared" &&
+                    post.turnoverDetails.turnoverAction === "turnover to OSA") {
+                    return false;
+                }
+                
+                // Check if post has expired
+                if (post.expiryDate) {
+                    const expiryDate = post.expiryDate.toDate ? post.expiryDate.toDate() : new Date(post.expiryDate);
+                    return expiryDate > now;
+                }
+                
+                return true;
+            });
+            
+            callback(activePosts);
         });
     },
 

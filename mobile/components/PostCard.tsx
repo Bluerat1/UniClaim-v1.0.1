@@ -279,20 +279,18 @@ export default function PostCard({ post, descriptionSearch = "", adminStatuses }
                 const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
                 const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
                 
-                // Show relative time for recent posts, full date for older ones
-                if (diffInMinutes < 60) {
-                  return `${diffInMinutes} min ago`;
+                // Always show relative time for consistency
+                if (diffInMinutes < 1) {
+                  return 'just now';
+                } else if (diffInMinutes < 60) {
+                  return `${diffInMinutes} min${diffInMinutes > 1 ? 's' : ''} ago`;
                 } else if (diffInHours < 24) {
                   return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
-                } else if (diffInDays < 7) {
+                } else if (diffInDays < 30) {
                   return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
                 } else {
-                  // For older posts, show the actual date
-                  return dateToShow.toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  });
+                  const months = Math.floor(diffInDays / 30);
+                  return `${months} month${months > 1 ? 's' : ''} ago`;
                 }
               })()}
             </Text>

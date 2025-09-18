@@ -56,7 +56,8 @@ export const usePosts = () => {
         }
 
         // Subscribe to real-time updates directly (like web version)
-        const unsubscribe = postService.getAllPosts((fetchedPosts) => {
+        // Using getActivePosts instead of getAllPosts for consistent ordering
+        const unsubscribe = postService.getActivePosts((fetchedPosts) => {
             setPosts(fetchedPosts);
             setLoading(false);
             setIsInitialLoad(false);

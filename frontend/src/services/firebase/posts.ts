@@ -11,7 +11,8 @@ import {
     updateDoc,
     deleteDoc,
     serverTimestamp,
-    writeBatch
+    writeBatch,
+    orderBy
 } from 'firebase/firestore';
 import { DEFAULT_PROFILE_PICTURE } from '../../types/User';
 
@@ -217,6 +218,7 @@ export const postService = {
         const q = query(
             collection(db, 'posts'),
             where('movedToUnclaimed', '==', false), // Only posts not moved to unclaimed
+            orderBy('createdAt', 'desc') // Sort by createdAt in descending order (newest first) for better pagination
             // Note: We can't use where('expiryDate', '>', now) in the same query with movedToUnclaimed
             // due to Firestore limitations, so we'll filter expiryDate in the callback
         );

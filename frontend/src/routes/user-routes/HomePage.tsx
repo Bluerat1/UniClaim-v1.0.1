@@ -159,6 +159,9 @@ export default function HomePage() {
     currentPage * itemsPerPage
   );
   const hasMorePosts = postsToDisplay.length > totalPostsToShow;
+  
+  // Calculate the start index for the oldest posts
+  const startIndex = Math.max(0, postsToDisplay.length - totalPostsToShow);
 
   // Function to load more posts when scrolling
   const handleLoadMore = useCallback(() => {
@@ -297,9 +300,9 @@ export default function HomePage() {
             No results found.
           </div>
         ) : (
+          // Show the oldest posts first by taking them from the start of the array
+          // and then reversing the order so oldest appear at the top
           postsToDisplay
-            .slice()
-            .reverse()
             .slice(0, totalPostsToShow)
             .map((post) => (
               <PostCard
