@@ -9,6 +9,7 @@ import ProfilePicture from "./ProfilePicture";
 import HandoverDetailsDisplay from "./HandoverDetailsDisplay";
 import ClaimDetailsDisplay from "./ClaimDetailsDisplay";
 import FlagButton from "./FlagButton";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 interface PostModalProps {
   post: Post;
@@ -32,6 +33,7 @@ export default function PostModal({
   const { userData } = useAuth(); // Get current user data
   const navigate = useNavigate(); // Add navigation hook
   const { createConversation } = useMessage(); // Add message context
+  const { isAdmin } = useIsAdmin(userData?.uid);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [showOverlay, setShowOverlay] = useState(true);
@@ -394,18 +396,19 @@ export default function PostModal({
           </div>
         </div>
 
-        {/* Show claim details if post is resolved and has claim details */}
-        {post.status === "resolved" && post.claimDetails && (
+        {/* Show claim details if post is resolved, has claim details, and user is admin */}
+        {post.status === "resolved" && post.claimDetails && isAdmin && (
           <ClaimDetailsDisplay
             claimDetails={post.claimDetails}
             conversationData={post.conversationData}
           />
         )}
 
-        {/* Show handover details if post is resolved and no claim details */}
+        {/* Show handover details if post is resolved, has handover details, no claim details, and user is admin */}
         {post.status === "resolved" &&
           post.handoverDetails &&
-          !post.claimDetails && (
+          !post.claimDetails &&
+          isAdmin && (
             <HandoverDetailsDisplay
               handoverDetails={post.handoverDetails}
               conversationData={post.conversationData}

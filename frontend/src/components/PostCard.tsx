@@ -275,16 +275,16 @@ function PostCard({
         />
 
         {/* Claim Information - only show for resolved posts with claim details */}
-        {post.status === "resolved" &&
-          post.claimDetails &&
-          post.claimDetails.claimRequestDetails && (
+        {post.status === "resolved" && 
+         post.claimDetails && 
+         (post.user?.role === 'admin' || (post.user?.email && effectiveAdminStatuses.get(post.user.email))) && 
+         post.claimDetails.claimRequestDetails && (
             <div className="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-              {/* Show claim request details summary if available */}
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-purple-600 text-lg">💬</span>
                   <h4 className="text-sm font-semibold text-purple-800">
-                    Claim Request Details
+                    Claim Request Details (Admin Only)
                   </h4>
                 </div>
 
@@ -299,7 +299,7 @@ function PostCard({
                 )}
 
                 {/* Show verification status */}
-                <div className="flex items-center gap-4 text-xs text-purple-600">
+                <div className="flex items-center gap-4 text-xs text-purple-600 mt-3">
                   <span>
                     Claimer ID:{" "}
                     {post.claimDetails.claimRequestDetails.idPhotoConfirmed
@@ -325,31 +325,32 @@ function PostCard({
                     </span>
                   )}
                 </div>
-              </div>
 
-              {/* Conversation Summary */}
-              {post.conversationData && (
-                <div className="mt-3 pt-2 border-t border-purple-200">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-purple-600">💬</span>
-                    <span className="text-xs font-medium text-purple-700">
-                      Conversation Summary
-                    </span>
+                {/* Conversation Summary */}
+                {post.conversationData && (
+                  <div className="mt-3 pt-2 border-t border-purple-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-purple-600">💬</span>
+                      <span className="text-xs font-medium text-purple-700">
+                        Conversation Summary
+                      </span>
+                    </div>
+                    <div className="text-xs text-purple-600">
+                      {post.conversationData.messages?.length || 0} messages
+                      exchanged
+                    </div>
                   </div>
-                  <div className="text-xs text-purple-600">
-                    {post.conversationData.messages?.length || 0} messages
-                    exchanged
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
 
-        {/* Handover Information - only show for resolved posts with handover details (if no claim details) */}
+        {/* Handover Information - only show for resolved posts with handover details (if no claim details) and only to admin users */}
         {post.status === "resolved" &&
           post.handoverDetails &&
           post.handoverDetails.handoverRequestDetails &&
-          !post.claimDetails && (
+          !post.claimDetails &&
+          (post.user?.role === 'admin' || (post.user?.email && effectiveAdminStatuses.get(post.user.email))) && (
             <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
               {/* Show handover request details summary if available */}
               <div>
