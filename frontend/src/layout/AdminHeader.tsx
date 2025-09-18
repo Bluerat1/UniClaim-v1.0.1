@@ -9,11 +9,14 @@ import {
 import { IoLogOutOutline } from "react-icons/io5";
 import Logo from "../assets/uniclaim_logo.png";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useAdminView } from "@/context/AdminViewContext";
 import { useAdminNotifications } from "@/context/AdminNotificationContext";
 import ProfilePicture from "@/components/ProfilePicture";
+import AdminPostModal from "@/components/AdminPostModal";
+import { postService } from "@/services/firebase/posts";
+import type { Post } from "@/types/Post";
 
 interface AdminHeaderProps {
   sideNavClick: () => void;
@@ -26,9 +29,42 @@ export default function AdminHeader({
 }: AdminHeaderProps) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotif, setShowNotif] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [isLoadingPost, setIsLoadingPost] = useState(false);
 
   const toggleProfileMenu = () => setShowProfileMenu((prev) => !prev);
   const toggleNotif = () => setShowNotif((prev) => !prev);
+
+  const handleNotificationClick = async (notification: any) => {
+    try {
+      // Mark notification as read if it's not already read
+      if (!notification.read) {
+        await markAsRead(notification.id);
+      }
+
+      // Check for postId in different possible locations
+      const postId = notification.postId || 
+                    (notification.data && (notification.data.postId || notification.data.id));
+      
+      if (postId) {
+        setIsLoadingPost(true);
+        try {
+          const post = await postService.getPostById(postId);
+          if (post) {
+            setSelectedPost(post);
+            setShowNotif(false); // Close notification panel
+          }
+        } catch (error) {
+          console.error('Error fetching post:', error);
+          // Handle error (e.g., show a toast message)
+        }
+      }
+    } catch (error) {
+      console.error('Error handling notification click:', error);
+    } finally {
+      setIsLoadingPost(false);
+    }
+  };
 
   const { logout, userData } = useAuth();
   const { switchToUserView } = useAdminView();
@@ -189,7 +225,8 @@ export default function AdminHeader({
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`p-4 hover:bg-yellow-100 transition-colors ${
+                    onClick={() => handleNotificationClick(notification)}
+                    className={`p-4 hover:bg-yellow-100 transition-colors cursor-pointer ${
                       !notification.read
                         ? "bg-blue/10 border-l-4 border-yellow-500"
                         : ""
@@ -307,6 +344,24 @@ export default function AdminHeader({
           <div
             className="fixed inset-0 bg-black/35 z-30"
             onClick={toggleNotif}
+          />
+        )}
+
+        {/* Admin Post Modal */}
+        {selectedPost && (
+          <AdminPostModal
+            post={selectedPost}
+            onClose={() => setSelectedPost(null)}
+            onPostUpdate={(updatedPost) => {
+              // Update the post in the notifications if needed
+              setSelectedPost(updatedPost);
+            }}
+            onPostDelete={(deletedPostId) => {
+              // Close the modal if the post was deleted
+              if (selectedPost?.id === deletedPostId) {
+                setSelectedPost(null);
+              }
+            }}
           />
         )}
       </div>
