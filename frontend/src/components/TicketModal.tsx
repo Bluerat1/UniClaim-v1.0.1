@@ -2,6 +2,41 @@ import { FiX } from "react-icons/fi";
 import { useState, useEffect, useRef } from "react";
 import type { Post } from "@/types/Post";
 import DropdownWithSearch from "./DropdownWithSearch";
+import LocationMap from "./LocationMap";
+
+// Helper function to get status color and text
+const getStatusStyles = (status: string | undefined) => {
+  switch (status?.toLowerCase()) {
+    case 'resolved':
+      return {
+        bgColor: 'bg-green-100',
+        textColor: 'text-green-800',
+        borderColor: 'border-green-200',
+        displayText: 'Resolved'
+      };
+    case 'pending':
+      return {
+        bgColor: 'bg-yellow-100',
+        textColor: 'text-yellow-800',
+        borderColor: 'border-yellow-200',
+        displayText: 'Pending'
+      };
+    case 'unclaimed':
+      return {
+        bgColor: 'bg-blue-100',
+        textColor: 'text-blue-800',
+        borderColor: 'border-blue-200',
+        displayText: 'Unclaimed'
+      };
+    default:
+      return {
+        bgColor: 'bg-gray-100',
+        textColor: 'text-gray-800',
+        borderColor: 'border-gray-200',
+        displayText: status || 'Pending'
+      };
+  }
+};
 
 // Location options - same as used in mobile version
 const locationOptions = [
@@ -44,6 +79,17 @@ const TicketModal = ({
   isDeleting,
   isAdmin = false,
 }: TicketModalProps) => {
+  // Category and Type styles to match PostModal
+  const categoryStyles: Record<string, string> = {
+    "Student Essentials": "bg-yellow-300 text-black",
+    "Gadgets": "bg-blue-400 text-black",
+    "Personal Belongings": "bg-purple-300 text-black",
+  };
+
+  const typeStyles: Record<string, string> = {
+    lost: "bg-red-100 text-red-700",
+    found: "bg-green-100 text-green-700",
+  };
   const [isEditing, setIsEditing] = useState(false);
   const [showImgModal, setShowImgModal] = useState(false);
   const [showImgOverlay, setShowImgOverlay] = useState(false);
@@ -253,10 +299,45 @@ const TicketModal = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-      <div className="bg-white rounded p-4 shadow w-[25rem] sm:w-[26rem] md:w-[32rem] lg:w-[42rem] xl:w-[60rem] max-w-full max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
+      <div className="bg-white rounded-lg p-4 shadow-lg w-[25rem] sm:w-[26rem] md:w-[32rem] lg:w-[42rem] xl:w-[60rem] max-w-full max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
         {/* Header */}
-        <div className="flex justify-between items-center rounded mb-5">
-          <h2 className="text-lg font-semibold">{post.title}</h2>
+        <div className="flex justify-between items-start mb-5">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg font-semibold">{post.title}</h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span
+                  className={`px-2 py-1 text-xs font-medium rounded-[3px] ${
+                    typeStyles[post.type] || "bg-gray-100 text-gray-700"
+                  }`}
+                >
+                  {post.type.charAt(0).toUpperCase() + post.type.slice(1)}
+                </span>
+                <span
+                  className={`px-2 py-1 text-xs font-medium rounded-[3px] ${
+                    categoryStyles[post.category] || "bg-gray-100 text-gray-700"
+                  }`}
+                >
+                  {post.category}
+                </span>
+                {post.status === 'resolved' && post.claimDetails && (
+                  <span className="px-2 py-1 text-xs font-medium rounded-[3px] bg-purple-100 text-purple-700">
+                    Claimed
+                  </span>
+                )}
+                {post.status === 'resolved' && (
+                  <span className="px-2 py-1 text-xs font-medium rounded-[3px] bg-green-100 text-green-700">
+                    ✅ Resolved
+                  </span>
+                )}
+                {post.status === 'unclaimed' && (
+                  <span className="px-2 py-1 text-xs font-medium rounded-[3px] bg-orange-100 text-orange-700">
+                    ⏰ Unclaimed
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             {isEditing ? (
               <>
@@ -432,11 +513,11 @@ const TicketModal = ({
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
                 <div className="space-y-2">
                   <h1 className="text-sm mb-2">Title</h1>
-                  <div className="bg-gray-100 p-2 rounded border-gray-300">
+                  <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2">
                     <p className="text-[12px]">{post.title}</p>
                   </div>
                   <h1 className="text-sm mb-2">Date and Time</h1>
-                  <div className="bg-gray-100 p-2 rounded border-gray-300">
+                  <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2">
                     <p className="text-[12px]">
                       {post.createdAt
                         ? new Date(post.createdAt).toLocaleString()
@@ -444,9 +525,38 @@ const TicketModal = ({
                     </p>
                   </div>
                   <h1 className="text-sm mb-2">Last seen location</h1>
-                  <div className="bg-gray-100 p-2 rounded border-gray-300">
-                    <p className="text-[12px]">{post.location}</p>
+                  <div className="bg-gray-100 p-2 rounded border border-gray-300 mb-3">
+                    <p className="text-[12px] text-gray-700">{post.location}</p>
                   </div>
+                  
+                  {/* Location Map */}
+                  {post.coordinates && (
+                    <div className="relative rounded-md overflow-hidden border border-gray-300 mb-3">
+                      <LocationMap 
+                        coordinates={post.coordinates} 
+                        location={post.location}
+                        className="h-[200px]"
+                      />
+                      {/* Coordinates overlay */}
+                      <div className="absolute bottom-2 left-2 right-2 z-10 bg-white/90 backdrop-blur-sm rounded-md px-2 py-1 shadow-sm border border-gray-200 flex justify-center">
+                        <span className="text-xs text-gray-600 font-mono">
+                          {post.coordinates.lat.toFixed(6)}, {post.coordinates.lng.toFixed(6)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Pinned Coordinates */}
+                  {post.coordinates && (
+                    <div className="mb-3">
+                      <p className="text-[12px] mb-1">Pinned Coordinates</p>
+                      <div className="bg-gray-100 p-2 rounded border border-gray-300">
+                        <p className="text-[12px] text-gray-700">
+                          {post.coordinates.lat.toFixed(5)} {post.coordinates.lng.toFixed(5)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <h1 className="text-sm mb-2">Description</h1>
@@ -475,26 +585,28 @@ const TicketModal = ({
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
                 <div className="space-y-2">
                   <h1 className="text-sm mb-2">Name</h1>
-                  <div className="bg-gray-100 p-2 rounded border-gray-300">
+                  <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2">
                     <p className="text-[12px]">
                       {post.user?.firstName ?? ""} {post.user?.lastName ?? ""}
                     </p>
                   </div>
                   <h1 className="text-sm mb-2">Email</h1>
-                  <div className="bg-gray-100 p-2 rounded border-gray-300">
+                  <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2">
                     <p className="text-[12px]">{post.user?.email}</p>
                   </div>
                   <h1 className="text-sm mb-2">Contact Number</h1>
-                  <div className="bg-gray-100 p-2 rounded border-gray-300">
+                  <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2">
                     <p className="text-[12px]">{post.user?.contactNum}</p>
                   </div>
                 </div>
                 <div>
                   <h1 className="text-sm mb-2">Ticket Status</h1>
-                  <div className="bg-gray-100 p-2 rounded border-gray-300">
-                    <p className="text-[12px] capitalize">
-                      {post.status || "pending"}
-                    </p>
+                  <div className="flex items-center">
+                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      getStatusStyles(post.status).bgColor
+                    } ${getStatusStyles(post.status).textColor} ${getStatusStyles(post.status).borderColor} border`}>
+                      {getStatusStyles(post.status).displayText}
+                    </div>
                   </div>
                 </div>
               </div>
