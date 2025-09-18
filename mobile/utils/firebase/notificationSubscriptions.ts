@@ -32,6 +32,39 @@ export class NotificationSubscriptionService {
         return NotificationSubscriptionService.instance;
     }
 
+    // Ensure a user has a subscription document, creating one with default preferences if it doesn't exist
+    async ensureUserHasSubscription(userId: string): Promise<void> {
+        try {
+            const existingSub = await this.getSubscription(userId);
+            if (!existingSub) {
+                // Create a default subscription for this user
+                await this.createSubscription({
+                    userId,
+                    isActive: true,
+                    preferences: {
+                        // Use default preferences (all true, all categories and locations)
+                        newPosts: true,
+                        messages: true,
+                        claimUpdates: true,
+                        adminAlerts: true,
+                        categories: [], // Empty array means interested in all categories
+                        locations: [],  // Empty array means interested in all locations
+                        quietHours: {
+                            enabled: false,
+                            start: "22:00",
+                            end: "08:00"
+                        },
+                        soundEnabled: true
+                    }
+                });
+                console.log(`✅ Created default notification subscription for user: ${userId}`);
+            }
+        } catch (error) {
+            console.error(`❌ Error ensuring subscription for user ${userId}:`, error);
+            throw error;
+        }
+    }
+
     // Create a new subscription for a user
     async createSubscription(data: CreateSubscriptionData): Promise<void> {
         try {
@@ -81,8 +114,39 @@ export class NotificationSubscriptionService {
                 lastUpdated: serverTimestamp()
             };
 
+            // If preferences are being updated, merge them with existing preferences
             if (data.preferences) {
-                updateData.preferences = data.preferences;
+                // First, get the current subscription to merge with existing preferences
+                const currentSubscription = await this.getSubscription(userId);
+                
+                // Start with current preferences or default preferences if none exists
+                const currentPreferences: NotificationSubscription['preferences'] = currentSubscription?.preferences || {
+                    newPosts: true,
+                    messages: true,
+                    claimUpdates: true,
+                    adminAlerts: true,
+                    categories: [],
+                    locations: [],
+                    quietHours: {
+                        enabled: false,
+                        start: "22:00",
+                        end: "08:00"
+                    },
+                    soundEnabled: true
+                };
+                
+                // Deep merge the preferences
+                updateData.preferences = {
+                    ...currentPreferences,
+                    ...data.preferences,
+                    // Ensure quietHours is properly merged if it exists in the update
+                    ...(data.preferences.quietHours && {
+                        quietHours: {
+                            ...currentPreferences.quietHours,
+                            ...data.preferences.quietHours
+                        }
+                    })
+                };
             }
 
             if (data.isActive !== undefined) {
@@ -121,6 +185,7 @@ export class NotificationSubscriptionService {
     // Get users interested in new posts (all categories)
     async getUsersInterestedInNewPosts(): Promise<NotificationSubscription[]> {
         try {
+            // First, get all active users who have newPosts enabled
             const q = query(
                 collection(db, this.collectionName),
                 where('isActive', '==', true),
@@ -128,10 +193,40 @@ export class NotificationSubscriptionService {
             );
 
             const snapshot = await getDocs(q);
-            return snapshot.docs.map(doc => ({
+            const users = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             } as NotificationSubscription));
+
+            // Also include all campus_security users who might not have a subscription yet
+            const usersRef = collection(db, 'users');
+            const campusSecurityQuery = query(
+                usersRef,
+                where('role', '==', 'campus_security')
+            );
+            
+            const campusSecuritySnapshot = await getDocs(campusSecurityQuery);
+            const campusSecurityUserIds = campusSecuritySnapshot.docs.map(doc => doc.id);
+            
+            // Get subscriptions for campus_security users
+            const subscriptionPromises = campusSecurityUserIds.map(async (userId) => {
+                // Ensure the campus_security user has a subscription
+                await this.ensureUserHasSubscription(userId);
+                const subscription = await this.getSubscription(userId);
+                return subscription;
+            });
+            
+            const campusSecuritySubscriptions = await Promise.all(subscriptionPromises);
+            
+            // Combine both lists and remove duplicates
+            const combined = [...users];
+            for (const sub of campusSecuritySubscriptions) {
+                if (sub && !combined.some(u => u.userId === sub.userId)) {
+                    combined.push(sub);
+                }
+            }
+            
+            return combined;
         } catch (error) {
             console.error('❌ Error getting users interested in new posts:', error);
             throw error;
@@ -287,6 +382,36 @@ export class NotificationSubscriptionService {
                 interestedUsers = interestedUsers.filter(user =>
                     locationInterestedUsers.some(locationUser => locationUser.userId === user.userId)
                 );
+            }
+            
+            // Always include all campus_security users
+            try {
+                const usersRef = collection(db, 'users');
+                const campusSecurityQuery = query(
+                    usersRef,
+                    where('role', '==', 'campus_security')
+                );
+                
+                const campusSecuritySnapshot = await getDocs(campusSecurityQuery);
+                const campusSecurityUserIds = campusSecuritySnapshot.docs.map(doc => doc.id);
+                
+                // Ensure all campus_security users have subscriptions
+                const subscriptionPromises = campusSecurityUserIds.map(async (userId) => {
+                    await this.ensureUserHasSubscription(userId);
+                    return this.getSubscription(userId);
+                });
+                
+                const campusSecuritySubscriptions = (await Promise.all(subscriptionPromises)).filter(Boolean);
+                
+                // Add campus_security users if not already in the list
+                for (const sub of campusSecuritySubscriptions) {
+                    if (sub && !interestedUsers.some(u => u.userId === sub.userId)) {
+                        interestedUsers.push(sub);
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error including campus_security users:', error);
+                // Don't fail the whole operation if we can't get campus_security users
             }
 
             // Filter out users in quiet hours (this is done in JavaScript since Firestore doesn't support time-based queries easily)

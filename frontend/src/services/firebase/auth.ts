@@ -105,6 +105,16 @@ export const authService = {
                 email,
                 password
             );
+            
+            // Ensure the user has a notification subscription
+            try {
+                await notificationSubscriptionService.ensureUserHasSubscription(userCredential.user.uid);
+            } catch (subscriptionError) {
+                console.error('Error ensuring notification subscription:', subscriptionError);
+                // Don't fail the login if there's an issue with the subscription
+                // The user can still use the app, they just might not get notifications
+            }
+            
             return userCredential.user;
         } catch (error: any) {
             throw new Error(getFirebaseErrorMessage(error));

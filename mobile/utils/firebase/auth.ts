@@ -97,7 +97,18 @@ export const authService = {
     // Sign in user
     async login(email: string, password: string): Promise<UserCredential> {
         try {
-            return await signInWithEmailAndPassword(auth, email, password);
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            
+            // Ensure the user has a notification subscription
+            try {
+                await notificationSubscriptionService.ensureUserHasSubscription(userCredential.user.uid);
+            } catch (subscriptionError) {
+                console.error('Error ensuring notification subscription:', subscriptionError);
+                // Don't fail the login if there's an issue with the subscription
+                // The user can still use the app, they just might not get notifications
+            }
+            
+            return userCredential;
         } catch (error: any) {
             // Helper function to get readable error messages (inline to avoid circular dependency)
             const getFirebaseErrorMessage = (error: any): string => {

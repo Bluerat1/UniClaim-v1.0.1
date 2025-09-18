@@ -4,7 +4,7 @@ import { Outlet } from "react-router-dom";
 // screens
 import AdminSideNav from "./AdminSideNav";
 import AdminHeader from "./AdminHeader";
-import Footer from "./FooterComp";
+import AdminFooter from "./AdminFooter";
 
 export default function AdminLayout() {
   const [isSideBarOpen, setIsSideBarOpen] = useState(false);
@@ -53,7 +53,7 @@ export default function AdminLayout() {
             isSideBarOpen ? "md:ml-0 overflow-hidden" : "md:-ml-0"
           }`}
         >
-          <Footer />
+          <AdminFooter />
         </div>
       </div>
     </div>
