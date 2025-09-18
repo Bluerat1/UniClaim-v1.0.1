@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { FiX } from "react-icons/fi";
+import LocationMap from "./LocationMap";
 import type { Post } from "@/types/Post";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -376,21 +377,18 @@ export default function PostModal({
             </div>
             <p className="text-[13px] mt-3 mb-2">Location</p>
             {post.coordinates && (
-              <div className="">
-                <iframe
-                  title="Map location preview"
-                  width="100%"
-                  height="284"
-                  className="rounded shadow-xs/10"
-                  loading="lazy"
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${
-                    post.coordinates.lng - 0.001
-                  }%2C${post.coordinates.lat - 0.001}%2C${
-                    post.coordinates.lng + 0.001
-                  }%2C${post.coordinates.lat + 0.001}&layer=mapnik&marker=${
-                    post.coordinates.lat
-                  }%2C${post.coordinates.lng}`}
+              <div className="relative rounded-md overflow-hidden border border-gray-300">
+                <LocationMap 
+                  coordinates={post.coordinates} 
+                  location={post.location}
+                  className="h-[300px]"
                 />
+                {/* Coordinates overlay */}
+                <div className="absolute bottom-2 left-2 right-2 z-10 bg-white/90 backdrop-blur-sm rounded-md px-2 py-1 shadow-sm border border-gray-200 flex justify-center">
+                  <span className="text-xs text-gray-600 font-mono">
+                    {post.coordinates.lat.toFixed(6)}, {post.coordinates.lng.toFixed(6)}
+                  </span>
+                </div>
               </div>
             )}
           </div>
