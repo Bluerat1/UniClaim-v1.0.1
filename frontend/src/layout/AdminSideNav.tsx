@@ -1,12 +1,9 @@
 import { Link } from "react-router-dom";
 import {
-  HiOutlineHome,
   HiOutlineX,
   HiOutlineUsers,
-  HiOutlineTicket,
   HiOutlineChartBar,
   HiOutlineCog,
-  HiOutlineFlag,
 } from "react-icons/hi";
 import { HiOutlineEnvelope } from "react-icons/hi2";
 import { LuLayoutDashboard } from "react-icons/lu";
@@ -206,10 +203,6 @@ export default function AdminSideNav({
                   textClassName="font-manrope"
                 />
 
-                <NavText
-                  iconClassName="text-black"
-                  textClassName="font-manrope"
-                />
 
                 <NavText
                   icon={<IoFlagOutline className="size-6 stroke-[1.5px]" />}
