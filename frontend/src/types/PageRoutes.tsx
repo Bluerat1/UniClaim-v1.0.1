@@ -32,8 +32,7 @@ import MessagesPage from "@/routes/user-routes/MessagesPage";
 import ProtectedRoute from "../components/ProtectedRoute";
 import EmailVerificationRoute from "../components/EmailVerificationRoute";
 import { ToastProvider } from "@/context/ToastContext";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
-import { MessageProvider } from "@/context/MessageContext";
+import { AuthProvider } from "@/context/AuthContext";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { AdminNotificationProvider } from "@/context/AdminNotificationContext";
 import PageWrapper from "@/components/PageWrapper";
@@ -42,12 +41,9 @@ import ScrollToTop from "@/context/ScrollTop";
 
 // Component that uses the useAuth hook
 function AppRoutesWithAuth() {
-  const { user } = useAuth();
-  
   return (
     <NotificationProvider>
-      <MessageProvider userId={user?.uid || null}>
-        <Routes>
+      <Routes>
         {/* Public routes */}
         <Route
           path="/login"
@@ -247,7 +243,6 @@ function AppRoutesWithAuth() {
         {/* Catch-all: redirect unknown or unauthenticated routes to /login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
-      </MessageProvider>
     </NotificationProvider>
   );
 }

@@ -15,6 +15,8 @@ import { useNotifications } from "@/context/NotificationContext";
 import ProfilePicture from "@/components/ProfilePicture";
 import NotificationPreferencesModal from "@/components/NotificationPreferences";
 import PostModal from "@/components/PostModal";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import { postService } from "@/services/firebase/posts";
 import type { Post } from "@/types/Post";
 import { authService } from "@/utils/firebase";
@@ -70,22 +72,50 @@ export default function HomeHeader({
 
   // Handle notification clicks to open post modal
   const handleNotificationClick = async (notification: any) => {
+    console.log('Notification clicked:', notification);
+    
+    // Mark as read first
     if (!notification.read) {
-      markAsRead(notification.id);
+      await markAsRead(notification.id);
     }
 
     // If notification has a postId, fetch the post and open modal
     if (notification.postId) {
+      console.log('Fetching post:', notification.postId);
       try {
         const post = await postService.getPostById(notification.postId);
         if (post) {
+          console.log('Post found, opening modal');
           setSelectedPost(post);
           toggleNotif(); // Close the notification dropdown
         } else {
-          console.error("Post not found:", notification.postId);
+          console.log('Post not found, showing toast');
+          // Show toast message for deleted post
+          toast.error("This post has been deleted.", {
+            position: "top-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            toastId: 'post-deleted' // Add a unique ID to prevent duplicate toasts
+          });
+          console.log("Post not found, it may have been deleted:", notification.postId);
         }
       } catch (error) {
         console.error("Error fetching post:", error);
+        // Show error toast
+        toast.error("Error loading post. Please try again.", {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          toastId: 'post-load-error' // Add a unique ID to prevent duplicate toasts
+        });
       }
     }
   };

@@ -8,8 +8,8 @@ import {
 } from "react-icons/hi";
 import { IoLogOutOutline } from "react-icons/io5";
 import Logo from "../assets/uniclaim_logo.png";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useAdminView } from "@/context/AdminViewContext";
 import { useAdminNotifications } from "@/context/AdminNotificationContext";
@@ -17,6 +17,8 @@ import ProfilePicture from "@/components/ProfilePicture";
 import AdminPostModal from "@/components/AdminPostModal";
 import { postService } from "@/services/firebase/posts";
 import type { Post } from "@/types/Post";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 interface AdminHeaderProps {
   sideNavClick: () => void;
@@ -53,15 +55,37 @@ export default function AdminHeader({
           if (post) {
             setSelectedPost(post);
             setShowNotif(false); // Close notification panel
+          } else {
+            // Show toast message for deleted post
+            toast.error("This post has been deleted.", {
+              position: "top-right",
+              autoClose: 5000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+              progress: undefined,
+            });
+            console.log("Post not found, it may have been deleted:", postId);
           }
         } catch (error) {
           console.error('Error fetching post:', error);
-          // Handle error (e.g., show a toast message)
+          // Show error toast
+          toast.error("Error loading post. Please try again.", {
+            position: "top-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+          });
+        } finally {
+          setIsLoadingPost(false);
         }
       }
     } catch (error) {
       console.error('Error handling notification click:', error);
-    } finally {
       setIsLoadingPost(false);
     }
   };
@@ -258,9 +282,10 @@ export default function AdminHeader({
                               ></span>
                             )}
                             <button
-                              onClick={() =>
-                                deleteNotification(notification.id)
-                              }
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent the click from reaching the parent
+                                deleteNotification(notification.id);
+                              }}
                               className="text-gray-400 hover:text-red-600 p-1"
                               title="Delete notification"
                             >

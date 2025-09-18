@@ -8,6 +8,10 @@ import "../utils/expirationService";
 import ErrorBoundary from "../components/ErrorBoundary";
 import { SoundUtils } from "../utils/soundUtils";
 import { useEffect } from "react";
+import { MessageProvider } from "@/context/MessageContext";
+import { useAuth } from "@/context/AuthContext";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function App() {
   // Initialize audio system on first user interaction
@@ -33,9 +37,24 @@ function App() {
     };
   }, []);
 
+  const { user } = useAuth();
+
   return (
     <ErrorBoundary>
-      <PageRoutes />
+      <MessageProvider userId={user?.uid || null}>
+        <PageRoutes />
+        <ToastContainer
+          position="top-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
+      </MessageProvider>
     </ErrorBoundary>
   );
 }

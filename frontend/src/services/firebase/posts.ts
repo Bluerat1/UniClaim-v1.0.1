@@ -79,6 +79,7 @@ function extractCloudinaryPublicId(url: string): string | null {
 // Import other services
 import { notificationSender } from './notificationSender';
 import { adminNotificationService } from './adminNotifications';
+import { notificationService } from './notifications';
 
 // Post service functions
 export const postService = {
@@ -739,6 +740,15 @@ export const postService = {
 
             // Delete all conversations related to this post after post is deleted
             await this.deleteConversationsByPostId(postId);
+
+            // Delete all notifications related to this post
+            try {
+                await notificationService.deleteNotificationsByPostId(postId);
+                console.log(`✅ Successfully deleted notifications for post: ${postId}`);
+            } catch (notificationError: any) {
+                // Don't fail the main deletion if notification cleanup fails
+                console.error('Failed to delete notifications for post:', postId, notificationError);
+            }
 
             // SAFETY NET: Automatic ghost detection and cleanup
             try {

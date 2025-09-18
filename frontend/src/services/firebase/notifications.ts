@@ -1,7 +1,23 @@
 // Notification service for web app using Firebase Cloud Messaging
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { db } from './config';
-import { doc, setDoc, getDoc, updateDoc, collection, addDoc, serverTimestamp, query, where, getDocs, orderBy, limit, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { 
+  doc, 
+  setDoc, 
+  getDoc, 
+  updateDoc, 
+  collection, 
+  addDoc, 
+  serverTimestamp, 
+  query, 
+  where, 
+  getDocs, 
+  orderBy, 
+  limit, 
+  deleteDoc, 
+  onSnapshot, 
+  writeBatch 
+} from 'firebase/firestore';
 import { SoundUtils } from '../../utils/soundUtils';
 import { notificationSubscriptionService } from './notificationSubscriptions';
 
@@ -299,12 +315,10 @@ export class NotificationService {
           preferences: subscriptionPreferences,
           isActive: true
         });
-
-        console.log('✅ Created missing subscription for existing user:', userId);
       }
     } catch (error) {
-      console.error('❌ Error ensuring user has subscription:', error);
-      // Don't throw - this is a background operation
+      console.error('Error ensuring user subscription:', error);
+      // Don't throw here to prevent blocking other operations
     }
   }
 
@@ -316,6 +330,45 @@ export class NotificationService {
     } catch (error) {
       console.error('Error deleting notification:', error);
       throw error;
+    }
+  }
+
+  // Delete all notifications for a specific post
+  async deleteNotificationsByPostId(postId: string): Promise<void> {
+    if (!postId) {
+      console.warn('No postId provided to deleteNotificationsByPostId');
+      return;
+    }
+
+    console.log(`Deleting notifications for post: ${postId}`);
+    
+    try {
+      // Query all notifications for this post
+      const notificationsRef = collection(db, 'notifications');
+      const q = query(notificationsRef, where('postId', '==', postId));
+      
+      // Get all matching notifications
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        console.log('No notifications found for post:', postId);
+        return;
+      }
+
+      console.log(`Found ${snapshot.size} notifications to delete for post: ${postId}`);
+      
+      // Delete all matching notifications in a batch
+      const batch = writeBatch(db);
+      snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      
+      await batch.commit();
+      console.log(`Successfully deleted ${snapshot.size} notifications for post: ${postId}`);
+    } catch (error) {
+      console.error('Error deleting notifications for post:', postId, error);
+      // Don't throw the error to prevent the post deletion from failing
+      // due to notification cleanup issues
     }
   }
 
