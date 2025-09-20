@@ -72,22 +72,11 @@ export default function AdminLogin() {
       try {
         setIsLoading(true);
 
-        // Use real Firebase authentication
-        await authService.login(trimmedAdminEmail, trimmedAdminPassword);
-
-        // Check if user is admin
-        const currentUser = authService.getCurrentUser();
-        if (currentUser) {
-          const isAdmin = await authService.isAdmin(currentUser.uid);
-          if (isAdmin) {
-            navigate("/admin");
-          } else {
-            setAdminError((prev) => ({
-              ...prev,
-              adminGeneral: "Access denied. This account is not an admin.",
-            }));
-          }
-        }
+        // Use real Firebase authentication with admin check
+        await authService.login(trimmedAdminEmail, trimmedAdminPassword, true);
+        
+        // If we get here, the user is an admin and was successfully logged in
+        navigate("/admin");
       } catch (error: any) {
         setAdminError((prev) => ({
           ...prev,

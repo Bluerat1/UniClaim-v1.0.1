@@ -98,24 +98,39 @@ export const authService = {
     },
 
     // Login user
-    async login(email: string, password: string): Promise<FirebaseUser> {
+    async login(email: string, password: string, isAdminLogin: boolean = false): Promise<FirebaseUser> {
         try {
-            const userCredential: UserCredential = await signInWithEmailAndPassword(
-                auth,
-                email,
-                password
-            );
+            // First, sign in the user
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+            
+            if (isAdminLogin) {
+                // If this is an admin login, verify the user is an admin
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (!userDoc.exists() || userDoc.data()?.role !== 'admin') {
+                    // If not an admin, sign them out immediately
+                    await signOut(auth);
+                    throw new Error('Access denied. This account does not have admin privileges.');
+                }
+            }
             
             // Ensure the user has a notification subscription
             try {
-                await notificationSubscriptionService.ensureUserHasSubscription(userCredential.user.uid);
+                // Check if subscription exists, if not create one
+                const subscription = await notificationSubscriptionService.getSubscription(user.uid);
+                if (!subscription) {
+                    await notificationSubscriptionService.createSubscription({
+                        userId: user.uid,
+                        isActive: true
+                    });
+                }
             } catch (subscriptionError) {
                 console.error('Error ensuring notification subscription:', subscriptionError);
                 // Don't fail the login if there's an issue with the subscription
                 // The user can still use the app, they just might not get notifications
             }
             
-            return userCredential.user;
+            return user;
         } catch (error: any) {
             throw new Error(getFirebaseErrorMessage(error));
         }
