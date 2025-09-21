@@ -19,21 +19,42 @@ export const USTP_BUILDING_POLYGONS: BuildingPolygon[] = USTP_CAMPUS_LOCATIONS;
 
 /**
  * Check if a point is inside a polygon using ray casting algorithm
+ * @param point [lng, lat] coordinates to check
+ * @param polygon Array of [lng, lat] points defining the polygon
+ * @returns boolean indicating if the point is inside the polygon
  */
 function isPointInPolygon(point: [number, number], polygon: [number, number][]): boolean {
     const [x, y] = point;
-    let inside = false;
+    let isInside = false;
+    const n = polygon.length;
+    
+    if (n < 3) return false; // Not a valid polygon
 
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    let j = n - 1;
+    for (let i = 0; i < n; j = i++) {
         const [xi, yi] = polygon[i];
         const [xj, yj] = polygon[j];
-
-        if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
-            inside = !inside;
+        
+        // Check if point is exactly on a vertex
+        if ((xi === x && yi === y) || (xj === x && yj === y)) {
+            return true;
+        }
+        
+        // Check if point is on the edge between vertices i and j
+        if (yi === yj && y === yi && ((xi <= x && x <= xj) || (xj <= x && x <= xi))) {
+            return true;
+        }
+        
+        // Check if the point is on the same y-level as the edge
+        const intersect = ((yi > y) !== (yj > y)) &&
+            (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+            
+        if (intersect) {
+            isInside = !isInside;
         }
     }
 
-    return inside;
+    return isInside;
 }
 
 
@@ -51,9 +72,11 @@ export function detectLocationFromCoordinates(
     coordinates: { lat: number; lng: number }
 ): LocationDetectionResult {
     const point: [number, number] = [coordinates.lng, coordinates.lat];
+    console.log(`Detecting location for point: [${point[0]}, ${point[1]}]`);
 
     // Check if point is within campus
     if (!isWithinCampus(point)) {
+        console.log('Point is outside campus boundaries');
         return {
             location: null,
             confidence: 0,
@@ -68,30 +91,77 @@ export function detectLocationFromCoordinates(
         let confidence = 0;
 
         // Check if point is inside building polygon
-        if (isPointInPolygon(point, building.coordinates)) {
+        const isInside = isPointInPolygon(point, building.coordinates);
+        console.log(`Checking ${building.name}: isInside=${isInside}`);
+        
+        if (isInside) {
             confidence = 95; // High confidence for points inside building
-        }
-
-        if (confidence > 0) {
+            
+            // Add to results if inside
             results.push({
                 location: building.name,
+                confidence: confidence
+            });
+            
+            console.log(`Found match: ${building.name} with confidence ${confidence}%`);
+        }
+    }
+
+    // If no exact matches found, find the closest building
+    if (results.length === 0) {
+        console.log('No exact matches found, finding closest building...');
+        let minDistance = Infinity;
+        let closestBuilding = null;
+        
+        for (const building of USTP_BUILDING_POLYGONS) {
+            if (!building.coordinates || building.coordinates.length === 0) continue;
+            
+            // Calculate centroid of the building polygon
+            const center = building.coordinates.reduce(
+                (acc, [x, y]) => [acc[0] + x, acc[1] + y],
+                [0, 0]
+            ).map(sum => sum / building.coordinates.length);
+            
+            const distance = Math.sqrt(
+                Math.pow(center[0] - point[0], 2) + 
+                Math.pow(center[1] - point[1], 2)
+            );
+            
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestBuilding = building;
+            }
+        }
+        
+        if (closestBuilding) {
+            // Calculate confidence based on distance (closer = higher confidence)
+            const maxDistance = 0.001; // ~100 meters in degrees
+            const confidence = Math.max(10, 80 * (1 - Math.min(minDistance, maxDistance) / maxDistance));
+            
+            results.push({
+                location: closestBuilding.name,
                 confidence: Math.round(confidence)
             });
+            
+            console.log(`Closest building: ${closestBuilding.name} (${Math.round(confidence)}% confidence)`);
         }
     }
 
     // Sort by confidence (highest first)
     results.sort((a, b) => b.confidence - a.confidence);
-
-    // Return result with confidence threshold
+    
+    // Get top result and alternatives
     const primaryResult = results[0];
     const alternatives = results.slice(1, 4); // Top 3 alternatives
-
-    return {
+    
+    const result = {
         location: primaryResult && primaryResult.confidence >= 50 ? primaryResult.location : null,
         confidence: primaryResult ? primaryResult.confidence : 0,
         alternatives
     };
+    
+    console.log('Final detection result:', result);
+    return result;
 }
 
 /**

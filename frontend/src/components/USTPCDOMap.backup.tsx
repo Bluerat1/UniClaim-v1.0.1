@@ -12,7 +12,7 @@ import Polygon from "ol/geom/Polygon";
 import Circle from 'ol/geom/Circle';
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
-import { Modify } from "ol/interaction";
+// Remove unused import
 import { defaults as defaultControls } from "ol/control";
 import { detectLocationFromCoordinates } from "@/utils/locationDetection";
 import { USTP_CAMPUS_LOCATIONS, CAMPUS_BOUNDARY } from "@/utils/campusCoordinates";
@@ -50,12 +50,9 @@ const USTPLocationPicker: React.FC<Props> = ({
   const markerFeatureRef = useRef<Feature<Point> | null>(null);
   const buildingSourceRef = useRef<VectorSource>(new VectorSource());
   const cornerSourceRef = useRef<VectorSource>(new VectorSource());
+  const bufferSourceRef = useRef<VectorSource>(new VectorSource());
   const boundarySourceRef = useRef<VectorSource>(new VectorSource());
   const boundaryCornerSourceRef = useRef<VectorSource>(new VectorSource());
-  const bufferSourceRef = useRef<VectorSource>(new VectorSource());
-
-  const fromLonLatExtent = (extent: [number, number, number, number]) =>
-    transformExtent(extent, "EPSG:4326", "EPSG:3857");
 
   const initializeMap = () => {
     if (!mapRef.current) return;
@@ -227,7 +224,7 @@ const USTPLocationPicker: React.FC<Props> = ({
       view: new View({
         center: initialCenter,
         zoom: 19,
-        extent: fromLonLatExtent([124.6535, 8.4835, 124.6605, 8.488]), // ✅ Extended to accommodate new boundary
+        extent: transformExtent([124.6535, 8.4835, 124.6605, 8.488], "EPSG:4326", "EPSG:3857") // Extended to accommodate new boundary
       }),
 
       controls: defaultControls({ attribution: false }),
@@ -399,7 +396,7 @@ const USTPLocationPicker: React.FC<Props> = ({
       const [lng, lat] = toLonLat(e.coordinate);
       updateMarkerPosition(lng, lat);
 
-      // Detect location from coordinates first
+      // Detect location from coordinates
       const detectionResult = detectLocationFromCoordinates({ lat, lng });
       console.log('Detection result:', detectionResult);
       
@@ -432,61 +429,55 @@ const USTPLocationPicker: React.FC<Props> = ({
         }
       }
 
-      // Show feedback based on detection result
+      // Show toast message based on detection result
       if (detectionResult.location) {
+        // Direct match (inside building)
         showToast(
           "success",
           "Location Detected",
-          `${detectionResult.location} detected`,
+          `Pin placed in ${detectionResult.location}`,
           3000
         );
-      } else {
-        // If no direct match but we have alternatives, show the closest match
+      } else if (detectionResult.alternatives?.length > 0) {
         const closestMatch = detectionResult.alternatives[0];
-        if (closestMatch) {
+        if (closestMatch.confidence >= 60) {
+          // High confidence near a building
           showToast(
-            "warning",
-            "Approximate Location",
-            `Closest match: ${closestMatch.location} (${Math.round(closestMatch.confidence)}% confidence)`,
-            4000
+            "info",
+            "Near Building",
+            `Pin placed near ${closestMatch.location}`,
+            3000
+          );
+        } else if (closestMatch.confidence >= 40) {
+          // Medium confidence near a building
+          showToast(
+            "info",
+            "Nearby Area",
+            `Pin placed near ${closestMatch.location}`,
+            3000
           );
         } else {
+          // Low confidence, show generic message
           showToast(
-            "error",
-            "No Location Detected",
-            "Please pin within a campus building or area. Make sure you're within the campus boundaries.",
-            4000
+            "warning",
+            "General Area",
+            `Pin placed in the general area of ${closestMatch.location}`,
+            3000
           );
         }
+      } else {
+        // No buildings detected nearby
+        showToast(
+          "error",
+          "No Building Nearby",
+          "Please pin closer to a campus building.",
+          3000
+        );
       }
-    });
-
-    const modify = new Modify({ source: markerSource });
-    map.addInteraction(modify);
-
-    modify.on("modifyend", (e) => {
-      const geom = (e.features.item(0).getGeometry() as Point).getCoordinates();
-      const [lng, lat] = toLonLat(geom);
       
-      // Update the marker position
-      updateMarkerPosition(lng, lat);
-
-      // Find the closest building and update buffer
-      const building = findClosestBuilding(lng, lat);
-      updateBuildingBuffer(building);
-
-      // Detect location from new coordinates
-      const detectionResult = detectLocationFromCoordinates({ lat, lng });
-      setDetectedLocation(detectionResult.location);
-      
-      const updated = { lat: +lat.toFixed(6), lng: +lng.toFixed(6) };
-      setCoordinatesExternal?.(updated);
-      setLocalError(false);
+      // Update map size if needed
+      setTimeout(() => map.updateSize(), 200);
     });
-
-    setMapInstance(map);
-    setTimeout(() => map.updateSize(), 200);
-  };
 
   useEffect(() => {
     if (!mapInstance && showMap) {
@@ -597,6 +588,561 @@ const USTPLocationPicker: React.FC<Props> = ({
             </button>
           </div>
         </>
+      )}
+    </div>
+  );
+};
+
+    // Initialize map with all layers and controls
+    const map = new Map({
+      target: mapRef.current,
+      layers: [
+        new TileLayer({
+          source: new OSM(),
+        }),
+        buildingLayer, 
+        cornerLayer,
+        bufferLayer,
+        boundaryLayer, 
+        boundaryCornerLayer,
+        markerLayer
+      ],
+      view: new View({
+        center: initialCenter,
+        zoom: 19,
+        extent: transformExtent([124.6535, 8.4835, 124.6605, 8.488], "EPSG:4326", "EPSG:3857"),
+      }),
+      controls: defaultControls({ attribution: false }),
+    });
+
+    // Create building layer
+    const buildingLayer = new VectorLayer({
+      source: buildingSourceRef.current,
+      style: new Style({
+        fill: new Fill({
+          color: 'rgba(0, 0, 255, 0.1)',
+        }),
+        stroke: new Stroke({
+          color: 'rgba(0, 0, 255, 0.5)',
+          width: 2,
+        }),
+      }),
+    });
+
+    // Create corner indicator layer (visible with numbers)
+    const cornerLayer = new VectorLayer({
+      source: cornerSourceRef.current,
+      style: (feature) => {
+        const point = feature.getGeometry() as Point;
+        const coordinates = point.getCoordinates();
+        const pixel = map.getPixelFromCoordinate(coordinates);
+        
+        // Only show corner numbers if enabled
+        if (!showCornerNumbers) {
+          return new Style({
+            image: new Icon({
+              src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+              opacity: 0,
+            }),
+          });
+        }
+        
+        // Create a canvas element for the number
+        const canvas = document.createElement('canvas');
+        const size = 20;
+        canvas.width = size;
+        canvas.height = size;
+        
+        const context = canvas.getContext('2d');
+        if (context) {
+          context.beginPath();
+          context.arc(size / 2, size / 2, size / 2, 0, 2 * Math.PI);
+          context.fillStyle = 'rgba(255, 0, 0, 0.7)';
+          context.fill();
+          
+          context.font = 'bold 12px Arial';
+          context.textAlign = 'center';
+          context.textBaseline = 'middle';
+          context.fillStyle = 'white';
+          context.fillText(feature.get('number'), size / 2, size / 2);
+        }
+        
+        return new Style({
+          image: new Icon({
+            img: canvas,
+            imgSize: [size, size],
+            anchor: [0.5, 0.5],
+            scale: 1,
+            opacity: 1,
+            rotateWithView: false,
+            rotation: 0,
+            displacement: [0, 0],
+          }),
+        });
+      },
+    });
+
+    // Create buffer layer
+    const bufferLayer = new VectorLayer({
+      source: bufferSourceRef.current,
+      style: new Style({
+        fill: new Fill({
+          color: 'rgba(0, 255, 0, 0.1)',
+        }),
+        stroke: new Stroke({
+          color: 'rgba(0, 255, 0, 0.5)',
+          width: 2,
+          lineDash: [5, 5],
+        }),
+      }),
+    });
+
+    // Create boundary layer
+    const boundaryLayer = new VectorLayer({
+      source: boundarySourceRef.current,
+      style: new Style({
+        stroke: new Stroke({
+          color: 'rgba(255, 0, 0, 0.5)',
+          width: 2,
+          lineDash: [5, 5],
+        }),
+      }),
+    });
+
+    // Create boundary corner indicators layer
+    const boundaryCornerLayer = new VectorLayer({
+      source: boundaryCornerSourceRef.current,
+      style: (feature) => {
+        const point = feature.getGeometry() as Point;
+        const coordinates = point.getCoordinates();
+        const pixel = map.getPixelFromCoordinate(coordinates);
+        
+        // Only show corner numbers if enabled
+        if (!showCornerNumbers) {
+          return new Style({
+            image: new Icon({
+              src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+              opacity: 0,
+            }),
+          });
+        }
+        
+        // Create a canvas element for the number
+        const canvas = document.createElement('canvas');
+        const size = 20;
+        canvas.width = size;
+        canvas.height = size;
+        
+        const context = canvas.getContext('2d');
+        if (context) {
+          context.beginPath();
+          context.arc(size / 2, size / 2, size / 2, 0, 2 * Math.PI);
+          context.fillStyle = 'rgba(0, 0, 255, 0.7)';
+          context.fill();
+          
+          context.font = 'bold 12px Arial';
+          context.textAlign = 'center';
+          context.textBaseline = 'middle';
+          context.fillStyle = 'white';
+          context.fillText(feature.get('number'), size / 2, size / 2);
+        }
+        
+        return new Style({
+          image: new Icon({
+            img: canvas,
+            imgSize: [size, size],
+            anchor: [0.5, 0.5],
+            scale: 1,
+            opacity: 1,
+            rotateWithView: false,
+            rotation: 0,
+            displacement: [0, 0],
+          }),
+        });
+      },
+    });
+
+    // Create marker layer
+    const markerLayer = new VectorLayer({
+      source: markerSourceRef.current,
+      style: new Style({
+        image: new Icon({
+          anchor: [0.5, 1],
+          src: 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-2x-red.png',
+          scale: 0.5,
+        }),
+      }),
+    });
+
+    // Add layers to map
+    map.addLayer(buildingLayer);
+    map.addLayer(cornerLayer);
+    map.addLayer(bufferLayer);
+    map.addLayer(boundaryLayer);
+    map.addLayer(boundaryCornerLayer);
+    map.addLayer(markerLayer);
+
+    // Add initial marker if coordinates are provided
+    if (confirmedCoordinates) {
+      const marker = new Feature({
+        geometry: new Point(fromLonLat([confirmedCoordinates.lng, confirmedCoordinates.lat])),
+      });
+      markerSourceRef.current.addFeature(marker);
+      markerFeatureRef.current = marker;
+    }
+
+    // Add building polygons
+    USTP_CAMPUS_LOCATIONS.forEach((building, index) => {
+      const polygon = new Feature({
+        geometry: new Polygon([building.coordinates.map(coord => fromLonLat(coord))]),
+        name: building.name,
+      });
+      buildingSourceRef.current.addFeature(polygon);
+
+      // Add corner indicators
+      if (showCornerNumbers) {
+        building.coordinates.forEach((coord, cornerIndex) => {
+          const point = new Feature({
+            geometry: new Point(fromLonLat(coord)),
+            number: cornerIndex + 1,
+          });
+          cornerSourceRef.current.addFeature(point);
+        });
+      }
+    });
+
+    // Add campus boundary
+    if (showCampusBoundary && CAMPUS_BOUNDARY.length > 0) {
+      const boundary = new Feature({
+        geometry: new Polygon([CAMPUS_BOUNDARY.map(coord => fromLonLat(coord))]),
+      });
+      boundarySourceRef.current.addFeature(boundary);
+
+      // Add boundary corner indicators
+      if (showCornerNumbers) {
+        CAMPUS_BOUNDARY.forEach((coord, index) => {
+          const point = new Feature({
+            geometry: new Point(fromLonLat(coord)),
+            number: index + 1,
+          });
+          boundaryCornerSourceRef.current.addFeature(point);
+        });
+      }
+    }
+
+    // Function to update building buffer visualization
+    const updateBuildingBuffer = (building: typeof USTP_CAMPUS_LOCATIONS[0] | null) => {
+      const bufferSource = bufferSourceRef.current;
+      bufferSource.clear();
+
+      if (!building) return;
+
+      // Create a buffer around the building
+      const buffer = new Feature({
+        geometry: new Polygon([building.coordinates.map(coord => fromLonLat(coord))]),
+      });
+      
+      // Style the buffer
+      buffer.setStyle(
+        new Style({
+          fill: new Fill({
+            color: 'rgba(0, 255, 0, 0.1)',
+          }),
+          stroke: new Stroke({
+            color: 'rgba(0, 255, 0, 0.5)',
+            width: 2,
+            lineDash: [5, 5],
+          }),
+        })
+      );
+
+      bufferSource.addFeature(buffer);
+    };
+
+    // Function to update marker position
+    const updateMarkerPosition = (lng: number, lat: number) => {
+      if (setCoordinatesExternal) {
+        setCoordinatesExternal({ lat, lng });
+      }
+      
+      setConfirmedCoordinates({ lat, lng });
+
+      if (markerFeatureRef.current) {
+        markerSourceRef.current.removeFeature(markerFeatureRef.current);
+      }
+
+      const newMarker = new Feature({
+        geometry: new Point(fromLonLat([lng, lat])),
+      });
+
+      markerSourceRef.current.addFeature(newMarker);
+      markerFeatureRef.current = newMarker;
+
+      // Center the map on the new marker
+      map.getView().animate({
+        center: fromLonLat([lng, lat]),
+        duration: 500,
+      });
+    };
+
+    // Function to find the closest building to given coordinates
+    const findClosestBuilding = (lng: number, lat: number) => {
+      let minDistance = Infinity;
+      let closestBuilding = null;
+
+      USTP_CAMPUS_LOCATIONS.forEach((building) => {
+        if (!building.center) return;
+        
+        const buildingCenter = building.center;
+        const distance = Math.sqrt(
+          Math.pow(buildingCenter[0] - lng, 2) + 
+          Math.pow(buildingCenter[1] - lat, 2)
+        );
+
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestBuilding = building;
+        }
+      });
+
+      return closestBuilding;
+    };
+
+    // Click to place/update marker
+    map.on("click", (e) => {
+      const [lng, lat] = toLonLat(e.coordinate);
+      updateMarkerPosition(lng, lat);
+
+      // Detect location from coordinates
+      const detectionResult = detectLocationFromCoordinates({ lat, lng });
+      console.log('Detection result:', detectionResult);
+      
+      // Update the detected location state
+      setDetectedLocation(detectionResult.location);
+
+      // Find the closest building for the buffer visualization
+      let buildingToHighlight = null;
+      
+      if (detectionResult.location) {
+        // If we have a detected location, find the corresponding building
+        buildingToHighlight = USTP_CAMPUS_LOCATIONS.find(
+          b => b.name === detectionResult.location
+        );
+      } else if (detectionResult.alternatives?.length > 0) {
+        // If no direct match but we have alternatives, use the first one
+        buildingToHighlight = USTP_CAMPUS_LOCATIONS.find(
+          b => b.name === detectionResult.alternatives[0].location
+        );
+      }
+      
+      // Update the building buffer visualization
+      if (buildingToHighlight) {
+        updateBuildingBuffer(buildingToHighlight);
+      } else {
+        // Clear the buffer if no building is found
+        const bufferSource = bufferSourceRef.current;
+        if (bufferSource) {
+          bufferSource.clear();
+        }
+      }
+
+      // Show toast message based on detection result
+      if (detectionResult.location) {
+        // Direct match (inside building)
+        showToast(
+          "success",
+          "Location Detected",
+          `Pin placed in ${detectionResult.location}`,
+          3000
+        );
+      } else if (detectionResult.alternatives?.length > 0) {
+        const closestMatch = detectionResult.alternatives[0];
+        if (closestMatch.confidence >= 60) {
+          // High confidence near a building
+          showToast(
+            "info",
+            "Near Building",
+            `Pin placed near ${closestMatch.location}`,
+            3000
+          );
+        } else if (closestMatch.confidence >= 40) {
+          // Medium confidence near a building
+          showToast(
+            "info",
+            "Nearby Area",
+            `Pin placed near ${closestMatch.location}`,
+            3000
+          );
+        } else {
+          // Low confidence, show generic message
+          showToast(
+            "warning",
+            "General Area",
+            `Pin placed in the general area of ${closestMatch.location}`,
+            3000
+          );
+        }
+      } else {
+        // No buildings detected nearby
+        showToast(
+          "error",
+          "No Building Nearby",
+          "Please pin closer to a campus building.",
+          3000
+        );
+      }
+      
+      // Update map size if needed
+      setTimeout(() => map.updateSize(), 200);
+    });
+
+    // Store map instance in state
+    setMapInstance(map);
+
+    // Cleanup function
+    return () => {
+      map.setTarget(undefined);
+      setMapInstance(null);
+    };
+  };
+
+    }
+  }
+
+  // Show toast message based on detection result
+  if (detectionResult.location) {
+    // Direct match (inside building)
+    showToast(
+      "success",
+      "Location Detected",
+      `Pin placed in ${detectionResult.location}`,
+      3000
+    );
+  } else if (detectionResult.alternatives?.length > 0) {
+    const closestMatch = detectionResult.alternatives[0];
+    if (closestMatch.confidence >= 60) {
+      // High confidence near a building
+      showToast(
+        "info",
+        "Near Building",
+        `Pin placed near ${closestMatch.location}`,
+        3000
+      );
+    } else if (closestMatch.confidence >= 40) {
+      // Medium confidence near a building
+      showToast(
+        "info",
+        "Nearby Area",
+        `Pin placed near ${closestMatch.location}`,
+        3000
+      );
+    } else {
+      // Low confidence, show generic message
+      showToast(
+        "warning",
+        "General Area",
+        `Pin placed in the general area of ${closestMatch.location}`,
+        3000
+      );
+    }
+  } else {
+    // No buildings detected nearby
+    showToast(
+      "error",
+      "No Building Nearby",
+      "Please pin closer to a campus building.",
+      3000
+    );
+  }
+  
+  // Update map size if needed
+  setTimeout(() => map.updateSize(), 200);
+});
+    
+    setConfirmedCoordinates({ lat, lng });
+
+    if (markerFeatureRef.current) {
+      markerSourceRef.current.removeFeature(markerFeatureRef.current);
+    }
+
+    const newMarker = new Feature({
+      geometry: new Point(fromLonLat([lng, lat])),
+    });
+
+    markerSourceRef.current.addFeature(newMarker);
+    markerFeatureRef.current = newMarker;
+
+    // Center the map on the new marker if map is initialized
+    if (mapInstance) {
+      mapInstance.getView().animate({
+        center: fromLonLat([lng, lat]),
+        duration: 500,
+      });
+    }
+  };
+
+  // Update marker position when coordinates prop changes
+  useEffect(() => {
+    if (coordinates) {
+      const { lat, lng } = coordinates;
+      updateMarkerPosition(lng, lat);
+    }
+  }, [coordinates]);
+
+  // Toggle map visibility
+  const toggleMap = () => {
+    setShowMap(!showMap);
+  };
+
+  // Handle location submission
+  const handleLocationSubmit = () => {
+    if (!confirmedCoordinates) {
+      setLocalError(true);
+      showToast("error", "No Location Selected", "Please select a location on the map.", 3000);
+      return;
+    }
+
+    setLocalError(false);
+    setShowMap(false);
+    
+    if (setCoordinatesExternal) {
+      setCoordinatesExternal(confirmedCoordinates);
+    }
+  };
+
+  return (
+    <div className="mt-4 rounded space-y-3">
+      <label className="block text-black">Map of USTP-CDO Campus</label>
+      
+      <div className="relative h-64 bg-gray-100 rounded-lg overflow-hidden">
+        <div ref={mapRef} className="w-full h-full" />
+        {!showMap && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+            <button
+              onClick={toggleMap}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >
+              Open Map
+            </button>
+          </div>
+        )}
+      </div>
+      
+      {showMap && (
+        <div className="flex justify-between mt-2">
+          <button
+            onClick={handleLocationSubmit}
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+          >
+            Confirm Location
+          </button>
+          <button
+            onClick={toggleMap}
+            className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+          >
+            Close Map
+          </button>
+        </div>
       )}
     </div>
   );
