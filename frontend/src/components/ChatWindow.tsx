@@ -552,14 +552,27 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     idPhotoFile: File | null,
     evidencePhotos: File[]
   ) => {
-    if (
-      !conversation ||
-      !userData ||
-      !idPhotoFile ||
-      !evidencePhotos ||
-      evidencePhotos.length === 0
-    ) {
+    if (!conversation || !userData) {
       return;
+    }
+
+    // Check if the post creator is an admin by checking the post creator's ID
+    const isAdminPost = conversation.postCreatorId === 'admin' || 
+                       (conversation.postCreatorId?.includes('admin') ?? false) ||
+                       conversation.postCreatorId === 'campus_security';
+
+    // For admin posts, only require ID photo, not evidence photos
+    if (isAdminPost) {
+      if (!idPhotoFile) {
+        alert('Please upload your ID photo');
+        return;
+      }
+    } else {
+      // For non-admin posts, require both ID photo and evidence photos
+      if (!idPhotoFile || !evidencePhotos || evidencePhotos.length === 0) {
+        alert('Please upload your ID photo and at least one evidence photo');
+        return;
+      }
     }
 
     setIsClaimSubmitting(true);
@@ -717,7 +730,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       console.log("✅ All claim data validated, sending claim request...");
 
-      // Now send the claim request with both ID photo and evidence photos
+      // For admin posts, only require ID photo, not evidence photos
+      const evidenceToSend = isAdminPost ? [] : uploadedEvidencePhotos;
+      
+      // Now send the claim request with the appropriate data
       await sendClaimRequest(
         conversation.id,
         userData.uid,
@@ -727,8 +743,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         conversation.postTitle,
         claimReason,
         idPhotoUrl,
-        uploadedEvidencePhotos
+        evidenceToSend
       );
+      
+      // For admin posts, show a success message with next steps
+      if (isAdminPost) {
+        alert('Your claim has been submitted. Please wait for the admin to verify your ID and confirm the handover.');
+      }
 
       // Close modal and show success message
       setShowClaimModal(false);
@@ -787,33 +808,76 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   // Check if claim item button should be shown
   const shouldShowClaimItemButton = () => {
+    console.log('=== shouldShowClaimItemButton called ===');
+    console.log('conversation:', conversation);
+    console.log('userData:', userData);
+    
     if (!conversation || !userData) {
+      console.log('Missing conversation or userData');
       return false;
     }
 
     // Only show for found items
+    console.log('postType:', conversation.postType);
     if (conversation.postType !== "found") {
+      console.log('Not a found item');
       return false;
     }
 
     // Only show if post is still pending
+    console.log('postStatus:', conversation.postStatus);
     if (conversation.postStatus !== "pending") {
+      console.log('Post is not pending');
       return false;
     }
 
-    // Allow claiming for "keep" and "turnover to Campus Security" posts
-    // Only exclude posts that are disposed or donated
-    if (
-      conversation.foundAction === "disposed" ||
-      conversation.foundAction === "donated"
-    ) {
+    // Check if the post is from an admin (using isAdminPost flag or checking creator's role)
+    const creatorData = conversation.participants[conversation.postCreatorId];
+    const isAdminPost = conversation.isAdminPost === true || 
+                       creatorData?.role === 'admin' || 
+                       creatorData?.role === 'campus_security' ||
+                       // Check if creator is admin/campus security by name (fallback)
+                       (creatorData?.firstName === 'System' && creatorData?.lastName === 'Administrator') ||
+                       (creatorData?.firstName === 'Campus' && creatorData?.lastName === 'Security');
+    
+    console.log('=== Admin Post Detection ===');
+    console.log('isAdminPost flag:', conversation.isAdminPost);
+    console.log('creatorData:', creatorData);
+    console.log('creator role:', creatorData?.role);
+    console.log('isAdminPost result:', isAdminPost);
+    console.log('postCreatorId:', conversation.postCreatorId);
+    console.log('current user id:', userData.uid);
+    console.log('participants:', conversation.participants);
+    
+    // For admin posts, ignore foundAction
+    if (isAdminPost) {
+      console.log('Admin post detected, ignoring foundAction');
+      const isCurrentUserPostCreator = conversation.postCreatorId === userData.uid;
+      
+      // Don't show claim button for the admin who created the post
+      if (isCurrentUserPostCreator) {
+        console.log('Current user is the post creator, hiding claim button');
+        return false;
+      }
+      
+      console.log('Showing claim button for admin post');
+      return true;
+    }
+
+
+    // For non-admin posts, check if the item is turned over
+    if (conversation.foundAction && conversation.foundAction !== 'keep') {
+      console.log('Item has been turned over, hiding claim button');
       return false;
     }
 
     // Don't show if current user is the post creator
     if (conversation.postCreatorId === userData.uid) {
+      console.log('Current user is the post creator, hiding claim button');
       return false;
     }
+    
+    console.log('All conditions met, showing claim button');
 
     return true;
   };
@@ -835,6 +899,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const handleConfirmIdPhotoSuccess = (messageId: string): void => {
     // The onClearConversation is already being called in MessageBubble
     // This function is just for any additional cleanup if needed
+    console.log(`ID photo confirmed for message: ${messageId}`);
+    // You can add any additional logic here if needed
   };
 
   return (

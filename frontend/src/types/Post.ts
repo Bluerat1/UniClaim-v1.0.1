@@ -280,6 +280,7 @@ export interface Conversation {
       profilePicture?: string;
       profileImageUrl?: string;
       joinedAt: any;
+      role?: 'user' | 'admin' | 'campus_security';
     };
   };
   lastMessage?: {
@@ -296,4 +297,6 @@ export interface Conversation {
   handoverRequested?: boolean;
   // New field for claim request limit
   claimRequested?: boolean;
+  // Indicates if the post was created by an admin
+  isAdminPost?: boolean;
 }

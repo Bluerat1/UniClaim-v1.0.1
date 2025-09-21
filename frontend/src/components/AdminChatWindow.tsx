@@ -8,6 +8,11 @@ import ProfilePicture from "./ProfilePicture";
 import { messageService } from "../utils/firebase";
 import { useToast } from "../context/ToastContext";
 import NoChat from "../assets/no_chat.png";
+import { db } from "../utils/firebase";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+
+// Define valid toast types
+type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 interface AdminChatWindowProps {
   conversation: Conversation | null;
@@ -22,7 +27,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  // Removed unused state
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(
     null
   );
@@ -32,7 +37,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
   const { sendMessage, getConversationMessages, markConversationAsRead } =
     useMessage();
   const { userData } = useAuth();
-  const { showToast } = useToast();
+  const { showToast } = useToast() as { showToast: (message: string, type: ToastType) => void };
 
   // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = () => {
@@ -87,42 +92,102 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
       setNewMessage("");
     } catch (error) {
       console.error("Failed to send message:", error);
-      showToast("Failed to send message", "error");
+      showToast('Failed to send message', 'error');
     } finally {
       setIsSending(false);
     }
   };
 
   const handleDeleteMessage = async (messageId: string) => {
-    if (!conversation) return;
-
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this message? This action cannot be undone."
-      )
-    ) {
-      return;
-    }
+    if (!conversation || !userData) return;
 
     setDeletingMessageId(messageId);
     try {
-      await messageService.deleteMessage(
-        conversation.id,
-        messageId,
-        userData!.uid
-      );
-      showToast("Message deleted successfully", "success");
-    } catch (error: any) {
-      console.error("Failed to delete message:", error);
-      showToast("Failed to delete message: " + error.message, "error");
+      await messageService.deleteMessage(conversation.id, messageId, userData.uid);
+      showToast('Message deleted successfully', 'success');
+
+      setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      showToast('Failed to delete message', 'error');
     } finally {
       setDeletingMessageId(null);
     }
   };
 
+  // Handle claim response
+  const handleClaimResponse = async (
+    messageId: string,
+    status: "accepted" | "rejected"
+  ) => {
+    if (!conversation || !userData?.uid) return;
+
+    try {
+      setIsLoading(true);
+      
+      // Create a Firestore-compatible timestamp
+      const timestamp = new Date();
+      
+      // Update the message in the UI immediately for better UX
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id === messageId && msg.claimData) {
+            return {
+              ...msg,
+              claimData: {
+                ...msg.claimData,
+                status,
+                respondedAt: timestamp, // Store as Date object
+                responderId: userData.uid,
+              },
+            } as Message; // Cast to Message type
+          }
+          return msg;
+        })
+      );
+
+      // Update the message in Firestore
+      const messageRef = doc(
+        db,
+        'conversations',
+        conversation.id,
+        'messages',
+        messageId
+      );
+      
+      await updateDoc(messageRef, {
+        'claimData.status': status,
+        'claimData.respondedAt': serverTimestamp(),
+        'claimData.responderId': userData.uid,
+      });
+
+      showToast(`Claim ${status}`, 'success');
+    } catch (error) {
+      console.error("Error updating claim status:", error);
+      showToast(`Failed to process claim`, 'error');
+      
+      // Revert the optimistic update on error
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id === messageId && msg.claimData) {
+            return {
+              ...msg,
+              claimData: {
+                ...msg.claimData,
+              },
+            } as Message; // Cast to Message type
+          }
+          return msg;
+        })
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const getOtherParticipant = (conversation: Conversation) => {
     const participantIds = Object.keys(conversation.participants || {});
-    const otherParticipantId = participantIds.find(id => id !== userData?.uid);
+    const otherParticipantId = participantIds.find((id) => id !== userData?.uid);
     return conversation.participants[otherParticipantId || ""] || null;
   };
 
@@ -146,14 +211,9 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
       return participant.lastName;
     }
     
-    // Fallback to name if it exists (for backward compatibility)
-    if (participant.name) {
-      return participant.name;
-    }
-    
-    // If we have a userId but no name, use the ID
-    if (participant.userId) {
-      return `User ${participant.userId.substring(0, 6)}`;
+    // If we have a uid but no name, use the ID
+    if (participant.uid) {
+      return `User ${participant.uid.substring(0, 6)}`;
     }
     
     // Last resort fallback
@@ -254,7 +314,9 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
           const target = e.target as HTMLDivElement;
           const isNearBottom =
             target.scrollHeight - target.scrollTop - target.clientHeight < 100;
-          setShowScrollToBottom(!isNearBottom);
+          if (isNearBottom) {
+            scrollToBottom();
+          }
         }}
       >
         {isLoading ? (
@@ -296,6 +358,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
                     conversationId={conversation.id}
                     currentUserId={userData?.uid || ""}
                     onClearConversation={onClearConversation}
+                    onClaimResponse={handleClaimResponse}
                   />
 
                   {/* Admin Delete Button */}

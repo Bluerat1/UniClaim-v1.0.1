@@ -633,6 +633,27 @@ export const messageService = {
                 throw new Error('Message is not a claim request');
             }
 
+            // If rejecting, clean up any uploaded photos
+            if (status === 'rejected' && messageData.claimData) {
+                try {
+                    // Collect all image URLs to be deleted
+                    const imageUrls = [
+                        ...(messageData.claimData.idPhotoUrl ? [messageData.claimData.idPhotoUrl] : []),
+                        ...(messageData.claimData.evidencePhotos?.map((p: any) => p.url) || [])
+                    ];
+                    
+                    if (imageUrls.length > 0) {
+                        console.log('🗑️ Cleaning up images for rejected claim');
+                        const { deleteMessageImages } = await import('../../utils/cloudinary');
+                        const result = await deleteMessageImages(imageUrls);
+                        console.log(`✅ Cleanup result: ${result.deleted.length} deleted, ${result.failed.length} failed`);
+                    }
+                } catch (cleanupError) {
+                    console.error('⚠️ Failed to clean up claim images:', cleanupError);
+                    // Don't fail the whole operation if cleanup fails
+                }
+            }
+
             // Update the claim message with the response and ID photo
             const updateData: any = {
                 'claimData.status': status,
