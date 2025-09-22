@@ -23,7 +23,9 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
   const { conversations, loading } = useMessage();
   const { userData } = useAuth();
   const { showToast } = useToast();
-  const [deletingConversationId, setDeletingConversationId] = useState<string | null>(null);
+  const [deletingConversationId, setDeletingConversationId] = useState<
+    string | null
+  >(null);
 
   // Filter and sort conversations
   const filteredAndSortedConversations = useMemo(() => {
@@ -32,18 +34,19 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(conversation => 
-        conversation.postTitle?.toLowerCase().includes(query) ||
-        Object.values(conversation.participants || {}).some(participant => 
-          participant.name?.toLowerCase().includes(query)
-        ) ||
-        conversation.lastMessage?.text?.toLowerCase().includes(query)
+      filtered = filtered.filter(
+        (conversation) =>
+          conversation.postTitle?.toLowerCase().includes(query) ||
+          Object.values(conversation.participants || {}).some((participant) =>
+            participant.name?.toLowerCase().includes(query)
+          ) ||
+          conversation.lastMessage?.text?.toLowerCase().includes(query)
       );
     }
 
     // Apply type filter
     if (filterType !== "all") {
-      filtered = filtered.filter(conversation => {
+      filtered = filtered.filter((conversation) => {
         switch (filterType) {
           case "unread":
             return getTotalUnreadCount(conversation) > 0;
@@ -111,10 +114,17 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     });
   }, [conversations]);
 
-  const handleDeleteConversation = async (conversationId: string, event: React.MouseEvent) => {
+  const handleDeleteConversation = async (
+    conversationId: string,
+    event: React.MouseEvent
+  ) => {
     event.stopPropagation(); // Prevent conversation selection
-    
-    if (!window.confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) {
+
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this conversation? This action cannot be undone."
+      )
+    ) {
       return;
     }
 
@@ -122,10 +132,10 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     try {
       // Delete the conversation (this will also delete all messages)
       await messageService.deleteConversation(conversationId);
-      showToast('Conversation deleted successfully', 'success');
+      showToast("success", "Conversation deleted successfully");
     } catch (error: any) {
-      console.error('Failed to delete conversation:', error);
-      showToast('Failed to delete conversation: ' + error.message, 'error');
+      console.error("Failed to delete conversation:", error);
+      showToast("error", "Failed to delete conversation: " + error.message);
     } finally {
       setDeletingConversationId(null);
     }
@@ -133,51 +143,56 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
 
   const getTotalUnreadCount = (conversation: Conversation) => {
     if (!conversation.unreadCounts) return 0;
-    return Object.values(conversation.unreadCounts).reduce((sum: number, count: any) => {
-      return sum + (typeof count === 'number' ? count : 0);
-    }, 0);
+    return Object.values(conversation.unreadCounts).reduce(
+      (sum: number, count: any) => {
+        return sum + (typeof count === "number" ? count : 0);
+      },
+      0
+    );
   };
 
   const getParticipantNames = (conversation: Conversation) => {
     const participantIds = Object.keys(conversation.participants || {});
-    
-    return participantIds.map(id => {
-      const participant = conversation.participants[id];
-      
-      // If we have both first and last name, combine them
-      if (participant?.firstName && participant?.lastName) {
-        return `${participant.firstName} ${participant.lastName}`.trim();
-      }
-      
-      // If we have just first name
-      if (participant?.firstName) {
-        return participant.firstName;
-      }
-      
-      // If we have just last name
-      if (participant?.lastName) {
-        return participant.lastName;
-      }
-      
-      // Fallback to name if it exists (for backward compatibility)
-      if (participant?.name) {
-        return participant.name;
-      }
-      
-      // If we have a userId but no name, use the ID
-      if (participant?.userId) {
-        return `User ${participant.userId.substring(0, 6)}`;
-      }
-      
-      // If we only have the ID, use that
-      if (id) {
-        return `User ${id.substring(0, 6)}`;
-      }
-      
-      // Last resort fallback
-      return 'Unknown User';
-    }).filter(name => name !== 'User System') // Filter out system user
-      .join(', ');
+
+    return participantIds
+      .map((id) => {
+        const participant = conversation.participants[id];
+
+        // If we have both first and last name, combine them
+        if (participant?.firstName && participant?.lastName) {
+          return `${participant.firstName} ${participant.lastName}`.trim();
+        }
+
+        // If we have just first name
+        if (participant?.firstName) {
+          return participant.firstName;
+        }
+
+        // If we have just last name
+        if (participant?.lastName) {
+          return participant.lastName;
+        }
+
+        // Fallback to name if it exists (for backward compatibility)
+        if (participant?.name) {
+          return participant.name;
+        }
+
+        // If we have a userId but no name, use the ID
+        if (participant?.userId) {
+          return `User ${participant.userId.substring(0, 6)}`;
+        }
+
+        // If we only have the ID, use that
+        if (id) {
+          return `User ${id.substring(0, 6)}`;
+        }
+
+        // Last resort fallback
+        return "Unknown User";
+      })
+      .filter((name) => name !== "User System") // Filter out system user
+      .join(", ");
   };
 
   if (loading) {
@@ -300,8 +315,18 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
                   {deletingConversationId === conversation.id ? (
                     <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
                   ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
                     </svg>
                   )}
                 </button>

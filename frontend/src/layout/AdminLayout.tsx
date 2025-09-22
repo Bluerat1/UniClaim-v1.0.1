@@ -45,7 +45,7 @@ export default function AdminLayout() {
           sideBarOpen={isSideBarOpen}
           sideNavClick={() => setIsSideBarOpen(!isSideBarOpen)}
         />
-        <main className="mt-18 mb-13">
+        <main className="mt-18">
           <Outlet />
         </main>
         <div

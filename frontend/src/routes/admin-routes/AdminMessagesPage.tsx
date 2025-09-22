@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import type { Conversation } from "@/types/Post";
+import type { Conversation } from "../../types/Post";
 import AdminConversationList from "../../components/AdminConversationList";
 import AdminChatWindow from "../../components/AdminChatWindow";
 import PageWrapper from "../../components/PageWrapper";
@@ -51,7 +51,7 @@ const AdminMessagesPage: React.FC = () => {
     <PageWrapper title="Admin Messages">
       <div className="w-full mx-auto">
         {/* Page Header */}
-        <div className="hidden p-4 sm:px-6 lg:px-8 lg:flex items-center justify-between fixed left-20 top-18 right-0 z-10 bg-gray-50 border-b border-zinc-200">
+        <div className="hidden p-4 sm:px-6 lg:px-8 lg:flex items-center justify-between bg-gray-50 border-b border-zinc-200">
           <div className="flex flex-row gap-3 items-center">
             <h1 className="text-base font-medium text-gray-900">
               Admin Messages
@@ -74,7 +74,7 @@ const AdminMessagesPage: React.FC = () => {
         />
 
         {/* Messages Layout */}
-        <div className="flex h-[calc(100vh-115px)] sm:h-[calc(100vh-135px)] md:h-[calc(100vh-145px)] lg:h-[calc(100vh-150px)] xl:h-[calc(100vh-160px)] overflow-hidden lg:mt-30">
+        <div className="flex h-[calc(100vh-115px)] sm:h-[calc(100vh-135px)] md:h-[calc(100vh-145px)] lg:h-[calc(100vh-155px)] xl:h-[calc(100vh-164px)] overflow-hidden">
           {/* Desktop Layout */}
           <div className="hidden lg:flex w-full">
             {/* Conversations List - Desktop */}
@@ -146,7 +146,7 @@ const AdminMessagesPage: React.FC = () => {
               </div>
 
               {/* Scrollable Conversation List */}
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 pl-4 overflow-y-auto">
                 <AdminConversationList
                   onSelectConversation={handleSelectConversation}
                   selectedConversationId={selectedConversation?.id}
