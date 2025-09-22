@@ -146,7 +146,7 @@ const AdminMessagesPage: React.FC = () => {
               </div>
 
               {/* Scrollable Conversation List */}
-              <div className="flex-1 pl-4 overflow-y-auto">
+              <div className="flex-1 pl-3 overflow-y-auto">
                 <AdminConversationList
                   onSelectConversation={handleSelectConversation}
                   selectedConversationId={selectedConversation?.id}
