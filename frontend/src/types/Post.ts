@@ -135,6 +135,8 @@ export interface Post {
       claimRequestedAt: any;
       claimRespondedAt?: any;
       claimResponseMessage?: string;
+      claimConfirmedAt?: any;
+      claimConfirmedBy?: string;
 
       // ID photo verification details
       idPhotoUrl?: string;

@@ -974,7 +974,11 @@ export const messageService = {
                                 ownerIdPhotoConfirmedBy: claimData.ownerIdPhotoConfirmedBy || ''
                             };
 
-                            // STEP 7: Prepare claim details for the post
+                            // STEP 7: Add claim confirmed timestamp to request details
+                            claimRequestDetails.claimConfirmedAt = serverTimestamp();
+                            claimRequestDetails.claimConfirmedBy = confirmBy;
+
+                            // Prepare claim details for the post
                             const claimDetails = {
                                 claimerName: claimerData ? `${claimerData.firstName || ''} ${claimerData.lastName || ''}`.trim() : 'Unknown',
                                 claimerContact: claimerData?.contactNum || '',
@@ -1000,17 +1004,24 @@ export const messageService = {
                                 ...doc.data()
                             }));
 
-                            // STEP 9: Update post with claim details, status, and conversation data
+                            // STEP 9: Prepare conversation data, ensuring no undefined values
+                            const conversationUpdateData: any = {
+                                conversationId: conversationId,
+                                messages: conversationMessages,
+                                participants: conversationData.participants || {},
+                                createdAt: conversationData.createdAt || serverTimestamp()
+                            };
+                            
+                            // Only include lastMessage if it exists
+                            if (conversationData.lastMessage) {
+                                conversationUpdateData.lastMessage = conversationData.lastMessage;
+                            }
+
+                            // Update post with claim details, status, and conversation data
                             await updateDoc(doc(db, 'posts', postId), {
                                 status: 'resolved',
                                 claimDetails: claimDetails,
-                                conversationData: {
-                                    conversationId: conversationId,
-                                    messages: conversationMessages,
-                                    participants: conversationData.participants,
-                                    createdAt: conversationData.createdAt,
-                                    lastMessage: conversationData.lastMessage
-                                },
+                                conversationData: conversationUpdateData,
                                 updatedAt: serverTimestamp()
                             });
 
