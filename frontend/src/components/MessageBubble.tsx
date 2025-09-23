@@ -5,6 +5,7 @@ import { useMessage } from "../context/MessageContext";
 import ImagePicker from "./ImagePicker";
 import ImageModal from "./ImageModal";
 import { handoverClaimService, type HandoverClaimCallbacks } from "../services/handoverClaimService";
+import { useAuth } from "@/context/AuthContext";
 
 interface MessageBubbleProps {
   message: Message;
@@ -53,6 +54,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   } | null>(null);
   const messageRef = useRef<HTMLDivElement>(null);
   const [hasBeenSeen, setHasBeenSeen] = useState(false);
+  const { userData } = useAuth();
+  const userRole = userData?.role;
   const formatTime = (timestamp: any) => {
     if (!timestamp) return "";
 
@@ -159,10 +162,27 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const handleClaimResponse = async (status: "accepted" | "rejected") => {
     if (!onClaimResponse) return;
 
-    // If accepting, check if we're in admin context
+    // If accepting, handle based on user role
     if (status === "accepted") {
-      // For admins, show confirmation modal directly
-      setShowIdPhotoModal(true);
+      // For admins and campus security, show ID photo upload modal
+      if (userRole === 'admin' || userRole === 'campus_security') {
+        setShowIdPhotoModal(true);
+      } 
+      // For regular users, proceed with the claim acceptance without ID photo
+      else {
+        const callbacks: HandoverClaimCallbacks = {
+          onClaimResponse,
+          onError: (error) => alert(error),
+        };
+
+        await handoverClaimService.handleClaimResponse(
+          conversationId,
+          message.id,
+          status,
+          currentUserId,
+          callbacks
+        );
+      }
       return;
     }
 
