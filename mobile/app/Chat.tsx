@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   FlatList,
@@ -211,7 +211,7 @@ export default function Chat() {
         setMessages(loadedMessages);
 
         // Scroll to bottom on new messages
-        if (loadedMessages.length > 0) {
+        if (loadedMessages.length > 51) {
           setTimeout(() => scrollToBottom(), 100);
         }
       }
@@ -657,6 +657,44 @@ export default function Chat() {
           />
         )}
 
+        {/* Message Limit Counter */}
+        <View className="bg-gray-50 border-b border-gray-200 px-4 py-2">
+          <View className="flex-row justify-between items-center mb-1">
+            <Text className="text-sm text-gray-600 font-medium">
+              Messages in conversation
+            </Text>
+            <View className="flex-row items-center">
+              <Text className={`text-sm font-medium ${
+                messages.length >= 45 ? 'text-red-500' : 'text-green-600'
+              }`}>
+                {messages.length}/50
+              </Text>
+              {messages.length >= 45 && (
+                <Text className="text-xs text-red-500 font-medium ml-2">
+                  {50 - messages.length} left
+                </Text>
+              )}
+            </View>
+          </View>
+          
+          {/* Progress Bar */}
+          <View className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+            <View 
+              className="h-full" 
+              style={[{
+                width: `${(messages.length / 50) * 100}%`,
+              }, messages.length >= 45 ? { backgroundColor: '#EF4444' } : { backgroundColor: '#10B981' }]} 
+            />
+          </View>
+          
+          {/* Warning Message */}
+          {messages.length >= 45 && (
+            <Text className="text-xs text-red-500 text-center mt-1">
+              ⚠️ Oldest messages will be automatically removed when limit is reached
+            </Text>
+          )}
+        </View>
+
         {/* Message Input */}
         <View className="border-t border-gray-200 bg-white p-4">
           <View className="flex-row items-center gap-3">
@@ -665,11 +703,25 @@ export default function Chat() {
                 value={newMessage}
                 onChangeText={setNewMessage}
                 placeholder="Type a message..."
-                className="border rounded-full font-inter  px-4 py-3 text-base border-gray-300 bg-white"
+                className="border rounded-full font-inter px-4 py-3 text-base border-gray-300 bg-white"
                 multiline
                 maxLength={200}
                 editable={!loading}
               />
+              <View className="flex-row justify-between px-2 mt-1">
+                <Text className="text-xs text-gray-400">
+                  {newMessage.length}/200
+                </Text>
+                <View className="w-10 h-1 bg-gray-200 rounded-full overflow-hidden">
+                  <View 
+                    className="h-full bg-yellow-500" 
+                    style={{ 
+                      width: `${Math.min(100, (newMessage.length / 200) * 100)}%`,
+                      backgroundColor: newMessage.length > 180 ? '#EF4444' : '#F59E0B'
+                    }} 
+                  />
+                </View>
+              </View>
             </View>
             <TouchableOpacity
               onPress={handleSendMessage}
