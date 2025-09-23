@@ -274,11 +274,12 @@ function PostCard({
           }}
         />
 
-        {/* Claim Information - only show for resolved posts with claim details */}
+        {/* Claim Information - only show for resolved posts with claim details, and only if claim is not yet confirmed */}
         {post.status === "resolved" && 
          post.claimDetails && 
          (post.user?.role === 'admin' || (post.user?.email && effectiveAdminStatuses.get(post.user.email))) && 
-         post.claimDetails.claimRequestDetails && (
+         post.claimDetails.claimRequestDetails && 
+         !post.claimDetails.claimConfirmedAt && (
             <div className="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
               <div>
                 <div className="flex items-center gap-2 mb-2">
