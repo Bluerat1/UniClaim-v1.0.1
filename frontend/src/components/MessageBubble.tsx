@@ -159,8 +159,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const handleClaimResponse = async (status: "accepted" | "rejected") => {
     if (!onClaimResponse) return;
 
-    // If accepting, show ID photo modal for verification
+    // If accepting, check if we're in admin context
     if (status === "accepted") {
+      // For admins, show confirmation modal directly
       setShowIdPhotoModal(true);
       return;
     }
@@ -763,9 +764,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     );
   };
 
-  // ID Photo Modal using ImagePicker component
+  // ID Photo Modal for claim confirmation
   const renderIdPhotoModal = () => {
     if (!showIdPhotoModal) return null;
+
+    // Check if this is an admin accepting a claim
+    const isAdminAcceptingClaim = message.messageType === 'claim_request' && 
+      onClaimResponse && 
+      message.senderId !== currentUserId;
 
     // Use the correct upload handler based on message type
     const uploadHandler =
@@ -773,23 +779,85 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         ? handleClaimIdPhotoUpload
         : handleIdPhotoUpload;
 
-    console.log(
-      "📷 Opening photo modal for message type:",
-      message.messageType
-    );
-    console.log(
-      "📷 Using upload handler:",
-      message.messageType === "claim_request"
-        ? "handleClaimIdPhotoUpload"
-        : "handleIdPhotoUpload"
-    );
-
     return (
-      <ImagePicker
-        onImageSelect={uploadHandler}
-        onClose={() => setShowIdPhotoModal(false)}
-        isUploading={isUploadingIdPhoto}
-      />
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+          <h3 className="text-lg font-semibold mb-4">
+            {isAdminAcceptingClaim ? 'Confirm ID Photo' : 'Upload ID Photo'}
+          </h3>
+          
+          {isAdminAcceptingClaim ? (
+            <div className="space-y-4">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-blue-800">
+                  Please verify the ID photo and click 'Confirm' to finalize the claim acceptance.
+                </p>
+              </div>
+              
+              {/* Display the existing ID photo if available */}
+              {message.claimData?.idPhotoUrl && (
+                <div className="mt-4">
+                  <p className="text-sm text-gray-600 mb-2">ID Photo:</p>
+                  <img 
+                    src={message.claimData.idPhotoUrl} 
+                    alt="Claimant's ID" 
+                    className="max-w-full h-auto rounded border border-gray-200"
+                  />
+                </div>
+              )}
+              
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setShowIdPhotoModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  disabled={isUploadingIdPhoto}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      setIsUploadingIdPhoto(true);
+                      await handoverClaimService.handleConfirmClaimIdPhoto(
+                        conversationId,
+                        message.id,
+                        currentUserId,
+                        {
+                          onSuccess: (message) => {
+                            alert(message);
+                            setShowIdPhotoModal(false);
+                            if (onClearConversation) onClearConversation();
+                          },
+                          onError: (error) => {
+                            alert(error);
+                            setShowIdPhotoModal(false);
+                          },
+                          onClearConversation
+                        }
+                      );
+                    } catch (error) {
+                      console.error('Error confirming claim:', error);
+                      alert('Failed to confirm claim. Please try again.');
+                    } finally {
+                      setIsUploadingIdPhoto(false);
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  disabled={isUploadingIdPhoto}
+                >
+                  {isUploadingIdPhoto ? 'Processing...' : 'Confirm'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <ImagePicker
+              onImageSelect={uploadHandler}
+              onClose={() => setShowIdPhotoModal(false)}
+              isUploading={isUploadingIdPhoto}
+            />
+          )}
+        </div>
+      </div>
     );
   };
 

@@ -87,7 +87,8 @@ export const handleClaimResponse = async (
     messageId: string,
     status: 'accepted' | 'rejected',
     currentUserId: string,
-    callbacks: HandoverClaimCallbacks
+    callbacks: HandoverClaimCallbacks,
+    isAdmin: boolean = false
 ): Promise<void> => {
     try {
         if (!callbacks.onClaimResponse) {
@@ -95,9 +96,18 @@ export const handleClaimResponse = async (
             return;
         }
 
-        // If accepting, we need to handle ID photo upload separately
-        if (status === 'accepted') {
+        // If accepting and not an admin, require ID photo upload
+        if (status === 'accepted' && !isAdmin) {
             callbacks.onError?.('Use handleClaimIdPhotoUpload for accepting claim requests');
+            return;
+        }
+
+        // For acceptance by admin, proceed without ID photo
+        if (status === 'accepted' && isAdmin) {
+            console.log('Admin bypassing ID photo verification for claim');
+            await updateClaimResponse(conversationId, messageId, status, currentUserId, undefined);
+            callbacks.onClaimResponse(messageId, status);
+            callbacks.onSuccess?.('Claim accepted successfully (admin bypassed ID verification)');
             return;
         }
 
