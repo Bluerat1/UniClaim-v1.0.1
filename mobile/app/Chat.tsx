@@ -3,6 +3,10 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
+  Modal,
+  Image as RNImage,
+  StyleSheet,
+  Dimensions,
   View,
   TextInput,
   KeyboardAvoidingView,
@@ -23,6 +27,53 @@ import ClaimModal from "@/components/ClaimModal";
 
 type ChatRouteProp = RouteProp<RootStackParamList, "Chat">;
 type ChatNavigationProp = NativeStackNavigationProp<RootStackParamList, "Chat">;
+
+const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageContainer: {
+    width: '100%',
+    maxWidth: '95%',
+    maxHeight: '80%',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  fullImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imageCaption: {
+    color: 'white',
+    marginTop: 10,
+    textAlign: 'center',
+    fontSize: 16,
+    opacity: 0.8,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 3,
+  },
+  dismissArea: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
+  },
+});
 
 export default function Chat() {
   const navigation = useNavigation<ChatNavigationProp>();
@@ -70,6 +121,9 @@ export default function Chat() {
   const [showHandoverModal, setShowHandoverModal] = useState(false);
   const [isClaimSubmitting, setIsClaimSubmitting] = useState(false);
   const [isHandoverSubmitting, setIsHandoverSubmitting] = useState(false);
+
+  // Image preview state
+  const [selectedImage, setSelectedImage] = useState<{uri: string; alt: string} | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
 
@@ -646,7 +700,7 @@ export default function Chat() {
                 onHandoverResponse={handleHandoverResponse}
                 onClaimResponse={handleClaimResponse}
                 onConfirmIdPhotoSuccess={handleConfirmIdPhotoSuccess}
-                onImageClick={() => {}}
+                onImageClick={(imageUrl, altText) => setSelectedImage({ uri: imageUrl, alt: altText })}
               />
             )}
             contentContainerStyle={{ padding: 16 }}
@@ -739,6 +793,46 @@ export default function Chat() {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Image Preview Modal */}
+      <Modal
+        visible={!!selectedImage}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setSelectedImage(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={styles.closeButton}
+            onPress={() => setSelectedImage(null)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="close" size={28} color="white" />
+          </TouchableOpacity>
+          
+          <View style={styles.imageContainer}>
+            {selectedImage && (
+              <>
+                <RNImage
+                  source={{ uri: selectedImage.uri }}
+                  style={styles.fullImage}
+                  resizeMode="contain"
+                />
+                <Text style={styles.imageCaption} numberOfLines={1}>
+                  {selectedImage.alt}
+                </Text>
+              </>
+            )}
+          </View>
+          
+          {/* Invisible touch area that covers the entire screen */}
+          <TouchableOpacity 
+            style={styles.dismissArea}
+            activeOpacity={1}
+            onPress={() => setSelectedImage(null)}
+          />
+        </View>
+      </Modal>
 
       {/* Enhanced Claim Modal */}
       <ClaimModal
