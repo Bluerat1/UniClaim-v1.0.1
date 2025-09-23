@@ -231,7 +231,7 @@ export const postService = {
                 createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt
             })) as Post[];
 
-            // Filter out expired posts and resolved posts on the client side (this is fast since we're only processing ~20-50 posts)
+            // Filter out expired, resolved, and soft-deleted posts on the client side (this is fast since we're only processing ~20-50 posts)
             const activePosts = posts.filter(post => {
                 if (post.movedToUnclaimed) return false;
 
@@ -240,6 +240,9 @@ export const postService = {
 
                 // Exclude hidden posts (flagged posts that admin chose to hide)
                 if (post.isHidden === true) return false;
+                
+                // Exclude soft-deleted posts
+                if (post.deletedAt) return false;
 
                 // Exclude items with turnoverStatus: "declared" ONLY for OSA turnover (awaiting OSA confirmation)
                 // Campus Security items with "transferred" status should be visible

@@ -12,23 +12,26 @@ import {
 } from 'firebase/auth';
 import {
     getFirestore,
+    collection,
     doc,
     setDoc,
     getDoc,
-    collection,
-    addDoc,
-    query,
-    orderBy,
-    onSnapshot,
-    where,
+    getDocs,
     updateDoc,
     deleteDoc,
-    serverTimestamp,
-    getDocs,
-    writeBatch,
-    increment,
+    query,
+    where,
+    orderBy,
     limit,
-    arrayUnion
+    serverTimestamp,
+    Timestamp,
+    writeBatch,
+    runTransaction,
+    onSnapshot,
+    deleteField,
+    addDoc,
+    arrayUnion,
+    increment
 } from 'firebase/firestore';
 // Note: Firebase Storage imports removed - now using Cloudinary
 // import {
@@ -2221,15 +2224,16 @@ export const postService = {
 
             return postId;
         } catch (error: any) {
-            console.error('Error creating post:', error);
-            throw new Error(error.message || 'Failed to create post');
+            console.error('Error in post creation:', error);
+            throw error;
         }
     },
 
     // Get all posts with real-time updates (DEPRECATED - use getActivePosts for better performance)
     getAllPosts(callback: (posts: Post[]) => void) {
         const q = query(
-            collection(db, 'posts')
+            collection(db, 'posts'),
+            where('deletedAt', '==', null) // Only include non-deleted posts
             // orderBy('createdAt', 'desc') // Temporarily commented out
         );
 
@@ -2262,7 +2266,7 @@ export const postService = {
         };
     },
 
-    // Get only active (non-expired) posts with real-time updates - OPTIMIZED FOR PERFORMANCE
+    // Get only active (non-expired, non-deleted) posts with real-time updates - OPTIMIZED FOR PERFORMANCE
     getActivePosts(callback: (posts: Post[]) => void) {
         const now = new Date();
 
@@ -2270,6 +2274,7 @@ export const postService = {
         const q = query(
             collection(db, 'posts'),
             where('movedToUnclaimed', '==', false), // Only posts not moved to unclaimed
+            where('deletedAt', '==', null) // Only non-deleted posts
             // Note: We can't use where('expiryDate', '>', now) in the same query with movedToUnclaimed
             // due to Firestore limitations, so we'll filter expiryDate in the callback
         );
@@ -2337,7 +2342,8 @@ export const postService = {
     getPostsByType(type: 'lost' | 'found', callback: (posts: Post[]) => void) {
         const q = query(
             collection(db, 'posts'),
-            where('type', '==', type)
+            where('type', '==', type),
+            where('deletedAt', '==', null) // Only non-deleted posts
             // Removed orderBy to avoid composite index requirement
         );
 
@@ -2374,7 +2380,8 @@ export const postService = {
     getResolvedPosts(callback: (posts: Post[]) => void) {
         const q = query(
             collection(db, 'posts'),
-            where('status', '==', 'resolved')
+            where('status', '==', 'resolved'),
+            where('deletedAt', '==', null) // Only non-deleted posts
             // Removed orderBy to avoid composite index requirement
         );
 
@@ -2411,7 +2418,8 @@ export const postService = {
     getPostsByCategory(category: string, callback: (posts: Post[]) => void) {
         const q = query(
             collection(db, 'posts'),
-            where('category', '==', category)
+            where('category', '==', category),
+            where('deletedAt', '==', null) // Only non-deleted posts
             // Removed orderBy to avoid composite index requirement
         );
 
@@ -2445,12 +2453,23 @@ export const postService = {
     },
 
     // Get posts by user email
-    getUserPosts(userEmail: string, callback: (posts: Post[]) => void) {
-        const q = query(
-            collection(db, 'posts'),
-            where('user.email', '==', userEmail)
-            // Removed orderBy to avoid composite index requirement
-        );
+    getUserPosts(userEmail: string, callback: (posts: Post[]) => void, includeDeleted: boolean = false) {
+        let q;
+        
+        if (includeDeleted) {
+            q = query(
+                collection(db, 'posts'),
+                where('user.email', '==', userEmail)
+                // Removed orderBy to avoid composite index requirement
+            );
+        } else {
+            q = query(
+                collection(db, 'posts'),
+                where('user.email', '==', userEmail),
+                where('deletedAt', '==', null) // Only non-deleted posts
+                // Removed orderBy to avoid composite index requirement
+            );
+        }
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const posts = snapshot.docs.map(doc => ({
@@ -2497,508 +2516,76 @@ export const postService = {
         }
     },
 
-    // Update post status
-    async updatePostStatus(postId: string, status: 'pending' | 'resolved' | 'unclaimed'): Promise<void> {
-        try {
-            await updateDoc(doc(db, 'posts', postId), {
-                status,
-                updatedAt: serverTimestamp()
+    // Get deleted posts (admin only)
+    async getDeletedPosts(callback: (posts: Post[]) => void) {
+        const q = query(
+            collection(db, 'posts'),
+            where('deletedAt', '!=', null) // Only deleted posts
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const posts = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
+                deletedAt: doc.data().deletedAt?.toDate?.() || doc.data().deletedAt
+            })) as Post[];
+
+            // Sort by deletion date (most recent first)
+            const sortedPosts = posts.sort((a, b) => {
+                const dateA = a.deletedAt instanceof Date ? a.deletedAt : new Date(a.deletedAt || 0);
+                const dateB = b.deletedAt instanceof Date ? b.deletedAt : new Date(b.deletedAt || 0);
+                return dateB.getTime() - dateA.getTime();
             });
 
-            // If status is changed to 'unclaimed', automatically delete all related conversations
-            if (status === 'unclaimed') {
-                console.log(`🗑️ Post marked as unclaimed, deleting all related conversations for post: ${postId}`);
-                await this.deleteConversationsByPostId(postId);
-                console.log(`✅ Successfully deleted conversations for unclaimed post: ${postId}`);
-            }
-        } catch (error: any) {
-            console.error('Error updating post status:', error);
-            throw new Error(error.message || 'Failed to update post status');
-        }
+            callback(sortedPosts);
+        }, (error) => {
+            console.error('Error fetching deleted posts:', error);
+            callback([]);
+        });
+
+        // Register with ListenerManager for tracking
+        const listenerId = listenerManager.addListener(unsubscribe, 'PostService');
+
+        // Return a wrapped unsubscribe function that also removes from ListenerManager
+        return () => {
+            listenerManager.removeListener(listenerId);
+        };
     },
 
-    // Clean up handover details and photos when reverting a completed report
-    async cleanupHandoverDetailsAndPhotos(postId: string): Promise<{ photosDeleted: number; errors: string[] }> {
+    // Search posts by title or description (excludes deleted posts by default)
+    async searchPosts(searchTerm: string, includeDeleted: boolean = false): Promise<Post[]> {
+        // Convert search term to lowercase for case-insensitive search
+        const term = searchTerm.toLowerCase();
+        
         try {
-            console.log(`🧹 Starting cleanup of handover details and photos for post: ${postId}`);
-
-            // Get the post to extract handover details
-            const postDoc = await getDoc(doc(db, 'posts', postId));
-            if (!postDoc.exists()) {
-                throw new Error('Post not found');
-            }
-
-            const postData = postDoc.data();
-            const handoverDetails = postData.handoverDetails;
-
-            if (!handoverDetails) {
-                console.log('ℹ️ No handover details found, nothing to clean up');
-                return { photosDeleted: 0, errors: [] };
-            }
-
-            // Collect all photo URLs that need to be deleted
-            const photoUrlsToDelete: string[] = [];
-            const errors: string[] = [];
-
-            // 1. Handover item photos
-            if (handoverDetails.handoverItemPhotos && Array.isArray(handoverDetails.handoverItemPhotos)) {
-                handoverDetails.handoverItemPhotos.forEach((photo: any) => {
-                    if (photo.url && typeof photo.url === 'string' && photo.url.includes('cloudinary.com')) {
-                        photoUrlsToDelete.push(photo.url);
-                        console.log(`🗑️ Found handover item photo for deletion: ${photo.url.split('/').pop()}`);
-                    }
-                });
-            }
-
-            // 2. Handover ID photo
-            if (handoverDetails.handoverIdPhoto && typeof handoverDetails.handoverIdPhoto === 'string' && handoverDetails.handoverIdPhoto.includes('cloudinary.com')) {
-                photoUrlsToDelete.push(handoverDetails.handoverIdPhoto);
-                console.log(`🗑️ Found handover ID photo for deletion: ${handoverDetails.handoverIdPhoto.split('/').pop()}`);
-            }
-
-            // 3. Owner ID photo
-            if (handoverDetails.ownerIdPhoto && typeof handoverDetails.ownerIdPhoto === 'string' && handoverDetails.ownerIdPhoto.includes('cloudinary.com')) {
-                photoUrlsToDelete.push(handoverDetails.ownerIdPhoto);
-                console.log(`🗑️ Found owner ID photo for deletion: ${handoverDetails.ownerIdPhoto.split('/').pop()}`);
-            }
-
-            // Delete photos from Cloudinary if any exist
-            let photosDeleted = 0;
-            if (photoUrlsToDelete.length > 0) {
-                console.log(`🗑️ Deleting ${photoUrlsToDelete.length} photos from Cloudinary...`);
-
-                try {
-                    const { deleteMessageImages } = await import('./cloudinary');
-                    const deletionResult = await deleteMessageImages(photoUrlsToDelete);
-                    photosDeleted = deletionResult.deleted.length;
-
-                    if (deletionResult.failed.length > 0) {
-                        deletionResult.failed.forEach(failedUrl => {
-                            errors.push(`Failed to delete photo: ${failedUrl.split('/').pop()}`);
-                        });
-                    }
-
-                    console.log(`✅ Successfully deleted ${photosDeleted} photos from Cloudinary`);
-                } catch (cloudinaryError: any) {
-                    console.error('❌ Cloudinary deletion failed:', cloudinaryError);
-                    errors.push(`Cloudinary deletion failed: ${cloudinaryError.message}`);
-                }
-            }
-
-            // Clear handover details from the post
-            await updateDoc(doc(db, 'posts', postId), {
-                handoverDetails: null,
-                conversationData: null, // Also clear conversation data
-                updatedAt: serverTimestamp()
-            });
-
-            console.log(`✅ Handover details cleared from post: ${postId}`);
-
-            return { photosDeleted, errors };
-
-        } catch (error: any) {
-            console.error('❌ Failed to cleanup handover details and photos:', error);
-            throw new Error(`Failed to cleanup handover details: ${error.message}`);
-        }
-    },
-
-    // Clean up claim details and photos when reverting a completed report
-    async cleanupClaimDetailsAndPhotos(postId: string): Promise<{ photosDeleted: number; errors: string[] }> {
-        try {
-            console.log(`🧹 Starting cleanup of claim details and photos for post: ${postId}`);
-
-            // Get the post to extract claim details
-            const postDoc = await getDoc(doc(db, 'posts', postId));
-            if (!postDoc.exists()) {
-                throw new Error('Post not found');
-            }
-
-            const postData = postDoc.data();
-            const claimDetails = postData.claimDetails;
-
-            if (!claimDetails) {
-                console.log('ℹ️ No claim details found, nothing to clean up');
-                return { photosDeleted: 0, errors: [] };
-            }
-
-            // Collect all photo URLs that need to be deleted
-            const photoUrlsToDelete: string[] = [];
-            const errors: string[] = [];
-
-            // 1. Evidence photos
-            if (claimDetails.evidencePhotos && Array.isArray(claimDetails.evidencePhotos)) {
-                claimDetails.evidencePhotos.forEach((photo: any) => {
-                    if (photo.url && typeof photo.url === 'string' && photo.url.includes('cloudinary.com')) {
-                        photoUrlsToDelete.push(photo.url);
-                        console.log(`🗑️ Found evidence photo for deletion: ${photo.url.split('/').pop()}`);
-                    }
-                });
-            }
-
-            // 2. Claimer ID photo
-            if (claimDetails.claimerIdPhoto && typeof claimDetails.claimerIdPhoto === 'string' && claimDetails.claimerIdPhoto.includes('cloudinary.com')) {
-                photoUrlsToDelete.push(claimDetails.claimerIdPhoto);
-                console.log(`🗑️ Found claimer ID photo for deletion: ${claimDetails.claimerIdPhoto.split('/').pop()}`);
-            }
-
-            // 3. Owner ID photo
-            if (claimDetails.ownerIdPhoto && typeof claimDetails.ownerIdPhoto === 'string' && claimDetails.ownerIdPhoto.includes('cloudinary.com')) {
-                photoUrlsToDelete.push(claimDetails.ownerIdPhoto);
-                console.log(`🗑️ Found owner ID photo for deletion: ${claimDetails.ownerIdPhoto.split('/').pop()}`);
-            }
-
-            // Delete photos from Cloudinary if any exist
-            let photosDeleted = 0;
-            if (photoUrlsToDelete.length > 0) {
-                console.log(`🗑️ Deleting ${photoUrlsToDelete.length} photos from Cloudinary...`);
-
-                try {
-                    const { deleteMessageImages } = await import('./cloudinary');
-                    const deletionResult = await deleteMessageImages(photoUrlsToDelete);
-                    photosDeleted = deletionResult.deleted.length;
-
-                    if (deletionResult.failed.length > 0) {
-                        deletionResult.failed.forEach(failedUrl => {
-                            errors.push(`Failed to delete photo: ${failedUrl.split('/').pop()}`);
-                        });
-                    }
-
-                    console.log(`✅ Successfully deleted ${photosDeleted} photos from Cloudinary`);
-                } catch (cloudinaryError: any) {
-                    console.error('❌ Cloudinary deletion failed:', cloudinaryError);
-                    errors.push(`Cloudinary deletion failed: ${cloudinaryError.message}`);
-                }
-            }
-
-            // Clear claim details from the post
-            await updateDoc(doc(db, 'posts', postId), {
-                claimDetails: null,
-                conversationData: null, // Also clear conversation data
-                updatedAt: serverTimestamp()
-            });
-
-            console.log(`✅ Claim details cleared from post: ${postId}`);
-
-            return { photosDeleted, errors };
-
-        } catch (error: any) {
-            console.error('❌ Failed to cleanup claim details and photos:', error);
-            throw new Error(`Failed to cleanup claim details: ${error.message}`);
-        }
-    },
-
-    // Update post
-    async updatePost(postId: string, updates: Partial<Post>): Promise<void> {
-        try {
-            // Get the original post data first to compare images
-            const originalPost = await this.getPostById(postId);
-            if (!originalPost) {
-                throw new Error('Post not found');
-            }
-
-            const updateData = {
-                ...updates,
-                updatedAt: serverTimestamp()
-            };
-
-            // Handle image updates if needed
-            if (updates.images) {
-                // Compare original images with new images to find deleted ones
-                const originalImages = originalPost.images || [];
-                const newImages = updates.images;
-
-                // Find images that were deleted (exist in original but not in new)
-                const deletedImages: string[] = [];
-                originalImages.forEach((originalImg: string | File) => {
-                    // Only process string URLs (Cloudinary URLs) for deletion
-                    if (typeof originalImg === 'string') {
-                        // Check if this original image is still in the new list
-                        const stillExists = newImages.some((newImg: any) => {
-                            // If newImg is a string (URL), compare directly
-                            if (typeof newImg === 'string') {
-                                return newImg === originalImg;
-                            }
-                            // If newImg is a File, it's a new upload, so original was deleted
-                            return false;
-                        });
-
-                        if (!stillExists) {
-                            deletedImages.push(originalImg);
-                        }
-                    }
-                    // Skip File objects as they can't be deleted from Cloudinary
-                });
-
-                // Delete removed images from Cloudinary first
-                if (deletedImages.length > 0) {
-                    console.log(`Deleting ${deletedImages.length} removed images from Cloudinary:`, deletedImages);
-                    await imageService.deleteImages(deletedImages);
-                }
-
-                // Upload new images and get URLs
-                const imageUrls = await imageService.uploadImages(newImages);
-                updateData.images = imageUrls;
-            }
-
-            await updateDoc(doc(db, 'posts', postId), updateData);
-        } catch (error: any) {
-            console.error('Error updating post:', error);
-            throw new Error(error.message || 'Failed to update post');
-        }
-    },
-
-    // Delete post
-    async deletePost(postId: string): Promise<void> {
-        try {
-            // Get post data to delete associated images
-            const post = await this.getPostById(postId);
-
-            // Collect all images that need to be deleted
-            const allImagesToDelete: string[] = [];
-
-            // 1. Add original post images
-            if (post && post.images && post.images.length > 0) {
-                allImagesToDelete.push(...post.images as string[]);
-            }
-
-            // 2. Add handover photos from completed handovers
-            if (post && post.handoverDetails) {
-                const handoverDetails = post.handoverDetails;
-
-                // Add handover ID photo
-                if (handoverDetails.handoverIdPhoto && typeof handoverDetails.handoverIdPhoto === 'string' && handoverDetails.handoverIdPhoto.includes('cloudinary.com')) {
-                    allImagesToDelete.push(handoverDetails.handoverIdPhoto);
-                    console.log('🗑️ Found handover ID photo for deletion:', handoverDetails.handoverIdPhoto.split('/').pop());
-                }
-
-                // Add owner ID photo
-                if (handoverDetails.ownerIdPhoto && typeof handoverDetails.ownerIdPhoto === 'string' && handoverDetails.ownerIdPhoto.includes('cloudinary.com')) {
-                    allImagesToDelete.push(handoverDetails.ownerIdPhoto);
-                    console.log('🗑️ Found owner ID photo for deletion:', handoverDetails.ownerIdPhoto.split('/').pop());
-                }
-
-                // Add handover item photos
-                if (handoverDetails.handoverItemPhotos && Array.isArray(handoverDetails.handoverItemPhotos)) {
-                    handoverDetails.handoverItemPhotos.forEach((photo: any, index: number) => {
-                        if (photo.url && typeof photo.url === 'string' && photo.url.includes('cloudinary.com')) {
-                            allImagesToDelete.push(photo.url);
-                            console.log(`🗑️ Found handover item photo ${index + 1} for deletion:`, photo.url.split('/').pop());
-                        }
-                    });
-                }
-
-                // Add photos from handover request details
-                if (handoverDetails.handoverRequestDetails) {
-                    const requestDetails = handoverDetails.handoverRequestDetails;
-
-                    // Add ID photo from request details
-                    if (requestDetails.idPhotoUrl && typeof requestDetails.idPhotoUrl === 'string' && requestDetails.idPhotoUrl.includes('cloudinary.com')) {
-                        allImagesToDelete.push(requestDetails.idPhotoUrl);
-                        console.log('🗑️ Found handover request ID photo for deletion:', requestDetails.idPhotoUrl.split('/').pop());
-                    }
-
-                    // Add owner ID photo from request details
-                    if (requestDetails.ownerIdPhoto && typeof requestDetails.ownerIdPhoto === 'string' && requestDetails.ownerIdPhoto.includes('cloudinary.com')) {
-                        allImagesToDelete.push(requestDetails.ownerIdPhoto);
-                        console.log('🗑️ Found handover request owner ID photo for deletion:', requestDetails.ownerIdPhoto.split('/').pop());
-                    }
-
-                    // Add item photos from request details
-                    if (requestDetails.itemPhotos && Array.isArray(requestDetails.itemPhotos)) {
-                        requestDetails.itemPhotos.forEach((photo: any, index: number) => {
-                            if (photo.url && typeof photo.url === 'string' && photo.url.includes('cloudinary.com')) {
-                                allImagesToDelete.push(photo.url);
-                                console.log(`🗑️ Found handover request item photo ${index + 1} for deletion:`, photo.url.split('/').pop());
-                            }
-                        });
-                    }
-                }
-            }
-
-            // 3. Delete all collected images from Cloudinary
-            if (allImagesToDelete.length > 0) {
-                console.log(`🗑️ Deleting ${allImagesToDelete.length} total images from Cloudinary (post + handover photos)`);
-                console.log('🗑️ Image breakdown:', {
-                    postImages: post?.images?.length || 0,
-                    handoverPhotos: allImagesToDelete.length - (post?.images?.length || 0)
-                });
-                await imageService.deleteImages(allImagesToDelete);
+            // Get all posts and filter in memory (for small to medium datasets this is fine)
+            let q;
+            if (includeDeleted) {
+                q = query(collection(db, 'posts'));
             } else {
-                console.log('🗑️ No images found to delete from this post');
+                q = query(
+                    collection(db, 'posts'),
+                    where('deletedAt', '==', null) // Only non-deleted posts
+                );
             }
-
-            // Delete the post first
-            await deleteDoc(doc(db, 'posts', postId));
-
-            // Delete all conversations related to this post after post is deleted
-            await this.deleteConversationsByPostId(postId);
-
-            // SAFETY NET: Automatic ghost detection and cleanup
-            try {
-                const ghostConversations = await ghostConversationService.detectGhostConversations();
-
-                if (ghostConversations.length > 0) {
-                    const cleanupResult = await ghostConversationService.cleanupGhostConversations(ghostConversations);
-
-                    if (cleanupResult.errors.length > 0) {
-                        console.warn('Safety net cleanup had some errors:', cleanupResult.errors);
-                    }
-                }
-            } catch (ghostError: any) {
-                // Don't fail the main deletion if ghost detection fails
-                console.warn('Safety net ghost detection failed (non-critical):', ghostError.message);
-            }
-        } catch (error: any) {
-            console.error('Post deletion failed:', error);
-            throw new Error(error.message || 'Failed to delete post');
-        }
-    },
-
-    // Delete all conversations related to a specific post
-    async deleteConversationsByPostId(postId: string): Promise<void> {
-        try {
-            // STEP 1: Query conversations by postId
-            const conversationsQuery = query(
-                collection(db, 'conversations'),
-                where('postId', '==', postId)
-            );
-
-            const conversationsSnapshot = await getDocs(conversationsQuery);
-
-            if (conversationsSnapshot.docs.length === 0) {
-                return;
-            }
-
-            // STEP 2: Extract all images from all messages before deletion
-            console.log(`🗑️ Starting image cleanup for ${conversationsSnapshot.docs.length} conversations`);
-            const allImageUrls: string[] = [];
-
-            for (const convDoc of conversationsSnapshot.docs) {
-                const conversationId = convDoc.id;
-
-                try {
-                    // Get all messages in this conversation
-                    const messagesQuery = query(collection(db, 'conversations', conversationId, 'messages'));
-                    const messagesSnapshot = await getDocs(messagesQuery);
-
-                    if (messagesSnapshot.docs.length > 0) {
-                        console.log(`🗑️ Processing ${messagesSnapshot.docs.length} messages in conversation ${conversationId}`);
-
-                        // Extract images from each message
-                        for (const messageDoc of messagesSnapshot.docs) {
-                            const messageData = messageDoc.data();
-
-                            try {
-                                const { extractMessageImages } = await import('./cloudinary');
-                                const messageImages = extractMessageImages(messageData);
-
-                                if (messageImages.length > 0) {
-                                    console.log(`🗑️ Found ${messageImages.length} images in message ${messageDoc.id}`);
-                                    allImageUrls.push(...messageImages);
-                                }
-                            } catch (imageError: any) {
-                                console.warn(`Failed to extract images from message ${messageDoc.id}:`, imageError.message);
-                                // Continue with other messages even if one fails
-                            }
-                        }
-                    }
-                } catch (error: any) {
-                    console.warn(`Failed to process conversation ${conversationId} for image extraction:`, error.message);
-                    // Continue with other conversations even if one fails
-                }
-            }
-
-            // STEP 3: Delete all extracted images from Cloudinary
-            if (allImageUrls.length > 0) {
-                console.log(`🗑️ Attempting to delete ${allImageUrls.length} total images from Cloudinary`);
-
-                try {
-                    const { deleteMessageImages } = await import('./cloudinary');
-                    const imageDeletionResult = await deleteMessageImages(allImageUrls);
-
-                    if (imageDeletionResult.success) {
-                        console.log(`✅ Successfully deleted ${imageDeletionResult.deleted.length} images from Cloudinary`);
-                    } else {
-                        console.warn(`⚠️ Image deletion completed with some failures. Deleted: ${imageDeletionResult.deleted.length}, Failed: ${imageDeletionResult.failed.length}`);
-                    }
-                } catch (imageError: any) {
-                    console.warn('Failed to delete images from Cloudinary, but continuing with database cleanup:', imageError.message);
-                    // Continue with database cleanup even if image deletion fails
-                }
-            } else {
-                console.log('🗑️ No images found in conversations to delete');
-            }
-
-            // STEP 4: Create a batch operation for atomic deletion of database records
-            const batch = writeBatch(db);
-
-            // STEP 5: Delete messages and conversations in the correct order
-            for (const convDoc of conversationsSnapshot.docs) {
-                const conversationId = convDoc.id;
-
-                try {
-                    // STEP 5a: Delete all messages in the subcollection first
-                    const messagesQuery = query(collection(db, 'conversations', conversationId, 'messages'));
-                    const messagesSnapshot = await getDocs(messagesQuery);
-
-                    if (messagesSnapshot.docs.length > 0) {
-                        // Add all messages to the deletion batch
-                        messagesSnapshot.docs.forEach(messageDoc => {
-                            batch.delete(messageDoc.ref);
-                        });
-                    }
-
-                    // STEP 5b: Add conversation document to deletion batch
-                    batch.delete(convDoc.ref);
-
-                } catch (error: any) {
-                    throw new Error(`Failed to process conversation ${conversationId}: ${error.message}`);
-                }
-            }
-
-            // STEP 6: Execute the batch operation atomically
-            await batch.commit();
-
-            // STEP 7: Verify deletion was successful
-            const verifyQuery = query(
-                collection(db, 'conversations'),
-                where('postId', '==', postId)
-            );
-            const verifySnapshot = await getDocs(verifyQuery);
-
-            if (verifySnapshot.docs.length > 0) {
-                throw new Error('Conversation deletion verification failed');
-            }
-
-            console.log(`✅ Successfully deleted ${conversationsSnapshot.docs.length} conversations and their messages`);
-
-        } catch (error: any) {
-            console.error('Error deleting conversations for post:', error);
-            throw new Error(`Failed to delete conversations: ${error.message}`);
-        }
-    },
-
-    // Search posts by title or description
-    async searchPosts(searchTerm: string): Promise<Post[]> {
-        try {
-            // Note: This is a simple implementation. For better search,
-            // consider using Algolia or implement a more sophisticated search
-            const postsSnapshot = await getDocs(collection(db, 'posts'));
+            const postsSnapshot = await getDocs(q);
             const posts = postsSnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
                 createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt
             })) as Post[];
 
-            const searchTermLower = searchTerm.toLowerCase();
-            return posts.filter(post =>
+            const filteredPosts = posts.filter(post =>
                 post.isHidden !== true && (
-                    post.title.toLowerCase().includes(searchTermLower) ||
-                    post.description.toLowerCase().includes(searchTermLower) ||
-                    post.category.toLowerCase().includes(searchTermLower) ||
-                    post.location.toLowerCase().includes(searchTermLower)
+                    post.title.toLowerCase().includes(term) ||
+                    post.description.toLowerCase().includes(term) ||
+                    post.category.toLowerCase().includes(term) ||
+                    post.location.toLowerCase().includes(term)
                 )
             );
+
+            return filteredPosts;
         } catch (error: any) {
             console.error('Error searching posts:', error);
             throw new Error(error.message || 'Failed to search posts');
@@ -3009,7 +2596,8 @@ export const postService = {
     getPostsByLocation(location: string, callback: (posts: Post[]) => void) {
         const q = query(
             collection(db, 'posts'),
-            where('location', '==', location)
+            where('location', '==', location),
+            where('deletedAt', '==', null) // Only non-deleted posts
             // Removed orderBy to avoid composite index requirement
         );
 
@@ -3109,7 +2697,50 @@ export const postService = {
         }
     },
 
-
+    // Restore a soft-deleted post
+    async restorePost(postId: string, restoredBy?: string): Promise<void> {
+        try {
+            const postRef = doc(db, 'posts', postId);
+            const postDoc = await getDoc(postRef);
+            
+            if (!postDoc.exists()) {
+                throw new Error('Post not found');
+            }
+            
+            const postData = postDoc.data();
+            
+            // Only proceed if the post is actually soft-deleted
+            if (!postData.deletedAt) {
+                console.log('Post is not deleted, no action needed');
+                return;
+            }
+            
+            const updateData: any = {
+                deletedAt: null,
+                updatedAt: serverTimestamp(),
+                restoredAt: new Date().toISOString()
+            };
+            
+            if (restoredBy) {
+                updateData.restoredBy = restoredBy;
+            } else {
+                const currentUser = auth.currentUser;
+                if (currentUser) {
+                    updateData.restoredBy = currentUser.uid;
+                }
+            }
+            
+            // Remove the deletedBy field
+            updateData.deletedBy = deleteField();
+            
+            await updateDoc(postRef, updateData);
+            
+            console.log(`Post ${postId} restored successfully`);
+        } catch (error: any) {
+            console.error('Error restoring post:', error);
+            throw new Error(error.message || 'Failed to restore post');
+        }
+    },
 };
 
 // Ghost conversation detection and cleanup utilities

@@ -36,6 +36,10 @@ export interface Post {
   flaggedBy?: string; // User ID who flagged the post
   flaggedAt?: string | Date | any; // When the post was flagged
   isHidden?: boolean; // Whether admin chose to hide the post from public view
+  
+  // Soft delete fields
+  deletedAt?: string | Date | null; // When the post was soft deleted (null means not deleted)
+  deletedBy?: string; // User ID who performed the deletion
 
   // New fields for handover details (when ID photo is confirmed)
   handoverDetails?: {

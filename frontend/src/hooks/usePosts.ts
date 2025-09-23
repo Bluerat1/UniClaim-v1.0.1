@@ -355,14 +355,16 @@ export const useUserPosts = (userEmail: string) => {
 };
 
 // Custom hook for user's posts with setPosts functionality
-export const useUserPostsWithSet = (userEmail: string) => {
+export const useUserPostsWithSet = (userEmail: string, includeDeleted: boolean = false) => {
     const [posts, setPosts] = useState<Post[]>([]);
+    const [deletedPosts, setDeletedPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const { isAuthenticated, userData } = useAuth();
 
     useEffect(() => {
         if (!userEmail) {
             setPosts([]);
+            setDeletedPosts([]);
             setLoading(false);
             return;
         }
@@ -370,6 +372,7 @@ export const useUserPostsWithSet = (userEmail: string) => {
         // Don't create listeners until user is authenticated
         if (!isAuthenticated) {
             setPosts([]);
+            setDeletedPosts([]);
             setLoading(false);
             return;
         }
@@ -383,19 +386,45 @@ export const useUserPostsWithSet = (userEmail: string) => {
         // Both authenticated and userData loaded - create listeners
         setLoading(true);
 
-        const unsubscribe = postService.getUserPosts(userEmail, (fetchedPosts) => {
-            setPosts(fetchedPosts);
-            setLoading(false);
-        });
+        // Subscribe to non-deleted posts
+        const unsubscribePosts = (postService.getUserPosts as any)(
+            userEmail, 
+            (fetchedPosts: Post[]) => {
+                // Filter out deleted posts from the regular posts
+                const nonDeletedPosts = fetchedPosts.filter(post => !post.deletedAt);
+                setPosts(nonDeletedPosts);
+                setLoading(false);
+            }, 
+            false
+        );
+
+        // Subscribe to deleted posts
+        const unsubscribeDeleted = (postService.getUserPosts as any)(
+            userEmail, 
+            (fetchedPosts: Post[]) => {
+                // Only include posts that have a deletedAt timestamp
+                const deletedOnly = fetchedPosts.filter(post => post.deletedAt);
+                setDeletedPosts(deletedOnly);
+            }, 
+            true
+        );
 
         return () => {
-            if (unsubscribe) {
-                unsubscribe();
+            if (unsubscribePosts && typeof unsubscribePosts === 'function') {
+                unsubscribePosts();
+            }
+            if (unsubscribeDeleted && typeof unsubscribeDeleted === 'function') {
+                unsubscribeDeleted();
             }
         };
     }, [userEmail, isAuthenticated, userData]);
 
-    return { posts, setPosts, loading };
+    return { 
+        posts, 
+        deletedPosts,
+        setPosts, 
+        loading 
+    };
 };
 
 // Custom hook for resolved posts (completed reports)

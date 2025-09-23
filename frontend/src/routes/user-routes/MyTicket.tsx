@@ -5,22 +5,25 @@ import TicketCard from "@/components/TicketCard";
 import TicketModal from "@/components/TicketModal";
 import { useAuth } from "../../context/AuthContext";
 import { useUserPostsWithSet } from "../../hooks/usePosts";
-import { postService } from "../../utils/firebase";
+import { postService } from "../../services/firebase";
 import { useToast } from "../../context/ToastContext";
 
 export default function MyTicket() {
   const { userData, loading: authLoading } = useAuth();
   const {
     posts,
+    deletedPosts,
     setPosts,
     loading: postsLoading,
   } = useUserPostsWithSet(userData?.email || "");
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<
-    "all_tickets" | "active_tickets" | "completed_tickets"
+    "all_tickets" | "active_tickets" | "completed_tickets" | "deleted_tickets"
   >("all_tickets");
   const [searchText, setSearchText] = useState("");
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
+  const [restoringPostId, setRestoringPostId] = useState<string | null>(null);
+  const [permanentlyDeletingPostId, setPermanentlyDeletingPostId] = useState<string | null>(null);
 
   // Show loading state while checking auth
   if (authLoading) {
@@ -51,31 +54,93 @@ export default function MyTicket() {
     try {
       setDeletingPostId(id); // Show loading state
 
-      // Call Firebase service to actually delete the post
-      await postService.deletePost(id);
+      // Soft delete the post by setting deletedAt timestamp
+      await postService.updatePost(id, {
+        deletedAt: new Date().toISOString(),
+      });
 
-      // Update local state after successful deletion
+      // Update local state after successful soft delete
       setPosts((prevPosts: Post[]) =>
-        prevPosts.filter((p: Post) => p.id !== id)
+        prevPosts.map((p: Post) =>
+          p.id === id ? { ...p, deletedAt: new Date().toISOString() } : p
+        )
       );
       setSelectedPost(null); // close modal after delete
 
       // Show success message
       showToast(
         "success",
-        "Ticket Deleted",
-        "Your ticket and all associated images have been successfully deleted."
+        "Ticket Moved to Recently Deleted",
+        "Your ticket has been moved to Recently Deleted."
       );
     } catch (error: any) {
-      console.error("Error deleting post:", error);
+      console.error("Error moving post to recently deleted:", error);
+      showToast("error", "Delete Failed", "Failed to move ticket to Recently Deleted. Please try again.");
+    } finally {
+      setDeletingPostId(null); // Hide loading state
+    }
+  };
+
+  const handleRestorePost = async (id: string) => {
+    try {
+      setRestoringPostId(id);
+
+      // Restore the post by removing the deletedAt timestamp
+      await postService.updatePost(id, {
+        deletedAt: null,
+      });
+
+      // Update local state after successful restore
+      setPosts((prevPosts: Post[]) =>
+        prevPosts.map((p: Post) =>
+          p.id === id ? { ...p, deletedAt: undefined } : p
+        )
+      );
+
+      // If we're viewing the deleted tab, remove the post from the view
+      if (activeTab === "deleted_tickets") {
+        setSelectedPost(null);
+      }
+
+      showToast("success", "Ticket Restored", "Your ticket has been restored successfully.");
+    } catch (error) {
+      console.error("Error restoring post:", error);
+      showToast("error", "Restore Failed", "Failed to restore ticket. Please try again.");
+    } finally {
+      setRestoringPostId(null);
+    }
+  };
+
+  const handlePermanentlyDeletePost = async (id: string) => {
+    if (!window.confirm("Are you sure you want to permanently delete this ticket? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      setPermanentlyDeletingPostId(id);
+
+      // Permanently delete the post
+      await postService.deletePost(id);
+
+      // Update local state after successful permanent deletion
+      setPosts((prevPosts: Post[]) =>
+        prevPosts.filter((p: Post) => p.id !== id)
+      );
+
+      // If we're viewing the deleted tab, remove the post from the view
+      if (activeTab === "deleted_tickets") {
+        setSelectedPost(null);
+      }
+
+      showToast("success", "Ticket Permanently Deleted", "Your ticket has been permanently deleted.");
+    } catch (error: any) {
+      console.error("Error permanently deleting post:", error);
 
       // Provide more specific error messages based on the error type
-      let errorMessage = "Failed to delete ticket. Please try again.";
+      let errorMessage = "Failed to permanently delete ticket. Please try again.";
       let errorTitle = "Delete Failed";
 
-      if (
-        error.message?.includes("Cloudinary API credentials not configured")
-      ) {
+      if (error.message?.includes("Cloudinary API credentials not configured")) {
         errorTitle = "Configuration Error";
         errorMessage =
           "⚠️ Cloudinary API credentials are not configured. Images cannot be deleted from storage. Please contact your administrator.";
@@ -112,11 +177,12 @@ export default function MyTicket() {
   };
 
   // Filter posts based on selected tab
-  const tabFilteredPosts = rawUserPosts.filter((post) => {
+  const tabFilteredPosts = (activeTab === "deleted_tickets" ? deletedPosts : rawUserPosts).filter((post) => {
     if (activeTab === "all_tickets") return true;
     if (activeTab === "active_tickets")
       return post.status === "pending" || post.status === "unclaimed";
     if (activeTab === "completed_tickets") return post.status === "resolved";
+    if (activeTab === "deleted_tickets") return post.deletedAt; // Only show posts with deletedAt timestamp
     return false;
   });
 
@@ -128,6 +194,7 @@ export default function MyTicket() {
     { key: "all_tickets", label: "All Tickets" },
     { key: "active_tickets", label: "Active Tickets" },
     { key: "completed_tickets", label: "Completed Tickets" },
+    { key: "deleted_tickets", label: "Recently Deleted" },
   ] as const;
 
   return (
@@ -196,11 +263,41 @@ export default function MyTicket() {
             </div>
           ) : (
             visiblePosts.map((post) => (
-              <TicketCard
-                key={post.id}
-                post={post}
-                onClick={() => setSelectedPost(post)}
-              />
+              <div key={post.id} className="relative group">
+                {activeTab === "deleted_tickets" && (
+                  <div className="absolute top-2 right-2 bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                    Deleted
+                  </div>
+                )}
+                <TicketCard
+                  post={post}
+                  onClick={() => setSelectedPost(post)}
+                />
+                {activeTab === "deleted_tickets" && (
+                  <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg p-4 space-y-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRestorePost(post.id);
+                      }}
+                      disabled={restoringPostId === post.id}
+                      className="w-full bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {restoringPostId === post.id ? 'Restoring...' : 'Restore'}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePermanentlyDeletePost(post.id);
+                      }}
+                      disabled={permanentlyDeletingPostId === post.id}
+                      className="w-full bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {permanentlyDeletingPostId === post.id ? 'Deleting...' : 'Permanently Delete'}
+                    </button>
+                  </div>
+                )}
+              </div>
             ))
           )}
         </div>
