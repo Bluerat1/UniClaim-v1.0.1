@@ -9,6 +9,7 @@ interface PostCardProps {
   onClick: () => void;
   highlightText: string;
   adminStatuses?: Map<string, boolean>;
+  onFlag?: (post: Post) => void;
 }
 
 function formatDateTime(datetime: string | Date) {
@@ -46,6 +47,7 @@ function PostCard({
   onClick,
   highlightText,
   adminStatuses,
+  onFlag,
 }: PostCardProps) {
   // Fallback to individual admin status fetch if not provided
   const fallbackAdminStatuses = useAdminStatus(adminStatuses ? [] : [post]);
@@ -98,6 +100,7 @@ function PostCard({
             // Optionally refresh the post data or update UI
             console.log("Post flagged successfully");
           }}
+          onFlag={onFlag}
         />
       </div>
 

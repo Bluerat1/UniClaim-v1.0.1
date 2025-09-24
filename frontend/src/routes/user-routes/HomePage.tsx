@@ -6,11 +6,15 @@ import PostCard from "@/components/PostCard";
 import PostModal from "@/components/PostModal";
 import MobileNavText from "@/components/NavHeadComp";
 import SearchBar from "../../components/SearchBar";
+import FlagModal from "@/components/FlagModal";
 
 // hooks
 import { usePosts, useResolvedPosts } from "@/hooks/usePosts";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
+import { postService } from "@/services/firebase/posts";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/context/ToastContext";
 
 function fuzzyMatch(text: string, query: string): boolean {
   const cleanedText = text.toLowerCase();
@@ -48,6 +52,36 @@ export default function HomePage() {
   const [rawResults, setRawResults] = useState<Post[] | null>(null); // store-search-result-without-viewType-filter
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Flag modal state
+  const [showFlagModal, setShowFlagModal] = useState(false);
+  const [postToFlag, setPostToFlag] = useState<Post | null>(null);
+  const [isFlagging, setIsFlagging] = useState(false);
+
+  const { user } = useAuth();
+  const { showToast } = useToast();
+
+  // Flag modal handlers
+  const handleFlagPost = useCallback((post: Post) => {
+    setPostToFlag(post);
+    setShowFlagModal(true);
+  }, []);
+
+  const handleFlagSubmit = useCallback(async (reason: string) => {
+    if (!user || !postToFlag) return;
+
+    setIsFlagging(true);
+    try {
+      await postService.flagPost(postToFlag.id, user.uid, reason);
+      setShowFlagModal(false);
+      setPostToFlag(null);
+      showToast("success", "Post has been flagged for review");
+    } catch (error: any) {
+      showToast("error", error.message || "Failed to flag post");
+    } finally {
+      setIsFlagging(false);
+    }
+  }, [user, postToFlag, showToast]);
 
   // ✅ New state for instant category filtering
   const [selectedCategoryFilter, setSelectedCategoryFilter] =
@@ -311,6 +345,7 @@ export default function HomePage() {
                 onClick={() => setSelectedPost(post)}
                 highlightText={lastDescriptionKeyword}
                 adminStatuses={adminStatuses}
+                onFlag={handleFlagPost}
               />
             ))
         )}
@@ -330,6 +365,18 @@ export default function HomePage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Flag Modal - rendered at HomePage level to avoid z-index conflicts */}
+      {showFlagModal && postToFlag && (
+        <FlagModal
+          onClose={() => {
+            setShowFlagModal(false);
+            setPostToFlag(null);
+          }}
+          onSubmit={handleFlagSubmit}
+          isLoading={isFlagging}
+        />
       )}
 
       {selectedPost && (
