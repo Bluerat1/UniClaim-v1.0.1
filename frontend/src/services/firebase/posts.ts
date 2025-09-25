@@ -81,22 +81,41 @@ import { notificationSender } from './notificationSender';
 import { adminNotificationService } from './adminNotifications';
 import { notificationService } from './notifications';
 
+// Import caching system
+import { postCache, userCache, cacheKeys, cacheInvalidation } from '../../utils/advancedCache';
+
 // Post service functions
 export const postService = {
     // Create a new post
     async createPost(postData: Omit<Post, 'id' | 'createdAt' | 'creatorId'>, creatorId: string): Promise<string> {
-        try {
-            // Generate a unique post ID
-            const postId = `post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const startTime = performance.now();
+        console.log(`🚀 [PERF] Starting post creation for user ${creatorId}`);
 
-            // Upload images if any
+        let notificationEnd = 0; // Initialize for error handling
+
+        try {
+            // Step 1: Generate unique post ID
+            const postIdStart = performance.now();
+            const postId = `post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const postIdEnd = performance.now();
+            console.log(`⚡ [PERF] Post ID generation: ${(postIdEnd - postIdStart).toFixed(2)}ms`);
+
+            // Step 2: Upload images if any
+            const imageUploadStart = performance.now();
             const imageUrls = postData.images.length > 0
                 ? await cloudinaryService.uploadImages(postData.images)
                 : [];
+            const imageUploadEnd = performance.now();
+            console.log(`📸 [PERF] Image upload (${postData.images.length} images): ${(imageUploadEnd - imageUploadStart).toFixed(2)}ms`);
 
-            // Sanitize post data to ensure no undefined values are sent to Firestore
+            // Step 3: Sanitize post data
+            const sanitizeStart = performance.now();
             const sanitizedPostData = this.sanitizePostData(postData);
+            const sanitizeEnd = performance.now();
+            console.log(`🧹 [PERF] Data sanitization: ${(sanitizeEnd - sanitizeStart).toFixed(2)}ms`);
 
+            // Step 4: Prepare post data
+            const prepareStart = performance.now();
             // Convert turnoverDecisionAt to Firebase timestamp if it exists
             if (sanitizedPostData.turnoverDetails?.turnoverDecisionAt) {
                 sanitizedPostData.turnoverDetails.turnoverDecisionAt = serverTimestamp();
@@ -121,17 +140,177 @@ export const postService = {
                 // Include expiry date in initial creation to avoid permission issues
                 expiryDate: expiryDate
             };
+            const prepareEnd = performance.now();
+            console.log(`📋 [PERF] Post data preparation: ${(prepareEnd - prepareStart).toFixed(2)}ms`);
 
-            // Debug: Log post data being sent to Firestore
-            console.log('Creating post with data:', {
-                ...post,
-                createdAt: 'serverTimestamp()' // Replace actual timestamp for logging
-            });
-
-            // Create post in one operation (no separate update needed)
+            // Step 5: Save to Firestore
+            const dbSaveStart = performance.now();
             await setDoc(doc(db, 'posts', postId), post);
+            const dbSaveEnd = performance.now();
+            console.log(`💾 [PERF] Firestore save: ${(dbSaveEnd - dbSaveStart).toFixed(2)}ms`);
 
-            // Send notifications to all users about the new post
+            // Step 6: Send notifications
+            const notificationStart = performance.now();
+            try {
+                // Get creator information for the notification (with caching)
+                const creatorCacheKey = cacheKeys.user(creatorId);
+                let creatorData = userCache.get(creatorCacheKey);
+
+                if (!creatorData) {
+                    const creatorDoc = await getDoc(doc(db, 'users', creatorId));
+                    creatorData = creatorDoc.exists() ? creatorDoc.data() as any : null;
+
+                    if (creatorData) {
+                        userCache.set(creatorCacheKey, creatorData);
+                        console.log(`💾 [CACHE] User ${creatorId} cached`);
+                    }
+                } else {
+                    console.log(`💾 [CACHE] User ${creatorId} retrieved from cache`);
+                }
+
+                const creatorName = creatorData ? `${(creatorData as any).firstName || ''} ${(creatorData as any).lastName || ''}`.trim() : 'Someone';
+                const creatorEmail = (creatorData as any)?.email || 'Unknown';
+
+                // Send notifications to all users
+                await notificationSender.sendNewPostNotification({
+                    id: postId,
+                    title: post.title,
+                    category: post.category,
+                    location: post.location,
+                    type: post.type,
+                    creatorId: creatorId,
+                    creatorName: creatorName
+                });
+
+                // Send notification to admins about the new post
+                await adminNotificationService.notifyAdminsNewPost({
+                    postId: postId,
+                    postTitle: post.title,
+                    postType: post.type,
+                    postCategory: post.category,
+                    postLocation: post.location,
+                    creatorId: creatorId,
+                    creatorName: creatorName,
+                    creatorEmail: creatorEmail
+                });
+
+                notificationEnd = performance.now();
+                console.log(`🔔 [PERF] Notifications sent: ${(notificationEnd - notificationStart).toFixed(2)}ms`);
+            } catch (notificationError) {
+                // Don't fail post creation if notifications fail
+                console.error('❌ [PERF] Error sending notifications for post:', postId, notificationError);
+                notificationEnd = performance.now();
+            }
+
+            // Invalidate relevant caches after successful post creation
+            cacheInvalidation.invalidatePostsByType('all');
+            console.log(`🔄 [CACHE] Invalidated post caches after creating post ${postId}`);
+
+            const endTime = performance.now();
+            const totalTime = endTime - startTime;
+            console.log(`✅ [PERF] Post creation completed successfully in ${totalTime.toFixed(2)}ms`);
+            console.log(`📊 [PERF] Performance breakdown:
+  - Post ID generation: ${(postIdEnd - postIdStart).toFixed(2)}ms
+  - Image upload: ${(imageUploadEnd - imageUploadStart).toFixed(2)}ms
+  - Data sanitization: ${(sanitizeEnd - sanitizeStart).toFixed(2)}ms
+  - Data preparation: ${(prepareEnd - prepareStart).toFixed(2)}ms
+  - Firestore save: ${(dbSaveEnd - dbSaveStart).toFixed(2)}ms
+  - Notifications: ${(notificationEnd - notificationStart).toFixed(2)}ms
+  - Total: ${totalTime.toFixed(2)}ms`);
+
+            return postId;
+        } catch (error: any) {
+            const endTime = performance.now();
+            const totalTime = endTime - startTime;
+            console.error(`❌ [PERF] Post creation failed after ${totalTime.toFixed(2)}ms:`, error);
+            throw new Error(error.message || 'Failed to create post');
+        }
+    },
+
+    // Create a new post with concurrent image upload and progress tracking
+    async createPostWithConcurrentUpload(
+        postData: Omit<Post, 'id' | 'createdAt' | 'creatorId'>,
+        creatorId: string,
+        uploadOptions?: { onProgress?: (progress: any[]) => void }
+    ): Promise<string> {
+        const startTime = performance.now();
+        console.log(`🚀 [CONCURRENT] Starting concurrent post creation for user ${creatorId}`);
+
+        let notificationEnd = 0; // Initialize for error handling
+
+        try {
+            // Step 1: Generate unique post ID
+            const postIdStart = performance.now();
+            const postId = `post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const postIdEnd = performance.now();
+            console.log(`⚡ [CONCURRENT] Post ID generation: ${(postIdEnd - postIdStart).toFixed(2)}ms`);
+
+            // Step 2: Upload images concurrently with progress tracking
+            const imageUploadStart = performance.now();
+
+            let imageUrls: string[] = [];
+            if (postData.images && postData.images.length > 0) {
+                console.log(`🖼️ [CONCURRENT] Starting concurrent upload of ${postData.images.length} images`);
+
+                // Use the concurrent upload method
+                imageUrls = await cloudinaryService.uploadImagesConcurrently(
+                    postData.images,
+                    'posts',
+                    {
+                        onProgress: uploadOptions?.onProgress,
+                        onFileComplete: (fileName, success, error) => {
+                            console.log(`📸 [CONCURRENT] ${fileName}: ${success ? '✓' : '✗'} ${success ? '' : error}`);
+                        }
+                    }
+                );
+            }
+
+            const imageUploadEnd = performance.now();
+            console.log(`📸 [CONCURRENT] Image upload completed: ${(imageUploadEnd - imageUploadStart).toFixed(2)}ms`);
+
+            // Step 3: Sanitize post data
+            const sanitizeStart = performance.now();
+            const sanitizedPostData = this.sanitizePostData(postData);
+            const sanitizeEnd = performance.now();
+            console.log(`🧹 [CONCURRENT] Data sanitization: ${(sanitizeEnd - sanitizeStart).toFixed(2)}ms`);
+
+            // Step 4: Prepare post data
+            const prepareStart = performance.now();
+            // Convert turnoverDecisionAt to Firebase timestamp if it exists
+            if (sanitizedPostData.turnoverDetails?.turnoverDecisionAt) {
+                sanitizedPostData.turnoverDetails.turnoverDecisionAt = serverTimestamp();
+            }
+
+            // Calculate expiry date (30 days from creation) before creating the post
+            const expiryDate = new Date();
+            expiryDate.setDate(expiryDate.getDate() + 30);
+
+            // Create post document with expiry date included
+            const post: Post = {
+                ...sanitizedPostData,
+                id: postId,
+                creatorId: creatorId, // Add the creator ID
+                images: imageUrls,
+                createdAt: serverTimestamp(),
+                status: 'pending',
+                // Initialize 30-day lifecycle fields
+                isExpired: false,
+                movedToUnclaimed: false,
+                originalStatus: 'pending',
+                // Include expiry date in initial creation to avoid permission issues
+                expiryDate: expiryDate
+            };
+            const prepareEnd = performance.now();
+            console.log(`📋 [CONCURRENT] Post data preparation: ${(prepareEnd - prepareStart).toFixed(2)}ms`);
+
+            // Step 5: Save to Firestore
+            const dbSaveStart = performance.now();
+            await setDoc(doc(db, 'posts', postId), post);
+            const dbSaveEnd = performance.now();
+            console.log(`💾 [CONCURRENT] Firestore save: ${(dbSaveEnd - dbSaveStart).toFixed(2)}ms`);
+
+            // Step 6: Send notifications
+            const notificationStart = performance.now();
             try {
                 // Get creator information for the notification
                 const creatorDoc = await getDoc(doc(db, 'users', creatorId));
@@ -162,15 +341,31 @@ export const postService = {
                     creatorEmail: creatorEmail
                 });
 
-                console.log('Notifications sent to users and admins for new post:', postId);
+                notificationEnd = performance.now();
+                console.log(`🔔 [CONCURRENT] Notifications sent: ${(notificationEnd - notificationStart).toFixed(2)}ms`);
             } catch (notificationError) {
                 // Don't fail post creation if notifications fail
-                console.error('Error sending notifications for post:', postId, notificationError);
+                console.error('❌ [CONCURRENT] Error sending notifications for post:', postId, notificationError);
+                notificationEnd = performance.now();
             }
+
+            const endTime = performance.now();
+            const totalTime = endTime - startTime;
+            console.log(`✅ [CONCURRENT] Post creation completed successfully in ${totalTime.toFixed(2)}ms`);
+            console.log(`📊 [CONCURRENT] Performance breakdown:
+  - Post ID generation: ${(postIdEnd - postIdStart).toFixed(2)}ms
+  - Image upload: ${(imageUploadEnd - imageUploadStart).toFixed(2)}ms
+  - Data sanitization: ${(sanitizeEnd - sanitizeStart).toFixed(2)}ms
+  - Data preparation: ${(prepareEnd - prepareStart).toFixed(2)}ms
+  - Firestore save: ${(dbSaveEnd - dbSaveStart).toFixed(2)}ms
+  - Notifications: ${(notificationEnd - notificationStart).toFixed(2)}ms
+  - Total: ${totalTime.toFixed(2)}ms`);
 
             return postId;
         } catch (error: any) {
-            console.error('Error creating post:', error);
+            const endTime = performance.now();
+            const totalTime = endTime - startTime;
+            console.error(`❌ [CONCURRENT] Post creation failed after ${totalTime.toFixed(2)}ms:`, error);
             throw new Error(error.message || 'Failed to create post');
         }
     },
@@ -506,17 +701,32 @@ export const postService = {
         };
     },
 
-    // Get a single post by ID
+    // Get a single post by ID (with caching)
     async getPostById(postId: string): Promise<Post | null> {
         try {
+            // Try cache first
+            const cacheKey = cacheKeys.post(postId);
+            const cachedPost = postCache.get<Post>(cacheKey);
+            if (cachedPost) {
+                console.log(`💾 [CACHE] Post ${postId} retrieved from cache`);
+                return cachedPost;
+            }
+
+            // Fetch from database
+            console.log(`🔍 [CACHE] Post ${postId} not in cache, fetching from database`);
             const postDoc = await getDoc(doc(db, 'posts', postId));
             if (postDoc.exists()) {
                 const data = postDoc.data();
-                return {
+                const post = {
                     id: postDoc.id,
                     ...data,
                     createdAt: data.createdAt?.toDate?.() || data.createdAt
                 } as Post;
+
+                // Cache the result
+                postCache.set(cacheKey, post);
+                console.log(`💾 [CACHE] Post ${postId} cached`);
+                return post;
             }
             return null;
         } catch (error: any) {

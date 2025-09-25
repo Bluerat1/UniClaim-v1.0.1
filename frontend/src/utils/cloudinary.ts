@@ -1,5 +1,7 @@
 // Cloudinary configuration for image upload and management
 import { Cloudinary } from '@cloudinary/url-gen';
+import { compressImage, getOptimalCompressionSettings, type CompressionResult } from './imageCompression';
+import { uploadFilesConcurrently, type ConcurrentUploadOptions } from './concurrentUpload';
 
 // Configuration values from environment variables
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'your-cloud-name';
@@ -233,8 +235,19 @@ export const cloudinaryService = {
             if (!UPLOAD_PRESET) {
                 throw new Error(`Cloudinary upload preset not configured. Current value: "${UPLOAD_PRESET}". Please set VITE_CLOUDINARY_UPLOAD_PRESET in your .env file`);
             }
+
+            console.log(`🖼️ [COMPRESSION] Starting compression for ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+
+            // Get optimal compression settings based on file size
+            const compressionOptions = getOptimalCompressionSettings(file);
+
+            // Compress the image before upload
+            const compressionResult: CompressionResult = await compressImage(file, compressionOptions);
+
+            console.log(`🗜️ [COMPRESSION] ${file.name} compressed from ${(compressionResult.originalSize / 1024 / 1024).toFixed(2)} MB to ${(compressionResult.compressedSize / 1024 / 1024).toFixed(2)} MB (${(compressionResult.compressionRatio * 100).toFixed(1)}% ratio)`);
+
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('file', compressionResult.file);
             formData.append('upload_preset', UPLOAD_PRESET);
             formData.append('folder', folder);
 
@@ -274,9 +287,81 @@ export const cloudinaryService = {
             });
 
             const results = await Promise.all(uploadPromises);
+
+            // Log compression statistics if any files were compressed
+            const compressedFiles = files.filter(f => f instanceof File) as File[];
+            if (compressedFiles.length > 0) {
+                console.log(`✅ [COMPRESSION] Successfully processed ${compressedFiles.length} images for upload`);
+            }
+
             return results;
         } catch (error: any) {
             throw new Error(error.message || 'Failed to upload images');
+        }
+    },
+
+    // Upload multiple images with concurrent processing and progress tracking
+    async uploadImagesConcurrently(
+        files: (File | string)[],
+        folder: string = 'posts',
+        options: ConcurrentUploadOptions = {}
+    ): Promise<string[]> {
+        try {
+            // Filter out non-File items (already uploaded URLs)
+            const filesToUpload = files.filter((file): file is File =>
+                file instanceof File
+            );
+
+            if (filesToUpload.length === 0) {
+                console.log('🔄 [CONCURRENT] No new files to upload, returning existing URLs');
+                return files.filter((file): file is string =>
+                    typeof file === 'string'
+                );
+            }
+
+            console.log(`🚀 [CONCURRENT] Starting concurrent upload of ${filesToUpload.length} images to folder: ${folder}`);
+
+            // Create progress tracking upload function with folder parameter
+            const progressUpload = async (file: File): Promise<string> => {
+                return this.uploadImage(file, folder);
+            };
+
+            // Upload with progress tracking
+            const uploadOptions: ConcurrentUploadOptions = {
+                maxConcurrent: 3, // Upload 3 images simultaneously
+                ...options,
+                onProgress: (progress) => {
+                    console.log(`📊 [CONCURRENT] Upload progress:`, progress.map(p =>
+                        `${p.fileName}: ${p.percentage.toFixed(1)}% (${p.status})`
+                    ).join(', '));
+                    options.onProgress?.(progress);
+                },
+                onFileComplete: (fileName, success, error) => {
+                    console.log(`✅ [CONCURRENT] File ${fileName} ${success ? 'completed' : 'failed'}`,
+                        success ? '' : `: ${error}`);
+                    options.onFileComplete?.(fileName, success, error);
+                }
+            };
+
+            const uploadedUrls = await uploadFilesConcurrently(
+                filesToUpload,
+                progressUpload,
+                uploadOptions
+            );
+
+            // Combine with existing URLs
+            const existingUrls = files.filter((file): file is string =>
+                typeof file === 'string'
+            );
+
+            const allUrls = [...existingUrls, ...uploadedUrls];
+
+            console.log(`✅ [CONCURRENT] Successfully uploaded ${uploadedUrls.length} images, total: ${allUrls.length}`);
+            return allUrls;
+
+        } catch (error: any) {
+            console.error('❌ [CONCURRENT] Upload failed:', error);
+            throw new Error(error.message || 'Failed to upload images concurrently');
         }
     },
 

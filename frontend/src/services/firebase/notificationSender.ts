@@ -1,6 +1,6 @@
 // Service for sending notifications to users when posts are created
 import { db } from './config';
-import { collection, addDoc, serverTimestamp, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
+import { collection, serverTimestamp, doc, writeBatch } from 'firebase/firestore';
 import { notificationSubscriptionService } from './notificationSubscriptions';
 
 // Notification data structure
@@ -51,7 +51,6 @@ export class NotificationSender {
             console.log('🎯 Optimal filtering found', interestedSubscriptions.length, 'users for post:', postData.title);
 
             const notifications = [];
-            const currentTime = new Date();
 
             // Create notification for each interested user (except the creator)
             for (const subscription of interestedSubscriptions) {
@@ -90,16 +89,21 @@ export class NotificationSender {
                 notifications.push(notificationData);
             }
 
-            // Batch create all notifications
+            // Batch create all notifications using Firestore batch writes
             console.log('📝 Created', notifications.length, 'notifications to send');
 
             if (notifications.length > 0) {
-                const batch = notifications.map(notification =>
-                    addDoc(collection(db, 'notifications'), notification)
-                );
+                // Use Firestore batch for better performance and atomicity
+                const batch = writeBatch(db);
+                const notificationsRef = collection(db, 'notifications');
 
-                await Promise.all(batch);
-                console.log('✅ Successfully sent', notifications.length, 'new post notifications');
+                notifications.forEach(notification => {
+                    const docRef = doc(notificationsRef); // Auto-generated ID
+                    batch.set(docRef, notification);
+                });
+
+                await batch.commit();
+                console.log('✅ Successfully sent', notifications.length, 'new post notifications using batch write');
             } else {
                 console.log('❌ No users to notify for this post');
             }
@@ -149,12 +153,17 @@ export class NotificationSender {
                 createdAt: serverTimestamp()
             }));
 
-            const batch = notifications.map(notification =>
-                addDoc(collection(db, 'notifications'), notification)
-            );
+            // Use Firestore batch for better performance
+            const batch = writeBatch(db);
+            const notificationsRef = collection(db, 'notifications');
 
-            await Promise.all(batch);
-            console.log(`Sent ${notifications.length} notifications to specific users`);
+            notifications.forEach(notification => {
+                const docRef = doc(notificationsRef);
+                batch.set(docRef, notification);
+            });
+
+            await batch.commit();
+            console.log(`Sent ${notifications.length} notifications to specific users using batch write`);
         } catch (error) {
             console.error('Error sending notifications to specific users:', error);
         }

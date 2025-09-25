@@ -42,6 +42,8 @@ export default function ReportPage() {
   const { showToast } = useToast();
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitProgress, setSubmitProgress] = useState<string>("");
+  const [uploadProgress, setUploadProgress] = useState<any[]>([]);
 
   // New state for found action modal
   const [showFoundActionModal, setShowFoundActionModal] = useState(false);
@@ -135,6 +137,7 @@ export default function ReportPage() {
     }
 
     setIsSubmitting(true);
+    setSubmitProgress("Validating form...");
     setWasSubmitted(true);
 
     const errors = {
@@ -151,6 +154,7 @@ export default function ReportPage() {
     const hasError = validateFormErrors(errors);
     if (hasError) {
       setIsSubmitting(false); // Reset submitting state if validation fails
+      setSubmitProgress("");
       return;
     }
 
@@ -161,6 +165,7 @@ export default function ReportPage() {
         "Unexpected: selectedReport validation failed after validateFormErrors passed"
       );
       setIsSubmitting(false);
+      setSubmitProgress("");
       return;
     }
 
@@ -174,6 +179,8 @@ export default function ReportPage() {
       if (!userData) {
         throw new Error("User data not available");
       }
+
+      setSubmitProgress("Preparing your report...");
 
       // Check if this should be transferred to Campus Security
       const shouldTransferToCampusSecurity =
@@ -275,12 +282,34 @@ export default function ReportPage() {
         createdPost.coordinates = coordinates;
       }
 
+      setSubmitProgress("Uploading images...");
+
       // Use Firebase service to create post (with admin notifications)
       const { postService } = await import("../../services/firebase/posts");
-      const postId = await postService.createPost(
-        createdPost,
-        shouldTransferToCampusSecurity ? campusSecurityUserId! : userData.uid
+
+      // Prepare post data with images for upload
+      const postDataWithImages = {
+        ...createdPost,
+        images: selectedFiles // Pass files directly for concurrent upload
+      };
+
+      // Create post with concurrent image upload
+      const postId = await postService.createPostWithConcurrentUpload(
+        postDataWithImages,
+        shouldTransferToCampusSecurity ? campusSecurityUserId! : userData.uid,
+        {
+          onProgress: (progress: any[]) => {
+            setUploadProgress(progress);
+            const completed = progress.filter(p => p.status === 'completed').length;
+            const total = progress.length;
+            const avgProgress = progress.reduce((sum: number, p: any) => sum + p.percentage, 0) / total;
+
+            setSubmitProgress(`Uploading images... (${completed}/${total} completed, ${avgProgress.toFixed(0)}% avg)`);
+          }
+        }
       );
+
+      setSubmitProgress("Sending notifications...");
 
       console.log("Post created successfully with ID:", postId);
 
@@ -295,6 +324,8 @@ export default function ReportPage() {
       setSelectedFiles([]);
       setSelectedFoundAction(null);
       setWasSubmitted(false);
+      setSubmitProgress("");
+      setUploadProgress([]);
       setShowSuccessModal(true);
 
       showToast(
@@ -304,6 +335,8 @@ export default function ReportPage() {
       );
     } catch (error: any) {
       console.error("Error creating post:", error);
+      setSubmitProgress("");
+      setUploadProgress([]);
       showToast(
         "error",
         "Submission Failed",
@@ -492,7 +525,21 @@ export default function ReportPage() {
                 : "bg-brand hover:bg-yellow-600"
             }`}
           >
-            {isSubmitting ? "Submitting..." : "Submit report"}
+            {isSubmitting ? (
+              <div className="flex flex-col items-center">
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>{submitProgress || "Submitting..."}</span>
+                </div>
+                {uploadProgress.length > 0 && (
+                  <div className="text-xs mt-1 text-gray-200">
+                    {uploadProgress.filter(p => p.status === 'completed').length}/{uploadProgress.length} images uploaded
+                  </div>
+                )}
+              </div>
+            ) : (
+              "Submit report"
+            )}
           </button>
         </div>
       </form>
