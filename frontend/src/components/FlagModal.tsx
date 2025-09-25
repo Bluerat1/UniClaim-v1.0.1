@@ -40,7 +40,11 @@ export default function FlagModal({
 
   return (
     <div
+<<<<<<< HEAD
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-30"
+=======
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000]"
+>>>>>>> fd9693aef9a88b596064b667e0b283d1fdb1c5cf
       onClick={handleBackdropClick}
     >
       <div className="bg-white rounded-md p-5 w-full max-w-md mx-4 z-50">

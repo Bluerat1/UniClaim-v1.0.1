@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   FlatList,
@@ -31,42 +31,42 @@ type ChatNavigationProp = NativeStackNavigationProp<RootStackParamList, "Chat">;
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   imageContainer: {
-    width: '100%',
-    maxWidth: '95%',
-    maxHeight: '80%',
-    alignItems: 'center',
+    width: "100%",
+    maxWidth: "95%",
+    maxHeight: "80%",
+    alignItems: "center",
     zIndex: 2,
   },
   fullImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   imageCaption: {
-    color: 'white',
+    color: "white",
     marginTop: 10,
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 16,
     opacity: 0.8,
   },
   closeButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 40,
     right: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     zIndex: 3,
   },
   dismissArea: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
@@ -123,7 +123,10 @@ export default function Chat() {
   const [isHandoverSubmitting, setIsHandoverSubmitting] = useState(false);
 
   // Image preview state
-  const [selectedImage, setSelectedImage] = useState<{uri: string; alt: string} | null>(null);
+  const [selectedImage, setSelectedImage] = useState<{
+    uri: string;
+    alt: string;
+  } | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
 
@@ -700,7 +703,9 @@ export default function Chat() {
                 onHandoverResponse={handleHandoverResponse}
                 onClaimResponse={handleClaimResponse}
                 onConfirmIdPhotoSuccess={handleConfirmIdPhotoSuccess}
-                onImageClick={(imageUrl, altText) => setSelectedImage({ uri: imageUrl, alt: altText })}
+                onImageClick={(imageUrl, altText) =>
+                  setSelectedImage({ uri: imageUrl, alt: altText })
+                }
               />
             )}
             contentContainerStyle={{ padding: 16 }}
@@ -718,9 +723,11 @@ export default function Chat() {
               Messages in conversation
             </Text>
             <View className="flex-row items-center">
-              <Text className={`text-sm font-medium ${
-                messages.length >= 45 ? 'text-red-500' : 'text-green-600'
-              }`}>
+              <Text
+                className={`text-sm font-medium ${
+                  messages.length >= 45 ? "text-red-500" : "text-green-600"
+                }`}
+              >
                 {messages.length}/50
               </Text>
               {messages.length >= 45 && (
@@ -730,21 +737,27 @@ export default function Chat() {
               )}
             </View>
           </View>
-          
+
           {/* Progress Bar */}
           <View className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-            <View 
-              className="h-full" 
-              style={[{
-                width: `${(messages.length / 50) * 100}%`,
-              }, messages.length >= 45 ? { backgroundColor: '#EF4444' } : { backgroundColor: '#10B981' }]} 
+            <View
+              className="h-full"
+              style={[
+                {
+                  width: `${(messages.length / 50) * 100}%`,
+                },
+                messages.length >= 45
+                  ? { backgroundColor: "#EF4444" }
+                  : { backgroundColor: "#10B981" },
+              ]}
             />
           </View>
-          
+
           {/* Warning Message */}
           {messages.length >= 45 && (
             <Text className="text-xs text-red-500 text-center mt-1">
-              ⚠️ Oldest messages will be automatically removed when limit is reached
+              ⚠️ Oldest messages will be automatically removed when limit is
+              reached
             </Text>
           )}
         </View>
@@ -762,20 +775,6 @@ export default function Chat() {
                 maxLength={200}
                 editable={!loading}
               />
-              <View className="flex-row justify-between px-2 mt-1">
-                <Text className="text-xs text-gray-400">
-                  {newMessage.length}/200
-                </Text>
-                <View className="w-10 h-1 bg-gray-200 rounded-full overflow-hidden">
-                  <View 
-                    className="h-full bg-yellow-500" 
-                    style={{ 
-                      width: `${Math.min(100, (newMessage.length / 200) * 100)}%`,
-                      backgroundColor: newMessage.length > 180 ? '#EF4444' : '#F59E0B'
-                    }} 
-                  />
-                </View>
-              </View>
             </View>
             <TouchableOpacity
               onPress={handleSendMessage}
@@ -802,14 +801,14 @@ export default function Chat() {
         onRequestClose={() => setSelectedImage(null)}
       >
         <View style={styles.modalOverlay}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.closeButton}
             onPress={() => setSelectedImage(null)}
             activeOpacity={0.7}
           >
             <Ionicons name="close" size={28} color="white" />
           </TouchableOpacity>
-          
+
           <View style={styles.imageContainer}>
             {selectedImage && (
               <>
@@ -824,9 +823,9 @@ export default function Chat() {
               </>
             )}
           </View>
-          
+
           {/* Invisible touch area that covers the entire screen */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.dismissArea}
             activeOpacity={1}
             onPress={() => setSelectedImage(null)}

@@ -20,6 +20,7 @@ interface PostCardMenuProps {
   flaggedBy?: string;
   onFlagSuccess?: () => void;
   className?: string;
+  onFlag?: (post: any) => void;
 }
 
 export default function PostCardMenu({
@@ -31,6 +32,7 @@ export default function PostCardMenu({
   flaggedBy,
   onFlagSuccess,
   className = "",
+  onFlag,
 }: PostCardMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showFlagModal, setShowFlagModal] = useState(false);
@@ -72,7 +74,14 @@ export default function PostCardMenu({
       return;
     }
     setIsOpen(false);
-    setShowFlagModal(true);
+
+    // Use the external flag handler if provided
+    if (onFlag) {
+      onFlag({ id: postId, title: postTitle, creatorId: postOwnerId, user: postOwnerUserData });
+    } else {
+      // Fallback to internal modal if no external handler
+      setShowFlagModal(true);
+    }
   };
 
   const handleFlagSubmit = async (reason: string) => {
@@ -191,8 +200,8 @@ export default function PostCardMenu({
         )}
       </div>
 
-      {/* Flag Modal */}
-      {showFlagModal && (
+      {/* Flag Modal - only render if no external handler */}
+      {!onFlag && showFlagModal && (
         <FlagModal
           onClose={() => setShowFlagModal(false)}
           onSubmit={handleFlagSubmit}
