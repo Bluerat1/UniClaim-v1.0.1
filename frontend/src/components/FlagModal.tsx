@@ -40,10 +40,10 @@ export default function FlagModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-30"
       onClick={handleBackdropClick}
     >
-      <div className="bg-white rounded-md p-5 w-full max-w-md mx-4">
+      <div className="bg-white rounded-md p-5 w-full max-w-md mx-4 z-50">
         <h2 className="text-lg font-semibold mb-4">
           Why do you want to flag this post?
         </h2>

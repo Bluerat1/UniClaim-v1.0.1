@@ -135,7 +135,7 @@ export default function PostCardMenu({
 
   return (
     <>
-      <div className={`relative ${className}`} ref={menuRef}>
+      <div className={`relative z-10 ${className}`} ref={menuRef}>
         {/* Triple dot button */}
         <button
           onClick={handleMenuClick}
@@ -147,7 +147,7 @@ export default function PostCardMenu({
 
         {/* Dropdown menu */}
         {isOpen && (
-          <div className="absolute right-2 top-12 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+          <div className="absolute right-2 top-12 w-48 bg-white rounded-md shadow-lg border border-gray-200">
             <div className="py-1">
               {/* Send Message Button */}
               <button

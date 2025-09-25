@@ -72,8 +72,8 @@ export default function HomeHeader({
 
   // Handle notification clicks to open post modal
   const handleNotificationClick = async (notification: any) => {
-    console.log('Notification clicked:', notification);
-    
+    console.log("Notification clicked:", notification);
+
     // Mark as read first
     if (!notification.read) {
       await markAsRead(notification.id);
@@ -81,15 +81,15 @@ export default function HomeHeader({
 
     // If notification has a postId, fetch the post and open modal
     if (notification.postId) {
-      console.log('Fetching post:', notification.postId);
+      console.log("Fetching post:", notification.postId);
       try {
         const post = await postService.getPostById(notification.postId);
         if (post) {
-          console.log('Post found, opening modal');
+          console.log("Post found, opening modal");
           setSelectedPost(post);
           toggleNotif(); // Close the notification dropdown
         } else {
-          console.log('Post not found, showing toast');
+          console.log("Post not found, showing toast");
           // Show toast message for deleted post
           toast.error("This post has been deleted.", {
             position: "top-right",
@@ -99,9 +99,12 @@ export default function HomeHeader({
             pauseOnHover: true,
             draggable: true,
             progress: undefined,
-            toastId: 'post-deleted' // Add a unique ID to prevent duplicate toasts
+            toastId: "post-deleted", // Add a unique ID to prevent duplicate toasts
           });
-          console.log("Post not found, it may have been deleted:", notification.postId);
+          console.log(
+            "Post not found, it may have been deleted:",
+            notification.postId
+          );
         }
       } catch (error) {
         console.error("Error fetching post:", error);
@@ -114,7 +117,7 @@ export default function HomeHeader({
           pauseOnHover: true,
           draggable: true,
           progress: undefined,
-          toastId: 'post-load-error' // Add a unique ID to prevent duplicate toasts
+          toastId: "post-load-error", // Add a unique ID to prevent duplicate toasts
         });
       }
     }
@@ -130,7 +133,7 @@ export default function HomeHeader({
       <div className="">
         {/* header-container */}
         <div className="">
-          <div className="fixed left-0 right-0 z-40 flex items-center justify-between bg-navyblue px-5 py-4 top-0">
+          <div className="fixed left-0 right-0 z-10 flex items-center justify-between bg-navyblue px-5 py-4 top-0">
             {/* logo-w-text-container */}
             <div className="flex items-center gap-1">
               <img

@@ -176,7 +176,7 @@ export default function PostModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white rounded p-4 shadow w-[25rem] sm:w-[26rem] md:w-[32rem] lg:w-[42rem] xl:w-[60rem] max-w-full max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -380,15 +380,16 @@ export default function PostModal({
             <p className="text-[13px] mt-3 mb-2">Location</p>
             {post.coordinates && (
               <div className="relative rounded-md overflow-hidden border border-gray-300">
-                <LocationMap 
-                  coordinates={post.coordinates} 
+                <LocationMap
+                  coordinates={post.coordinates}
                   location={post.location}
                   className="h-[300px]"
                 />
                 {/* Coordinates overlay */}
                 <div className="absolute bottom-2 left-2 right-2 z-10 bg-white/90 backdrop-blur-sm rounded-md px-2 py-1 shadow-sm border border-gray-200 flex justify-center">
                   <span className="text-xs text-gray-600 font-mono">
-                    {post.coordinates.lat.toFixed(6)}, {post.coordinates.lng.toFixed(6)}
+                    {post.coordinates.lat.toFixed(6)},{" "}
+                    {post.coordinates.lng.toFixed(6)}
                   </span>
                 </div>
               </div>
