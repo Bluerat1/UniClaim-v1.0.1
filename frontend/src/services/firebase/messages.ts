@@ -563,16 +563,25 @@ export const messageService = {
             console.error('❌ Firebase updateHandoverResponse failed:', error);
             throw new Error(error.message || 'Failed to update handover response');
         }
-    }
+    },
 
     // Send claim request
     async sendClaimRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, postType: 'lost' | 'found', claimReason?: string, idPhotoUrl?: string, evidencePhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void> {
         try {
-            console.log('🔄 Firebase: sendClaimRequest called with:', { conversationId, senderId, senderName, postId, postTitle, postType, claimReason, idPhotoUrl, evidencePhotos });
+            console.log('🔄 Firebase: sendClaimRequest called with:', { 
+                conversationId, 
+                senderId, 
+                senderName, 
+                postId, 
+                postTitle, 
+                postType, 
+                claimReason, 
+                idPhotoUrl, 
+                evidencePhotos 
+            });
 
             // Validate ID photo URL
             if (idPhotoUrl && !idPhotoUrl.startsWith('http')) {
-{{ ... }}
                 console.error('❌ Invalid ID photo URL in sendClaimRequest:', { idPhotoUrl });
                 throw new Error('Invalid ID photo URL provided to sendClaimRequest');
             }
