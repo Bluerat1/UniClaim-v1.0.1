@@ -503,14 +503,43 @@ export const messageService = {
                 }
             };
 
-            // Add message to conversation
-            const messageRef = await addDoc(collection(db, 'conversations', conversationId, 'messages'), messageData);
+            // Get conversation data to find other participants
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
 
-            // Update conversation with handover request info
-            await updateDoc(doc(db, 'conversations', conversationId), {
+            if (!conversationDoc.exists()) {
+                throw new Error('Conversation not found');
+            }
+
+            const conversationData = conversationDoc.data();
+            const participantIds = Object.keys(conversationData.participants || {});
+
+            // Increment unread count for all participants except the sender
+            const otherParticipantIds = participantIds.filter(id => id !== senderId);
+
+            // Prepare unread count updates for each receiver
+            const unreadCountUpdates: { [key: string]: any } = {};
+            otherParticipantIds.forEach(participantId => {
+                unreadCountUpdates[`unreadCounts.${participantId}`] = increment(1);
+            });
+
+            // Add message to conversation
+            const messageRef = await addDoc(collection(db, 'conversations', conversationId, 'messages'), {
+                ...messageData,
+                readBy: [senderId] // Mark as read by the sender
+            });
+
+            // Update conversation with handover request info and increment unread counts for other participants
+            await updateDoc(conversationRef, {
                 hasHandoverRequest: true,
                 handoverRequestId: messageRef.id,
-                updatedAt: serverTimestamp()
+                lastMessage: {
+                    text: `Handover Request: ${handoverReason || 'New handover request'}`,
+                    senderId,
+                    timestamp: serverTimestamp()
+                },
+                updatedAt: serverTimestamp(),
+                ...unreadCountUpdates
             });
 
             console.log(`✅ Handover request sent successfully: ${messageRef.id}`);
