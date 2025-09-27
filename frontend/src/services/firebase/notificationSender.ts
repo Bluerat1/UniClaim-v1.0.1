@@ -1,11 +1,11 @@
 // Service for sending notifications to users when posts are created
 import { db } from './config';
-import { collection, serverTimestamp, doc, writeBatch } from 'firebase/firestore';
+import { collection, serverTimestamp, doc, writeBatch, getDoc, addDoc } from 'firebase/firestore';
 import { notificationSubscriptionService } from './notificationSubscriptions';
 
 // Notification data structure
 export interface PostNotificationData {
-    type: 'new_post';
+    type: 'new_post' | 'claim_request';
     title: string;
     body: string;
     postId: string;
@@ -15,6 +15,7 @@ export interface PostNotificationData {
     postType: 'lost' | 'found';
     creatorId: string;
     creatorName: string;
+    conversationId?: string;
 }
 
 export class NotificationSender {
@@ -25,6 +26,80 @@ export class NotificationSender {
             NotificationSender.instance = new NotificationSender();
         }
         return NotificationSender.instance;
+    }
+
+    // Send notification for claim requests
+    async sendClaimRequestNotification(conversationId: string, claimData: {
+        postId: string;
+        postTitle: string;
+        postType: 'lost' | 'found';
+        senderId: string;
+        senderName: string;
+    }): Promise<void> {
+        try {
+            console.log('🚀 Sending claim request notification for post:', claimData.postTitle);
+            
+            // Get the conversation to find the post owner
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
+            
+            if (!conversationDoc.exists()) {
+                throw new Error('Conversation not found');
+            }
+            
+            const conversationData = conversationDoc.data();
+            const recipientId = Object.keys(conversationData.participants || {}).find(id => id !== claimData.senderId);
+            
+            if (!recipientId) {
+                throw new Error('No recipient found for claim request');
+            }
+            
+            // Send notification to the post owner
+            await this.sendNotificationToUser(recipientId, {
+                type: 'claim_request',
+                title: 'New Claim Request',
+                body: `${claimData.senderName} has submitted a claim for your ${claimData.postType} post: ${claimData.postTitle}`,
+                postId: claimData.postId,
+                postTitle: claimData.postTitle,
+                postCategory: '',
+                postLocation: '',
+                postType: claimData.postType,
+                creatorId: claimData.senderId,
+                creatorName: claimData.senderName,
+                conversationId: conversationId
+            });
+            
+            console.log('✅ Claim request notification sent successfully');
+        } catch (error) {
+            console.error('❌ Failed to send claim request notification:', error);
+            throw error;
+        }
+    }
+
+    // Send notification to a specific user
+    private async sendNotificationToUser(userId: string, notificationData: PostNotificationData): Promise<void> {
+        try {
+            // In a real implementation, you would:
+            // 1. Get the user's FCM token from Firestore
+            // 2. Send a push notification using Firebase Cloud Messaging
+            // 3. Save the notification to the user's notifications collection
+            
+            // For now, we'll just log it
+            console.log(`📨 Sending notification to user ${userId}:`, notificationData);
+            
+            // Save notification to user's notifications collection
+            const notificationRef = collection(db, 'users', userId, 'notifications');
+            await addDoc(notificationRef, {
+                ...notificationData,
+                read: false,
+                createdAt: serverTimestamp()
+            });
+            
+            console.log(`✅ Notification saved for user ${userId}`);
+        } catch (error) {
+            console.error(`❌ Failed to send notification to user ${userId}:`, error);
+            throw error;
+        }
     }
 
     // Send notification to all active users when a new post is created

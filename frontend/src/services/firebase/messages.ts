@@ -2,20 +2,21 @@
 import {
     doc,
     getDoc,
-    collection,
-    addDoc,
-    query,
-    orderBy,
-    onSnapshot,
-    where,
     updateDoc,
-    deleteDoc,
-    serverTimestamp,
+    collection,
+    query,
+    where,
     getDocs,
-    increment,
+    orderBy,
     limit,
-    arrayUnion
+    onSnapshot,
+    increment,
+    addDoc,
+    deleteDoc,
+    arrayUnion,
+    serverTimestamp
 } from 'firebase/firestore';
+import { notificationSender } from './notificationSender';
 
 // Import Firebase instances and types
 import { db } from './config';
@@ -562,15 +563,16 @@ export const messageService = {
             console.error('❌ Firebase updateHandoverResponse failed:', error);
             throw new Error(error.message || 'Failed to update handover response');
         }
-    },
+    }
 
     // Send claim request
-    async sendClaimRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, claimReason?: string, idPhotoUrl?: string, evidencePhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void> {
+    async sendClaimRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, postType: 'lost' | 'found', claimReason?: string, idPhotoUrl?: string, evidencePhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void> {
         try {
-            console.log('🔄 Firebase: sendClaimRequest called with:', { conversationId, senderId, senderName, postId, postTitle, claimReason, idPhotoUrl, evidencePhotos });
+            console.log('🔄 Firebase: sendClaimRequest called with:', { conversationId, senderId, senderName, postId, postTitle, postType, claimReason, idPhotoUrl, evidencePhotos });
 
             // Validate ID photo URL
             if (idPhotoUrl && !idPhotoUrl.startsWith('http')) {
+{{ ... }}
                 console.error('❌ Invalid ID photo URL in sendClaimRequest:', { idPhotoUrl });
                 throw new Error('Invalid ID photo URL provided to sendClaimRequest');
             }
@@ -581,12 +583,31 @@ export const messageService = {
                 throw new Error('Invalid evidence photos array provided to sendClaimRequest');
             }
 
+            // Get conversation data to find other participants
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
+
+            if (!conversationDoc.exists()) {
+                throw new Error('Conversation not found');
+            }
+
+            const conversationData = conversationDoc.data();
+            const participantIds = Object.keys(conversationData.participants || {});
+            const otherParticipantIds = participantIds.filter(id => id !== senderId);
+
+            // Prepare unread count updates for each receiver
+            const unreadCountUpdates: { [key: string]: any } = {};
+            otherParticipantIds.forEach(participantId => {
+                unreadCountUpdates[`unreadCounts.${participantId}`] = increment(1);
+            });
+
             const messageData = {
                 text: `Claim Request: ${claimReason || 'No reason provided'}`,
                 senderId,
                 senderName,
                 senderProfilePicture,
                 timestamp: serverTimestamp(),
+                readBy: [senderId], // Mark as read by sender
                 messageType: 'claim_request',
                 claimData: {
                     postId,
@@ -601,15 +622,36 @@ export const messageService = {
 
             // Add message to conversation
             const messageRef = await addDoc(collection(db, 'conversations', conversationId, 'messages'), messageData);
+            const currentTimestamp = new Date();
 
-            // Update conversation with claim request info
-            await updateDoc(doc(db, 'conversations', conversationId), {
+            // Update conversation with claim request info and unread counts
+            await updateDoc(conversationRef, {
                 hasClaimRequest: true,
                 claimRequestId: messageRef.id,
+                lastMessage: {
+                    text: `New claim request from ${senderName}`,
+                    senderId,
+                    timestamp: currentTimestamp
+                },
+                ...unreadCountUpdates,
                 updatedAt: serverTimestamp()
             });
 
             console.log(`✅ Claim request sent successfully: ${messageRef.id}`);
+            
+            // Send notification to the post owner
+            try {
+                await notificationSender.sendClaimRequestNotification(conversationId, {
+                    postId: postId,
+                    postTitle: postTitle,
+                    postType: postType,
+                    senderId: senderId,
+                    senderName: senderName
+                });
+            } catch (notificationError) {
+                console.error('⚠️ Failed to send claim request notification:', notificationError);
+                // Don't fail the whole operation if notification fails
+            }
         } catch (error: any) {
             console.error('❌ Firebase sendClaimRequest failed:', error);
             throw new Error(error.message || 'Failed to send claim request');
