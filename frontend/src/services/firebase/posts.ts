@@ -817,12 +817,56 @@ export const postService = {
                 updateData.user = osaAdminData;
             }
 
+            // Get the post data before updating to get the original creator
+            const postDoc = await getDoc(doc(db, 'posts', postId));
+            const originalCreatorId = postDoc.data()?.creatorId;
+            
+            // Update the document
             await updateDoc(doc(db, 'posts', postId), updateData);
 
             console.log(`✅ Turnover status updated for post ${postId}: ${status}`);
             if (status === 'confirmed') {
                 console.log(`✅ Creator changed to admin: ${confirmedBy}`);
                 console.log(`✅ User field updated to OSA admin data`);
+                
+                // Send notification to the original creator
+                if (originalCreatorId && originalCreatorId !== confirmedBy) {
+                    try {
+                        const adminDoc = await getDoc(doc(db, 'users', confirmedBy));
+                        const adminData = adminDoc.data();
+                        const adminName = adminData ? 
+                            `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim() || 'an administrator' : 
+                            'an administrator';
+                            
+                        const notificationTitle = 'Item Received';
+                        const notificationBody = `Your item "${postDoc.data()?.title || 'item'}" has been received by ${adminName}.`;
+                        const notificationData = {
+                            userId: originalCreatorId,
+                            type: 'claim_update',
+                            postId: postId,
+                            action: 'item_received',
+                            adminId: confirmedBy
+                        };
+                        
+                        // Show the notification
+                        await notificationService.showNotification(notificationTitle, notificationBody, notificationData);
+                        
+                        // Also create a notification record in the database
+                        await notificationService.createNotification({
+                            userId: originalCreatorId,
+                            type: 'claim_update',
+                            title: notificationTitle,
+                            body: notificationBody,
+                            data: notificationData,
+                            postId: postId
+                        });
+                        
+                        console.log(`📬 Sent receipt confirmation notification to user ${originalCreatorId}`);
+                    } catch (notifError) {
+                        console.error('Failed to send receipt confirmation notification:', notifError);
+                        // Don't fail the whole operation if notification fails
+                    }
+                }
             }
         } catch (error: any) {
             console.error('Error updating turnover status:', error);
