@@ -181,19 +181,20 @@ export default function PostCardMenu({
               {/* Flag Post Button */}
               <button
                 onClick={handleFlagClick}
-                disabled={isAlreadyFlaggedByUser || isLoading}
+                disabled={isAlreadyFlaggedByUser || isLoading || postOwnerId === user?.uid}
                 className={`
                   w-full px-4 py-2 text-left text-sm flex items-center gap-2
                   transition-colors duration-200
                   ${
-                    isAlreadyFlaggedByUser || isLoading
+                    isAlreadyFlaggedByUser || isLoading || postOwnerId === user?.uid
                       ? "text-gray-400 cursor-not-allowed"
                       : "text-gray-700 hover:bg-red-50 hover:text-red-700"
                   }
                 `}
+                title={postOwnerId === user?.uid ? "You cannot flag your own post" : isAlreadyFlaggedByUser ? "You've already flagged this post" : "Flag this post"}
               >
                 <IoFlagOutline className="w-4 h-4" />
-                {isAlreadyFlaggedByUser ? "Already Flagged" : "Flag this post"}
+                {isAlreadyFlaggedByUser ? "Already Flagged" : postOwnerId === user?.uid ? "Can't Flag Own Post" : "Flag this post"}
               </button>
             </div>
           </div>

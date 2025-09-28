@@ -176,7 +176,6 @@ export default function PostCardMenu({
         {/* Dropdown menu positioned beside the triple dot */}
         {isOpen && (
           <View className="absolute top-0 right-12 bg-white rounded-lg shadow-lg border border-gray-200 w-48 z-50">
-            {console.log("Rendering dropdown menu")}
             {/* Send Message Button */}
             <TouchableOpacity
               onPress={() => {
@@ -222,9 +221,9 @@ export default function PostCardMenu({
                 console.log("Flag Post button tapped!");
                 handleFlagClick();
               }}
-              disabled={isAlreadyFlaggedByUser}
+              disabled={isAlreadyFlaggedByUser || postOwnerId === user?.uid}
               className={`flex-row items-center px-4 py-3 ${
-                isAlreadyFlaggedByUser ? "opacity-50" : "active:bg-gray-50"
+                isAlreadyFlaggedByUser || postOwnerId === user?.uid ? "opacity-50" : "active:bg-gray-50"
               }`}
               style={{ minHeight: 48 }} // Ensure minimum touch target
             >
@@ -236,10 +235,10 @@ export default function PostCardMenu({
               />
               <Text
                 className={`text-base font-manrope-medium ${
-                  isAlreadyFlaggedByUser ? "text-gray-400" : "text-gray-700"
+                  isAlreadyFlaggedByUser || postOwnerId === user?.uid ? "text-gray-400" : "text-gray-700"
                 }`}
               >
-                {isAlreadyFlaggedByUser ? "Already Flagged" : "Flag Post"}
+                {isAlreadyFlaggedByUser ? "Already Flagged" : postOwnerId === user?.uid ? "Can't Flag Own Post" : "Flag Post"}
               </Text>
             </TouchableOpacity>
           </View>
