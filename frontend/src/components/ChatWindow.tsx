@@ -741,6 +741,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         userData.profilePicture || userData.profileImageUrl || "",
         conversation.postId,
         conversation.postTitle,
+        conversation.postType || 'lost', // Add postType with a fallback
         claimReason,
         idPhotoUrl,
         evidenceToSend
