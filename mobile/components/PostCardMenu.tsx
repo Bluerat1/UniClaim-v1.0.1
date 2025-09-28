@@ -217,28 +217,28 @@ export default function PostCardMenu({
 
             {/* Flag Post Button */}
             <TouchableOpacity
-              onPress={() => {
                 console.log("Flag Post button tapped!");
                 handleFlagClick();
               }}
-              disabled={isAlreadyFlaggedByUser || postOwnerId === user?.uid}
-              className={`flex-row items-center px-4 py-3 ${
-                isAlreadyFlaggedByUser || postOwnerId === user?.uid ? "opacity-50" : "active:bg-gray-50"
-              }`}
-              style={{ minHeight: 48 }} // Ensure minimum touch target
-            >
-              <Ionicons
-                name="flag-outline"
-                size={20}
+              disabled={isAlreadyFlaggedByUser || postOwnerId === user?.uid || postStatus === 'resolved'}
+                className={`flex-row items-center px-4 py-3 ${
+                  (isAlreadyFlaggedByUser || postOwnerId === user?.uid || postStatus === 'resolved') ? "opacity-50" : "active:bg-gray-50"
                 color={isAlreadyFlaggedByUser ? "#9CA3AF" : "#DC2626"}
                 className="mr-3"
               />
               <Text
                 className={`text-base font-manrope-medium ${
-                  isAlreadyFlaggedByUser || postOwnerId === user?.uid ? "text-gray-400" : "text-gray-700"
+                  isAlreadyFlaggedByUser || postOwnerId === user?.uid || postStatus === 'resolved' ? "text-gray-400" : "text-gray-700"
                 }`}
               >
-                {isAlreadyFlaggedByUser ? "Already Flagged" : postOwnerId === user?.uid ? "Can't Flag Own Post" : "Flag Post"}
+                {isAlreadyFlaggedByUser 
+                  ? "Already Flagged" 
+                  : postOwnerId === user?.uid 
+                    ? "Can't Flag Own Post" 
+                    : postStatus === 'resolved'
+                      ? "Can't Flag Resolved Post"
+                      : "Flag Post"
+                }
               </Text>
             </TouchableOpacity>
           </View>
