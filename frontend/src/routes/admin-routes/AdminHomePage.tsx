@@ -180,28 +180,36 @@ export default function AdminHomePage() {
       showToast("success", "Post Unhidden", "Post is now visible to public");
     } catch (error: any) {
       console.error('Failed to unhide post:', error);
-      showToast("error", "Unhide Failed", error.message || 'Failed to unhide post');
+      showToast("error", "Unhide Failed", error?.message || 'Failed to unhide post');
     }
   };
 
-  // Fetch deleted posts when the deleted tab is active or changes
+  // Fetch deleted posts
   const fetchDeletedPosts = useCallback(async () => {
-    if (viewType === 'deleted') {
-      try {
-        setDeletedPostsLoading(true);
-        setDeletedPostsError(null);
-        const { postService } = await import('../../services/firebase/posts');
-        const deleted = await postService.getDeletedPosts();
-        setDeletedPosts(deleted);
-      } catch (error: any) {
-        console.error('Error fetching deleted posts:', error);
-        setDeletedPostsError(error.message || 'Failed to load deleted posts');
-        showToast('error', 'Error', 'Failed to load deleted posts');
-      } finally {
-        setDeletedPostsLoading(false);
-      }
+    if (viewType !== 'deleted') return;
+    
+    try {
+      setDeletedPostsLoading(true);
+      setDeletedPostsError(null);
+      const { postService } = await import('../../services/firebase/posts');
+      const deleted = await postService.getDeletedPosts();
+      setDeletedPosts(deleted);
+    } catch (error: any) {
+      console.error('Error fetching deleted posts:', error);
+      setDeletedPostsError(error.message || 'Failed to load deleted posts');
+      showToast('error', 'Error', 'Failed to load deleted posts');
+      throw error;
+    } finally {
+      setDeletedPostsLoading(false);
     }
-  }, [viewType, showToast]);
+  }, [showToast, viewType]);
+
+  // Load deleted posts when the deleted tab is active
+  useEffect(() => {
+    if (viewType === 'deleted') {
+      fetchDeletedPosts();
+    }
+  }, [viewType, fetchDeletedPosts]);
 
   // Initial load of deleted posts
   useEffect(() => {
@@ -556,15 +564,20 @@ export default function AdminHomePage() {
       const { postService } = await import('../../services/firebase/posts');
       await postService.restorePost(post.id);
       
-      // Update the UI by removing the restored post from the deleted list
+      // Update the UI by removing the restored post from the list
       setDeletedPosts(prev => prev.filter(p => p.id !== post.id));
       
       showToast("success", "Post Restored", `"${post.title}" has been restored and is now pending review.`);
     } catch (error: any) {
       console.error('Failed to restore post:', error);
       showToast("error", "Restore Failed", error.message || 'Failed to restore post');
+      
+      // Refresh the list if there was an error to ensure consistency
+      if (viewType === 'deleted') {
+        await fetchDeletedPosts().catch(console.error);
+      }
     }
-  }, [showToast]);
+  }, [showToast, viewType, fetchDeletedPosts]);
 
   // Handle permanent delete post
   const handlePermanentDeletePost = useCallback(async (post: Post) => {
@@ -581,8 +594,13 @@ export default function AdminHomePage() {
     } catch (error: any) {
       console.error('Failed to permanently delete post:', error);
       showToast("error", "Delete Failed", error.message || 'Failed to permanently delete post');
+      
+      // Refresh the list if there was an error to ensure consistency
+      if (viewType === 'deleted') {
+        await fetchDeletedPosts().catch(console.error);
+      }
     }
-  }, [showToast]);
+  }, [showToast, viewType, fetchDeletedPosts]);
 
   // Use the infinite scroll hook
   const loadingRef = useInfiniteScroll(handleLoadMore, hasMorePosts, isLoading);

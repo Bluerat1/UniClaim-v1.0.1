@@ -956,17 +956,33 @@ export const postService = {
     // Soft delete post (moves to deleted collection instead of permanent deletion)
     async deletePost(postId: string, hardDelete: boolean = false, deletedBy?: string): Promise<void> {
         try {
-            const postRef = doc(db, 'posts', postId);
-            const postSnap = await getDoc(postRef);
+            // First try to get the post from the main collection
+            let postRef = doc(db, 'posts', postId);
+            let postSnap = await getDoc(postRef);
+            let isFromDeletedCollection = false;
             
+            // If not found in posts, check deleted_posts
             if (!postSnap.exists()) {
-                throw new Error('Post not found');
+                postRef = doc(db, 'deleted_posts', postId);
+                postSnap = await getDoc(postRef);
+                isFromDeletedCollection = true;
+                
+                if (!postSnap.exists()) {
+                    throw new Error('Post not found in active or deleted posts');
+                }
+                
+                // If we're not doing a hard delete and found in deleted_posts, it's an error
+                if (!hardDelete) {
+                    throw new Error('Cannot soft delete an already deleted post');
+                }
             }
-
+            
+            // Get the post data
             const postData = postSnap.data() as Post;
             
+            // If hard delete, delete the post and all associated data
             if (hardDelete) {
-                // Hard delete - permanently remove the post and all associated data
+                // Delete all images from Cloudinary if any exist
                 const allImagesToDelete: string[] = [];
 
                 // Add original post images to delete list
@@ -1667,8 +1683,8 @@ export const postService = {
     // Permanently delete a post (from deleted_posts collection)
     async permanentlyDeletePost(postId: string): Promise<void> {
         try {
-            // This will call the hard delete logic in deletePost
-            await this.deletePost(postId, true);
+            // Call the deletePost function directly with hardDelete=true
+            await postService.deletePost(postId, true);
             
             // Also remove from deleted_posts if it exists there
             const deletedPostRef = doc(db, 'deleted_posts', postId);
@@ -1679,7 +1695,7 @@ export const postService = {
             console.log(`🗑️ Post ${postId} permanently deleted`);
         } catch (error) {
             console.error('Error permanently deleting post:', error);
-            throw new Error('Failed to permanently delete post');
+            throw error; // Re-throw the original error to preserve the error message
         }
     },
     

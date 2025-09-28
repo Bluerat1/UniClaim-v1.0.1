@@ -27,6 +27,66 @@ import { sanitizePostData } from './utils';
 
 // Message service functions
 export const messageService = {
+    // Get user's conversations (real-time listener)
+    getUserConversations(userId: string, callback: (conversations: any[]) => void, errorCallback?: (error: any) => void) {
+        const q = query(
+            collection(db, 'conversations'),
+            where(`participants.${userId}`, '!=', null)
+        );
+
+        const unsubscribe = onSnapshot(
+            q,
+            (snapshot) => {
+                const conversations = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                // Filter out conversations where the user is the only participant
+                const validConversations = conversations.filter((conv: any) => {
+                    const participantIds = Object.keys(conv.participants || {});
+                    return participantIds.length > 1; // Must have at least 2 participants
+                });
+
+                // Return conversations without sorting - let the UI component handle sorting
+                callback(validConversations);
+            },
+            (error) => {
+                // Handle listener errors gracefully
+                console.log('🔧 MessageService: Listener error:', error?.message || 'Unknown error');
+                if (errorCallback) {
+                    errorCallback(error);
+                }
+            }
+        );
+
+        // Return the unsubscribe function
+        return unsubscribe;
+    },
+    // Find an existing conversation for a specific post between two users
+    async findConversationByPostAndUsers(postId: string, userId1: string, userId2: string): Promise<string | null> {
+        try {
+            // Query conversations that include this post and both users
+            const q = query(
+                collection(db, 'conversations'),
+                where('postId', '==', postId),
+                where(`participants.${userId1}`, '!=', null),
+                where(`participants.${userId2}`, '!=', null)
+            );
+
+            const snapshot = await getDocs(q);
+            
+            // Return the first matching conversation ID if found
+            if (!snapshot.empty) {
+                return snapshot.docs[0].id;
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('Error finding existing conversation:', error);
+            return null;
+        }
+    },
     // Create a new conversation
     async createConversation(postId: string, postTitle: string, postOwnerId: string, currentUserId: string, currentUserData: UserData, postOwnerUserData?: any): Promise<string> {
         try {
@@ -209,13 +269,14 @@ export const messageService = {
 
             // Cleanup old messages after sending to maintain 50-message limit
             try {
-                await this.cleanupOldMessages(conversationId);
+                await messageService.cleanupOldMessages(conversationId);
             } catch (cleanupError) {
                 console.warn('⚠️ [sendMessage] Message cleanup failed, but message was sent successfully:', cleanupError);
                 // Don't throw error - cleanup failure shouldn't break message sending
             }
-        } catch (error: any) {
-            throw new Error(error.message || 'Failed to send message');
+        } catch (error) {
+            console.error('❌ [sendMessage] Error sending message:', error);
+            throw error; // Re-throw to allow caller to handle the error
         }
     },
 
@@ -226,62 +287,34 @@ export const messageService = {
             where(`participants.${userId}`, '!=', null)
         );
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const conversations = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
+        const unsubscribe = onSnapshot(
+            q,
+            (snapshot) => {
+                const conversations = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
 
-            // Filter out conversations where the user is the only participant
-            const validConversations = conversations.filter((conv: any) => {
-                const participantIds = Object.keys(conv.participants || {});
-                return participantIds.length > 1; // Must have at least 2 participants
-            });
+                // Filter out conversations where the user is the only participant
+                const validConversations = conversations.filter((conv: any) => {
+                    const participantIds = Object.keys(conv.participants || {});
+                    return participantIds.length > 1; // Must have at least 2 participants
+                });
 
-            // Return conversations without sorting - let the UI component handle sorting
-            callback(validConversations);
-        }, (error) => {
-            // Handle listener errors gracefully
-            console.log('🔧 MessageService: Listener error:', error?.message || 'Unknown error');
-            if (errorCallback) {
-                errorCallback(error);
+                // Return conversations without sorting - let the UI component handle sorting
+                callback(validConversations);
+            },
+            (error) => {
+                // Handle listener errors gracefully
+                console.log('🔧 MessageService: Listener error:', error?.message || 'Unknown error');
+                if (errorCallback) {
+                    errorCallback(error);
+                }
             }
-        });
+        );
 
-        // Return unsubscribe function
+        // Return the unsubscribe function
         return unsubscribe;
-    },
-
-    // Get current conversations (one-time query, not a listener)
-    async getCurrentConversations(userId: string): Promise<any[]> {
-        try {
-            console.log('🔧 MessageService: Performing one-time query for current conversations...');
-
-            const q = query(
-                collection(db, 'conversations'),
-                where(`participants.${userId}`, '!=', null)
-            );
-
-            const snapshot = await getDocs(q);
-            const conversations = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-
-            // Filter out conversations where the user is the only participant
-            const validConversations = conversations.filter((conv: any) => {
-                const participantIds = Object.keys(conv.participants || {});
-                return participantIds.length > 1; // Must have at least 2 participants
-            });
-
-            // Return conversations without sorting - let the UI component handle sorting
-            console.log(`🔧 MessageService: One-time query found ${validConversations.length} conversations`);
-            return validConversations;
-
-        } catch (error: any) {
-            console.error('❌ MessageService: One-time query failed:', error);
-            throw new Error(error.message || 'Failed to get current conversations');
-        }
     },
 
     // Get messages for a conversation with 50-message limit

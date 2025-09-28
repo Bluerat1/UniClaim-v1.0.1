@@ -119,20 +119,31 @@ export default function PostCardMenu({
       setIsCreatingConversation(true);
       setIsOpen(false);
 
-      // Create conversation and get the conversation ID
-      const conversationId = await messageService.createConversation(
+      // First, check if a conversation already exists for this post and users
+      const existingConversationId = await messageService.findConversationByPostAndUsers(
         postId,
-        postTitle,
-        postOwnerId,
         userData.uid,
-        userData,
-        postOwnerUserData
+        postOwnerId
       );
+
+      let conversationId = existingConversationId;
+
+      // If no existing conversation, create a new one
+      if (!conversationId) {
+        conversationId = await messageService.createConversation(
+          postId,
+          postTitle,
+          postOwnerId,
+          userData.uid,
+          userData,
+          postOwnerUserData
+        );
+      }
 
       // Navigate to messages page with the specific conversation
       navigate(`/messages?conversation=${conversationId}`);
     } catch (error: any) {
-      console.error("Error creating conversation:", error);
+      console.error("Error handling conversation:", error);
       showToast("error", error.message || "Failed to start conversation");
     } finally {
       setIsCreatingConversation(false);
