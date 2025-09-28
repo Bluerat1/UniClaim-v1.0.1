@@ -7,6 +7,7 @@ import AdminProfile from "../routes/admin-routes/AdminProfile";
 import AdminUserManagement from "../routes/admin-routes/AdminUserManagement";
 import AdminMessagesPage from "../routes/admin-routes/AdminMessagesPage";
 import FlaggedPostsPage from "../routes/admin-routes/FlaggedPostsPage";
+import AdminAnalyticsPage from "../routes/admin-routes/AdminAnalyticsPage";
 import ConversationCleanupAdmin from "../components/ConversationCleanupAdmin";
 
 import Login from "../routes/user-routes/Login";
@@ -235,6 +236,14 @@ function AppRoutesWithAuth() {
             element={
               <PageWrapper title="System Cleanup">
                 <ConversationCleanupAdmin />
+              </PageWrapper>
+            }
+          />
+          <Route
+            path="analytics"
+            element={
+              <PageWrapper title="Analytics Dashboard">
+                <AdminAnalyticsPage />
               </PageWrapper>
             }
           />
