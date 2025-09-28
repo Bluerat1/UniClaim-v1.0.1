@@ -749,8 +749,6 @@ export default function AdminHomePage() {
           </div>
         ) : (
           postsToDisplay
-            .slice()
-            .reverse()
             .slice(0, currentPage * itemsPerPage)
             .map((post) => (
               <AdminPostCard
