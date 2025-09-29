@@ -61,7 +61,7 @@ export default function SideNav({
       <div className="flex overflow-x-hidden relative">
         {/* ✅ Desktop Sidebar */}
         <aside
-          className={`fixed top-0 left-0 hidden z-10 bg-white text-black pt-22 px-4.5 h-full ${
+          className={`fixed top-0 left-0 hidden z-30 bg-white text-black pt-22 px-4.5 h-full ${
             isOpen ? "w-57" : "w-21"
           } lg:block`}
         >
@@ -164,7 +164,7 @@ export default function SideNav({
         {/* ✅ Mobile Sidebar */}
         <div>
           <aside
-            className={`fixed top-0 left-0 z-10 bg-white text-black h-full w-full lg:hidden
+            className={`fixed top-0 left-0 z-50 bg-white text-black h-full w-full lg:hidden
             transform transition-transform duration-300 ease-in-out
             ${isSideNavMobileOpen ? "translate-x-0" : "-translate-x-full"}
           `}

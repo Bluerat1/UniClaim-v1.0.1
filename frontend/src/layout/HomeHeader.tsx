@@ -133,7 +133,7 @@ export default function HomeHeader({
       <div className="">
         {/* header-container */}
         <div className="">
-          <div className="fixed left-0 right-0 z-10 flex items-center justify-between bg-navyblue px-5 py-4 top-0">
+          <div className="fixed left-0 right-0 z-40 flex items-center justify-between bg-navyblue px-5 py-4 top-0">
             {/* logo-w-text-container */}
             <div className="flex items-center gap-1">
               <img

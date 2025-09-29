@@ -49,7 +49,7 @@ const AdminMessagesPage: React.FC = () => {
 
   return (
     <PageWrapper title="Admin Messages">
-      <div className="w-full mx-auto">
+      <div className="w-full">
         {/* Page Header */}
         <div className="hidden p-4 sm:px-6 lg:px-8 lg:flex items-center justify-between bg-gray-50 border-b border-zinc-200">
           <div className="flex flex-row gap-3 items-center">
