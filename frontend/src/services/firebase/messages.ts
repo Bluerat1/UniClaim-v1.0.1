@@ -75,12 +75,12 @@ export const messageService = {
             );
 
             const snapshot = await getDocs(q);
-            
+
             // Return the first matching conversation ID if found
             if (!snapshot.empty) {
                 return snapshot.docs[0].id;
             }
-            
+
             return null;
         } catch (error) {
             console.error('Error finding existing conversation:', error);
@@ -281,41 +281,6 @@ export const messageService = {
     },
 
     // Get user's conversations (real-time listener)
-    getUserConversations(userId: string, callback: (conversations: any[]) => void, errorCallback?: (error: any) => void) {
-        const q = query(
-            collection(db, 'conversations'),
-            where(`participants.${userId}`, '!=', null)
-        );
-
-        const unsubscribe = onSnapshot(
-            q,
-            (snapshot) => {
-                const conversations = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-
-                // Filter out conversations where the user is the only participant
-                const validConversations = conversations.filter((conv: any) => {
-                    const participantIds = Object.keys(conv.participants || {});
-                    return participantIds.length > 1; // Must have at least 2 participants
-                });
-
-                // Return conversations without sorting - let the UI component handle sorting
-                callback(validConversations);
-            },
-            (error) => {
-                // Handle listener errors gracefully
-                console.log('🔧 MessageService: Listener error:', error?.message || 'Unknown error');
-                if (errorCallback) {
-                    errorCallback(error);
-                }
-            }
-        );
-
-        // Return the unsubscribe function
-        return unsubscribe;
-    },
 
     // Get messages for a conversation with 50-message limit
     getConversationMessages(conversationId: string, callback: (messages: any[]) => void) {
@@ -630,16 +595,16 @@ export const messageService = {
     // Send claim request
     async sendClaimRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, postType: 'lost' | 'found', claimReason?: string, idPhotoUrl?: string, evidencePhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void> {
         try {
-            console.log('🔄 Firebase: sendClaimRequest called with:', { 
-                conversationId, 
-                senderId, 
-                senderName, 
-                postId, 
-                postTitle, 
-                postType, 
-                claimReason, 
-                idPhotoUrl, 
-                evidencePhotos 
+            console.log('🔄 Firebase: sendClaimRequest called with:', {
+                conversationId,
+                senderId,
+                senderName,
+                postId,
+                postTitle,
+                postType,
+                claimReason,
+                idPhotoUrl,
+                evidencePhotos
             });
 
             // Validate ID photo URL
@@ -709,7 +674,7 @@ export const messageService = {
             });
 
             console.log(`✅ Claim request sent successfully: ${messageRef.id}`);
-            
+
             // Send notification to the post owner
             try {
                 await notificationSender.sendClaimRequestNotification(conversationId, {
@@ -754,7 +719,7 @@ export const messageService = {
                         ...(messageData.claimData.idPhotoUrl ? [messageData.claimData.idPhotoUrl] : []),
                         ...(messageData.claimData.evidencePhotos?.map((p: any) => p.url) || [])
                     ];
-                    
+
                     if (imageUrls.length > 0) {
                         console.log('🗑️ Cleaning up images for rejected claim');
                         const { deleteMessageImages } = await import('../../utils/cloudinary');

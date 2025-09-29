@@ -246,7 +246,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
   }
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full w-full bg-white">
       {/* Admin Chat Header */}
       <div className="p-4 border-b border-gray-200 bg-gray-50 flex-shrink-0">
         <div className="flex items-center justify-between">
@@ -309,7 +309,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
       {/* Messages Container */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4"
+        className="flex-1 overflow-y-auto p-4 space-y-4 w-full"
         onScroll={(e) => {
           const target = e.target as HTMLDivElement;
           const isNearBottom =
@@ -395,7 +395,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
       </div>
 
       {/* Admin Message Input */}
-      <div className="p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+      <div className="w-full p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
         <form onSubmit={handleSendMessage} className="flex gap-2">
           <input
             type="text"

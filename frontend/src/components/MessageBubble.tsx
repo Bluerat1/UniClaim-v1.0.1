@@ -115,8 +115,22 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
     const callbacks: HandoverClaimCallbacks = {
       onHandoverResponse,
-      onSuccess: (message) => {
-        alert(message);
+      onClaimResponse: (messageId, status) => {
+        // Handle claim response after ID photo upload
+        if (onClaimResponse) {
+          onClaimResponse(messageId, status);
+        }
+        // Don't close the modal yet, wait for the success callback
+      },
+      onSuccess: (message: any) => {
+        // Show success message
+        if (message.success) {
+          alert('ID photo uploaded successfully. Your claim is being processed.');
+        } else {
+          alert(message.message || 'ID photo uploaded successfully.');
+        }
+        
+        // Close the modal and reset the photo
         setShowIdPhotoModal(false);
         setSelectedIdPhoto(null);
       },
@@ -128,18 +142,39 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           errorMessage = "Cloudinary not configured. Please contact support.";
         } else if (error.includes("Upload preset not configured")) {
           errorMessage = "Upload configuration error. Please contact support.";
+        } else if (error.includes("permission")) {
+          errorMessage = "You don't have permission to perform this action.";
+        } else if (error.includes("not found")) {
+          errorMessage = "The conversation or message could not be found.";
         }
-        alert("Upload Error: " + errorMessage);
+        alert("Error: " + errorMessage);
       },
     };
 
-    await handoverClaimService.handleIdPhotoUpload(
-      photoFile,
-      conversationId,
-      message.id,
-      currentUserId,
-      callbacks
-    );
+    try {
+      // For claim responses, always use handleClaimIdPhotoUpload for regular users
+      if (message.claimData || (userRole !== 'admin' && userRole !== 'campus_security')) {
+        await handoverClaimService.handleClaimIdPhotoUpload(
+          photoFile,
+          conversationId,
+          message.id,
+          currentUserId,
+          callbacks
+        );
+      } else {
+        // For handover responses
+        await handoverClaimService.handleIdPhotoUpload(
+          photoFile,
+          conversationId,
+          message.id,
+          currentUserId,
+          callbacks
+        );
+      }
+    } catch (error: any) {
+      console.error('Error uploading ID photo:', error);
+      alert(`Error: ${error.message || 'Failed to upload ID photo'}`);
+    }
 
     setIsUploadingIdPhoto(false);
   };
@@ -168,20 +203,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       if (userRole === 'admin' || userRole === 'campus_security') {
         setShowIdPhotoModal(true);
       } 
-      // For regular users, proceed with the claim acceptance without ID photo
+      // For regular users, they must upload an ID photo to accept the claim
       else {
-        const callbacks: HandoverClaimCallbacks = {
-          onClaimResponse,
-          onError: (error) => alert(error),
-        };
-
-        await handoverClaimService.handleClaimResponse(
-          conversationId,
-          message.id,
-          status,
-          currentUserId,
-          callbacks
-        );
+        // Set a flag to indicate this is for a claim acceptance
+        setShowIdPhotoModal(true);
       }
       return;
     }
@@ -791,13 +816,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     // Check if this is an admin accepting a claim
     const isAdminAcceptingClaim = message.messageType === 'claim_request' && 
       onClaimResponse && 
+      message.senderId !== currentUserId &&
+      (userRole === 'admin' || userRole === 'campus_security');
+
+    // For regular users, always use handleClaimIdPhotoUpload when accepting a claim
+    const isUserAcceptingClaim = message.messageType === 'claim_request' && 
+      onClaimResponse && 
       message.senderId !== currentUserId;
 
-    // Use the correct upload handler based on message type
-    const uploadHandler =
-      message.messageType === "claim_request"
-        ? handleClaimIdPhotoUpload
-        : handleIdPhotoUpload;
+    // Use the correct upload handler based on message type and user role
+    const uploadHandler = isUserAcceptingClaim 
+      ? handleClaimIdPhotoUpload 
+      : handleIdPhotoUpload;
 
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -870,11 +900,30 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               </div>
             </div>
           ) : (
-            <ImagePicker
-              onImageSelect={uploadHandler}
-              onClose={() => setShowIdPhotoModal(false)}
-              isUploading={isUploadingIdPhoto}
-            />
+            <div className="space-y-4">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-blue-800">
+                  To accept this claim, please upload a clear photo of your government-issued ID for verification.
+                </p>
+                <p className="text-sm text-blue-700 mt-2">
+                  Your ID will only be used for verification purposes and will be handled securely.
+                </p>
+              </div>
+              
+              <ImagePicker
+                onImageSelect={(file) => {
+                  uploadHandler(file);
+                }}
+                onClose={() => {
+                  if (!isUploadingIdPhoto) {
+                    setShowIdPhotoModal(false);
+                  } else {
+                    alert('Please wait while we process your ID photo.');
+                  }
+                }}
+                isUploading={isUploadingIdPhoto}
+              />
+            </div>
           )}
         </div>
       </div>
@@ -882,43 +931,44 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   return (
-    <div
-      ref={messageRef}
-      className={`flex ${isOwnMessage ? "justify-end" : "justify-start"} mb-3`}
-    >
+    <>
       {renderIdPhotoModal()}
       <div
-        className={`max-w-xs lg:max-w-md ${
-          isOwnMessage ? "order-2" : "order-1"
-        }`}
+        ref={messageRef}
+        className={`flex ${isOwnMessage ? "justify-end" : "justify-start"} mb-3`}
       >
-        {showSenderName && !isOwnMessage && (
-          <div className="flex items-center gap-2 text-xs text-gray-500 mb-1 ml-2">
-            <ProfilePicture
-              src={message.senderProfilePicture}
-              alt="sender profile"
-              size="xs"
-            />
-            <span>{message.senderName}</span>
-          </div>
-        )}
-
         <div
-          className={`px-4 py-2 rounded-lg ${
-            isOwnMessage
-              ? "bg-navyblue text-white rounded-br-md"
-              : "bg-gray-200 text-gray-800 rounded-bl-md"
+          className={`max-w-xs lg:max-w-md ${
+            isOwnMessage ? "order-2" : "order-1"
           }`}
         >
-          <p className="text-sm break-words">{message.text}</p>
+          {showSenderName && !isOwnMessage && (
+            <div className="flex items-center gap-2 text-xs text-gray-500 mb-1 ml-2">
+              <ProfilePicture
+                src={message.senderProfilePicture}
+                alt="sender profile"
+                size="xs"
+              />
+              <span>{message.senderName}</span>
+            </div>
+          )}
 
-          {/* Render special message types */}
-          {renderHandoverRequest()}
-          {renderHandoverResponse()}
-          {renderClaimRequest()}
-          {renderClaimResponse()}
-          {renderSystemMessage()}
-        </div>
+          <div
+            className={`px-4 py-2 rounded-lg ${
+              isOwnMessage
+                ? "bg-navyblue text-white rounded-br-md"
+                : "bg-gray-200 text-gray-800 rounded-bl-md"
+            }`}
+          >
+            <p className="text-sm break-words">{message.text}</p>
+
+            {/* Render special message types */}
+            {renderHandoverRequest()}
+            {renderHandoverResponse()}
+            {renderClaimRequest()}
+            {renderClaimResponse()}
+            {renderSystemMessage()}
+          </div>
 
         <div
           className={`text-xs text-gray-400 mt-1 ${
@@ -1018,6 +1068,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         )}
       </div>
     </div>
+    </>
   );
 };
 
