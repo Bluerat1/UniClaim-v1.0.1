@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import type { Message } from "@/types/Post";
 import ProfilePicture from "./ProfilePicture";
 import { useMessage } from "../context/MessageContext";
-import ImagePicker from "./ImagePicker";
 import ImageModal from "./ImageModal";
 import { handoverClaimService, type HandoverClaimCallbacks } from "../services/handoverClaimService";
 import { useAuth } from "@/context/AuthContext";
@@ -809,6 +808,51 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     );
   };
 
+  // Refs for file inputs
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB. Please choose a smaller image.');
+        return;
+      }
+      setSelectedIdPhoto(file);
+      // Auto-upload the selected file using the appropriate handler
+      if (onClaimResponse && message.senderId !== currentUserId) {
+        handleClaimIdPhotoUpload(file);
+      } else {
+        handleIdPhotoUpload(file);
+      }
+    } else {
+      alert('Please select a valid image file (JPEG, PNG, etc.)');
+    }
+  };
+
+  const handleCameraCapture = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB. Please choose a smaller image.');
+        return;
+      }
+      setSelectedIdPhoto(file);
+      // Auto-upload the captured photo using the appropriate handler
+      if (onClaimResponse && message.senderId !== currentUserId) {
+        handleClaimIdPhotoUpload(file);
+      } else {
+        handleIdPhotoUpload(file);
+      }
+    } else {
+      alert('Please capture a valid image');
+    }
+  };
+
+  const openGallery = () => fileInputRef.current?.click();
+  const openCamera = () => cameraInputRef.current?.click();
+
   // ID Photo Modal for claim confirmation
   const renderIdPhotoModal = () => {
     if (!showIdPhotoModal) return null;
@@ -824,16 +868,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       onClaimResponse && 
       message.senderId !== currentUserId;
 
-    // Use the correct upload handler based on message type and user role
-    const uploadHandler = isUserAcceptingClaim 
-      ? handleClaimIdPhotoUpload 
-      : handleIdPhotoUpload;
 
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]">
+        <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4 relative z-[1001]">
           <h3 className="text-lg font-semibold mb-4">
-            {isAdminAcceptingClaim ? 'Confirm ID Photo' : 'Upload ID Photo'}
+            {isAdminAcceptingClaim ? 'Confirm ID Photo' : 'Verify Your Identity'}
           </h3>
           
           {isAdminAcceptingClaim ? (
@@ -903,26 +943,99 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             <div className="space-y-4">
               <div className="bg-blue-50 p-4 rounded-lg">
                 <p className="text-blue-800">
-                  To accept this claim, please upload a clear photo of your government-issued ID for verification.
+                  To complete your claim, please upload a clear photo of your government-issued ID for verification.
                 </p>
                 <p className="text-sm text-blue-700 mt-2">
                   Your ID will only be used for verification purposes and will be handled securely.
                 </p>
               </div>
               
-              <ImagePicker
-                onImageSelect={(file) => {
-                  uploadHandler(file);
-                }}
-                onClose={() => {
-                  if (!isUploadingIdPhoto) {
-                    setShowIdPhotoModal(false);
-                  } else {
-                    alert('Please wait while we process your ID photo.');
-                  }
-                }}
-                isUploading={isUploadingIdPhoto}
-              />
+              <div className="border border-dashed border-gray-300 rounded-lg p-4 text-center">
+                {/* Hidden file inputs */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleCameraCapture}
+                  className="hidden"
+                />
+                
+                {/* Action buttons */}
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={openCamera}
+                    className="w-full bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                    disabled={isUploadingIdPhoto}
+                  >
+                    <span>📷</span>
+                    <span>Take Photo</span>
+                  </button>
+                  
+                  <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-2 bg-white text-gray-500">or</span>
+                    </div>
+                  </div>
+                  
+                  <button
+                    type="button"
+                    onClick={openGallery}
+                    className="w-full bg-green-500 text-white p-3 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+                    disabled={isUploadingIdPhoto}
+                  >
+                    <span>🖼️</span>
+                    <span>Choose from Gallery</span>
+                  </button>
+                </div>
+                
+                {/* Selected image preview */}
+                {selectedIdPhoto && (
+                  <div className="mt-4 p-2 border border-gray-200 rounded-md">
+                    <p className="text-sm text-gray-600 mb-2">Selected photo:</p>
+                    <div className="relative">
+                      <img 
+                        src={URL.createObjectURL(selectedIdPhoto)} 
+                        alt="Selected ID" 
+                        className="max-h-40 mx-auto rounded"
+                      />
+                      {isUploadingIdPhoto && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Close button */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isUploadingIdPhoto) {
+                        setShowIdPhotoModal(false);
+                        setSelectedIdPhoto(null);
+                      }
+                    }}
+                    className="w-full px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    disabled={isUploadingIdPhoto}
+                  >
+                    {isUploadingIdPhoto ? 'Uploading...' : 'Cancel'}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -1029,8 +1142,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
         {/* Delete confirmation dialog */}
         {showDeleteConfirm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white p-4 rounded-lg shadow-lg max-w-sm mx-4">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[999]">
+            <div className="bg-white p-4 rounded-lg shadow-lg max-w-sm mx-4 relative z-[1000]">
               <h3 className="text-lg font-semibold mb-2">Delete Message?</h3>
               <p className="text-gray-600 mb-4">
                 This action cannot be undone.
