@@ -36,10 +36,10 @@ const AboutUniClaim = () => {
         {/* image banner container */}
         <div className="relative h-65 w-full px-2 md:h-90 lg:h-120 lg:px-6 lg:mt-4">
           {/* Background Image Layer */}
-          <div className="absolute inset-0 bg-[url('@/assets/aboutuniclaim.jpg')] bg-cover bg-center" />
+          <div className="absolute inset-0 bg-[url('@/assets/aboutuniclaim.jpg')] bg-cover bg-center b" />
 
           {/* Dark Overlay Layer */}
-          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute inset-0 bg-black/40 pointer-events-none" />
 
           {/* Foreground Content */}
           <div className="relative z-10 h-full flex items-center justify-center">
