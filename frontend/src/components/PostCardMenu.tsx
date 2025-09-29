@@ -119,20 +119,31 @@ export default function PostCardMenu({
       setIsCreatingConversation(true);
       setIsOpen(false);
 
-      // Create conversation and get the conversation ID
-      const conversationId = await messageService.createConversation(
+      // First, check if a conversation already exists for this post and users
+      const existingConversationId = await messageService.findConversationByPostAndUsers(
         postId,
-        postTitle,
-        postOwnerId,
         userData.uid,
-        userData,
-        postOwnerUserData
+        postOwnerId
       );
+
+      let conversationId = existingConversationId;
+
+      // If no existing conversation, create a new one
+      if (!conversationId) {
+        conversationId = await messageService.createConversation(
+          postId,
+          postTitle,
+          postOwnerId,
+          userData.uid,
+          userData,
+          postOwnerUserData
+        );
+      }
 
       // Navigate to messages page with the specific conversation
       navigate(`/messages?conversation=${conversationId}`);
     } catch (error: any) {
-      console.error("Error creating conversation:", error);
+      console.error("Error handling conversation:", error);
       showToast("error", error.message || "Failed to start conversation");
     } finally {
       setIsCreatingConversation(false);
@@ -181,19 +192,20 @@ export default function PostCardMenu({
               {/* Flag Post Button */}
               <button
                 onClick={handleFlagClick}
-                disabled={isAlreadyFlaggedByUser || isLoading}
+                disabled={isAlreadyFlaggedByUser || isLoading || postOwnerId === user?.uid}
                 className={`
                   w-full px-4 py-2 text-left text-sm flex items-center gap-2
                   transition-colors duration-200
                   ${
-                    isAlreadyFlaggedByUser || isLoading
+                    isAlreadyFlaggedByUser || isLoading || postOwnerId === user?.uid
                       ? "text-gray-400 cursor-not-allowed"
                       : "text-gray-700 hover:bg-red-50 hover:text-red-700"
                   }
                 `}
+                title={postOwnerId === user?.uid ? "You cannot flag your own post" : isAlreadyFlaggedByUser ? "You've already flagged this post" : "Flag this post"}
               >
                 <IoFlagOutline className="w-4 h-4" />
-                {isAlreadyFlaggedByUser ? "Already Flagged" : "Flag this post"}
+                {isAlreadyFlaggedByUser ? "Already Flagged" : postOwnerId === user?.uid ? "Can't Flag Own Post" : "Flag this post"}
               </button>
             </div>
           </div>

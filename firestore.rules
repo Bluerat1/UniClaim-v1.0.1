@@ -45,9 +45,11 @@ service cloud.firestore {
       allow read: if request.auth != null;
 
       // Allow authenticated users to create posts (temporarily simplified for debugging)
-      allow create: if request.auth != null
+      // Also allow creation when restoring a post (admin operation)
+      allow create: if (request.auth != null
         && request.auth.uid != null
-        && isValidPost(request.resource.data);
+        && isValidPost(request.resource.data)) || 
+        (request.auth != null && isAdmin() && request.resource.data.isRestored == true);
 
       // Users can update their own posts, OR admins can update any post
       // FIXED: Case-insensitive email comparison to handle different cases
@@ -181,6 +183,21 @@ service cloud.firestore {
       
       // Allow creating preferences for new admins
       allow create: if request.auth != null && isAdmin() && request.auth.uid == adminId;
+    }
+    
+    // Deleted posts collection (admin only)
+    match /deleted_posts/{postId} {
+      // Allow admins to read and manage deleted posts
+      allow read, write: if request.auth != null && isAdmin();
+      
+      // Allow creating deleted posts (for soft delete functionality)
+      allow create: if request.auth != null;
+      
+      // Allow reading specific post for restoration
+      allow get: if request.auth != null && isAdmin();
+      
+      // Allow deleting when restoring a post
+      allow delete: if request.auth != null && isAdmin();
     }
     
     // Notification subscriptions collection rules

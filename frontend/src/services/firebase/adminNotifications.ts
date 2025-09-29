@@ -4,7 +4,6 @@ import {
     addDoc,
     query,
     where,
-    orderBy,
     limit,
     getDocs,
     doc,
@@ -12,7 +11,8 @@ import {
     deleteDoc,
     onSnapshot,
     serverTimestamp,
-    getDoc
+    getDoc,
+    writeBatch
 } from 'firebase/firestore';
 import { db } from './config';
 import type {
@@ -233,12 +233,20 @@ export class AdminNotificationService {
             );
 
             const snapshot = await getDocs(q);
-            const updatePromises = snapshot.docs.map(doc =>
-                updateDoc(doc.ref, { read: true })
-            );
 
-            await Promise.all(updatePromises);
-            console.log(`Marked ${snapshot.size} admin notifications as read for admin: ${adminId}`);
+            if (snapshot.size === 0) {
+                console.log('No unread admin notifications to mark as read');
+                return;
+            }
+
+            // Use batch write for better performance when updating multiple documents
+            const batch = writeBatch(db);
+            snapshot.docs.forEach(doc => {
+                batch.update(doc.ref, { read: true });
+            });
+
+            await batch.commit();
+            console.log(`Marked ${snapshot.size} admin notifications as read for admin: ${adminId} using batch write`);
         } catch (error) {
             console.error('Error marking all admin notifications as read:', error);
             throw error;
@@ -267,10 +275,20 @@ export class AdminNotificationService {
             );
 
             const snapshot = await getDocs(q);
-            const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
 
-            await Promise.all(deletePromises);
-            console.log(`Deleted ${snapshot.size} admin notifications for admin: ${adminId}`);
+            if (snapshot.size === 0) {
+                console.log('No admin notifications to delete');
+                return;
+            }
+
+            // Use batch write for better performance when deleting multiple documents
+            const batch = writeBatch(db);
+            snapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+
+            await batch.commit();
+            console.log(`Deleted ${snapshot.size} admin notifications for admin: ${adminId} using batch write`);
         } catch (error) {
             console.error('Error deleting all admin notifications:', error);
             throw error;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Post } from "@/types/Post";
 
@@ -26,21 +26,27 @@ function fuzzyMatch(text: string, query: string): boolean {
 
 export default function AdminHomePage() {
   // ✅ Use the custom hooks for real-time posts (admin version includes turnover items)
-  const { posts, loading, error } = useAdminPosts();
-  const { posts: resolvedPosts, loading: resolvedLoading, error: resolvedError } = useResolvedPosts();
+  const { posts = [], loading, error } = useAdminPosts();
+  const { posts: resolvedPosts = [], loading: resolvedLoading, error: resolvedError } = useResolvedPosts();
   const { showToast } = useToast();
   const { userData } = useAuth();
   const navigate = useNavigate();
+  
+  // Refs for tracking if this is the initial load
+  const initialLoad = useRef(true);
 
-  const [viewType, setViewType] = useState<"all" | "lost" | "found" | "unclaimed" | "completed" | "turnover" | "flagged">("all");
-  const [lastDescriptionKeyword, setLastDescriptionKeyword] = useState("");
-  const [rawResults, setRawResults] = useState<Post[] | null>(null); // store-search-result-without-viewType-filter
+  // State for deleted posts
+  const [deletedPosts, setDeletedPosts] = useState<Post[]>([]);
+  const [deletedPostsLoading, setDeletedPostsLoading] = useState(false);
+  const [deletedPostsError, setDeletedPostsError] = useState<string | null>(null);
+  
+  const [viewType, setViewType] = useState<"all" | "lost" | "found" | "unclaimed" | "completed" | "turnover" | "flagged" | "deleted">("all");
+  const [rawResults, setRawResults] = useState<Post[] | null>(null);
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [lastDescriptionKeyword, setLastDescriptionKeyword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
-  
-  // ✅ New state for instant category filtering
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("All");
 
   // Delete confirmation modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -87,34 +93,62 @@ export default function AdminHomePage() {
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = async () => {
+  const moveToDeleted = useCallback(async () => {
     if (!postToDelete) return;
 
     try {
       setDeletingPostId(postToDelete.id);
-      const { postService } = await import('../../utils/firebase');
+      const { postService } = await import('../../services/firebase/posts');
       
-      await postService.deletePost(postToDelete.id);
+      // Move to deleted (soft delete)
+      await postService.deletePost(postToDelete.id, false, userData?.email || 'admin');
       
-      showToast("success", "Post Deleted", "Post has been successfully deleted");
+      showToast("success", "Post Moved", "Post has been moved to Recently Deleted");
       setShowDeleteModal(false);
       setPostToDelete(null);
       
-      // Refresh admin stats after deletion
-      calculateAdminStats();
-      
+      // Refresh the posts list
+      if (viewType === 'deleted') {
+        fetchDeletedPosts();
+      }
     } catch (error: any) {
-      console.error('Failed to delete post:', error);
-      showToast("error", "Delete Failed", error.message || "Failed to delete post");
+      console.error('Error moving post to deleted:', error);
+      showToast('error', 'Error', error.message || 'Failed to move post to deleted');
     } finally {
       setDeletingPostId(null);
     }
-  };
+  }, [postToDelete, userData?.email, viewType, showToast]);
 
-  const cancelDelete = () => {
+  const confirmPermanentDelete = useCallback(async () => {
+    if (!postToDelete) return;
+
+    try {
+      setDeletingPostId(postToDelete.id);
+      const { postService } = await import('../../services/firebase/posts');
+      
+      // Permanently delete
+      await postService.deletePost(postToDelete.id, true, userData?.email || 'admin');
+      
+      showToast("success", "Post Deleted", "Post has been permanently deleted");
+      setShowDeleteModal(false);
+      setPostToDelete(null);
+      
+      // Refresh the deleted posts list if we're in the deleted view
+      if (viewType === 'deleted') {
+        fetchDeletedPosts();
+      }
+    } catch (error: any) {
+      console.error('Error permanently deleting post:', error);
+      showToast('error', 'Error', error.message || 'Failed to permanently delete post');
+    } finally {
+      setDeletingPostId(null);
+    }
+  }, [postToDelete, userData?.email, viewType, showToast]);
+
+  const cancelDelete = useCallback(() => {
     setShowDeleteModal(false);
     setPostToDelete(null);
-  };
+  }, []);
 
   // Flag management handlers
   const handleUnflagPost = async (post: Post) => {
@@ -146,41 +180,45 @@ export default function AdminHomePage() {
       showToast("success", "Post Unhidden", "Post is now visible to public");
     } catch (error: any) {
       console.error('Failed to unhide post:', error);
-      showToast("error", "Unhide Failed", error.message || "Failed to unhide post");
+      showToast("error", "Unhide Failed", error?.message || 'Failed to unhide post');
     }
   };
 
-  // Calculate admin statistics
-  const calculateAdminStats = async () => {
+  // Fetch deleted posts
+  const fetchDeletedPosts = useCallback(async () => {
+    if (viewType !== 'deleted') return;
+    
     try {
-      setStatsLoading(true);
-      
-      // Simplified admin statistics
-      // Basic stats for admin dashboard
-      setAdminStats({
-        totalActions: 0,
-        actionsToday: 0,
-        actionsThisWeek: 0,
-        actionsByType: {
-          delete: 0,
-          statusChange: 0,
-          activate: 0,
-          revert: 0
-        },
-        recentActivity: []
-      });
-
+      setDeletedPostsLoading(true);
+      setDeletedPostsError(null);
+      const { postService } = await import('../../services/firebase/posts');
+      const deleted = await postService.getDeletedPosts();
+      setDeletedPosts(deleted);
     } catch (error: any) {
-      console.error('Failed to calculate admin stats:', error);
+      console.error('Error fetching deleted posts:', error);
+      setDeletedPostsError(error.message || 'Failed to load deleted posts');
+      showToast('error', 'Error', 'Failed to load deleted posts');
+      throw error;
     } finally {
-      setStatsLoading(false);
+      setDeletedPostsLoading(false);
     }
-  };
+  }, [showToast, viewType]);
 
-  // Load statistics when component mounts
+  // Load deleted posts when the deleted tab is active
   useEffect(() => {
-    calculateAdminStats();
-  }, []);
+    if (viewType === 'deleted') {
+      fetchDeletedPosts();
+    }
+  }, [viewType, fetchDeletedPosts]);
+
+  // Initial load of deleted posts
+  useEffect(() => {
+    if (initialLoad.current && viewType === 'deleted') {
+      fetchDeletedPosts();
+      initialLoad.current = false;
+    }
+  }, [viewType, fetchDeletedPosts]);
+
 
   // Keyboard shortcuts and accessibility for delete modal
   useEffect(() => {
@@ -460,39 +498,53 @@ export default function AdminHomePage() {
 
 
   // Apply view type filtering first
-  const viewFilteredPosts = (rawResults ?? (viewType === "completed" ? resolvedPosts : posts) ?? []).filter((post) => {
-    let shouldShow = false;
-
-    if (viewType === "all") {
-      // Show all posts EXCEPT unclaimed ones in "All Item Reports"
-      shouldShow = post.status !== 'unclaimed' && !post.movedToUnclaimed;
-    } else if (viewType === "unclaimed") {
-      // Show posts that are either status 'unclaimed' OR have movedToUnclaimed flag
-      shouldShow = post.status === 'unclaimed' || post.movedToUnclaimed;
-    } else if (viewType === "completed") {
-      shouldShow = true; // resolvedPosts already filtered
-    } else if (viewType === "turnover") {
-      // Show only Found items marked for turnover to OSA that need confirmation
-      shouldShow = post.type === "found" && 
-                   post.turnoverDetails && 
-                   post.turnoverDetails.turnoverAction === "turnover to OSA" &&
-                   post.turnoverDetails.turnoverStatus === "declared";
-    } else if (viewType === "flagged") {
-      // Show only flagged posts
-      shouldShow = post.isFlagged === true;
-    } else {
-      shouldShow = post.type.toLowerCase() === viewType && post.status !== 'unclaimed' && !post.movedToUnclaimed;
+  const viewFilteredPosts = useMemo(() => {
+    if (viewType === 'deleted') {
+      return deletedPosts;
     }
 
-    return shouldShow;
-  });
+    const sourcePosts = rawResults ?? (viewType === "completed" ? resolvedPosts : posts) ?? [];
+    
+    return sourcePosts.filter((post) => {
+      let shouldShow = false;
 
-  // ✅ Apply instant category filtering
-  const postsToDisplay = selectedCategoryFilter && selectedCategoryFilter !== "All" 
-    ? viewFilteredPosts.filter((post) => 
-        post.category && post.category.toLowerCase() === selectedCategoryFilter.toLowerCase()
-      )
-    : viewFilteredPosts;
+      if (viewType === "all") {
+        // Show all posts EXCEPT unclaimed ones in "All Item Reports"
+        shouldShow = post.status !== 'unclaimed' && !post.movedToUnclaimed;
+      } else if (viewType === "unclaimed") {
+        // Show posts that are either status 'unclaimed' OR have movedToUnclaimed flag
+        shouldShow = post.status === 'unclaimed' || post.movedToUnclaimed;
+      } else if (viewType === "completed") {
+        shouldShow = true; // resolvedPosts already filtered
+      } else if (viewType === "turnover") {
+        // Show only Found items marked for turnover to OSA that need confirmation
+        shouldShow = post.type === "found" && 
+                    post.turnoverDetails && 
+                    post.turnoverDetails.turnoverAction === "turnover to OSA" &&
+                    post.turnoverDetails.turnoverStatus === "declared";
+      } else if (viewType === "flagged") {
+        // Show only flagged posts
+        shouldShow = post.isFlagged === true;
+      } else {
+        shouldShow = post.type.toLowerCase() === viewType && post.status !== 'unclaimed' && !post.movedToUnclaimed;
+      }
+
+      return shouldShow;
+    });
+  }, [viewType, deletedPosts, rawResults, resolvedPosts, posts]);
+
+  // Apply instant category filtering
+  const postsToDisplay = useMemo(() => {
+    if (viewType === 'deleted') {
+      return deletedPosts; // Skip category filtering for deleted posts
+    }
+    
+    return selectedCategoryFilter && selectedCategoryFilter !== "All" 
+      ? viewFilteredPosts.filter((post) => 
+          post.category && post.category.toLowerCase() === selectedCategoryFilter.toLowerCase()
+        )
+      : viewFilteredPosts;
+  }, [viewType, deletedPosts, selectedCategoryFilter, viewFilteredPosts]);
 
   // Check if there are more posts to load
   const hasMorePosts = postsToDisplay.length > currentPage * itemsPerPage;
@@ -503,6 +555,52 @@ export default function AdminHomePage() {
       setCurrentPage((prev) => prev + 1);
     }
   }, [hasMorePosts, isLoading]);
+
+  // Handle restore post
+  const handleRestorePost = useCallback(async (post: Post) => {
+    if (!confirm(`Are you sure you want to restore "${post.title}"?`)) return;
+    
+    try {
+      const { postService } = await import('../../services/firebase/posts');
+      await postService.restorePost(post.id);
+      
+      // Update the UI by removing the restored post from the list
+      setDeletedPosts(prev => prev.filter(p => p.id !== post.id));
+      
+      showToast("success", "Post Restored", `"${post.title}" has been restored and is now pending review.`);
+    } catch (error: any) {
+      console.error('Failed to restore post:', error);
+      showToast("error", "Restore Failed", error.message || 'Failed to restore post');
+      
+      // Refresh the list if there was an error to ensure consistency
+      if (viewType === 'deleted') {
+        await fetchDeletedPosts().catch(console.error);
+      }
+    }
+  }, [showToast, viewType, fetchDeletedPosts]);
+
+  // Handle permanent delete post
+  const handlePermanentDeletePost = useCallback(async (post: Post) => {
+    if (!confirm(`WARNING: This will permanently delete "${post.title}" and all its data. This action cannot be undone.\n\nAre you sure?`)) return;
+    
+    try {
+      const { postService } = await import('../../services/firebase/posts');
+      await postService.permanentlyDeletePost(post.id);
+      
+      // Update the UI by removing the deleted post from the list
+      setDeletedPosts(prev => prev.filter(p => p.id !== post.id));
+      
+      showToast("success", "Post Permanently Deleted", `"${post.title}" has been permanently deleted.`);
+    } catch (error: any) {
+      console.error('Failed to permanently delete post:', error);
+      showToast("error", "Delete Failed", error.message || 'Failed to permanently delete post');
+      
+      // Refresh the list if there was an error to ensure consistency
+      if (viewType === 'deleted') {
+        await fetchDeletedPosts().catch(console.error);
+      }
+    }
+  }, [showToast, viewType, fetchDeletedPosts]);
 
   // Use the infinite scroll hook
   const loadingRef = useInfiniteScroll(handleLoadMore, hasMorePosts, isLoading);
@@ -591,7 +689,15 @@ export default function AdminHomePage() {
                 p.turnoverDetails && 
                 p.turnoverDetails.turnoverAction === "turnover to OSA").length || 0}
             </div>
-            <div className="text-sm text-gray-600">OSA Turnover Items</div>
+            <div className="text-sm text-gray-600">OSA Turnover</div>
+          </div>
+          
+          {/* Recently Deleted Items */}
+          <div className="bg-white p-4 rounded-lg shadow">
+            <div className="text-2xl font-bold text-red-600">
+              {deletedPosts.length || 0}
+            </div>
+            <div className="text-sm text-gray-600">Recently Deleted</div>
           </div>
         </div>
       </div>
@@ -720,37 +826,52 @@ export default function AdminHomePage() {
           Flagged Posts
         </button>
 
+        <button
+          className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+            viewType === "deleted"
+              ? "bg-red-600 text-white"
+              : "bg-gray-200 text-gray-700 hover:bg-red-100 border-gray-300"
+          }`}
+          onClick={() => {
+            setIsLoading(true);
+            setViewType("deleted");
+            setCurrentPage(1);
+            fetchDeletedPosts(); // Make sure to fetch deleted posts when this tab is selected
+            setTimeout(() => setIsLoading(false), 200);
+          }}
+        >
+          Recently Deleted
+        </button>
       </div>
 
       <div className="grid grid-cols-1 gap-5 mx-6 mt-7 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-        {/* ✅ Handle Firebase loading state */}
-        {(loading || resolvedLoading || isLoading) ? (
+        {/* ✅ Handle loading state */}
+        {(loading || resolvedLoading || isLoading || (viewType === 'deleted' && deletedPostsLoading)) ? (
           <div className="col-span-full flex items-center justify-center h-80">
             <span className="text-gray-400">
               Loading {viewType === "unclaimed" ? "unclaimed" :
                        viewType === "completed" ? "completed" :
                        viewType === "turnover" ? "turnover management" :
+                       viewType === "deleted" ? "recently deleted" :
                        viewType} report items...
             </span>
           </div>
-        ) : (error || resolvedError) ? (
-          <div className="col-span-full flex items-center justify-center h-80 text-red-500">
-            <p>Error loading posts: {error}</p>
+        ) : (error || resolvedError || (viewType === 'deleted' && deletedPostsError)) ? (
+          <div className="col-span-full flex flex-col items-center justify-center h-80 text-red-500 p-4">
+            <p>Error loading {viewType === 'deleted' ? 'deleted ' : ''}posts: {viewType === 'deleted' ? deletedPostsError : (error || resolvedError)}</p>
             <button 
               onClick={() => window.location.reload()} 
-              className="ml-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
             >
               Retry
             </button>
           </div>
         ) : postsToDisplay.length === 0 ? (
           <div className="col-span-full flex items-center justify-center h-80 text-gray-500">
-            No results found.
+            {viewType === 'deleted' ? 'No deleted posts found.' : 'No results found.'}
           </div>
         ) : (
           postsToDisplay
-            .slice()
-            .reverse()
             .slice(0, currentPage * itemsPerPage)
             .map((post) => (
               <AdminPostCard
@@ -758,16 +879,19 @@ export default function AdminHomePage() {
                 post={post}
                 onClick={() => setSelectedPost(post)}
                 highlightText={lastDescriptionKeyword}
-                onDelete={handleDeletePost}
-                onEdit={handleEditPost}
-                onStatusChange={handleStatusChange}
-                onActivateTicket={handleActivateTicket}
-                onRevertResolution={handleRevertResolution}
-                onConfirmTurnover={handleConfirmTurnover}
-                onUnflagPost={handleUnflagPost}
-                onHidePost={handleHidePost}
-                onUnhidePost={handleUnhidePost}
+                onDelete={viewType === 'deleted' ? undefined : handleDeletePost}
+                onEdit={viewType === 'deleted' ? undefined : handleEditPost}
+                onStatusChange={viewType === 'deleted' ? undefined : handleStatusChange}
+                onActivateTicket={viewType === 'deleted' ? undefined : handleActivateTicket}
+                onRevertResolution={viewType === 'deleted' ? undefined : handleRevertResolution}
+                onConfirmTurnover={viewType === 'deleted' ? undefined : handleConfirmTurnover}
+                onUnflagPost={viewType === 'deleted' ? undefined : handleUnflagPost}
+                onHidePost={viewType === 'deleted' ? undefined : handleHidePost}
+                onUnhidePost={viewType === 'deleted' ? undefined : handleUnhidePost}
                 isDeleting={deletingPostId === post.id}
+                // Add restore and permanent delete actions for deleted posts
+                onRestore={viewType === 'deleted' ? handleRestorePost : undefined}
+                onPermanentDelete={viewType === 'deleted' ? handlePermanentDeletePost : undefined}
               />
             ))
         )}
@@ -805,97 +929,62 @@ export default function AdminHomePage() {
           
           <div 
             className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-            onClick={cancelDelete}
             role="dialog"
             aria-modal="true"
             aria-labelledby="delete-modal-title"
             aria-describedby="delete-modal-description"
           >
-          <div 
-            className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-            role="document"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-              <h3 
-                id="delete-modal-title"
-                className="text-lg font-semibold text-gray-900"
-              >
-                Confirm Deletion
-              </h3>
-              <button
-                onClick={cancelDelete}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-                disabled={deletingPostId === postToDelete.id}
-                aria-label="Close confirmation dialog"
-                title="Close (Esc)"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+            <div 
+              className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                  <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+              </div>
 
-            {/* Warning Icon */}
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
+              <h3 className="text-lg font-semibold text-center mb-2" id="delete-modal-title">
+                Delete "{postToDelete.title}"?
+              </h3>
+              
+              <p className="text-sm text-gray-600 text-center mb-6" id="delete-modal-description">
+                Choose how you want to delete this post:
+              </p>
+
+              <div className="space-y-3 mb-6">
+                <button
+                  onClick={moveToDeleted}
+                  className="w-full px-4 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex flex-col items-center"
+                  disabled={!!deletingPostId}
+                >
+                  <span className="font-medium">Move to Recently Deleted</span>
+                  <span className="text-xs opacity-90">Can be restored later</span>
+                </button>
+                
+                <button
+                  onClick={confirmPermanentDelete}
+                  className="w-full px-4 py-3 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 flex flex-col items-center"
+                  disabled={!!deletingPostId}
+                >
+                  <span className="font-medium">Permanently Delete</span>
+                  <span className="text-xs opacity-90">Cannot be undone</span>
+                </button>
+              </div>
+
+              <div className="flex justify-center">
+                <button
+                  onClick={cancelDelete}
+                  className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded"
+                  disabled={!!deletingPostId}
+                >
+                  Cancel
+                </button>
               </div>
             </div>
-
-            {/* Content */}
-            <div className="text-center mb-6">
-              <h4 className="text-lg font-medium text-gray-900 mb-2">
-                Delete "{postToDelete.title}"?
-              </h4>
-              <p 
-                id="delete-modal-description"
-                className="text-sm text-gray-600"
-              >
-                This action cannot be undone. The post and all associated images will be permanently removed from the system.
-              </p>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={cancelDelete}
-                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                disabled={deletingPostId === postToDelete.id}
-                aria-label="Cancel deletion"
-                title="Cancel (Esc)"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                disabled={deletingPostId === postToDelete.id}
-                className={`flex-1 px-4 py-2 text-sm font-medium text-white rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 ${
-                  deletingPostId === postToDelete.id
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-red-600 hover:bg-red-700'
-                }`}
-                aria-label="Confirm deletion of post"
-                title="Delete (Enter)"
-              >
-                {deletingPostId === postToDelete.id ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                    </svg>
-                    Deleting...
-                  </span>
-                ) : (
-                  'Delete Permanently'
-                )}
-              </button>
-            </div>
           </div>
-        </div>
         </>
       )}
 

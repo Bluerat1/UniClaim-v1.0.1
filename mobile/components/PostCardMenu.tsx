@@ -176,7 +176,6 @@ export default function PostCardMenu({
         {/* Dropdown menu positioned beside the triple dot */}
         {isOpen && (
           <View className="absolute top-0 right-12 bg-white rounded-lg shadow-lg border border-gray-200 w-48 z-50">
-            {console.log("Rendering dropdown menu")}
             {/* Send Message Button */}
             <TouchableOpacity
               onPress={() => {
@@ -218,28 +217,28 @@ export default function PostCardMenu({
 
             {/* Flag Post Button */}
             <TouchableOpacity
-              onPress={() => {
                 console.log("Flag Post button tapped!");
                 handleFlagClick();
               }}
-              disabled={isAlreadyFlaggedByUser}
-              className={`flex-row items-center px-4 py-3 ${
-                isAlreadyFlaggedByUser ? "opacity-50" : "active:bg-gray-50"
-              }`}
-              style={{ minHeight: 48 }} // Ensure minimum touch target
-            >
-              <Ionicons
-                name="flag-outline"
-                size={20}
+              disabled={isAlreadyFlaggedByUser || postOwnerId === user?.uid || postStatus === 'resolved'}
+                className={`flex-row items-center px-4 py-3 ${
+                  (isAlreadyFlaggedByUser || postOwnerId === user?.uid || postStatus === 'resolved') ? "opacity-50" : "active:bg-gray-50"
                 color={isAlreadyFlaggedByUser ? "#9CA3AF" : "#DC2626"}
                 className="mr-3"
               />
               <Text
                 className={`text-base font-manrope-medium ${
-                  isAlreadyFlaggedByUser ? "text-gray-400" : "text-gray-700"
+                  isAlreadyFlaggedByUser || postOwnerId === user?.uid || postStatus === 'resolved' ? "text-gray-400" : "text-gray-700"
                 }`}
               >
-                {isAlreadyFlaggedByUser ? "Already Flagged" : "Flag Post"}
+                {isAlreadyFlaggedByUser 
+                  ? "Already Flagged" 
+                  : postOwnerId === user?.uid 
+                    ? "Can't Flag Own Post" 
+                    : postStatus === 'resolved'
+                      ? "Can't Flag Resolved Post"
+                      : "Flag Post"
+                }
               </Text>
             </TouchableOpacity>
           </View>

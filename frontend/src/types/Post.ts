@@ -40,6 +40,10 @@ export interface Post {
   // Soft delete fields
   deletedAt?: string | Date | null; // When the post was soft deleted (null means not deleted)
   deletedBy?: string; // User ID who performed the deletion
+  originalId?: string; // Original post ID (for restored posts)
+  isDeleted?: boolean; // Flag to identify deleted posts in the UI
+  // Add index signature for dynamic properties
+  [key: string]: any;
 
   // New fields for handover details (when ID photo is confirmed)
   handoverDetails?: {

@@ -2,20 +2,21 @@
 import {
     doc,
     getDoc,
-    collection,
-    addDoc,
-    query,
-    orderBy,
-    onSnapshot,
-    where,
     updateDoc,
-    deleteDoc,
-    serverTimestamp,
+    collection,
+    query,
+    where,
     getDocs,
-    increment,
+    orderBy,
     limit,
-    arrayUnion
+    onSnapshot,
+    increment,
+    addDoc,
+    deleteDoc,
+    arrayUnion,
+    serverTimestamp
 } from 'firebase/firestore';
+import { notificationSender } from './notificationSender';
 
 // Import Firebase instances and types
 import { db } from './config';
@@ -26,6 +27,66 @@ import { sanitizePostData } from './utils';
 
 // Message service functions
 export const messageService = {
+    // Get user's conversations (real-time listener)
+    getUserConversations(userId: string, callback: (conversations: any[]) => void, errorCallback?: (error: any) => void) {
+        const q = query(
+            collection(db, 'conversations'),
+            where(`participants.${userId}`, '!=', null)
+        );
+
+        const unsubscribe = onSnapshot(
+            q,
+            (snapshot) => {
+                const conversations = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                // Filter out conversations where the user is the only participant
+                const validConversations = conversations.filter((conv: any) => {
+                    const participantIds = Object.keys(conv.participants || {});
+                    return participantIds.length > 1; // Must have at least 2 participants
+                });
+
+                // Return conversations without sorting - let the UI component handle sorting
+                callback(validConversations);
+            },
+            (error) => {
+                // Handle listener errors gracefully
+                console.log('🔧 MessageService: Listener error:', error?.message || 'Unknown error');
+                if (errorCallback) {
+                    errorCallback(error);
+                }
+            }
+        );
+
+        // Return the unsubscribe function
+        return unsubscribe;
+    },
+    // Find an existing conversation for a specific post between two users
+    async findConversationByPostAndUsers(postId: string, userId1: string, userId2: string): Promise<string | null> {
+        try {
+            // Query conversations that include this post and both users
+            const q = query(
+                collection(db, 'conversations'),
+                where('postId', '==', postId),
+                where(`participants.${userId1}`, '!=', null),
+                where(`participants.${userId2}`, '!=', null)
+            );
+
+            const snapshot = await getDocs(q);
+            
+            // Return the first matching conversation ID if found
+            if (!snapshot.empty) {
+                return snapshot.docs[0].id;
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('Error finding existing conversation:', error);
+            return null;
+        }
+    },
     // Create a new conversation
     async createConversation(postId: string, postTitle: string, postOwnerId: string, currentUserId: string, currentUserData: UserData, postOwnerUserData?: any): Promise<string> {
         try {
@@ -208,13 +269,14 @@ export const messageService = {
 
             // Cleanup old messages after sending to maintain 50-message limit
             try {
-                await this.cleanupOldMessages(conversationId);
+                await messageService.cleanupOldMessages(conversationId);
             } catch (cleanupError) {
                 console.warn('⚠️ [sendMessage] Message cleanup failed, but message was sent successfully:', cleanupError);
                 // Don't throw error - cleanup failure shouldn't break message sending
             }
-        } catch (error: any) {
-            throw new Error(error.message || 'Failed to send message');
+        } catch (error) {
+            console.error('❌ [sendMessage] Error sending message:', error);
+            throw error; // Re-throw to allow caller to handle the error
         }
     },
 
@@ -225,62 +287,34 @@ export const messageService = {
             where(`participants.${userId}`, '!=', null)
         );
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const conversations = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
+        const unsubscribe = onSnapshot(
+            q,
+            (snapshot) => {
+                const conversations = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
 
-            // Filter out conversations where the user is the only participant
-            const validConversations = conversations.filter((conv: any) => {
-                const participantIds = Object.keys(conv.participants || {});
-                return participantIds.length > 1; // Must have at least 2 participants
-            });
+                // Filter out conversations where the user is the only participant
+                const validConversations = conversations.filter((conv: any) => {
+                    const participantIds = Object.keys(conv.participants || {});
+                    return participantIds.length > 1; // Must have at least 2 participants
+                });
 
-            // Return conversations without sorting - let the UI component handle sorting
-            callback(validConversations);
-        }, (error) => {
-            // Handle listener errors gracefully
-            console.log('🔧 MessageService: Listener error:', error?.message || 'Unknown error');
-            if (errorCallback) {
-                errorCallback(error);
+                // Return conversations without sorting - let the UI component handle sorting
+                callback(validConversations);
+            },
+            (error) => {
+                // Handle listener errors gracefully
+                console.log('🔧 MessageService: Listener error:', error?.message || 'Unknown error');
+                if (errorCallback) {
+                    errorCallback(error);
+                }
             }
-        });
+        );
 
-        // Return unsubscribe function
+        // Return the unsubscribe function
         return unsubscribe;
-    },
-
-    // Get current conversations (one-time query, not a listener)
-    async getCurrentConversations(userId: string): Promise<any[]> {
-        try {
-            console.log('🔧 MessageService: Performing one-time query for current conversations...');
-
-            const q = query(
-                collection(db, 'conversations'),
-                where(`participants.${userId}`, '!=', null)
-            );
-
-            const snapshot = await getDocs(q);
-            const conversations = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-
-            // Filter out conversations where the user is the only participant
-            const validConversations = conversations.filter((conv: any) => {
-                const participantIds = Object.keys(conv.participants || {});
-                return participantIds.length > 1; // Must have at least 2 participants
-            });
-
-            // Return conversations without sorting - let the UI component handle sorting
-            console.log(`🔧 MessageService: One-time query found ${validConversations.length} conversations`);
-            return validConversations;
-
-        } catch (error: any) {
-            console.error('❌ MessageService: One-time query failed:', error);
-            throw new Error(error.message || 'Failed to get current conversations');
-        }
     },
 
     // Get messages for a conversation with 50-message limit
@@ -502,14 +536,43 @@ export const messageService = {
                 }
             };
 
-            // Add message to conversation
-            const messageRef = await addDoc(collection(db, 'conversations', conversationId, 'messages'), messageData);
+            // Get conversation data to find other participants
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
 
-            // Update conversation with handover request info
-            await updateDoc(doc(db, 'conversations', conversationId), {
+            if (!conversationDoc.exists()) {
+                throw new Error('Conversation not found');
+            }
+
+            const conversationData = conversationDoc.data();
+            const participantIds = Object.keys(conversationData.participants || {});
+
+            // Increment unread count for all participants except the sender
+            const otherParticipantIds = participantIds.filter(id => id !== senderId);
+
+            // Prepare unread count updates for each receiver
+            const unreadCountUpdates: { [key: string]: any } = {};
+            otherParticipantIds.forEach(participantId => {
+                unreadCountUpdates[`unreadCounts.${participantId}`] = increment(1);
+            });
+
+            // Add message to conversation
+            const messageRef = await addDoc(collection(db, 'conversations', conversationId, 'messages'), {
+                ...messageData,
+                readBy: [senderId] // Mark as read by the sender
+            });
+
+            // Update conversation with handover request info and increment unread counts for other participants
+            await updateDoc(conversationRef, {
                 hasHandoverRequest: true,
                 handoverRequestId: messageRef.id,
-                updatedAt: serverTimestamp()
+                lastMessage: {
+                    text: `Handover Request: ${handoverReason || 'New handover request'}`,
+                    senderId,
+                    timestamp: serverTimestamp()
+                },
+                updatedAt: serverTimestamp(),
+                ...unreadCountUpdates
             });
 
             console.log(`✅ Handover request sent successfully: ${messageRef.id}`);
@@ -565,9 +628,19 @@ export const messageService = {
     },
 
     // Send claim request
-    async sendClaimRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, claimReason?: string, idPhotoUrl?: string, evidencePhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void> {
+    async sendClaimRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, postType: 'lost' | 'found', claimReason?: string, idPhotoUrl?: string, evidencePhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void> {
         try {
-            console.log('🔄 Firebase: sendClaimRequest called with:', { conversationId, senderId, senderName, postId, postTitle, claimReason, idPhotoUrl, evidencePhotos });
+            console.log('🔄 Firebase: sendClaimRequest called with:', { 
+                conversationId, 
+                senderId, 
+                senderName, 
+                postId, 
+                postTitle, 
+                postType, 
+                claimReason, 
+                idPhotoUrl, 
+                evidencePhotos 
+            });
 
             // Validate ID photo URL
             if (idPhotoUrl && !idPhotoUrl.startsWith('http')) {
@@ -581,12 +654,31 @@ export const messageService = {
                 throw new Error('Invalid evidence photos array provided to sendClaimRequest');
             }
 
+            // Get conversation data to find other participants
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
+
+            if (!conversationDoc.exists()) {
+                throw new Error('Conversation not found');
+            }
+
+            const conversationData = conversationDoc.data();
+            const participantIds = Object.keys(conversationData.participants || {});
+            const otherParticipantIds = participantIds.filter(id => id !== senderId);
+
+            // Prepare unread count updates for each receiver
+            const unreadCountUpdates: { [key: string]: any } = {};
+            otherParticipantIds.forEach(participantId => {
+                unreadCountUpdates[`unreadCounts.${participantId}`] = increment(1);
+            });
+
             const messageData = {
                 text: `Claim Request: ${claimReason || 'No reason provided'}`,
                 senderId,
                 senderName,
                 senderProfilePicture,
                 timestamp: serverTimestamp(),
+                readBy: [senderId], // Mark as read by sender
                 messageType: 'claim_request',
                 claimData: {
                     postId,
@@ -601,15 +693,36 @@ export const messageService = {
 
             // Add message to conversation
             const messageRef = await addDoc(collection(db, 'conversations', conversationId, 'messages'), messageData);
+            const currentTimestamp = new Date();
 
-            // Update conversation with claim request info
-            await updateDoc(doc(db, 'conversations', conversationId), {
+            // Update conversation with claim request info and unread counts
+            await updateDoc(conversationRef, {
                 hasClaimRequest: true,
                 claimRequestId: messageRef.id,
+                lastMessage: {
+                    text: `New claim request from ${senderName}`,
+                    senderId,
+                    timestamp: currentTimestamp
+                },
+                ...unreadCountUpdates,
                 updatedAt: serverTimestamp()
             });
 
             console.log(`✅ Claim request sent successfully: ${messageRef.id}`);
+            
+            // Send notification to the post owner
+            try {
+                await notificationSender.sendClaimRequestNotification(conversationId, {
+                    postId: postId,
+                    postTitle: postTitle,
+                    postType: postType,
+                    senderId: senderId,
+                    senderName: senderName
+                });
+            } catch (notificationError) {
+                console.error('⚠️ Failed to send claim request notification:', notificationError);
+                // Don't fail the whole operation if notification fails
+            }
         } catch (error: any) {
             console.error('❌ Firebase sendClaimRequest failed:', error);
             throw new Error(error.message || 'Failed to send claim request');
