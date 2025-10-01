@@ -489,35 +489,7 @@ const TicketCard = ({
 
         {/* Action Buttons */}
         <View className="space-y-2">
-          {onDeletePermanently && (
-            <TouchableOpacity
-              onPress={() => {
-                Alert.alert(
-                  "Delete Permanently",
-                  "Are you sure you want to permanently delete this ticket? This action cannot be undone.",
-                  [
-                    {
-                      text: "Cancel",
-                      style: "cancel",
-                    },
-                    {
-                      text: "Delete Permanently",
-                      style: "destructive",
-                      onPress: () => onDeletePermanently(post.id)
-                    },
-                  ]
-                );
-              }}
-              className={`py-2 rounded-md items-center ${
-                isDeleting ? 'bg-gray-400' : 'bg-red-700'
-              }`}
-              disabled={isDeleting}
-            >
-              <Text className="text-white font-manrope-medium text-center">
-                {isDeleting ? 'Deleting...' : 'Delete Permanently'}
-              </Text>
-            </TouchableOpacity>
-          )}
+          {/* Delete Permanently button has been removed for mobile */}
           <View className="flex-row space-x-2">
             {onEdit && (
               <TouchableOpacity
