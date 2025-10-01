@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useMessage } from "../context/MessageContext";
 import type { Conversation, Message } from "@/types/Post";
 import MessageBubble from "./MessageBubble";
@@ -39,6 +39,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const {
     sendMessage,
     getConversationMessages,
@@ -49,6 +50,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     conversations,
   } = useMessage();
   const { userData } = useAuth();
+
+  // Auto-adjust textarea height based on content
+  const adjustTextareaHeight = useCallback(() => {
+    if (textareaRef.current) {
+      // Reset height to get the correct scrollHeight
+      textareaRef.current.style.height = 'auto';
+      // Set the height to scrollHeight, but limit to 8 rows max
+      const maxHeight = 200; // ~8 lines of text (25px per line * 8)
+      const newHeight = Math.min(textareaRef.current.scrollHeight, maxHeight);
+      textareaRef.current.style.height = `${newHeight}px`;
+    }
+  }, []);
 
   // Auto-scroll to bottom when new messages arrive (no animation)
   const scrollToBottom = () => {
@@ -95,13 +108,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Scroll to bottom when messages change (for new messages)
   useEffect(() => {
     if (messages.length > 0) {
-      scrollToBottom();
     }
   }, [messages]);
 
   // Note: 2-second timer logic removed as requested
 
-  // Load messages when conversation changes
+  // Adjust textarea height when newMessage changes
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [newMessage, adjustTextareaHeight]);
+
+  // Update messages when conversation changes
   useEffect(() => {
     if (!conversation) {
       setMessages([]);
@@ -309,6 +326,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   }, [conversation, userData]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
+    // Reset textarea height when sending a message
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
     e.preventDefault();
 
     if (!conversation || !userData || !newMessage.trim()) return;
@@ -1101,15 +1122,33 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
           <form onSubmit={handleSendMessage} className="flex gap-2">
             <div className="flex-1 relative">
-              <input
-                type="text"
+              <textarea
+                ref={textareaRef}
                 value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
+                onChange={(e) => {
+                  setNewMessage(e.target.value);
+                }}
                 onFocus={() => setIsUserTyping(true)}
                 onBlur={() => setIsUserTyping(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (newMessage.trim() && !isSending && newMessage.length <= 200) {
+                      handleSendMessage(e as any);
+                    }
+                  }
+                }}
                 placeholder="Type your message..."
                 maxLength={200}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-navyblue focus:border-transparent ${
+                rows={1}
+                style={{ 
+                  minHeight: '40px', 
+                  maxHeight: '200px', 
+                  overflowY: 'auto',
+                  scrollbarWidth: 'none',  /* Firefox */
+                  msOverflowStyle: 'none'  /* IE and Edge */
+                }}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-navyblue focus:border-transparent resize-none transition-all duration-200 [&::-webkit-scrollbar]:hidden ${
                   newMessage.length > 180
                     ? newMessage.length >= 200
                       ? "border-red-300 focus:ring-red-500"
