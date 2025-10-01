@@ -297,6 +297,7 @@ export interface Conversation {
     text: string;
     senderId: string;
     timestamp: any;
+    readBy?: string[];
   };
   createdAt: any;
   // Replace global unreadCount with user-specific counts

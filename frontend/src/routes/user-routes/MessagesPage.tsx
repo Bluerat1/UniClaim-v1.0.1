@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/services/firebase/config";
 import type { Conversation } from "@/types/Post";
 import ConversationList from "../../components/ConversationList";
 import ChatWindow from "../../components/ChatWindow";
@@ -10,37 +12,45 @@ const MessagesPage: React.FC = () => {
   const [selectedConversation, setSelectedConversation] =
     useState<Conversation | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [isGoingBack, setIsGoingBack] = useState(false);
 
-  // Handle URL changes and clear selected conversation when no conversation is specified
+  // Handle initial load and URL changes
   useEffect(() => {
     const conversationParam = searchParams.get("conversation");
-    if (!conversationParam) {
-      // No conversation in URL, clear the selected conversation
-      setSelectedConversation(null);
+    if (conversationParam && (!selectedConversation || selectedConversation.id !== conversationParam)) {
+      // Just validate the conversation exists
+      const validateConversation = async () => {
+        try {
+          const conversationDoc = await getDoc(doc(db, 'conversations', conversationParam));
+          if (!conversationDoc.exists()) {
+            setSearchParams(new URLSearchParams());
+          }
+        } catch (error) {
+          console.error("Error loading conversation:", error);
+          setSearchParams(new URLSearchParams());
+        }
+      };
+      validateConversation();
     }
-  }, [searchParams]);
+  }, [searchParams, setSearchParams]);
 
-  const handleSelectConversation = (conversation: Conversation) => {
-    if (!isGoingBack) {
-      setSelectedConversation(conversation);
+  // Update URL when selected conversation changes
+  useEffect(() => {
+    if (selectedConversation) {
+      const newSearchParams = new URLSearchParams();
+      newSearchParams.set('conversation', selectedConversation.id);
+      window.history.replaceState({}, '', `?${newSearchParams.toString()}`);
     }
-  };
+  }, [selectedConversation]);
+
+  const handleSelectConversation = useCallback((conversation: Conversation) => {
+    setSelectedConversation(conversation);
+  }, []);
 
   const handleBackToConversations = () => {
-    // Prevent auto-selection while going back
-    setIsGoingBack(true);
-
     // Clear the conversation parameter from URL
     setSearchParams(new URLSearchParams());
-
-    // Clear the selected conversation state immediately
+    // Clear the selected conversation state
     setSelectedConversation(null);
-
-    // Reset the flag after a short delay to allow normal operation
-    setTimeout(() => {
-      setIsGoingBack(false);
-    }, 100);
   };
 
   // Auto-selection is now handled entirely by ConversationList component

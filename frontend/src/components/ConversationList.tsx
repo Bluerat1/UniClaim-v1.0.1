@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import type { Conversation } from "../types/Post";
 import LoadingSpinner from "./LoadingSpinner";
 import ProfilePicture from "./ProfilePicture";
+import { useSearchParams } from "react-router-dom";
 
 interface ConversationListProps {
   onSelectConversation: (conversation: Conversation) => void;
@@ -16,6 +17,23 @@ const ConversationList: React.FC<ConversationListProps> = ({
 }) => {
   const { conversations, loading } = useMessage();
   const { userData } = useAuth();
+  const [searchParams] = useSearchParams();
+  const conversationIdFromUrl = searchParams.get('conversation');
+
+  // Auto-select conversation from URL on initial load
+  useEffect(() => {
+    if (conversationIdFromUrl && conversations.length > 0) {
+      const conversation = conversations.find(c => c.id === conversationIdFromUrl);
+      if (conversation && (!selectedConversationId || selectedConversationId !== conversationIdFromUrl)) {
+        onSelectConversation(conversation);
+      }
+    }
+  }, [conversationIdFromUrl, conversations, onSelectConversation]);
+
+  // Handle conversation selection
+  const handleConversationClick = (conversation: Conversation) => {
+    onSelectConversation(conversation);
+  };
 
 
 
@@ -153,7 +171,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
     
     // Find the sender in participants
     const sender = Object.entries(conversation.participants).find(
-      ([uid]) => uid === conversation.lastMessage.senderId
+      ([uid]) => uid === conversation.lastMessage?.senderId
     );
     
     if (sender) {
@@ -185,7 +203,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
           return (
             <div
               key={conversation.id}
-              onClick={() => onSelectConversation(conversation)}
+              onClick={() => handleConversationClick(conversation)}
               className={`p-4 border-b border-gray-100 cursor-pointer transition-colors hover:bg-zinc-100 ${
                 isSelected
                   ? "bg-brand/10 border-l-3 border-l-brand"
@@ -252,7 +270,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
                           ? getLastMessageSenderName(conversation, userData.uid)
                           : "Unknown User"}
                       </span>
-                      : {conversation.lastMessage.text}
+                      {conversation.lastMessage?.text && `: ${conversation.lastMessage.text}`}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">

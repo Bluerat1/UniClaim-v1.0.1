@@ -141,7 +141,10 @@ export default function PostCardMenu({
       }
 
       // Navigate to messages page with the specific conversation
-      navigate(`/messages?conversation=${conversationId}`);
+      navigate(`/messages?conversation=${conversationId}`, {
+        replace: true,  // Replace current entry in history stack
+        state: { fromPost: true }  // Indicate we're coming from a post
+      });
     } catch (error: any) {
       console.error("Error handling conversation:", error);
       showToast("error", error.message || "Failed to start conversation");
