@@ -34,18 +34,42 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const lastMessageCount = useRef(0);
   const { sendMessage, getConversationMessages, markConversationAsRead } =
     useMessage();
   const { userData } = useAuth();
   const { showToast } = useToast() as { showToast: (message: string, type: ToastType) => void };
 
   // Auto-scroll to bottom when new messages arrive
-  const scrollToBottom = () => {
+  const scrollToBottom = (behavior: 'auto' | 'smooth' = 'auto') => {
     if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop =
-        messagesContainerRef.current.scrollHeight;
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior
+      });
+      setIsNearBottom(true);
+      setShowScrollToBottom(false);
     } else if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "auto" });
+      messagesEndRef.current.scrollIntoView({ behavior });
+    }
+  };
+
+  // Handle scroll events to track position and show/hide scroll-to-bottom button
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (!messagesContainerRef.current) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+    
+    setIsNearBottom(isAtBottom);
+    
+    // Only show scroll-to-bottom button if not at bottom and new messages arrive
+    if (isAtBottom) {
+      setShowScrollToBottom(false);
+    } else if (messages.length > lastMessageCount.current) {
+      setShowScrollToBottom(true);
     }
   };
 
@@ -60,14 +84,27 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
     const unsubscribe = getConversationMessages(
       conversation.id,
       (loadedMessages) => {
+        const hadNewMessages = loadedMessages.length > messages.length;
         setMessages(loadedMessages);
         setIsLoading(false);
-        scrollToBottom();
+        
+        // Only auto-scroll if we were near the bottom before new messages arrived
+        if (isNearBottom || hadNewMessages) {
+          scrollToBottom('auto');
+        } else if (loadedMessages.length > lastMessageCount.current) {
+          // If new messages arrived and we're not at bottom, show scroll-to-bottom button
+          setShowScrollToBottom(true);
+        }
+        
+        lastMessageCount.current = loadedMessages.length;
       }
     );
 
-    return unsubscribe;
-  }, [conversation, getConversationMessages]);
+    return () => {
+      unsubscribe();
+      lastMessageCount.current = 0; // Reset when conversation changes
+    };
+  }, [conversation, getConversationMessages, isNearBottom, messages.length]);
 
   // Mark conversation as read when admin views it
   useEffect(() => {
@@ -309,16 +346,31 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
       {/* Messages Container */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 w-full"
-        onScroll={(e) => {
-          const target = e.target as HTMLDivElement;
-          const isNearBottom =
-            target.scrollHeight - target.scrollTop - target.clientHeight < 100;
-          if (isNearBottom) {
-            scrollToBottom();
-          }
-        }}
+        className="flex-1 overflow-y-auto p-4 space-y-4 w-full relative"
+        onScroll={handleScroll}
       >
+        {/* Scroll to bottom button */}
+        {showScrollToBottom && (
+          <button
+            onClick={() => scrollToBottom('smooth')}
+            className="sticky left-full bottom-4 ml-2 p-2 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-colors z-10"
+            title="Scroll to bottom"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 14l-7 7m0 0l-7-7m7 7V3"
+              />
+            </svg>
+          </button>
+        )}
         {isLoading ? (
           <div className="flex items-center justify-center h-32">
             <LoadingSpinner />
