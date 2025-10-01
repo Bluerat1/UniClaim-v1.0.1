@@ -26,7 +26,7 @@ export default function Ticket() {
     setPosts,
     loading: postsLoading,
   } = useUserPostsWithSet(userData?.email || "");
-  const [activeTab, setActiveTab] = useState<"active" | "completed">("active");
+  const [activeTab, setActiveTab] = useState<"active" | "completed" | "deleted">("active");
   const [searchText, setSearchText] = useState("");
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
 
@@ -54,7 +54,9 @@ export default function Ticket() {
       const matchesTab =
         activeTab === "active"
           ? post.status === "pending"
-          : post.status === "resolved";
+          : activeTab === "completed"
+          ? post.status === "resolved"
+          : post.status === "deleted";
       const matchesSearch =
         post.title.toLowerCase().includes(searchText.toLowerCase()) ||
         post.description.toLowerCase().includes(searchText.toLowerCase());
@@ -70,35 +72,36 @@ export default function Ticket() {
     // Show confirmation dialog
     Alert.alert(
       "Delete Ticket",
-      "Are you sure you want to delete this ticket? This action cannot be undone.",
+      "Are you sure you want to move this ticket to deleted? You can restore it later from the Deleted tab.",
       [
         {
           text: "Cancel",
           style: "cancel",
         },
         {
-          text: "Delete",
+          text: "Move to Deleted",
           style: "destructive",
           onPress: async () => {
             try {
               setDeletingPostId(id); // Show loading state
 
-              // Call Firebase service to actually delete the post
-              await postService.deletePost(id);
+              // Update post status to deleted instead of actually deleting it
+              await postService.updatePost(id, { status: "deleted" });
 
-              // Update local state after successful deletion
+              // Update local state
               setPosts((prevPosts: Post[]) =>
-                prevPosts.filter((p: Post) => p.id !== id)
+                prevPosts.map((p: Post) =>
+                  p.id === id ? { ...p, status: "deleted" } : p
+                )
               );
 
               // Show success message
-              Alert.alert("Success", "Ticket deleted successfully!");
+              Alert.alert("Success", "Ticket moved to deleted items.");
             } catch (error) {
-              console.error("Error deleting post:", error);
-              // Show error message to user
+              console.error("Error moving post to deleted:", error);
               Alert.alert(
                 "Error",
-                "Failed to delete ticket. Please try again."
+                "Failed to move ticket to deleted. Please try again."
               );
             } finally {
               setDeletingPostId(null); // Hide loading state
@@ -107,6 +110,67 @@ export default function Ticket() {
         },
       ]
     );
+  }, []);
+
+  const handleRestorePost = useCallback(async (id: string) => {
+    try {
+      setDeletingPostId(id); // Show loading state
+
+      // Restore the post to its original status or default to 'pending'
+      const postToRestore = posts.find((p: Post) => p.id === id);
+      const originalStatus = postToRestore?.originalStatus || "pending";
+      
+      await postService.updatePost(id, { 
+        status: originalStatus,
+        originalStatus: null // Clear the original status
+      });
+
+      // Update local state
+      setPosts((prevPosts: Post[]) =>
+        prevPosts.map((p: Post) =>
+          p.id === id 
+            ? { 
+                ...p, 
+                status: originalStatus,
+                originalStatus: undefined
+              } 
+            : p
+        )
+      );
+
+      // Show success message
+      Alert.alert("Success", "Ticket has been restored successfully!");
+    } catch (error) {
+      console.error("Error restoring post:", error);
+      Alert.alert(
+        "Error",
+        "Failed to restore ticket. Please try again."
+      );
+    } finally {
+      setDeletingPostId(null); // Hide loading state
+    }
+  }, [posts]);
+
+  const handleDeletePermanently = useCallback(async (id: string) => {
+    try {
+      setDeletingPostId(id);
+      
+      // Call the service to delete the post permanently
+      await postService.deletePost(id);
+      
+      // Update local state by removing the post
+      setPosts((prevPosts: Post[]) => prevPosts.filter(p => p.id !== id));
+      
+      Alert.alert("Success", "Ticket has been permanently deleted.");
+    } catch (error) {
+      console.error("Error deleting post permanently:", error);
+      Alert.alert(
+        "Error",
+        "Failed to delete ticket permanently. Please try again."
+      );
+    } finally {
+      setDeletingPostId(null);
+    }
   }, []);
 
   // Edit ticket handlers
@@ -232,7 +296,22 @@ export default function Ticket() {
                   activeTab === "completed" ? "text-white" : "text-black"
                 }`}
               >
-                Completed Tickets
+                Completed
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setActiveTab("deleted")}
+              className={`flex-1 h-[3.3rem] rounded-md items-center justify-center ${
+                activeTab === "deleted" ? "bg-red-500" : "bg-gray-200"
+              }`}
+            >
+              <Text
+                className={`text-base font-manrope-semibold ${
+                  activeTab === "deleted" ? "text-white" : "text-black"
+                }`}
+              >
+                Deleted
               </Text>
             </TouchableOpacity>
           </View>
@@ -261,8 +340,10 @@ export default function Ticket() {
                 <TicketCard
                   key={post.id}
                   post={post}
-                  onDelete={handleDeletePost}
-                  onEdit={handleEditPost}
+                  onDelete={activeTab !== "deleted" ? handleDeletePost : undefined}
+                  onRestore={activeTab === "deleted" ? handleRestorePost : undefined}
+                  onDeletePermanently={activeTab === "deleted" ? handleDeletePermanently : undefined}
+                  onEdit={activeTab !== "deleted" ? handleEditPost : undefined}
                   isDeleting={deletingPostId === post.id}
                 />
               ))}
@@ -286,17 +367,23 @@ export default function Ticket() {
 }
 
 // Ticket Card Component
+interface TicketCardProps {
+  post: Post;
+  onDelete?: (id: string) => void;
+  onEdit?: (post: Post) => void;
+  onRestore?: (id: string) => void;
+  onDeletePermanently?: (id: string) => void;
+  isDeleting: boolean;
+}
+
 const TicketCard = ({
   post,
   onDelete,
   onEdit,
+  onRestore,
+  onDeletePermanently,
   isDeleting,
-}: {
-  post: Post;
-  onDelete: (id: string) => void;
-  onEdit: (post: Post) => void;
-  isDeleting: boolean;
-}) => {
+}: TicketCardProps) => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "resolved":
@@ -342,7 +429,7 @@ const TicketCard = ({
   const imageSource = getImageSource(post.images);
 
   return (
-    <TouchableOpacity className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+    <View className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm mb-4">
       {/* Image Section */}
       {imageSource ? (
         <View className="w-full h-48">
@@ -350,7 +437,6 @@ const TicketCard = ({
             source={imageSource}
             className="w-full h-full"
             resizeMode="cover"
-            // Add error handling for failed image loads
             onError={() => console.log("Failed to load image:", imageSource)}
           />
         </View>
@@ -380,74 +466,99 @@ const TicketCard = ({
           </View>
         </View>
 
-        {/* Location and Date */}
-        <View className="space-y-2 mb-3">
-          <Text className="text-xs text-gray-500 font-manrope">
-            Last seen location: {post.location}
-          </Text>
-          <Text className="text-xs text-gray-400 font-manrope">
-            Posted: {formatDate(post.createdAt)}
-          </Text>
-        </View>
-
         {/* Description */}
-        <Text
-          className="text-sm text-gray-600 font-manrope leading-tight"
-          numberOfLines={3}
-        >
-          {post.description}
+        <Text className="text-gray-600 text-sm mb-3 font-manrope">
+          {post.description.length > 100
+            ? `${post.description.substring(0, 100)}...`
+            : post.description}
         </Text>
 
-        {/* Category and Type */}
-        <View className="flex-row items-center gap-2 mt-3">
-          <View className="bg-gray-300 px-2 py-1 rounded">
-            <Text className="text-xs text-gray-600 font-manrope-medium capitalize">
-              {post.category}
-            </Text>
-          </View>
-          <View
-            className={`px-2 py-1 rounded ${
-              post.type === "found" ? "bg-blue-100" : "bg-orange-100"
+        {/* Date and Type */}
+        <View className="flex-row justify-between items-center mb-3">
+          <Text className="text-xs text-gray-500 font-manrope">
+            {formatDate(post.createdAt)}
+          </Text>
+          <Text
+            className={`text-xs font-manrope-medium capitalize ${
+              post.type === "found" ? "text-blue-700" : "text-orange-700"
             }`}
           >
-            <Text
-              className={`text-xs font-manrope-medium capitalize ${
-                post.type === "found" ? "text-blue-700" : "text-orange-700"
-              }`}
-            >
-              {post.type}
-            </Text>
-          </View>
+            {post.type}
+          </Text>
         </View>
 
         {/* Action Buttons */}
-        <View className="flex-row gap-3 mt-4">
-          {/* Edit Button */}
-          <TouchableOpacity
-            onPress={() => onEdit(post)}
-            className="flex-1 bg-navyblue rounded-md h-[3.3rem] px-4 justify-center items-center"
-          >
-            <Text className="text-white font-manrope-medium text-base">
-              Edit Ticket
-            </Text>
-          </TouchableOpacity>
-
-          {/* Delete Button */}
-          <TouchableOpacity
-            onPress={() => onDelete(post.id)}
-            className="flex-1 bg-red-500 rounded-md h-[3.3rem] px-4 justify-center items-center"
-            disabled={isDeleting}
-          >
-            {isDeleting ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <Text className="text-white font-manrope-medium text-base">
-                Delete Ticket
+        <View className="space-y-2">
+          {onDeletePermanently && (
+            <TouchableOpacity
+              onPress={() => {
+                Alert.alert(
+                  "Delete Permanently",
+                  "Are you sure you want to permanently delete this ticket? This action cannot be undone.",
+                  [
+                    {
+                      text: "Cancel",
+                      style: "cancel",
+                    },
+                    {
+                      text: "Delete Permanently",
+                      style: "destructive",
+                      onPress: () => onDeletePermanently(post.id)
+                    },
+                  ]
+                );
+              }}
+              className={`py-2 rounded-md items-center ${
+                isDeleting ? 'bg-gray-400' : 'bg-red-700'
+              }`}
+              disabled={isDeleting}
+            >
+              <Text className="text-white font-manrope-medium text-center">
+                {isDeleting ? 'Deleting...' : 'Delete Permanently'}
               </Text>
+            </TouchableOpacity>
+          )}
+          <View className="flex-row space-x-2">
+            {onEdit && (
+              <TouchableOpacity
+                onPress={() => onEdit(post)}
+                className="flex-1 bg-blue-500 py-2 rounded-md items-center"
+                disabled={isDeleting}
+              >
+                <Text className="text-white font-manrope-medium">
+                  Edit
+                </Text>
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
+            {onDelete && (
+              <TouchableOpacity
+                onPress={() => onDelete(post.id)}
+                className={`flex-1 py-2 rounded-md items-center ${
+                  isDeleting ? 'bg-gray-400' : 'bg-red-500'
+                }`}
+                disabled={isDeleting}
+              >
+                <Text className="text-white font-manrope-medium">
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </Text>
+              </TouchableOpacity>
+            )}
+            {onRestore && (
+              <TouchableOpacity
+                onPress={() => onRestore(post.id)}
+                className={`flex-1 py-2 rounded-md items-center ${
+                  isDeleting ? 'bg-gray-400' : 'bg-green-500'
+                }`}
+                disabled={isDeleting}
+              >
+                <Text className="text-white font-manrope-medium">
+                  {isDeleting ? 'Restoring...' : 'Restore'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 };

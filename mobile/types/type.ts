@@ -40,7 +40,7 @@ export interface Post {
   };
   createdAt?: string | Date | any; // Firebase timestamp or Date
   updatedAt?: string | Date | any; // Firebase timestamp or Date
-  status?: "pending" | "resolved" | "unclaimed";
+  status?: "pending" | "resolved" | "unclaimed" | "deleted";
   foundAction?: "keep" | "turnover to OSA" | "turnover to Campus Security"; // For found items
   dateTime?: string; // When the item was lost/found
   postedBy?: string; // For backward compatibility
