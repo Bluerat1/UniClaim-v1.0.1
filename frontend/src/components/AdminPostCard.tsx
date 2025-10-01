@@ -20,13 +20,12 @@ interface AdminPostCardProps {
   isDeleting?: boolean;
 }
 
-function formatDateTime(datetime: string | Date) {
-  const date = typeof datetime === "string" ? new Date(datetime) : datetime;
-  return date.toLocaleString("en-PH", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
+import { formatDateTime, formatRelativeTime } from "@/utils/dateUtils";
+
+// Format function for post creation time
+const formatPostTime = (date: Date | string | { seconds: number; nanoseconds: number }) => {
+  return formatDateTime(date);
+};
 
 function highlightAndTruncate(text: string, keyword: string, maxLength = 90) {
   let truncated = text;
@@ -434,7 +433,7 @@ function AdminPostCard({
           )}
           {post.createdAt && (
             <p className="text-gray-500 font-inter">
-              {formatDateTime(post.createdAt)}
+              {formatPostTime(post.createdAt)}
             </p>
           )}
         </div>
