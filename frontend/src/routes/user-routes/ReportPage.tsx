@@ -75,6 +75,28 @@ export default function ReportPage() {
 
     const newValidFiles: File[] = [];
     files.forEach((file) => {
+      // Check if file is a GIF
+      if (file.type === 'image/gif') {
+        showToast(
+          "error",
+          "Unsupported Format",
+          `GIF files are not supported. Please upload JPG or PNG images instead.`,
+          8000
+        );
+        return;
+      }
+
+      // Check if file is an image (JPG, PNG, etc.)
+      if (!file.type.startsWith('image/')) {
+        showToast(
+          "error",
+          "Invalid File Type",
+          `"${file.name}" is not a valid image file. Please upload JPG or PNG images only.`,
+          8000
+        );
+        return;
+      }
+
       const isDuplicate = selectedFiles.some(
         (f) => f.name === file.name && f.size === file.size
       );
@@ -82,7 +104,7 @@ export default function ReportPage() {
         showToast(
           "error",
           "Duplicate Image",
-          `The image "${file.name}" has already been uploaded. (${Date.now()})`
+          `The image "${file.name}" has already been uploaded.`
         );
       } else {
         newValidFiles.push(file);
