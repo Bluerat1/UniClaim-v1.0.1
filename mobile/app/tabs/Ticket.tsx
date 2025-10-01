@@ -489,9 +489,9 @@ const TicketCard = ({
 
         {/* Action Buttons */}
         <View className="space-y-2">
-          {/* Delete Permanently button has been removed for mobile */}
           <View className="flex-row space-x-2">
-            {onEdit && (
+            {/* Show Edit button only for pending posts */}
+            {onEdit && post.status === 'pending' && (
               <TouchableOpacity
                 onPress={() => onEdit(post)}
                 className="flex-1 bg-blue-500 py-2 rounded-md items-center"
@@ -502,7 +502,9 @@ const TicketCard = ({
                 </Text>
               </TouchableOpacity>
             )}
-            {onDelete && (
+            
+            {/* Show Delete button only for pending or deleted posts */}
+            {onDelete && (post.status === 'pending' || post.status === 'deleted') && (
               <TouchableOpacity
                 onPress={() => onDelete(post.id)}
                 className={`flex-1 py-2 rounded-md items-center ${
@@ -511,11 +513,13 @@ const TicketCard = ({
                 disabled={isDeleting}
               >
                 <Text className="text-white font-manrope-medium">
-                  {isDeleting ? 'Deleting...' : 'Delete'}
+                  {isDeleting ? 'Deleting...' : post.status === 'deleted' ? 'Delete Permanently' : 'Delete'}
                 </Text>
               </TouchableOpacity>
             )}
-            {onRestore && (
+            
+            {/* Show Restore button only for deleted posts */}
+            {onRestore && post.status === 'deleted' && (
               <TouchableOpacity
                 onPress={() => onRestore(post.id)}
                 className={`flex-1 py-2 rounded-md items-center ${
@@ -528,9 +532,20 @@ const TicketCard = ({
                 </Text>
               </TouchableOpacity>
             )}
+            
+            {/* Show message for resolved posts */}
+            {post.status === 'resolved' && (
+              <View className="flex-1 py-2 rounded-md items-center bg-gray-100">
+                <Text className="text-gray-600 font-manrope-medium text-center">
+                  This ticket has been resolved
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </View>
     </View>
   );
 };
+
+export { TicketCard };
