@@ -11,6 +11,8 @@ import {
   Image,
   Alert,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useAuth } from "@/context/AuthContext";
 import { useUserPostsWithSet } from "@/hooks/usePosts";
 import type { Post } from "@/types/type";
@@ -384,6 +386,7 @@ const TicketCard = ({
   onDeletePermanently,
   isDeleting,
 }: TicketCardProps) => {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const getStatusColor = (status: string) => {
     switch (status) {
       case "resolved":
@@ -429,7 +432,20 @@ const TicketCard = ({
   const imageSource = getImageSource(post.images);
 
   return (
-    <View className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm mb-4">
+    <TouchableOpacity 
+      className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm mb-4"
+      activeOpacity={0.8}
+      onPress={() =>
+        navigation.navigate("PostDetails", {
+          post: {
+            ...post,
+            images: post.images.map((img) =>
+              typeof img === 'number' ? img : img
+            ),
+          },
+        })
+      }
+    >
       {/* Image Section */}
       {imageSource ? (
         <View className="w-full h-48">
@@ -544,8 +560,12 @@ const TicketCard = ({
           </View>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
+};
+
+type RootStackParamList = {
+  PostDetails: { post: Post };
 };
 
 export { TicketCard };
