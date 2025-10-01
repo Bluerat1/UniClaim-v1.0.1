@@ -38,22 +38,22 @@ export class NotificationSender {
     }): Promise<void> {
         try {
             console.log('🚀 Sending claim request notification for post:', claimData.postTitle);
-            
+
             // Get the conversation to find the post owner
             const conversationRef = doc(db, 'conversations', conversationId);
             const conversationDoc = await getDoc(conversationRef);
-            
+
             if (!conversationDoc.exists()) {
                 throw new Error('Conversation not found');
             }
-            
+
             const conversationData = conversationDoc.data();
             const recipientId = Object.keys(conversationData.participants || {}).find(id => id !== claimData.senderId);
-            
+
             if (!recipientId) {
                 throw new Error('No recipient found for claim request');
             }
-            
+
             // Send notification to the post owner
             await this.sendNotificationToUser(recipientId, {
                 type: 'claim_request',
@@ -68,7 +68,7 @@ export class NotificationSender {
                 creatorName: claimData.senderName,
                 conversationId: conversationId
             });
-            
+
             console.log('✅ Claim request notification sent successfully');
         } catch (error) {
             console.error('❌ Failed to send claim request notification:', error);
@@ -83,10 +83,10 @@ export class NotificationSender {
             // 1. Get the user's FCM token from Firestore
             // 2. Send a push notification using Firebase Cloud Messaging
             // 3. Save the notification to the user's notifications collection
-            
+
             // For now, we'll just log it
             console.log(`📨 Sending notification to user ${userId}:`, notificationData);
-            
+
             // Save notification to user's notifications collection
             const notificationRef = collection(db, 'users', userId, 'notifications');
             await addDoc(notificationRef, {
@@ -94,7 +94,7 @@ export class NotificationSender {
                 read: false,
                 createdAt: serverTimestamp()
             });
-            
+
             console.log(`✅ Notification saved for user ${userId}`);
         } catch (error) {
             console.error(`❌ Failed to send notification to user ${userId}:`, error);

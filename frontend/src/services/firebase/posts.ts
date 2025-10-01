@@ -436,7 +436,7 @@ export const postService = {
 
                 // Exclude hidden posts (flagged posts that admin chose to hide)
                 if (post.isHidden === true) return false;
-                
+
                 // Exclude soft-deleted posts
                 if (post.deletedAt) return false;
 
@@ -821,7 +821,7 @@ export const postService = {
             // Get the post data before updating to get the original creator
             const postDoc = await getDoc(doc(db, 'posts', postId));
             const originalCreatorId = postDoc.data()?.creatorId;
-            
+
             // Update the document
             await updateDoc(doc(db, 'posts', postId), updateData);
 
@@ -829,16 +829,16 @@ export const postService = {
             if (status === 'confirmed') {
                 console.log(`✅ Creator changed to admin: ${confirmedBy}`);
                 console.log(`✅ User field updated to OSA admin data`);
-                
+
                 // Send notification to the original creator
                 if (originalCreatorId && originalCreatorId !== confirmedBy) {
                     try {
                         const adminDoc = await getDoc(doc(db, 'users', confirmedBy));
                         const adminData = adminDoc.data();
-                        const adminName = adminData ? 
-                            `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim() || 'an administrator' : 
+                        const adminName = adminData ?
+                            `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim() || 'an administrator' :
                             'an administrator';
-                            
+
                         const notificationTitle = 'Item Received';
                         const notificationBody = `Your item "${postDoc.data()?.title || 'item'}" has been received by ${adminName}.`;
                         const notificationData = {
@@ -848,10 +848,10 @@ export const postService = {
                             action: 'item_received',
                             adminId: confirmedBy
                         };
-                        
+
                         // Show the notification
                         await notificationService.showNotification(notificationTitle, notificationBody, notificationData);
-                        
+
                         // Also create a notification record in the database
                         await notificationService.createNotification({
                             userId: originalCreatorId,
@@ -861,7 +861,7 @@ export const postService = {
                             data: notificationData,
                             postId: postId
                         });
-                        
+
                         console.log(`📬 Sent receipt confirmation notification to user ${originalCreatorId}`);
                     } catch (notifError) {
                         console.error('Failed to send receipt confirmation notification:', notifError);
@@ -960,26 +960,26 @@ export const postService = {
             let postRef = doc(db, 'posts', postId);
             let postSnap = await getDoc(postRef);
             let isFromDeletedCollection = false;
-            
+
             // If not found in posts, check deleted_posts
             if (!postSnap.exists()) {
                 postRef = doc(db, 'deleted_posts', postId);
                 postSnap = await getDoc(postRef);
                 isFromDeletedCollection = true;
-                
+
                 if (!postSnap.exists()) {
                     throw new Error('Post not found in active or deleted posts');
                 }
-                
+
                 // If we're not doing a hard delete and found in deleted_posts, it's an error
                 if (!hardDelete) {
                     throw new Error('Cannot soft delete an already deleted post');
                 }
             }
-            
+
             // Get the post data
             const postData = postSnap.data() as Post;
-            
+
             // If hard delete, delete the post and all associated data
             if (hardDelete) {
                 // Delete all images from Cloudinary if any exist
@@ -1022,10 +1022,10 @@ export const postService = {
 
                 // Delete the post
                 await deleteDoc(postRef);
-                
+
                 // Delete all conversations related to this post
                 await this.deleteConversationsByPostId(postId);
-                
+
                 // Delete all notifications related to this post
                 try {
                     await notificationService.deleteNotificationsByPostId(postId);
@@ -1036,7 +1036,7 @@ export const postService = {
                 // Soft delete - move to deleted collection
                 const deletedAt = new Date().toISOString();
                 const deletedByUser = deletedBy || 'system';
-                
+
                 // Add to deleted collection with deletion metadata
                 await setDoc(doc(db, 'deleted_posts', postId), {
                     ...postData,
@@ -1044,10 +1044,10 @@ export const postService = {
                     deletedBy: deletedByUser,
                     originalId: postId, // Keep reference to original ID
                 });
-                
+
                 // Remove from active posts
                 await deleteDoc(postRef);
-                
+
                 // Log the deletion
                 console.log(`♻️ Post ${postId} moved to deleted_posts collection`);
             }
@@ -1567,10 +1567,10 @@ export const postService = {
                 orderBy('deletedAt', 'desc'),
                 firestoreLimit(limit)
             );
-            
+
             const querySnapshot = await getDocs(deletedPostsQuery);
             const deletedPosts: Post[] = [];
-            
+
             querySnapshot.forEach((doc) => {
                 const data = doc.data() as Post;
                 const post: Post = {
@@ -1599,33 +1599,33 @@ export const postService = {
                     createdAt: data.createdAt || new Date().toISOString(),
                     updatedAt: data.updatedAt || new Date().toISOString()
                 };
-                
+
                 deletedPosts.push(post);
             });
-            
+
             return deletedPosts;
         } catch (error) {
             console.error('Error fetching deleted posts:', error);
             throw new Error('Failed to fetch deleted posts');
         }
     },
-    
+
     // Restore a soft-deleted post
     async restorePost(postId: string): Promise<void> {
         try {
             const deletedPostRef = doc(db, 'deleted_posts', postId);
             const deletedPostSnap = await getDoc(deletedPostRef);
-            
+
             if (!deletedPostSnap.exists()) {
                 throw new Error('Deleted post not found');
             }
-            
+
             const postData = deletedPostSnap.data() as Post;
             const originalId = postData.originalId || postId;
-            
+
             // Remove deleted-specific fields before restoring
             const { deletedAt, deletedBy, originalId: _, isDeleted, ...restoredData } = postData;
-            
+
             // Create a new post document with the restored data
             const postToRestore: Post = {
                 ...restoredData,
@@ -1659,46 +1659,46 @@ export const postService = {
                     return expiry;
                 })()
             };
-            
+
             // Use a batch to ensure atomicity
             const batch = writeBatch(db);
-            
+
             // Add the post back to the main collection
             const postRef = doc(db, 'posts', originalId);
             batch.set(postRef, postToRestore);
-            
+
             // Remove from deleted_posts
             batch.delete(deletedPostRef);
-            
+
             // Commit the batch
             await batch.commit();
-            
+
             console.log(`♻️ Post ${postId} restored from deleted_posts`);
         } catch (error) {
             console.error('Error restoring post:', error);
             throw new Error('Failed to restore post');
         }
     },
-    
+
     // Permanently delete a post (from deleted_posts collection)
     async permanentlyDeletePost(postId: string): Promise<void> {
         try {
             // Call the deletePost function directly with hardDelete=true
             await postService.deletePost(postId, true);
-            
+
             // Also remove from deleted_posts if it exists there
             const deletedPostRef = doc(db, 'deleted_posts', postId);
             await deleteDoc(deletedPostRef).catch(() => {
                 // Ignore if not found in deleted_posts
             });
-            
+
             console.log(`🗑️ Post ${postId} permanently deleted`);
         } catch (error) {
             console.error('Error permanently deleting post:', error);
             throw error; // Re-throw the original error to preserve the error message
         }
     },
-    
+
     // Get flagged posts (admin only)
     async getFlaggedPosts(): Promise<Post[]> {
         try {
@@ -1706,17 +1706,17 @@ export const postService = {
                 collection(db, 'posts'),
                 where('isFlagged', '==', true)
             );
-            
+
             const querySnapshot = await getDocs(q);
             const flaggedPosts: Post[] = [];
-            
+
             querySnapshot.forEach((doc) => {
                 flaggedPosts.push({
                     id: doc.id,
                     ...doc.data()
                 } as Post);
             });
-            
+
             // Sort by flaggedAt (most recently flagged first)
             flaggedPosts.sort((a: Post, b: Post) => {
                 if (!a.flaggedAt || !b.flaggedAt) return 0;
@@ -1724,7 +1724,7 @@ export const postService = {
                 const bTime = b.flaggedAt instanceof Date ? b.flaggedAt.getTime() : new Date(b.flaggedAt).getTime();
                 return bTime - aTime;
             });
-            
+
             console.log(`✅ Retrieved ${flaggedPosts.length} flagged posts`);
             return flaggedPosts;
         } catch (error: any) {
