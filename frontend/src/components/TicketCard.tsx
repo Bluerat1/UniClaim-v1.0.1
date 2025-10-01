@@ -14,19 +14,22 @@ const TicketCard = ({ post, onClick }: PostCardProps) => {
   return (
     <div
       onClick={onClick}
-      className="cursor-pointer rounded hover:shadow-md/3 transition-all bg-white"
+      className="cursor-pointer rounded hover:shadow-md/3 transition-all bg-white relative"
     >
-      <img
-        src={firstImg}
-        alt="ticket_thumbnail"
-        className="w-full h-70 object-cover rounded-t"
-      />
-
-      <div className="p-3">
-        <div className="flex items-center justify-between gap-4">
-          <span className="font-semibold text-lg truncate mb-2">
-            {post.title}
-          </span>
+      <div className="relative">
+        <img
+          src={firstImg}
+          alt="ticket_thumbnail"
+          className="w-full h-70 object-cover rounded-t"
+        />
+        <div className="absolute top-2 right-2 flex flex-col gap-1">
+          {post.type === "found" && post.foundAction && (
+            <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded">
+              {post.foundAction === "keep" ? "Keep" : 
+               post.foundAction === "turnover to OSA" ? "OSA" : 
+               "Campus Security"}
+            </span>
+          )}
           <span
             className={`text-xs font-semibold capitalize px-2 py-1 rounded ${
               post.status === "resolved"
@@ -37,6 +40,14 @@ const TicketCard = ({ post, onClick }: PostCardProps) => {
             }`}
           >
             {post.status || "pending"}
+          </span>
+        </div>
+      </div>
+
+      <div className="p-3">
+        <div className="mb-2">
+          <span className="font-semibold text-lg">
+            {post.title}
           </span>
         </div>
         <div className="flex gap-3 mb-2">
@@ -59,16 +70,6 @@ const TicketCard = ({ post, onClick }: PostCardProps) => {
           </div>
         )}
         
-        {/* Found Action Display - only show for found items */}
-        {post.type === "found" && post.foundAction && (
-          <div className="mb-2">
-            <span className="text-xs text-blue-600 font-medium">
-              Action: {post.foundAction === "keep" ? "Keep" : 
-                       post.foundAction === "turnover to OSA" ? "OSA" : 
-                       "Campus Security"}
-            </span>
-          </div>
-        )}
         <span className="text-sm text-gray-600 line-clamp-3 font-inter">
           {post.description}
         </span>
