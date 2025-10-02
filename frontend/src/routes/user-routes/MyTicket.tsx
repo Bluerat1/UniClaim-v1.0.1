@@ -23,7 +23,9 @@ export default function MyTicket() {
   const [searchText, setSearchText] = useState("");
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
   const [restoringPostId, setRestoringPostId] = useState<string | null>(null);
-  const [permanentlyDeletingPostId, setPermanentlyDeletingPostId] = useState<string | null>(null);
+  const [permanentlyDeletingPostId, setPermanentlyDeletingPostId] = useState<
+    string | null
+  >(null);
 
   // Show loading state while checking auth
   if (authLoading) {
@@ -75,7 +77,11 @@ export default function MyTicket() {
       );
     } catch (error: any) {
       console.error("Error moving post to recently deleted:", error);
-      showToast("error", "Delete Failed", "Failed to move ticket to Recently Deleted. Please try again.");
+      showToast(
+        "error",
+        "Delete Failed",
+        "Failed to move ticket to Recently Deleted. Please try again."
+      );
     } finally {
       setDeletingPostId(null); // Hide loading state
     }
@@ -102,17 +108,29 @@ export default function MyTicket() {
         setSelectedPost(null);
       }
 
-      showToast("success", "Ticket Restored", "Your ticket has been restored successfully.");
+      showToast(
+        "success",
+        "Ticket Restored",
+        "Your ticket has been restored successfully."
+      );
     } catch (error) {
       console.error("Error restoring post:", error);
-      showToast("error", "Restore Failed", "Failed to restore ticket. Please try again.");
+      showToast(
+        "error",
+        "Restore Failed",
+        "Failed to restore ticket. Please try again."
+      );
     } finally {
       setRestoringPostId(null);
     }
   };
 
   const handlePermanentlyDeletePost = async (id: string) => {
-    if (!window.confirm("Are you sure you want to permanently delete this ticket? This action cannot be undone.")) {
+    if (
+      !window.confirm(
+        "Are you sure you want to permanently delete this ticket? This action cannot be undone."
+      )
+    ) {
       return;
     }
 
@@ -132,15 +150,22 @@ export default function MyTicket() {
         setSelectedPost(null);
       }
 
-      showToast("success", "Ticket Permanently Deleted", "Your ticket has been permanently deleted.");
+      showToast(
+        "success",
+        "Ticket Permanently Deleted",
+        "Your ticket has been permanently deleted."
+      );
     } catch (error: any) {
       console.error("Error permanently deleting post:", error);
 
       // Provide more specific error messages based on the error type
-      let errorMessage = "Failed to permanently delete ticket. Please try again.";
+      let errorMessage =
+        "Failed to permanently delete ticket. Please try again.";
       let errorTitle = "Delete Failed";
 
-      if (error.message?.includes("Cloudinary API credentials not configured")) {
+      if (
+        error.message?.includes("Cloudinary API credentials not configured")
+      ) {
         errorTitle = "Configuration Error";
         errorMessage =
           "⚠️ Cloudinary API credentials are not configured. Images cannot be deleted from storage. Please contact your administrator.";
@@ -177,7 +202,9 @@ export default function MyTicket() {
   };
 
   // Filter posts based on selected tab
-  const tabFilteredPosts = (activeTab === "deleted_tickets" ? deletedPosts : rawUserPosts).filter((post) => {
+  const tabFilteredPosts = (
+    activeTab === "deleted_tickets" ? deletedPosts : rawUserPosts
+  ).filter((post) => {
     if (activeTab === "all_tickets") return true;
     if (activeTab === "active_tickets")
       return post.status === "pending" || post.status === "unclaimed";
@@ -252,7 +279,7 @@ export default function MyTicket() {
         </div>
 
         {/* Posts Section */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {postsLoading ? (
             <div className="flex h-90 items-center justify-center col-span-full">
               <p className="text-gray-500 text-sm">Loading tickets...</p>
@@ -269,10 +296,7 @@ export default function MyTicket() {
                     Deleted
                   </div>
                 )}
-                <TicketCard
-                  post={post}
-                  onClick={() => setSelectedPost(post)}
-                />
+                <TicketCard post={post} onClick={() => setSelectedPost(post)} />
                 {activeTab === "deleted_tickets" && (
                   <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg p-4 space-y-2">
                     <button
@@ -283,7 +307,7 @@ export default function MyTicket() {
                       disabled={restoringPostId === post.id}
                       className="w-full bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {restoringPostId === post.id ? 'Restoring...' : 'Restore'}
+                      {restoringPostId === post.id ? "Restoring..." : "Restore"}
                     </button>
                     <button
                       onClick={(e) => {
@@ -293,7 +317,9 @@ export default function MyTicket() {
                       disabled={permanentlyDeletingPostId === post.id}
                       className="w-full bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {permanentlyDeletingPostId === post.id ? 'Deleting...' : 'Permanently Delete'}
+                      {permanentlyDeletingPostId === post.id
+                        ? "Deleting..."
+                        : "Permanently Delete"}
                     </button>
                   </div>
                 )}

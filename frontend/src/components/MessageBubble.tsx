@@ -889,8 +889,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       onClaimResponse &&
       message.senderId !== currentUserId;
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]">
-        <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4 relative z-[1001]">
+      <div className="fixed inset-0 bg-black/50 flex h-screen items-center justify-center z-[1000]">
+        <div className="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full mx-4 relative z-[1000]">
           <h3 className="text-lg font-semibold mb-4">
             {isAdminAcceptingClaim
               ? "Confirm ID Photo"
@@ -964,9 +964,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {/* Left Column */}
-              <div className="bg-blue-50 p-4 rounded-lg col-span-2 md:col-span-1">
+              <div className="bg-blue-50 p-4 rounded-lg">
                 <p className="text-blue-800">
                   To complete your claim, please upload a clear photo of your
                   government-issued ID for verification.
@@ -976,7 +976,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                   be handled securely.
                 </p>
               </div>
-              <div className="border border-dashed border-gray-300 rounded-lg p-4 text-center">
+              <div className="border border-gray-300 rounded-md p-4 text-center">
                 {/* Hidden file inputs */}
                 <input
                   ref={fileInputRef}
@@ -999,7 +999,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                   <button
                     type="button"
                     onClick={openCamera}
-                    className="w-full bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                    className="w-full bg-navyblue text-white p-3 rounded-lg hover:bg-blue-900 transition-colors flex items-center justify-center gap-2"
                     disabled={isUploadingIdPhoto}
                   >
                     <span>📷</span>
@@ -1018,7 +1018,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                   <button
                     type="button"
                     onClick={openGallery}
-                    className="w-full bg-green-500 text-white p-3 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+                    className="w-full bg-navyblue text-white p-3 rounded-lg hover:bg-blue-900 transition-colors flex items-center justify-center gap-2"
                     disabled={isUploadingIdPhoto}
                   >
                     <span>🖼️</span>
@@ -1057,7 +1057,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         setSelectedIdPhoto(null);
                       }
                     }}
-                    className="w-full px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="w-full px-4 py-2 border border-navyblue text-gray-600 hover:bg-navyblue/5 rounded-lg transition-colors"
                     disabled={isUploadingIdPhoto}
                   >
                     {isUploadingIdPhoto ? "Uploading..." : "Cancel"}
@@ -1173,7 +1173,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           {/* Delete confirmation dialog */}
           {showDeleteConfirm && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[999]">
-              <div className="bg-white p-4 rounded-lg shadow-lg max-w-sm mx-4 relative z-[1000]">
+              <div className="bg-white p-4 rounded-lg shadow-lg max-w-md mx-4 relative z-[1000]">
                 <h3 className="text-lg font-semibold mb-2">Delete Message?</h3>
                 <p className="text-gray-600 mb-4">
                   This action cannot be undone.

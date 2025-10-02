@@ -6,6 +6,7 @@ import {
   HiOutlinePencil,
 } from "react-icons/hi";
 import { HiOutlineEnvelope } from "react-icons/hi2";
+import { FiSend } from "react-icons/fi";
 import NavText from "./NavText";
 import { TbMessage2 } from "react-icons/tb";
 import { IoIosInformationCircleOutline } from "react-icons/io";
@@ -110,7 +111,7 @@ export default function SideNav({
             />
             <div className="relative">
               <NavText
-                icon={<TbMessage2 className="size-6 stroke-[1.5px]" />}
+                icon={<FiSend className="size-6 stroke-[1.5px]" />}
                 label="Messages"
                 to="/messages"
                 isOpen={isOpen}
@@ -215,7 +216,7 @@ export default function SideNav({
                 />
                 <div className="relative">
                   <NavText
-                    icon={<TbMessage2 className="size-6 stroke-[1.5px]" />}
+                    icon={<FiSend className="size-6 stroke-[1.5px]" />}
                     label="Messages"
                     to="/messages"
                     isOpen={isOpen}

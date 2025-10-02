@@ -22,12 +22,14 @@ const TicketCard = ({ post, onClick }: PostCardProps) => {
           alt="ticket_thumbnail"
           className="w-full h-70 object-cover rounded-t"
         />
-        <div className="absolute top-2 right-2 flex flex-col gap-1">
+        <div className="absolute top-2 right-2 flex flex-row gap-2">
           {post.type === "found" && post.foundAction && (
             <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded">
-              {post.foundAction === "keep" ? "Keep" : 
-               post.foundAction === "turnover to OSA" ? "OSA" : 
-               "Campus Security"}
+              {post.foundAction === "keep"
+                ? "Keep"
+                : post.foundAction === "turnover to OSA"
+                ? "OSA"
+                : "Campus Security"}
             </span>
           )}
           <span
@@ -46,9 +48,7 @@ const TicketCard = ({ post, onClick }: PostCardProps) => {
 
       <div className="p-3">
         <div className="mb-2">
-          <span className="font-semibold text-lg">
-            {post.title}
-          </span>
+          <span className="font-semibold text-lg">{post.title}</span>
         </div>
         <div className="flex gap-3 mb-2">
           <p className="text-xs text-gray-500">
@@ -60,16 +60,16 @@ const TicketCard = ({ post, onClick }: PostCardProps) => {
               : "Unknown date"}
           </p>
         </div>
-        
+
         {/* Status-specific information */}
-        {post.status === 'resolved' && (
+        {post.status === "resolved" && (
           <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded">
             <p className="text-xs text-green-700 font-medium">
               ✅ Handover completed - This ticket cannot be edited or deleted
             </p>
           </div>
         )}
-        
+
         <span className="text-sm text-gray-600 line-clamp-3 font-inter">
           {post.description}
         </span>
