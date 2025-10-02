@@ -16,10 +16,10 @@ interface MessageContextType {
   markAllUnreadMessagesAsRead: (conversationId: string, userId: string) => Promise<void>;
   sendHandoverRequest: (conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, handoverReason?: string, idPhotoUrl?: string, itemPhotos?: { url: string; uploadedAt: any; description?: string }[]) => Promise<void>;
   updateHandoverResponse: (conversationId: string, messageId: string, status: 'accepted' | 'rejected', idPhotoUrl?: string) => Promise<void>;
-  confirmHandoverIdPhoto: (conversationId: string, messageId: string) => Promise<void>;
+  confirmHandoverIdPhoto: (conversationId: string, messageId: string, userId: string) => Promise<void>;
   sendClaimRequest: (conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, claimReason?: string, idPhotoUrl?: string, evidencePhotos?: { url: string; uploadedAt: any; description?: string }[]) => Promise<void>;
-  updateClaimResponse: (conversationId: string, messageId: string, status: 'accepted' | 'rejected') => Promise<void>;
-  confirmClaimIdPhoto: (conversationId: string, messageId: string) => Promise<void>;
+  updateClaimResponse: (conversationId: string, messageId: string, status: 'accepted' | 'rejected', userId: string, idPhotoUrl?: string) => Promise<void>;
+  confirmClaimIdPhoto: (conversationId: string, messageId: string, userId: string) => Promise<void>;
   refreshConversations: () => Promise<void>;
   markConversationAsRead: (conversationId: string, userId: string) => Promise<void>;
   getUnreadConversationCount: (userId: string) => number;
@@ -127,9 +127,9 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
     }
   };
 
-  const confirmHandoverIdPhoto = async (conversationId: string, messageId: string): Promise<void> => {
+  const confirmHandoverIdPhoto = async (conversationId: string, messageId: string, userId: string): Promise<void> => {
     try {
-      await messageService.confirmHandoverIdPhoto(conversationId, messageId, userId!);
+      await messageService.confirmHandoverIdPhoto(conversationId, messageId, userId);
     } catch (error: any) {
       throw new Error(error.message || 'Failed to confirm handover ID photo');
     }
@@ -159,18 +159,19 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
     }
   };
 
-  const updateClaimResponse = async (conversationId: string, messageId: string, status: 'accepted' | 'rejected'): Promise<void> => {
+  const updateClaimResponse = async (conversationId: string, messageId: string, status: 'accepted' | 'rejected', userId: string, idPhotoUrl?: string): Promise<void> => {
     try {
-      await messageService.updateClaimResponse(conversationId, messageId, status, userId!);
+      await messageService.updateClaimResponse(conversationId, messageId, status, userId, idPhotoUrl);
     } catch (error: any) {
       throw new Error(error.message || 'Failed to update claim response');
     }
   };
 
-  const confirmClaimIdPhoto = async (conversationId: string, messageId: string): Promise<void> => {
+  const confirmClaimIdPhoto = async (conversationId: string, messageId: string, userId: string): Promise<void> => {
     try {
-      await messageService.confirmClaimIdPhoto(conversationId, messageId, userId!);
+      await messageService.confirmClaimIdPhoto(conversationId, messageId, userId);
     } catch (error: any) {
+      console.error('❌ Mobile MessageContext: confirmClaimIdPhoto failed:', error);
       throw new Error(error.message || 'Failed to confirm claim ID photo');
     }
   };

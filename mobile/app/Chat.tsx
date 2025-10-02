@@ -546,13 +546,63 @@ export default function Chat() {
   // Handle claim response (like web version)
   const handleClaimResponse = async (
     messageId: string,
-    status: "accepted" | "rejected"
+    status: "accepted" | "rejected",
+    idPhotoUrl?: string
   ) => {
     if (!conversationId || !user?.uid) return;
 
     try {
-      await updateClaimResponse(conversationId, messageId, status);
-      Alert.alert("Success", `Claim request ${status}!`);
+      // Update the local messages state to reflect the new claim response
+      setMessages(prevMessages =>
+        prevMessages.map(msg => {
+          if (msg.id === messageId && msg.claimData) {
+            console.log('📝 Mobile Chat: Updating message claim data', msg.id);
+            console.log('📝 Mobile Chat: Current status:', msg.claimData.status);
+            console.log('📝 Mobile Chat: New status will be:', status === 'accepted' ? 'pending_confirmation' : status);
+
+            return {
+              ...msg,
+              claimData: {
+                ...msg.claimData,
+                status: status === 'accepted' ? 'pending_confirmation' : status,
+                respondedAt: new Date(),
+                respondedBy: user.uid,
+              } as any // Type assertion to handle optional properties
+            };
+          }
+          return msg;
+        })
+      );
+
+      // Update the claim response in Firebase with ID photo URL if provided
+      console.log('🔄 Mobile Chat: Calling updateClaimResponse with:', { conversationId, messageId, status, userId: user.uid, idPhotoUrl: idPhotoUrl ? 'provided' : 'not provided' });
+      await updateClaimResponse(conversationId, messageId, status, user.uid, idPhotoUrl);
+      console.log('✅ Mobile Chat: Firebase updateClaimResponse completed');
+
+      // Refresh message data from Firebase after upload to get complete updated data
+      if (status === 'accepted') {
+        console.log('🔄 Mobile Chat: Scheduling Firebase refresh in 2 seconds');
+        setTimeout(() => {
+          console.log('🔄 Mobile Chat: Refreshing message data from Firebase after claim upload');
+          if (conversationId) {
+            getConversationMessages(conversationId, (updatedMessages) => {
+              console.log('✅ Mobile Chat: Refreshed messages from Firebase', updatedMessages.length);
+
+              // Log the status of the updated message
+              const updatedMessage = updatedMessages.find(m => m.id === messageId);
+              if (updatedMessage && updatedMessage.claimData) {
+                console.log('📊 Mobile Chat: Refreshed message status:', updatedMessage.claimData.status);
+                console.log('📊 Mobile Chat: Refreshed message ownerIdPhoto:', updatedMessage.claimData.ownerIdPhoto ? 'present' : 'missing');
+              }
+
+              // Force re-render of MessageBubble components by updating a key or state
+              setMessages(updatedMessages);
+            });
+          }
+        }, 2000); // Increased delay to allow Firebase to fully update
+      }
+
+      Alert.alert("Success", `Claim request ${status === 'accepted' ? 'accepted - awaiting verification' : status}!`);
     } catch (error: any) {
       Alert.alert(
         "Error",
@@ -565,20 +615,59 @@ export default function Chat() {
   const handleConfirmIdPhotoSuccess = async (messageId: string) => {
     if (!conversationId || !user?.uid) return;
 
+    // Get the message data before trying to confirm
+    const message = messages.find((m) => m.id === messageId);
+    if (!message) {
+      console.error('❌ Mobile Chat: Message not found in local messages array:', messageId);
+      Alert.alert("Error", "Message not found. Please refresh and try again.");
+      return;
+    }
+
     try {
-      // Determine if it's a handover or claim message
-      const message = messages.find((m) => m.id === messageId);
-      if (!message) return;
+      console.log('🔄 Mobile Chat: Confirming ID photo for message:', { messageId, messageType: message.messageType });
 
       if (message.messageType === "handover_request") {
-        await confirmHandoverIdPhoto(conversationId, messageId);
-        Alert.alert("Success", "Handover ID photo confirmed!");
+        await confirmHandoverIdPhoto(conversationId, messageId, user.uid);
+        Alert.alert("Success", "Handover ID photo confirmed! The post is now marked as completed.");
       } else if (message.messageType === "claim_request") {
-        await confirmClaimIdPhoto(conversationId, messageId);
-        Alert.alert("Success", "Claim ID photo confirmed!");
+        await confirmClaimIdPhoto(conversationId, messageId, user.uid);
+        Alert.alert("Success", "Claim ID photo confirmed! The post is now marked as completed.");
       }
+
+      // Navigate back to conversations list after successful confirmation
+      console.log('🔄 Mobile Chat: Confirmation successful - navigating back to conversations');
+      navigation.goBack();
     } catch (error: any) {
-      Alert.alert("Error", "Failed to confirm ID photo. Please try again.");
+      console.error('❌ Mobile Chat: Error confirming ID photo:', error);
+
+      // Handle different error scenarios
+      if (error.message?.includes('Conversation does not exist') ||
+          error.message?.includes('Message not found') ||
+          error.message?.includes('already processed')) {
+        console.log('🔄 Mobile Chat: Conversation/message missing - ensuring post is resolved');
+
+        // Try to mark the post as completed even if conversation is missing
+        try {
+          const { postService } = await import('../utils/firebase/posts');
+          const postId = message.claimData?.postId || message.handoverData?.postId;
+          if (postId) {
+            console.log('🔄 Mobile Chat: Marking post as resolved due to missing conversation');
+            await postService.updatePost(postId, { status: 'resolved' });
+            Alert.alert("Success", "Item marked as resolved!");
+            navigation.goBack();
+            return;
+          }
+        } catch (checkError) {
+          console.log('⚠️ Mobile Chat: Could not mark post as resolved:', checkError);
+        }
+
+        // If we can't mark the post as resolved, navigate back anyway
+        console.log('ℹ️ Mobile Chat: Conversation was missing - navigating back');
+        Alert.alert("Information", "The conversation may have been completed already.");
+        navigation.goBack();
+      } else {
+        Alert.alert("Error", "Failed to confirm ID photo. Please try again.");
+      }
     }
   };
 

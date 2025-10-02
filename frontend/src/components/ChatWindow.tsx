@@ -1126,10 +1126,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   }
 
   const handleConfirmIdPhotoSuccess = (messageId: string): void => {
-    // The onClearConversation is already being called in MessageBubble
-    // This function is just for any additional cleanup if needed
-    console.log(`ID photo confirmed for message: ${messageId}`);
-    // You can add any additional logic here if needed
+    // The ID photo confirmation was successful - close the chat window
+    console.log(`ID photo confirmed for message: ${messageId} - closing chat window`);
+
+    // Clear the conversation to close the chat window
+    if (onClearConversation) {
+      onClearConversation();
+    } else {
+      // Fallback: navigate to messages page if no clear function provided
+      navigate("/messages");
+    }
   };
 
   return (

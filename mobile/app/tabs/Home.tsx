@@ -17,7 +17,7 @@ export default function Home() {
   // Simple scroll handling (like web version)
   const flatListRef = React.useRef<FlatList>(null);
   
-  const [activeButton, setActiveButton] = useState<"all" | "lost" | "found" | "completed">("all");
+  const [activeButton, setActiveButton] = useState<"all" | "lost" | "found" | "resolved">("all");
   const [query, setQuery] = useState("");
   const [categorySearch, setCategorySearch] = useState("");
   const [locationSearch, setLocationSearch] = useState("");
@@ -28,7 +28,7 @@ export default function Home() {
   // Determine which posts to display based on activeButton
   const getPostsToDisplay = () => {
     // Get the appropriate posts based on active tab
-    let basePosts = activeButton === "completed" ? (resolvedPosts || []) : (posts || []);
+    let basePosts = activeButton === "resolved" ? (resolvedPosts || []) : (posts || []);
     
     // Create a new array to avoid mutating the original
     // Sort by createdAt in descending order (newest first)
@@ -81,8 +81,8 @@ export default function Home() {
       : true;
 
     // For active posts, make sure they're not resolved
-    // For completed view, we don't need to check status as resolvedPosts already contains only resolved posts
-    const typeMatch = activeButton === "completed" || 
+    // For resolved view, we don't need to check status as resolvedPosts already contains only resolved posts
+    const typeMatch = activeButton === "resolved" || 
                      (post.status !== "resolved" && 
                       (activeButton === "all" || post.type === activeButton));
 
@@ -152,17 +152,17 @@ export default function Home() {
 
         <View className="flex-row mt-2 gap-2">
           <TouchableOpacity
-            onPress={() => setActiveButton("completed")}
+            onPress={() => setActiveButton("resolved")}
             className={`flex-1 h-[3.3rem] rounded-md items-center justify-center ${
-              activeButton === "completed" ? "bg-navyblue" : "bg-zinc-200"
+              activeButton === "resolved" ? "bg-navyblue" : "bg-zinc-200"
             }`}
           >
             <Text
               className={`font-semibold text-base font-manrope-semibold ${
-                activeButton === "completed" ? "text-white" : "text-black"
+                activeButton === "resolved" ? "text-white" : "text-black"
               }`}
             >
-              Completed Items
+              Resolved Items
             </Text>
           </TouchableOpacity>
         </View>

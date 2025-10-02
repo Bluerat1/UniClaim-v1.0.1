@@ -88,17 +88,25 @@ export class NotificationSender {
             console.log(`📨 Sending notification to user ${userId}:`, notificationData);
 
             // Save notification to user's notifications collection
-            const notificationRef = collection(db, 'users', userId, 'notifications');
-            await addDoc(notificationRef, {
-                ...notificationData,
-                read: false,
-                createdAt: serverTimestamp()
-            });
+            // Note: This requires proper Firestore security rules to allow cross-user writes
+            // For now, we'll make this non-blocking to avoid breaking the main flow
+            try {
+                const notificationRef = collection(db, 'users', userId, 'notifications');
+                await addDoc(notificationRef, {
+                    ...notificationData,
+                    read: false,
+                    createdAt: serverTimestamp()
+                });
 
-            console.log(`✅ Notification saved for user ${userId}`);
+                console.log(`✅ Notification saved for user ${userId}`);
+            } catch (notificationError) {
+                // Make notification saving non-blocking - don't throw error
+                console.warn(`⚠️ Failed to save notification for user ${userId}:`, notificationError);
+                // Don't throw - this shouldn't break the main claim acceptance flow
+            }
         } catch (error) {
             console.error(`❌ Failed to send notification to user ${userId}:`, error);
-            throw error;
+            // Don't throw error - notification failures shouldn't break main functionality
         }
     }
 

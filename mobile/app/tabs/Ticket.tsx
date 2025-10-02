@@ -28,7 +28,7 @@ export default function Ticket() {
     setPosts,
     loading: postsLoading,
   } = useUserPostsWithSet(userData?.email || "");
-  const [activeTab, setActiveTab] = useState<"active" | "completed" | "deleted">("active");
+  const [activeTab, setActiveTab] = useState<"active" | "resolved" | "deleted">("active");
   const [searchText, setSearchText] = useState("");
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
   const [restoringPostId, setRestoringPostId] = useState<string | null>(null);
@@ -58,7 +58,7 @@ export default function Ticket() {
       const matchesTab =
         activeTab === "active"
           ? !post.deletedAt && post.status === "pending"
-          : activeTab === "completed"
+          : activeTab === "resolved"
           ? !post.deletedAt && post.status === "resolved"
           : !!post.deletedAt; // Show deleted posts in the deleted tab
       const matchesSearch =
@@ -314,17 +314,17 @@ export default function Ticket() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => setActiveTab("completed")}
+              onPress={() => setActiveTab("resolved")}
               className={`flex-1 h-[3.3rem] rounded-md items-center justify-center ${
-                activeTab === "completed" ? "bg-navyblue" : "bg-gray-200"
+                activeTab === "resolved" ? "bg-navyblue" : "bg-gray-200"
               }`}
             >
               <Text
                 className={`text-base font-manrope-semibold  ${
-                  activeTab === "completed" ? "text-white" : "text-black"
+                  activeTab === "resolved" ? "text-white" : "text-black"
                 }`}
               >
-                Completed
+                Resolved
               </Text>
             </TouchableOpacity>
 
