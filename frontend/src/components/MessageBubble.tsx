@@ -86,16 +86,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   }, [onMessageSeen, hasBeenSeen, isOwnMessage]);
 
   const handleHandoverResponse = async (status: "accepted" | "rejected") => {
-    console.log('🔄 MessageBubble: handleHandoverResponse called', { status, messageType: message.messageType, messageId: message.id });
-
     if (!onHandoverResponse) {
-      console.error('❌ MessageBubble: No onHandoverResponse callback provided');
       return;
     }
 
     // If accepting, show ID photo modal
     if (status === "accepted") {
-      console.log('✅ MessageBubble: Showing ID photo modal for handover acceptance');
       setShowIdPhotoModal(true);
       return;
     }
@@ -104,7 +100,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     const callbacks: HandoverClaimCallbacks = {
       onHandoverResponse,
       onError: (error) => {
-        console.error('❌ MessageBubble: Handover rejection failed:', error);
         alert(error);
       },
     };
@@ -119,13 +114,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const handleIdPhotoUpload = async (photoFile: File) => {
-    console.log('🔄 MessageBubble: handleIdPhotoUpload called', {
-      messageType: message.messageType,
-      messageId: message.id,
-      fileName: photoFile.name,
-      fileSize: photoFile.size
-    });
-
     setIsUploadingIdPhoto(true);
 
     // Capture message ID for the callback
@@ -133,14 +121,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
     const callbacks: HandoverClaimCallbacks = {
       onHandoverResponse: (messageId, status) => {
-        console.log('🔄 MessageBubble: onHandoverResponse called for handover', { messageId, status });
         // Handle handover response after ID photo upload
         if (onHandoverResponse) {
           onHandoverResponse(messageId, status);
         }
       },
       onClaimResponse: (messageId, status) => {
-        console.log('🔄 MessageBubble: onClaimResponse called for claim', { messageId, status });
         // Handle claim response after ID photo upload
         if (onClaimResponse) {
           onClaimResponse(messageId, status);
@@ -148,27 +134,22 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         // Don't close the modal yet, wait for the success callback
       },
       onSuccess: (_message: any) => {
-        console.log('✅ MessageBubble: Upload successful, calling parent callback');
-
         // Close the modal and reset the photo
         setShowIdPhotoModal(false);
         setSelectedIdPhoto(null);
 
         // Wait for Firebase to fully update before calling parent callback
         setTimeout(() => {
-          console.log('🔄 MessageBubble: Calling parent callback after Firebase update');
           onHandoverResponse?.(msgId, 'accepted');
 
           // Additional delay to ensure parent has processed the callback
           setTimeout(() => {
-            console.log('🔄 MessageBubble: Parent should have updated, triggering additional refresh');
             // The parent component will refresh the message data from Firebase
             // This ensures we get the complete updated message with ownerIdPhoto
           }, 500);
         }, 1500); // Longer delay to allow Firebase to fully update
       },
       onError: (error) => {
-        console.error('❌ MessageBubble: Upload failed:', error);
         let errorMessage = error;
         if (error.includes("Network request failed")) {
           errorMessage =
@@ -189,7 +170,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     try {
       // Route based on message type only
       if (message.messageType === "claim_request") {
-        console.log('📤 MessageBubble: Using handleClaimIdPhotoUpload for claim request');
         await handoverClaimService.handleClaimIdPhotoUpload(
           photoFile,
           conversationId,
@@ -198,7 +178,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           callbacks
         );
       } else if (message.messageType === "handover_request") {
-        console.log('📤 MessageBubble: Using handleIdPhotoUpload for handover request');
         await handoverClaimService.handleIdPhotoUpload(
           photoFile,
           conversationId,
@@ -207,11 +186,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           callbacks
         );
       } else {
-        console.error('❌ MessageBubble: Unknown message type for ID photo upload:', message.messageType);
         throw new Error(`Unknown message type: ${message.messageType}`);
       }
     } catch (error: any) {
-      console.error("Error uploading ID photo:", error);
       alert(`Error: ${error.message || "Failed to upload ID photo"}`);
     }
 
@@ -357,30 +334,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const renderHandoverRequest = () => {
-    console.log('🔍 MessageBubble: renderHandoverRequest called', {
-      messageType: message.messageType,
-      hasHandoverData: !!message.handoverData,
-      handoverStatus: message.handoverData?.status,
-      isOwnMessage,
-      messageId: message.id
-    });
-
     if (message.messageType !== "handover_request") {
-      console.log('❌ MessageBubble: Not a handover request, messageType:', message.messageType);
       return null;
     }
 
     const handoverData = message.handoverData;
     if (!handoverData) {
-      console.log('❌ MessageBubble: No handover data found');
       return null;
     }
-
-    console.log('✅ MessageBubble: Rendering handover request', {
-      status: handoverData.status,
-      canRespond: handoverData.status === "pending" && !isOwnMessage,
-      canConfirm: handoverData.status === "pending_confirmation" && postOwnerId === currentUserId
-    });
 
     // Show different UI based on status and user role
     const canRespond = handoverData.status === "pending" && !isOwnMessage;
