@@ -7,33 +7,33 @@ import LocationMap from "./LocationMap";
 // Helper function to get status color and text
 const getStatusStyles = (status: string | undefined) => {
   switch (status?.toLowerCase()) {
-    case 'resolved':
+    case "resolved":
       return {
-        bgColor: 'bg-green-100',
-        textColor: 'text-green-800',
-        borderColor: 'border-green-200',
-        displayText: 'Resolved'
+        bgColor: "bg-green-100",
+        textColor: "text-green-800",
+        borderColor: "border-green-200",
+        displayText: "Resolved",
       };
-    case 'pending':
+    case "pending":
       return {
-        bgColor: 'bg-yellow-100',
-        textColor: 'text-yellow-800',
-        borderColor: 'border-yellow-200',
-        displayText: 'Pending'
+        bgColor: "bg-yellow-100",
+        textColor: "text-yellow-800",
+        borderColor: "border-yellow-200",
+        displayText: "Pending",
       };
-    case 'unclaimed':
+    case "unclaimed":
       return {
-        bgColor: 'bg-blue-100',
-        textColor: 'text-blue-800',
-        borderColor: 'border-blue-200',
-        displayText: 'Unclaimed'
+        bgColor: "bg-blue-100",
+        textColor: "text-blue-800",
+        borderColor: "border-blue-200",
+        displayText: "Unclaimed",
       };
     default:
       return {
-        bgColor: 'bg-gray-100',
-        textColor: 'text-gray-800',
-        borderColor: 'border-gray-200',
-        displayText: status || 'Pending'
+        bgColor: "bg-gray-100",
+        textColor: "text-gray-800",
+        borderColor: "border-gray-200",
+        displayText: status || "Pending",
       };
   }
 };
@@ -82,7 +82,7 @@ const TicketModal = ({
   // Category and Type styles to match PostModal
   const categoryStyles: Record<string, string> = {
     "Student Essentials": "bg-yellow-300 text-black",
-    "Gadgets": "bg-blue-400 text-black",
+    Gadgets: "bg-blue-400 text-black",
     "Personal Belongings": "bg-purple-300 text-black",
   };
 
@@ -320,17 +320,17 @@ const TicketModal = ({
                 >
                   {post.category}
                 </span>
-                {post.status === 'resolved' && post.claimDetails && (
+                {post.status === "resolved" && post.claimDetails && (
                   <span className="px-2 py-1 text-xs font-medium rounded-[3px] bg-purple-100 text-purple-700">
                     Claimed
                   </span>
                 )}
-                {post.status === 'resolved' && (
+                {post.status === "resolved" && (
                   <span className="px-2 py-1 text-xs font-medium rounded-[3px] bg-green-100 text-green-700">
                     ✅ Resolved
                   </span>
                 )}
-                {post.status === 'unclaimed' && (
+                {post.status === "unclaimed" && (
                   <span className="px-2 py-1 text-xs font-medium rounded-[3px] bg-orange-100 text-orange-700">
                     ⏰ Unclaimed
                   </span>
@@ -338,47 +338,47 @@ const TicketModal = ({
               </div>
             </div>
           </div>
-            {isEditing ? (
-              <>
-                <button
-                  onClick={() => setIsEditing(false)}
-                  className="bg-gray-500 text-white text-xs px-3 p-2 rounded hover:bg-gray-600"
-                >
-                  Cancel Edit
-                </button>
-                <button
-                  onClick={handleSaveEdits}
-                  className="bg-green-600 text-white text-xs px-3 p-2 rounded hover:bg-green-500"
-                >
-                  Save Changes
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={handleEditClick}
-                  className="bg-brand text-white text-xs px-3 p-2 rounded hover:bg-yellow-600"
-                >
-                  Edit Ticket
-                </button>
-                <button
-                  onClick={() => onDelete(post.id)}
-                  disabled={isDeleting}
-                  className="bg-[#FD8E74] text-white text-xs px-3 p-2 rounded hover:bg-[#c07c6d] disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={`Delete ticket "${post.title}" and ${
-                    post.images.length
-                  } associated image${post.images.length !== 1 ? "s" : ""}`}
-                >
-                  {isDeleting ? "Deleting..." : "Delete Ticket"}
-                </button>
-              </>
-            )}
-            <button
-              onClick={onClose}
-              className="text-black lg:text-gray-600 lg:hover:text-black"
-            >
-              <FiX size={18} />
-            </button>
+          {isEditing ? (
+            <>
+              <button
+                onClick={() => setIsEditing(false)}
+                className="bg-gray-500 text-white text-xs px-3 p-2 mr-2 rounded hover:bg-gray-600"
+              >
+                Cancel Edit
+              </button>
+              <button
+                onClick={handleSaveEdits}
+                className="bg-green-600 text-white text-xs px-3 p-2 mr-2 rounded hover:bg-green-500"
+              >
+                Save Changes
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={handleEditClick}
+                className="bg-brand text-white text-xs px-3 py-2 mr-2 rounded hover:bg-yellow-600"
+              >
+                Edit Ticket
+              </button>
+              <button
+                onClick={() => onDelete(post.id)}
+                disabled={isDeleting}
+                className="bg-[#FD8E74] text-white text-xs px-3 py-2 mr-2 rounded hover:bg-[#c07c6d] disabled:opacity-50 disabled:cursor-not-allowed"
+                title={`Delete ticket "${post.title}" and ${
+                  post.images.length
+                } associated image${post.images.length !== 1 ? "s" : ""}`}
+              >
+                {isDeleting ? "Deleting..." : "Delete Ticket"}
+              </button>
+            </>
+          )}
+          <button
+            onClick={onClose}
+            className="text-black lg:text-gray-600 lg:hover:text-black"
+          >
+            <FiX size={18} />
+          </button>
         </div>
 
         {/* Image Preview */}
@@ -515,31 +515,33 @@ const TicketModal = ({
                   <div className="bg-gray-100 p-2 rounded border border-gray-300 mb-3">
                     <p className="text-[12px] text-gray-700">{post.location}</p>
                   </div>
-                  
+
                   {/* Location Map */}
                   {post.coordinates && (
                     <div className="relative rounded-md overflow-hidden border border-gray-300 mb-3">
-                      <LocationMap 
-                        coordinates={post.coordinates} 
+                      <LocationMap
+                        coordinates={post.coordinates}
                         location={post.location}
                         className="h-[200px]"
                       />
                       {/* Coordinates overlay */}
                       <div className="absolute bottom-2 left-2 right-2 z-10 bg-white/90 backdrop-blur-sm rounded-md px-2 py-1 shadow-sm border border-gray-200 flex justify-center">
                         <span className="text-xs text-gray-600 font-mono">
-                          {post.coordinates.lat.toFixed(6)}, {post.coordinates.lng.toFixed(6)}
+                          {post.coordinates.lat.toFixed(6)},{" "}
+                          {post.coordinates.lng.toFixed(6)}
                         </span>
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Pinned Coordinates */}
                   {post.coordinates && (
                     <div className="mb-3">
                       <p className="text-[12px] mb-1">Pinned Coordinates</p>
                       <div className="bg-gray-100 p-2 rounded border border-gray-300">
                         <p className="text-[12px] text-gray-700">
-                          {post.coordinates.lat.toFixed(5)} {post.coordinates.lng.toFixed(5)}
+                          {post.coordinates.lat.toFixed(5)}{" "}
+                          {post.coordinates.lng.toFixed(5)}
                         </p>
                       </div>
                     </div>
@@ -589,9 +591,13 @@ const TicketModal = ({
                 <div>
                   <h1 className="text-sm mb-2">Ticket Status</h1>
                   <div className="flex items-center">
-                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      getStatusStyles(post.status).bgColor
-                    } ${getStatusStyles(post.status).textColor} ${getStatusStyles(post.status).borderColor} border`}>
+                    <div
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        getStatusStyles(post.status).bgColor
+                      } ${getStatusStyles(post.status).textColor} ${
+                        getStatusStyles(post.status).borderColor
+                      } border`}
+                    >
                       {getStatusStyles(post.status).displayText}
                     </div>
                   </div>

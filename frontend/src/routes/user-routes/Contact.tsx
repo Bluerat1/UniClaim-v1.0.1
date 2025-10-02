@@ -21,7 +21,9 @@ const Contact = () => {
               <h1 className="text-brand font-semibold text-manrope text-base">
                 Email address
               </h1>
-              <h2 className="text-xl font-semibold">dummyemail@gmail.com</h2>
+              <h2 className="text-xl font-semibold">
+                paulninosalaan75@gmail.com
+              </h2>
               <p className="text-sm text-zinc-500">
                 Have a detailed question? Send us an email
               </p>

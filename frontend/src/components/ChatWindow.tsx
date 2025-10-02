@@ -33,58 +33,64 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [isHandoverSubmitting, setIsHandoverSubmitting] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [infoPage, setInfoPage] = useState(1);
-  
+
   const infoPages = [
     {
       title: "Conversation Information",
       content: (
         <div className="space-y-4">
-          <div>
+          <div className="border border-gray-300 rounded-md p-2.5">
             <p className="text-sm font-medium text-gray-500">Post Title</p>
             <p className="text-gray-900">{conversation?.postTitle}</p>
           </div>
-          <div>
+          <div className="border border-gray-300 rounded-md p-2.5">
             <p className="text-sm font-medium text-gray-500">Post Type</p>
             <p className="capitalize">{conversation?.postType}</p>
           </div>
-          <div>
+          <div className="border border-gray-300 rounded-md p-2.5">
             <p className="text-sm font-medium text-gray-500">Status</p>
-            <p className="capitalize">{conversation?.postStatus || 'Active'}</p>
+            <p className="capitalize">{conversation?.postStatus || "Active"}</p>
           </div>
-          <div>
+          <div className="border border-gray-300 rounded-md p-2.5">
             <p className="text-sm font-medium text-gray-500">Created</p>
             <p>
               {conversation?.createdAt
                 ? new Date(conversation.createdAt).toLocaleString()
-                : 'N/A'}
+                : "N/A"}
             </p>
           </div>
         </div>
-      )
+      ),
     },
     {
       title: "Message Limit",
       content: (
         <div className="space-y-4">
-          <div className="bg-blue-50 p-4 rounded-md">
-            <p className="text-sm text-blue-700">
-              To ensure fair usage for all users, conversations are limited to the 50 most recent messages. This helps us maintain system performance while keeping the service free for everyone.
+          <div className="border border-gray-300 rounded-md p-3">
+            <p className="text-sm text-black">
+              To ensure fair usage for all users, conversations are limited to
+              the 50 most recent messages. This helps us maintain system
+              performance while keeping the service free for everyone.
             </p>
           </div>
           <div className="mt-4">
-            <p className="text-sm text-gray-600">
-              <span className="font-medium">Tip:</span> For important information, consider exchanging contact details or moving to a different platform once you've established contact.
+            <p className="bg-blue-50 text-blue-700 text-sm p-3 rounded-md">
+              <span className="font-bold">Tip:</span> For important information,
+              consider exchanging contact details or moving to a different
+              platform once you've established contact.
             </p>
           </div>
         </div>
-      )
+      ),
     },
     {
       title: "Chat Tips",
       content: (
         <div className="space-y-4">
-          <div className="space-y-2">
-            <p className="font-medium text-gray-900">Best Practices:</p>
+          <div className="space-y-2 border border-gray-300 rounded-md p-3">
+            <p className="font-semibold text-sm text-gray-900">
+              Best Practices:
+            </p>
             <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
               <li>Be clear and specific about the item details</li>
               <li>Share only necessary personal information</li>
@@ -93,26 +99,26 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             </ul>
           </div>
         </div>
-      )
-    }
+      ),
+    },
   ];
-  
+
   const handleNextPage = () => {
     if (infoPage < infoPages.length) {
-      setInfoPage(prev => prev + 1);
+      setInfoPage((prev) => prev + 1);
     } else {
       setInfoPage(1);
     }
   };
-  
+
   const handlePrevPage = () => {
     if (infoPage > 1) {
-      setInfoPage(prev => prev - 1);
+      setInfoPage((prev) => prev - 1);
     } else {
       setInfoPage(infoPages.length);
     }
   };
-  
+
   const resetInfoModal = () => {
     setInfoPage(1);
     setShowInfoModal(false);
@@ -142,7 +148,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const adjustTextareaHeight = useCallback(() => {
     if (textareaRef.current) {
       // Reset height to get the correct scrollHeight
-      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = "auto";
       // Set the height to scrollHeight, but limit to 8 rows max
       const maxHeight = 200; // ~8 lines of text (25px per line * 8)
       const newHeight = Math.min(textareaRef.current.scrollHeight, maxHeight);
@@ -415,7 +421,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const handleSendMessage = async (e: React.FormEvent) => {
     // Reset textarea height when sending a message
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = "auto";
     }
     e.preventDefault();
 
@@ -665,20 +671,21 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
 
     // Check if the post creator is an admin by checking the post creator's ID
-    const isAdminPost = conversation.postCreatorId === 'admin' || 
-                       (conversation.postCreatorId?.includes('admin') ?? false) ||
-                       conversation.postCreatorId === 'campus_security';
+    const isAdminPost =
+      conversation.postCreatorId === "admin" ||
+      (conversation.postCreatorId?.includes("admin") ?? false) ||
+      conversation.postCreatorId === "campus_security";
 
     // For admin posts, only require ID photo, not evidence photos
     if (isAdminPost) {
       if (!idPhotoFile) {
-        alert('Please upload your ID photo');
+        alert("Please upload your ID photo");
         return;
       }
     } else {
       // For non-admin posts, require both ID photo and evidence photos
       if (!idPhotoFile || !evidencePhotos || evidencePhotos.length === 0) {
-        alert('Please upload your ID photo and at least one evidence photo');
+        alert("Please upload your ID photo and at least one evidence photo");
         return;
       }
     }
@@ -840,7 +847,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       // For admin posts, only require ID photo, not evidence photos
       const evidenceToSend = isAdminPost ? [] : uploadedEvidencePhotos;
-      
+
       // Now send the claim request with the appropriate data
       await sendClaimRequest(
         conversation.id,
@@ -849,15 +856,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         userData.profilePicture || userData.profileImageUrl || "",
         conversation.postId,
         conversation.postTitle,
-        conversation.postType || 'lost', // Add postType with a fallback
+        conversation.postType || "lost", // Add postType with a fallback
         claimReason,
         idPhotoUrl,
         evidenceToSend
       );
-      
+
       // For admin posts, show a success message with next steps
       if (isAdminPost) {
-        alert('Your claim has been submitted. Please wait for the admin to verify your ID and confirm the handover.');
+        alert(
+          "Your claim has been submitted. Please wait for the admin to verify your ID and confirm the handover."
+        );
       }
 
       // Close modal and show success message
@@ -917,76 +926,79 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   // Check if claim item button should be shown
   const shouldShowClaimItemButton = () => {
-    console.log('=== shouldShowClaimItemButton called ===');
-    console.log('conversation:', conversation);
-    console.log('userData:', userData);
-    
+    console.log("=== shouldShowClaimItemButton called ===");
+    console.log("conversation:", conversation);
+    console.log("userData:", userData);
+
     if (!conversation || !userData) {
-      console.log('Missing conversation or userData');
+      console.log("Missing conversation or userData");
       return false;
     }
 
     // Only show for found items
-    console.log('postType:', conversation.postType);
+    console.log("postType:", conversation.postType);
     if (conversation.postType !== "found") {
-      console.log('Not a found item');
+      console.log("Not a found item");
       return false;
     }
 
     // Only show if post is still pending
-    console.log('postStatus:', conversation.postStatus);
+    console.log("postStatus:", conversation.postStatus);
     if (conversation.postStatus !== "pending") {
-      console.log('Post is not pending');
+      console.log("Post is not pending");
       return false;
     }
 
     // Check if the post is from an admin (using isAdminPost flag or checking creator's role)
     const creatorData = conversation.participants[conversation.postCreatorId];
-    const isAdminPost = conversation.isAdminPost === true || 
-                       creatorData?.role === 'admin' || 
-                       creatorData?.role === 'campus_security' ||
-                       // Check if creator is admin/campus security by name (fallback)
-                       (creatorData?.firstName === 'System' && creatorData?.lastName === 'Administrator') ||
-                       (creatorData?.firstName === 'Campus' && creatorData?.lastName === 'Security');
-    
-    console.log('=== Admin Post Detection ===');
-    console.log('isAdminPost flag:', conversation.isAdminPost);
-    console.log('creatorData:', creatorData);
-    console.log('creator role:', creatorData?.role);
-    console.log('isAdminPost result:', isAdminPost);
-    console.log('postCreatorId:', conversation.postCreatorId);
-    console.log('current user id:', userData.uid);
-    console.log('participants:', conversation.participants);
-    
+    const isAdminPost =
+      conversation.isAdminPost === true ||
+      creatorData?.role === "admin" ||
+      creatorData?.role === "campus_security" ||
+      // Check if creator is admin/campus security by name (fallback)
+      (creatorData?.firstName === "System" &&
+        creatorData?.lastName === "Administrator") ||
+      (creatorData?.firstName === "Campus" &&
+        creatorData?.lastName === "Security");
+
+    console.log("=== Admin Post Detection ===");
+    console.log("isAdminPost flag:", conversation.isAdminPost);
+    console.log("creatorData:", creatorData);
+    console.log("creator role:", creatorData?.role);
+    console.log("isAdminPost result:", isAdminPost);
+    console.log("postCreatorId:", conversation.postCreatorId);
+    console.log("current user id:", userData.uid);
+    console.log("participants:", conversation.participants);
+
     // For admin posts, ignore foundAction
     if (isAdminPost) {
-      console.log('Admin post detected, ignoring foundAction');
-      const isCurrentUserPostCreator = conversation.postCreatorId === userData.uid;
-      
+      console.log("Admin post detected, ignoring foundAction");
+      const isCurrentUserPostCreator =
+        conversation.postCreatorId === userData.uid;
+
       // Don't show claim button for the admin who created the post
       if (isCurrentUserPostCreator) {
-        console.log('Current user is the post creator, hiding claim button');
+        console.log("Current user is the post creator, hiding claim button");
         return false;
       }
-      
-      console.log('Showing claim button for admin post');
+
+      console.log("Showing claim button for admin post");
       return true;
     }
 
-
     // For non-admin posts, check if the item is turned over
-    if (conversation.foundAction && conversation.foundAction !== 'keep') {
-      console.log('Item has been turned over, hiding claim button');
+    if (conversation.foundAction && conversation.foundAction !== "keep") {
+      console.log("Item has been turned over, hiding claim button");
       return false;
     }
 
     // Don't show if current user is the post creator
     if (conversation.postCreatorId === userData.uid) {
-      console.log('Current user is the post creator, hiding claim button');
+      console.log("Current user is the post creator, hiding claim button");
       return false;
     }
-    
-    console.log('All conditions met, showing claim button');
+
+    console.log("All conditions met, showing claim button");
 
     return true;
   };
@@ -1052,10 +1064,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 e.stopPropagation();
                 setShowInfoModal(true);
               }}
-              className="text-gray-400 hover:text-gray-600 focus:outline-none p-1"
+              className="text-blue-400 hover:text-blue-800 focus:outline-none p-1"
               aria-label="Show conversation information"
             >
-              <InformationCircleIcon className="h-6 w-6" />
+              <InformationCircleIcon className="size-6" />
             </button>
 
             {/* Handover Item Button */}
@@ -1232,9 +1244,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 onFocus={() => setIsUserTyping(true)}
                 onBlur={() => setIsUserTyping(false)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
+                  if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    if (newMessage.trim() && !isSending && newMessage.length <= 200) {
+                    if (
+                      newMessage.trim() &&
+                      !isSending &&
+                      newMessage.length <= 200
+                    ) {
                       handleSendMessage(e as any);
                     }
                   }
@@ -1242,12 +1258,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 placeholder="Type your message..."
                 maxLength={200}
                 rows={1}
-                style={{ 
-                  minHeight: '40px', 
-                  maxHeight: '200px', 
-                  overflowY: 'auto',
-                  scrollbarWidth: 'none',  /* Firefox */
-                  msOverflowStyle: 'none'  /* IE and Edge */
+                style={{
+                  minHeight: "40px",
+                  maxHeight: "200px",
+                  overflowY: "auto",
+                  scrollbarWidth: "none" /* Firefox */,
+                  msOverflowStyle: "none" /* IE and Edge */,
                 }}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-navyblue focus:border-transparent resize-none transition-all duration-200 [&::-webkit-scrollbar]:hidden ${
                   newMessage.length > 180
@@ -1305,61 +1321,86 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* Info Modal */}
       {showInfoModal && conversation && (
         <div className="fixed inset-0 bg-black/50  flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6 relative">
+          <div className="bg-white rounded-md max-w-md w-full p-6 relative">
             <div className="flex items-center justify-between mb-4">
-              <button 
+              <button
                 onClick={handlePrevPage}
                 className="p-1 text-gray-500 hover:text-gray-700"
                 aria-label="Previous page"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                    clipRule="evenodd"
+                  />
                 </svg>
               </button>
-              
-              <h3 className="text-lg font-semibold">{infoPages[infoPage - 1].title}</h3>
-              
-              <button 
+
+              <h3 className="text-lg font-semibold">
+                {infoPages[infoPage - 1].title}
+              </h3>
+
+              <button
                 onClick={handleNextPage}
                 className="p-1 text-gray-500 hover:text-gray-700"
                 aria-label="Next page"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                    clipRule="evenodd"
+                  />
                 </svg>
               </button>
             </div>
-            
+
             <div className="space-y-4">
               {infoPages[infoPage - 1].content}
-              
+
               {infoPage === 1 && (
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Participants</p>
-                  <div className="mt-1 space-y-1">
-                    {Object.entries(conversation?.participants || {}).map(([uid, user]) => (
-                      <div key={uid} className="flex items-center gap-2">
-                        <ProfilePicture
-                          src={user.profilePicture || user.profileImageUrl}
-                          alt={`${user.firstName} ${user.lastName}`}
-                          size="xs"
-                        />
-                        <span>
-                          {`${user.firstName} ${user.lastName}`}
-                          {conversation?.postCreatorId === uid && ' (Post Creator)'}
-                        </span>
-                      </div>
-                    ))}
+                  <p className="text-sm text-gray-500">Participants</p>
+                  <div className="mt-3 space-y-1">
+                    {Object.entries(conversation?.participants || {}).map(
+                      ([uid, user]) => (
+                        <div key={uid} className="flex items-center gap-3">
+                          <ProfilePicture
+                            src={user.profilePicture || user.profileImageUrl}
+                            alt={`${user.firstName} ${user.lastName}`}
+                            size="xs"
+                          />
+                          <span className="text-sm font-inter font-regular">
+                            {`${user.firstName} ${user.lastName}`}
+                            {conversation?.postCreatorId === uid &&
+                              " (Post Creator)"}
+                          </span>
+                        </div>
+                      )
+                    )}
                   </div>
                 </div>
               )}
-              
+
               <div className="flex justify-center gap-2 mt-4">
                 {infoPages.map((_, index) => (
                   <button
                     key={index}
                     onClick={() => setInfoPage(index + 1)}
-                    className={`h-2 w-2 rounded-full ${infoPage === index + 1 ? 'bg-blue-500' : 'bg-gray-300'}`}
+                    className={`h-2 w-2 rounded-full ${
+                      infoPage === index + 1 ? "bg-yellow-500" : "bg-gray-300"
+                    }`}
                     aria-label={`Go to page ${index + 1}`}
                   />
                 ))}
@@ -1368,7 +1409,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             <div className="mt-6 flex justify-end">
               <button
                 onClick={resetInfoModal}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="px-4 py-2 bg-navyblue w-full text-white rounded-md hover:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 Close
               </button>
