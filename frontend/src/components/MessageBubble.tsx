@@ -4,7 +4,10 @@ import ProfilePicture from "./ProfilePicture";
 import { useMessage } from "../context/MessageContext";
 import ImagePicker from "./ImagePicker";
 import ImageModal from "./ImageModal";
-import { handoverClaimService, type HandoverClaimCallbacks } from "../services/handoverClaimService";
+import {
+  handoverClaimService,
+  type HandoverClaimCallbacks,
+} from "../services/handoverClaimService";
 import { useAuth } from "@/context/AuthContext";
 
 interface MessageBubbleProps {
@@ -39,9 +42,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onClearConversation,
   onMessageSeen,
 }) => {
-  const {
-    deleteMessage,
-  } = useMessage();
+  const { deleteMessage } = useMessage();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showIdPhotoModal, setShowIdPhotoModal] = useState(false);
@@ -125,11 +126,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       onSuccess: (message: any) => {
         // Show success message
         if (message.success) {
-          alert('ID photo uploaded successfully. Your claim is being processed.');
+          alert(
+            "ID photo uploaded successfully. Your claim is being processed."
+          );
         } else {
-          alert(message.message || 'ID photo uploaded successfully.');
+          alert(message.message || "ID photo uploaded successfully.");
         }
-        
+
         // Close the modal and reset the photo
         setShowIdPhotoModal(false);
         setSelectedIdPhoto(null);
@@ -137,7 +140,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       onError: (error) => {
         let errorMessage = error;
         if (error.includes("Network request failed")) {
-          errorMessage = "Network error. Please check your internet connection and try again.";
+          errorMessage =
+            "Network error. Please check your internet connection and try again.";
         } else if (error.includes("Cloudinary cloud name not configured")) {
           errorMessage = "Cloudinary not configured. Please contact support.";
         } else if (error.includes("Upload preset not configured")) {
@@ -153,7 +157,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
     try {
       // For claim responses, always use handleClaimIdPhotoUpload for regular users
-      if (message.claimData || (userRole !== 'admin' && userRole !== 'campus_security')) {
+      if (
+        message.claimData ||
+        (userRole !== "admin" && userRole !== "campus_security")
+      ) {
         await handoverClaimService.handleClaimIdPhotoUpload(
           photoFile,
           conversationId,
@@ -172,8 +179,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         );
       }
     } catch (error: any) {
-      console.error('Error uploading ID photo:', error);
-      alert(`Error: ${error.message || 'Failed to upload ID photo'}`);
+      console.error("Error uploading ID photo:", error);
+      alert(`Error: ${error.message || "Failed to upload ID photo"}`);
     }
 
     setIsUploadingIdPhoto(false);
@@ -200,9 +207,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     // If accepting, handle based on user role
     if (status === "accepted") {
       // For admins and campus security, show ID photo upload modal
-      if (userRole === 'admin' || userRole === 'campus_security') {
+      if (userRole === "admin" || userRole === "campus_security") {
         setShowIdPhotoModal(true);
-      } 
+      }
       // For regular users, they must upload an ID photo to accept the claim
       else {
         // Set a flag to indicate this is for a claim acceptance
@@ -239,7 +246,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       onError: (error) => {
         let errorMessage = error;
         if (error.includes("Network request failed")) {
-          errorMessage = "Network error. Please check your internet connection and try again.";
+          errorMessage =
+            "Network error. Please check your internet connection and try again.";
         } else if (error.includes("Cloudinary cloud name not configured")) {
           errorMessage = "Cloudinary not configured. Please contact support.";
         } else if (error.includes("Upload preset not configured")) {
@@ -417,37 +425,39 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         })()}
 
         {/* Show item photos if uploaded and not deleted */}
-        {handoverData.itemPhotos && handoverData.itemPhotos.length > 0 && !handoverData.photosDeleted && (
-          <div className="mb-3 p-2 bg-white rounded border">
-            <div className="text-xs text-gray-600 mb-1 font-medium">
-              Item Photos:
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              {handoverData.itemPhotos.map((photo, index) => (
-                <div key={index} className="relative">
-                  <img
-                    src={photo.url}
-                    alt={`Item Photo ${index + 1}`}
-                    className="w-full h-32 rounded object-cover cursor-pointer hover:opacity-90 transition-opacity group"
-                    onClick={() =>
-                      handleImageClick(photo.url, `Item Photo ${index + 1}`)
-                    }
-                    title="Click to view full size"
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all rounded flex items-center justify-center pointer-events-none">
-                    <span className="text-white opacity-0 group-hover:opacity-100 text-xs font-medium">
-                      Click to expand
-                    </span>
+        {handoverData.itemPhotos &&
+          handoverData.itemPhotos.length > 0 &&
+          !handoverData.photosDeleted && (
+            <div className="mb-3 p-2 bg-white rounded border">
+              <div className="text-xs text-gray-600 mb-1 font-medium">
+                Item Photos:
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                {handoverData.itemPhotos.map((photo, index) => (
+                  <div key={index} className="relative">
+                    <img
+                      src={photo.url}
+                      alt={`Item Photo ${index + 1}`}
+                      className="w-full h-32 rounded object-cover cursor-pointer hover:opacity-90 transition-opacity group"
+                      onClick={() =>
+                        handleImageClick(photo.url, `Item Photo ${index + 1}`)
+                      }
+                      title="Click to view full size"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all rounded flex items-center justify-center pointer-events-none">
+                      <span className="text-white opacity-0 group-hover:opacity-100 text-xs font-medium">
+                        Click to expand
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">Item photo</div>
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">Item photo</div>
-                </div>
-              ))}
+                ))}
+              </div>
+              <div className="text-xs text-gray-500 mt-2">
+                Click any photo to view full size
+              </div>
             </div>
-            <div className="text-xs text-gray-500 mt-2">
-              Click any photo to view full size
-            </div>
-          </div>
-        )}
+          )}
 
         {/* Action buttons */}
         {canRespond ? (
@@ -632,39 +642,44 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         )}
 
         {/* Show evidence photos if uploaded and not deleted */}
-        {claimData.evidencePhotos && claimData.evidencePhotos.length > 0 && !claimData.photosDeleted && (
-          <div className="mb-3 p-2 bg-white rounded border">
-            <div className="text-xs text-gray-600 mb-1 font-medium">
-              Evidence Photos:
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              {claimData.evidencePhotos.map((photo, index) => (
-                <div key={index} className="relative">
-                  <img
-                    src={photo.url}
-                    alt={`Evidence Photo ${index + 1}`}
-                    className="w-full h-32 rounded object-cover cursor-pointer hover:opacity-90 transition-opacity group"
-                    onClick={() =>
-                      handleImageClick(photo.url, `Evidence Photo ${index + 1}`)
-                    }
-                    title="Click to view full size"
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all rounded flex items-center justify-center pointer-events-none">
-                    <span className="text-white opacity-0 group-hover:opacity-100 text-xs font-medium">
-                      Click to expand
-                    </span>
+        {claimData.evidencePhotos &&
+          claimData.evidencePhotos.length > 0 &&
+          !claimData.photosDeleted && (
+            <div className="mb-3 p-2 bg-white rounded border">
+              <div className="text-xs text-gray-600 mb-1 font-medium">
+                Evidence Photos:
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                {claimData.evidencePhotos.map((photo, index) => (
+                  <div key={index} className="relative">
+                    <img
+                      src={photo.url}
+                      alt={`Evidence Photo ${index + 1}`}
+                      className="w-full h-32 rounded object-cover cursor-pointer hover:opacity-90 transition-opacity group"
+                      onClick={() =>
+                        handleImageClick(
+                          photo.url,
+                          `Evidence Photo ${index + 1}`
+                        )
+                      }
+                      title="Click to view full size"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all rounded flex items-center justify-center pointer-events-none">
+                      <span className="text-white opacity-0 group-hover:opacity-100 text-xs font-medium">
+                        Click to expand
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Evidence photo
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Evidence photo
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
+              <div className="text-xs text-gray-500 mt-2">
+                Click any photo to view full size
+              </div>
             </div>
-            <div className="text-xs text-gray-500 mt-2">
-              Click any photo to view full size
-            </div>
-          </div>
-        )}
+          )}
 
         {/* Show legacy verification photos if exists (for backward compatibility) */}
         {claimData.verificationPhotos &&
@@ -814,52 +829,57 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     if (!showIdPhotoModal) return null;
 
     // Check if this is an admin accepting a claim
-    const isAdminAcceptingClaim = message.messageType === 'claim_request' && 
-      onClaimResponse && 
+    const isAdminAcceptingClaim =
+      message.messageType === "claim_request" &&
+      onClaimResponse &&
       message.senderId !== currentUserId &&
-      (userRole === 'admin' || userRole === 'campus_security');
+      (userRole === "admin" || userRole === "campus_security");
 
     // For regular users, always use handleClaimIdPhotoUpload when accepting a claim
-    const isUserAcceptingClaim = message.messageType === 'claim_request' && 
-      onClaimResponse && 
+    const isUserAcceptingClaim =
+      message.messageType === "claim_request" &&
+      onClaimResponse &&
       message.senderId !== currentUserId;
 
     // Use the correct upload handler based on message type and user role
-    const uploadHandler = isUserAcceptingClaim 
-      ? handleClaimIdPhotoUpload 
+    const uploadHandler = isUserAcceptingClaim
+      ? handleClaimIdPhotoUpload
       : handleIdPhotoUpload;
 
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div className="bg-white p-6 rounded-md shadow-xl max-w-2xl w-full mx-4">
           <h3 className="text-lg font-semibold mb-4">
-            {isAdminAcceptingClaim ? 'Confirm ID Photo' : 'Upload ID Photo'}
+            {isAdminAcceptingClaim ? "Confirm ID Photo" : "Upload ID Photo"}
           </h3>
-          
+
           {isAdminAcceptingClaim ? (
-            <div className="space-y-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-blue-800">
-                  Please verify the ID photo and click 'Confirm' to finalize the claim acceptance.
+            <div className="grid grid-cols-2 gap-6">
+              {/* Left Column */}
+              <div className="bg-blue-50 p-4 rounded-md col-span-2 md:col-span-1">
+                <p className="text-blue-800 font-inter font-light text-sm">
+                  Please verify the ID photo and click 'Confirm' to finalize the
+                  claim acceptance.
                 </p>
               </div>
-              
-              {/* Display the existing ID photo if available */}
+
+              {/* Right Column */}
               {message.claimData?.idPhotoUrl && (
-                <div className="mt-4">
+                <div className="col-span-2 md:col-span-1">
                   <p className="text-sm text-gray-600 mb-2">ID Photo:</p>
-                  <img 
-                    src={message.claimData.idPhotoUrl} 
-                    alt="Claimant's ID" 
-                    className="max-w-full h-auto rounded border border-gray-200"
+                  <img
+                    src={message.claimData.idPhotoUrl}
+                    alt="Claimant's ID"
+                    className="max-w-full h-50 lg:h-full rounded border border-gray-200"
                   />
                 </div>
               )}
-              
-              <div className="flex justify-end space-x-3 mt-6">
+
+              {/* Full-width footer actions */}
+              <div className="flex justify-end space-x-2 col-span-2 mt-6">
                 <button
                   onClick={() => setShowIdPhotoModal(false)}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="px-4 py-2 w-full text-gray-600 bg-navyblue/10 hover:bg-gray-100 rounded-md transition-colors"
                   disabled={isUploadingIdPhoto}
                 >
                   Cancel
@@ -882,47 +902,53 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                             alert(error);
                             setShowIdPhotoModal(false);
                           },
-                          onClearConversation
+                          onClearConversation,
                         }
                       );
                     } catch (error) {
-                      console.error('Error confirming claim:', error);
-                      alert('Failed to confirm claim. Please try again.');
+                      console.error("Error confirming claim:", error);
+                      alert("Failed to confirm claim. Please try again.");
                     } finally {
                       setIsUploadingIdPhoto(false);
                     }
                   }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  className="px-4 py-2 w-full bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors disabled:opacity-50"
                   disabled={isUploadingIdPhoto}
                 >
-                  {isUploadingIdPhoto ? 'Processing...' : 'Confirm'}
+                  {isUploadingIdPhoto ? "Processing..." : "Confirm"}
                 </button>
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
+            <div className="grid grid-cols-2 gap-6">
+              {/* Left Column */}
+              <div className="bg-blue-50 p-4 rounded-lg col-span-2 md:col-span-1">
                 <p className="text-blue-800">
-                  To accept this claim, please upload a clear photo of your government-issued ID for verification.
+                  To accept this claim, please upload a clear photo of your
+                  government-issued ID for verification.
                 </p>
                 <p className="text-sm text-blue-700 mt-2">
-                  Your ID will only be used for verification purposes and will be handled securely.
+                  Your ID will only be used for verification purposes and will
+                  be handled securely.
                 </p>
               </div>
-              
-              <ImagePicker
-                onImageSelect={(file) => {
-                  uploadHandler(file);
-                }}
-                onClose={() => {
-                  if (!isUploadingIdPhoto) {
-                    setShowIdPhotoModal(false);
-                  } else {
-                    alert('Please wait while we process your ID photo.');
-                  }
-                }}
-                isUploading={isUploadingIdPhoto}
-              />
+
+              {/* Right Column */}
+              <div className="col-span-2 md:col-span-1">
+                <ImagePicker
+                  onImageSelect={(file) => {
+                    uploadHandler(file);
+                  }}
+                  onClose={() => {
+                    if (!isUploadingIdPhoto) {
+                      setShowIdPhotoModal(false);
+                    } else {
+                      alert("Please wait while we process your ID photo.");
+                    }
+                  }}
+                  isUploading={isUploadingIdPhoto}
+                />
+              </div>
             </div>
           )}
         </div>
@@ -935,7 +961,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       {renderIdPhotoModal()}
       <div
         ref={messageRef}
-        className={`flex ${isOwnMessage ? "justify-end" : "justify-start"} mb-3`}
+        className={`flex ${
+          isOwnMessage ? "justify-end" : "justify-start"
+        } mb-3`}
       >
         <div
           className={`max-w-xs lg:max-w-md ${
@@ -970,104 +998,104 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             {renderSystemMessage()}
           </div>
 
-        <div
-          className={`text-xs text-gray-400 mt-1 ${
-            isOwnMessage ? "text-right mr-2" : "ml-2"
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1">
-              <span>{formatTime(message.timestamp)}</span>
+          <div
+            className={`text-xs text-gray-400 mt-1 ${
+              isOwnMessage ? "text-right mr-2" : "ml-2"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <span>{formatTime(message.timestamp)}</span>
+                {isOwnMessage && (
+                  <span className="ml-1">
+                    {message.readBy && message.readBy.length > 1 ? (
+                      <span className="text-blue-500" title="Seen">
+                        <svg
+                          className="w-3 h-3"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                          <path
+                            fillRule="evenodd"
+                            d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </span>
+                    ) : (
+                      <span className="text-gray-400" title="Delivered">
+                        <svg
+                          className="w-3 h-3"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </span>
+                    )}
+                  </span>
+                )}
+              </div>
+
+              {/* Delete button for own messages */}
               {isOwnMessage && (
-                <span className="ml-1">
-                  {message.readBy && message.readBy.length > 1 ? (
-                    <span className="text-blue-500" title="Seen">
-                      <svg
-                        className="w-3 h-3"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                        <path
-                          fillRule="evenodd"
-                          d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </span>
-                  ) : (
-                    <span className="text-gray-400" title="Delivered">
-                      <svg
-                        className="w-3 h-3"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </span>
-                  )}
-                </span>
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="ml-2 text-red-400 hover:text-red-600 transition-colors"
+                  title="Delete message"
+                >
+                  🗑️
+                </button>
               )}
             </div>
-
-            {/* Delete button for own messages */}
-            {isOwnMessage && (
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="ml-2 text-red-400 hover:text-red-600 transition-colors"
-                title="Delete message"
-              >
-                🗑️
-              </button>
-            )}
           </div>
-        </div>
 
-        {/* Delete confirmation dialog */}
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white p-4 rounded-lg shadow-lg max-w-sm mx-4">
-              <h3 className="text-lg font-semibold mb-2">Delete Message?</h3>
-              <p className="text-gray-600 mb-4">
-                This action cannot be undone.
-              </p>
-              <div className="flex gap-2 justify-end">
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="px-3 py-1 text-gray-600 hover:text-gray-800 transition-colors"
-                  disabled={isDeleting}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDeleteMessage}
-                  className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors disabled:opacity-50"
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? "Deleting..." : "Delete"}
-                </button>
+          {/* Delete confirmation dialog */}
+          {showDeleteConfirm && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white p-4 rounded-lg shadow-lg max-w-sm mx-4">
+                <h3 className="text-lg font-semibold mb-2">Delete Message?</h3>
+                <p className="text-gray-600 mb-4">
+                  This action cannot be undone.
+                </p>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="px-3 py-1 text-gray-600 hover:text-gray-800 transition-colors"
+                    disabled={isDeleting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteMessage}
+                    className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors disabled:opacity-50"
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Image Modal */}
-        {showImageModal && selectedImage && (
-          <ImageModal
-            imageUrl={selectedImage.url}
-            altText={selectedImage.altText}
-            onClose={() => {
-              setShowImageModal(false);
-              setSelectedImage(null);
-            }}
-          />
-        )}
+          {/* Image Modal */}
+          {showImageModal && selectedImage && (
+            <ImageModal
+              imageUrl={selectedImage.url}
+              altText={selectedImage.altText}
+              onClose={() => {
+                setShowImageModal(false);
+                setSelectedImage(null);
+              }}
+            />
+          )}
+        </div>
       </div>
-    </div>
     </>
   );
 };
