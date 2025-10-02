@@ -646,7 +646,10 @@ export default function Chat() {
       {/* Messages */}
       <KeyboardAvoidingView
         className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        style={{ flex: 1 }}
+        enabled
       >
         {loading ? (
           <View className="flex-1 items-center justify-center">
@@ -763,7 +766,10 @@ export default function Chat() {
         </View>
 
         {/* Message Input */}
-        <View className="border-t border-gray-200 bg-white p-4">
+        <View 
+          className="border-t border-gray-200 bg-white p-4"
+          style={Platform.OS === 'ios' ? { paddingBottom: 20 } : { paddingBottom: 16 }}
+        >
           <View className="flex-row items-center gap-3">
             <View className="flex-1">
               <TextInput
