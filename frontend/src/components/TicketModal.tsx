@@ -338,7 +338,6 @@ const TicketModal = ({
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
             {isEditing ? (
               <>
                 <button
@@ -356,33 +355,22 @@ const TicketModal = ({
               </>
             ) : (
               <>
-                {/* Prevent editing/deleting resolved posts */}
-                {post.status === "resolved" ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500 bg-gray-100 px-3 py-2 rounded">
-                      ✅ Handover completed - cannot edit or delete
-                    </span>
-                  </div>
-                ) : (
-                  <>
-                    <button
-                      onClick={handleEditClick}
-                      className="bg-brand text-white text-xs px-3 p-2 rounded hover:bg-yellow-600"
-                    >
-                      Edit Ticket
-                    </button>
-                    <button
-                      onClick={() => onDelete(post.id)}
-                      disabled={isDeleting}
-                      className="bg-[#FD8E74] text-white text-xs px-3 p-2 rounded hover:bg-[#c07c6d] disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={`Delete ticket "${post.title}" and ${
-                        post.images.length
-                      } associated image${post.images.length !== 1 ? "s" : ""}`}
-                    >
-                      {isDeleting ? "Deleting..." : "Delete Ticket"}
-                    </button>
-                  </>
-                )}
+                <button
+                  onClick={handleEditClick}
+                  className="bg-brand text-white text-xs px-3 p-2 rounded hover:bg-yellow-600"
+                >
+                  Edit Ticket
+                </button>
+                <button
+                  onClick={() => onDelete(post.id)}
+                  disabled={isDeleting}
+                  className="bg-[#FD8E74] text-white text-xs px-3 p-2 rounded hover:bg-[#c07c6d] disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={`Delete ticket "${post.title}" and ${
+                    post.images.length
+                  } associated image${post.images.length !== 1 ? "s" : ""}`}
+                >
+                  {isDeleting ? "Deleting..." : "Delete Ticket"}
+                </button>
               </>
             )}
             <button
@@ -391,7 +379,6 @@ const TicketModal = ({
             >
               <FiX size={18} />
             </button>
-          </div>
         </div>
 
         {/* Image Preview */}

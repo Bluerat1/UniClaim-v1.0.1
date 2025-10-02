@@ -61,15 +61,6 @@ const TicketCard = ({ post, onClick }: PostCardProps) => {
           </p>
         </div>
 
-        {/* Status-specific information */}
-        {post.status === "resolved" && (
-          <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded">
-            <p className="text-xs text-green-700 font-medium">
-              ✅ Handover completed - This ticket cannot be edited or deleted
-            </p>
-          </div>
-        )}
-
         <span className="text-sm text-gray-600 line-clamp-3 font-inter">
           {post.description}
         </span>
