@@ -11,6 +11,7 @@ import HandoverVerificationModal from "./HandoverVerificationModal";
 import { cloudinaryService } from "../utils/cloudinary";
 import { useNavigate } from "react-router-dom";
 import NoChat from "../assets/no_chat.png";
+import { InformationCircleIcon } from "@heroicons/react/24/outline";
 
 interface ChatWindowProps {
   conversation: Conversation | null;
@@ -30,6 +31,92 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [isClaimSubmitting, setIsClaimSubmitting] = useState(false);
   const [showHandoverModal, setShowHandoverModal] = useState(false);
   const [isHandoverSubmitting, setIsHandoverSubmitting] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoPage, setInfoPage] = useState(1);
+  
+  const infoPages = [
+    {
+      title: "Conversation Information",
+      content: (
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm font-medium text-gray-500">Post Title</p>
+            <p className="text-gray-900">{conversation?.postTitle}</p>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-500">Post Type</p>
+            <p className="capitalize">{conversation?.postType}</p>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-500">Status</p>
+            <p className="capitalize">{conversation?.postStatus || 'Active'}</p>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-500">Created</p>
+            <p>
+              {conversation?.createdAt
+                ? new Date(conversation.createdAt).toLocaleString()
+                : 'N/A'}
+            </p>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "Message Limit",
+      content: (
+        <div className="space-y-4">
+          <div className="bg-blue-50 p-4 rounded-md">
+            <p className="text-sm text-blue-700">
+              To ensure fair usage for all users, conversations are limited to the 50 most recent messages. This helps us maintain system performance while keeping the service free for everyone.
+            </p>
+          </div>
+          <div className="mt-4">
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Tip:</span> For important information, consider exchanging contact details or moving to a different platform once you've established contact.
+            </p>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "Chat Tips",
+      content: (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="font-medium text-gray-900">Best Practices:</p>
+            <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
+              <li>Be clear and specific about the item details</li>
+              <li>Share only necessary personal information</li>
+              <li>Arrange safe, public meetings for handovers</li>
+              <li>Report any suspicious activity</li>
+            </ul>
+          </div>
+        </div>
+      )
+    }
+  ];
+  
+  const handleNextPage = () => {
+    if (infoPage < infoPages.length) {
+      setInfoPage(prev => prev + 1);
+    } else {
+      setInfoPage(1);
+    }
+  };
+  
+  const handlePrevPage = () => {
+    if (infoPage > 1) {
+      setInfoPage(prev => prev - 1);
+    } else {
+      setInfoPage(infoPages.length);
+    }
+  };
+  
+  const resetInfoModal = () => {
+    setInfoPage(1);
+    setShowInfoModal(false);
+  };
 
   // New engagement tracking state variables
   const [isUserTyping, setIsUserTyping] = useState(false);
@@ -958,25 +1045,39 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             </div>
           </div>
 
-          {/* Handover Item Button */}
-          {shouldShowHandoverButton() && (
+          <div className="flex items-center gap-3">
+            {/* Info Button */}
             <button
-              onClick={handleOpenHandoverModal}
-              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowInfoModal(true);
+              }}
+              className="text-gray-400 hover:text-gray-600 focus:outline-none p-1"
+              aria-label="Show conversation information"
             >
-              Handover Item
+              <InformationCircleIcon className="h-6 w-6" />
             </button>
-          )}
 
-          {/* Claim Item Button */}
-          {shouldShowClaimItemButton() && (
-            <button
-              onClick={handleOpenClaimModal}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Claim Item
-            </button>
-          )}
+            {/* Handover Item Button */}
+            {shouldShowHandoverButton() && (
+              <button
+                onClick={handleOpenHandoverModal}
+                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+              >
+                Handover Item
+              </button>
+            )}
+
+            {/* Claim Item Button */}
+            {shouldShowClaimItemButton() && (
+              <button
+                onClick={handleOpenClaimModal}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                Claim Item
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1199,12 +1300,82 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         onSubmit={handleSubmitHandover}
         itemTitle={conversation?.postTitle || ""}
         isLoading={isHandoverSubmitting}
-        onSuccess={() => {
-          // This will be called after successful form submission
-          // The form is already cleared by the modal component
-          console.log("Handover form submitted and cleared successfully");
-        }}
       />
+
+      {/* Info Modal */}
+      {showInfoModal && conversation && (
+        <div className="fixed inset-0 bg-black/50  flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6 relative">
+            <div className="flex items-center justify-between mb-4">
+              <button 
+                onClick={handlePrevPage}
+                className="p-1 text-gray-500 hover:text-gray-700"
+                aria-label="Previous page"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </button>
+              
+              <h3 className="text-lg font-semibold">{infoPages[infoPage - 1].title}</h3>
+              
+              <button 
+                onClick={handleNextPage}
+                className="p-1 text-gray-500 hover:text-gray-700"
+                aria-label="Next page"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {infoPages[infoPage - 1].content}
+              
+              {infoPage === 1 && (
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Participants</p>
+                  <div className="mt-1 space-y-1">
+                    {Object.entries(conversation?.participants || {}).map(([uid, user]) => (
+                      <div key={uid} className="flex items-center gap-2">
+                        <ProfilePicture
+                          src={user.profilePicture || user.profileImageUrl}
+                          alt={`${user.firstName} ${user.lastName}`}
+                          size="xs"
+                        />
+                        <span>
+                          {`${user.firstName} ${user.lastName}`}
+                          {conversation?.postCreatorId === uid && ' (Post Creator)'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex justify-center gap-2 mt-4">
+                {infoPages.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setInfoPage(index + 1)}
+                    className={`h-2 w-2 rounded-full ${infoPage === index + 1 ? 'bg-blue-500' : 'bg-gray-300'}`}
+                    aria-label={`Go to page ${index + 1}`}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={resetInfoModal}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
