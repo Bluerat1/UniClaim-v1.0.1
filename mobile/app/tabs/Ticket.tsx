@@ -31,6 +31,8 @@ export default function Ticket() {
   const [activeTab, setActiveTab] = useState<"active" | "completed" | "deleted">("active");
   const [searchText, setSearchText] = useState("");
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
+  const [restoringPostId, setRestoringPostId] = useState<string | null>(null);
+  const [permanentlyDeletingPostId, setPermanentlyDeletingPostId] = useState<string | null>(null);
 
   // Edit modal state
   const [editingPost, setEditingPost] = useState<Post | null>(null);
@@ -55,10 +57,10 @@ export default function Ticket() {
     return posts.filter((post) => {
       const matchesTab =
         activeTab === "active"
-          ? post.status === "pending"
+          ? !post.deletedAt && post.status === "pending"
           : activeTab === "completed"
-          ? post.status === "resolved"
-          : post.status === "deleted";
+          ? !post.deletedAt && post.status === "resolved"
+          : !!post.deletedAt; // Show deleted posts in the deleted tab
       const matchesSearch =
         post.title.toLowerCase().includes(searchText.toLowerCase()) ||
         post.description.toLowerCase().includes(searchText.toLowerCase());
@@ -71,60 +73,76 @@ export default function Ticket() {
   }, []);
 
   const handleDeletePost = useCallback(async (id: string) => {
-    // Show confirmation dialog
     Alert.alert(
       "Delete Ticket",
-      "Are you sure you want to move this ticket to deleted? You can restore it later from the Deleted tab.",
+      "Are you sure you want to move this ticket to recently deleted? You can restore it later from the Recently Deleted tab.",
       [
         {
           text: "Cancel",
           style: "cancel",
         },
         {
-          text: "Move to Deleted",
+          text: "Move to Recently Deleted",
           style: "destructive",
           onPress: async () => {
             try {
-              setDeletingPostId(id); // Show loading state
+              setDeletingPostId(id);
 
-              // Update post status to deleted instead of actually deleting it
-              await postService.updatePost(id, { status: "deleted" });
+              // Store the current status before soft deleting
+              const postToDelete = posts.find((p: Post) => p.id === id);
+              const currentStatus = postToDelete?.status || "pending";
+
+              // Update post with deletedAt timestamp and store original status
+              await postService.updatePost(id, {
+                deletedAt: new Date().toISOString(),
+                originalStatus: currentStatus
+              });
 
               // Update local state
               setPosts((prevPosts: Post[]) =>
                 prevPosts.map((p: Post) =>
-                  p.id === id ? { ...p, status: "deleted" } : p
+                  p.id === id 
+                    ? { 
+                        ...p, 
+                        deletedAt: new Date().toISOString(),
+                        originalStatus: currentStatus
+                      } 
+                    : p
                 )
               );
 
-              // Show success message
-              Alert.alert("Success", "Ticket moved to deleted items.");
+              Alert.alert(
+                "Success",
+                "Ticket has been moved to Recently Deleted."
+              );
             } catch (error) {
-              console.error("Error moving post to deleted:", error);
+              console.error("Error moving ticket to recently deleted:", error);
               Alert.alert(
                 "Error",
-                "Failed to move ticket to deleted. Please try again."
+                "Failed to move ticket to Recently Deleted. Please try again."
               );
             } finally {
-              setDeletingPostId(null); // Hide loading state
+              setDeletingPostId(null);
             }
           },
         },
       ]
     );
-  }, []);
+  }, [posts]);
 
   const handleRestorePost = useCallback(async (id: string) => {
     try {
-      setDeletingPostId(id); // Show loading state
+      setRestoringPostId(id);
 
-      // Restore the post to its original status or default to 'pending'
+      // Get the post to restore
       const postToRestore = posts.find((p: Post) => p.id === id);
       const originalStatus = postToRestore?.originalStatus || "pending";
-      
-      await postService.updatePost(id, { 
+
+      // Remove the deletedAt field and restore original status
+      await postService.updatePost(id, {
+        deletedAt: null,
         status: originalStatus,
-        originalStatus: null // Clear the original status
+        originalStatus: null
       });
 
       // Update local state
@@ -133,6 +151,7 @@ export default function Ticket() {
           p.id === id 
             ? { 
                 ...p, 
+                deletedAt: undefined,
                 status: originalStatus,
                 originalStatus: undefined
               } 
@@ -140,39 +159,46 @@ export default function Ticket() {
         )
       );
 
-      // Show success message
-      Alert.alert("Success", "Ticket has been restored successfully!");
+      Alert.alert("Success", "Ticket has been restored successfully.");
     } catch (error) {
-      console.error("Error restoring post:", error);
-      Alert.alert(
-        "Error",
-        "Failed to restore ticket. Please try again."
-      );
+      console.error("Error restoring ticket:", error);
+      Alert.alert("Error", "Failed to restore ticket. Please try again.");
     } finally {
-      setDeletingPostId(null); // Hide loading state
+      setRestoringPostId(null);
     }
   }, [posts]);
 
   const handleDeletePermanently = useCallback(async (id: string) => {
-    try {
-      setDeletingPostId(id);
-      
-      // Call the service to delete the post permanently
-      await postService.deletePost(id);
-      
-      // Update local state by removing the post
-      setPosts((prevPosts: Post[]) => prevPosts.filter(p => p.id !== id));
-      
-      Alert.alert("Success", "Ticket has been permanently deleted.");
-    } catch (error) {
-      console.error("Error deleting post permanently:", error);
-      Alert.alert(
-        "Error",
-        "Failed to delete ticket permanently. Please try again."
-      );
-    } finally {
-      setDeletingPostId(null);
-    }
+    Alert.alert(
+      "Delete Permanently",
+      "Are you sure you want to permanently delete this ticket? This action cannot be undone.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete Permanently",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setPermanentlyDeletingPostId(id);
+              await postService.deletePost(id);
+              // The post will be automatically removed from the list by the real-time listener
+              Alert.alert("Success", "Ticket has been permanently deleted.");
+            } catch (error) {
+              console.error("Error deleting ticket permanently:", error);
+              Alert.alert(
+                "Error",
+                "Failed to delete ticket. Please try again."
+              );
+            } finally {
+              setPermanentlyDeletingPostId(null);
+            }
+          },
+        },
+      ]
+    );
   }, []);
 
   // Edit ticket handlers
@@ -447,15 +473,21 @@ const TicketCard = ({
       }
     >
       {/* Image Section */}
-      {imageSource ? (
-        <View className="w-full h-48">
-          <Image
-            source={imageSource}
-            className="w-full h-full"
-            resizeMode="cover"
-            onError={() => console.log("Failed to load image:", imageSource)}
-          />
-        </View>
+      <View className="relative">
+        {post.deletedAt && (
+          <View className="absolute top-2 right-2 z-10 bg-red-500 px-2 py-1 rounded-md">
+            <Text className="text-white text-xs font-manrope-bold">DELETED</Text>
+          </View>
+        )}
+        {imageSource ? (
+          <View className="w-full h-48">
+            <Image
+              source={imageSource}
+              className="w-full h-full"
+              resizeMode="cover"
+              onError={() => console.log("Failed to load image:", imageSource)}
+            />
+          </View>
       ) : (
         <View className="w-full h-48 bg-gray-100 justify-center items-center">
           <Text className="text-gray-400 text-center font-manrope">
@@ -463,6 +495,7 @@ const TicketCard = ({
           </Text>
         </View>
       )}
+      </View>
 
       {/* Content Section */}
       <View className="p-4">
@@ -520,7 +553,7 @@ const TicketCard = ({
             )}
             
             {/* Show Delete button only for pending or deleted posts */}
-            {onDelete && (post.status === 'pending' || post.status === 'deleted') && (
+            {onDelete && (!post.deletedAt || post.status === 'pending') && (
               <TouchableOpacity
                 onPress={() => onDelete(post.id)}
                 className={`flex-1 py-2 rounded-md items-center ${
@@ -529,24 +562,38 @@ const TicketCard = ({
                 disabled={isDeleting}
               >
                 <Text className="text-white font-manrope-medium">
-                  {isDeleting ? 'Deleting...' : post.status === 'deleted' ? 'Delete Permanently' : 'Delete'}
+                  {isDeleting ? 'Deleting...' : 'Delete'}
                 </Text>
               </TouchableOpacity>
             )}
             
-            {/* Show Restore button only for deleted posts */}
-            {onRestore && post.status === 'deleted' && (
-              <TouchableOpacity
-                onPress={() => onRestore(post.id)}
-                className={`flex-1 py-2 rounded-md items-center ${
-                  isDeleting ? 'bg-gray-400' : 'bg-green-500'
-                }`}
-                disabled={isDeleting}
-              >
-                <Text className="text-white font-manrope-medium">
-                  {isDeleting ? 'Restoring...' : 'Restore'}
-                </Text>
-              </TouchableOpacity>
+            {/* Show Restore and Delete Permanently buttons for deleted posts */}
+            {post.deletedAt && (
+              <>
+                <TouchableOpacity
+                  onPress={() => onRestore?.(post.id)}
+                  className={`flex-1 py-2 rounded-md items-center mr-1 ${
+                    isDeleting ? 'bg-gray-400' : 'bg-green-500'
+                  }`}
+                  disabled={isDeleting || !onRestore}
+                >
+                  <Text className="text-white font-manrope-medium">
+                    {isDeleting ? 'Restoring...' : 'Restore'}
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  onPress={() => onDeletePermanently?.(post.id)}
+                  className={`flex-1 py-2 rounded-md items-center ml-1 ${
+                    isDeleting ? 'bg-gray-400' : 'bg-red-600'
+                  }`}
+                  disabled={isDeleting || !onDeletePermanently}
+                >
+                  <Text className="text-white font-manrope-medium">
+                    {isDeleting ? 'Deleting...' : 'Delete Permanently'}
+                  </Text>
+                </TouchableOpacity>
+              </>
             )}
             
             {/* Show message for resolved posts */}
