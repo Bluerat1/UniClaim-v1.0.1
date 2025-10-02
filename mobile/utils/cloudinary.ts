@@ -10,26 +10,36 @@
 // - EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME=your_cloud_name_here
 // - EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET=uniclaim_uploads
 //
-// Optional variables (for image deletion):
+// Required for image deletion:
 // - EXPO_PUBLIC_CLOUDINARY_API_KEY=your_api_key_here  
 // - EXPO_PUBLIC_CLOUDINARY_API_SECRET=your_api_secret_here
 //
 const CLOUDINARY_CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || 'your-cloud-name';
 const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'uniclaim_uploads';
-const CLOUDINARY_API_KEY = process.env.EXPO_PUBLIC_CLOUDINARY_API_KEY;
-const CLOUDINARY_API_SECRET = process.env.EXPO_PUBLIC_CLOUDINARY_API_SECRET;
+const CLOUDINARY_API_KEY = process.env.EXPO_PUBLIC_CLOUDINARY_API_KEY || '';
+const CLOUDINARY_API_SECRET = process.env.EXPO_PUBLIC_CLOUDINARY_API_SECRET || '';
 
 
 
-// NOTE: CryptoJS removed due to React Native compatibility issues
-// Image deletion functionality is temporarily disabled
-// import CryptoJS from 'crypto-js';
+import * as Crypto from 'expo-crypto';
 
-// Generate Cloudinary API signature - DISABLED due to React Native CryptoJS issues
-// Per Cloudinary docs: signature = sha1('public_id=...&timestamp=...'+api_secret)
-async function generateHMACSHA1Signature(params: string, secret: string): Promise<string> {
-    throw new Error('Signature generation disabled - CryptoJS not compatible with React Native. Image deletion temporarily unavailable.');
+// Simple hashing function that works in React Native
+async function generateSignature(message: string): Promise<string> {
+    try {
+        // Use expo-crypto to create SHA-1 hash
+        const hash = await Crypto.digestStringAsync(
+            Crypto.CryptoDigestAlgorithm.SHA1,
+            message
+        );
+        
+        // The hash is already in hex format, so we can return it directly
+        return hash.toLowerCase();
+    } catch (error) {
+        console.error('Error generating signature:', error);
+        throw new Error('Failed to generate signature');
+    }
 }
+
 
 // Test function - DISABLED due to React Native CryptoJS issues
 export const testCryptoJS = () => {
@@ -70,15 +80,15 @@ export const testSignatureGeneration = async () => {
         const testParams1 = `public_id=${testPublicId}&timestamp=${testTimestamp}`;
         const testParams2 = `timestamp=${testTimestamp}&public_id=${testPublicId}`;
 
-        const signature1 = await generateHMACSHA1Signature(testParams1, CLOUDINARY_API_SECRET);
-        const signature2 = await generateHMACSHA1Signature(testParams2, CLOUDINARY_API_SECRET);
+        const signature1 = await generateSignature(testParams1 + CLOUDINARY_API_SECRET);
+        const signature2 = await generateSignature(testParams2 + CLOUDINARY_API_SECRET);
 
         // Test consistency for each method
         let consistent = true;
 
         for (let i = 0; i < 3; i++) {
-            const sig1 = await generateHMACSHA1Signature(testParams1, CLOUDINARY_API_SECRET);
-            const sig2 = await generateHMACSHA1Signature(testParams2, CLOUDINARY_API_SECRET);
+            const sig1 = await generateSignature(testParams1 + CLOUDINARY_API_SECRET);
+            const sig2 = await generateSignature(testParams2 + CLOUDINARY_API_SECRET);
 
             if (sig1 !== signature1 || sig2 !== signature2) {
                 consistent = false;
@@ -89,7 +99,7 @@ export const testSignatureGeneration = async () => {
         // Test with the exact format from your error log
         const exactParams = 'public_id=posts/ghk9zjdcvqgv3blqnemi&timestamp=1755491466';
         try {
-            await generateHMACSHA1Signature(exactParams, CLOUDINARY_API_SECRET);
+            await generateSignature(exactParams + CLOUDINARY_API_SECRET);
         } catch (error: any) {
             // Handle error silently
         }
@@ -174,48 +184,23 @@ export const cloudinaryService = {
     },
 
     // Delete image using proper HMAC-SHA1 signature - Fixed for mobile compatibility
-    async deleteImage(publicId: string): Promise<void> {
+    async deleteImage(publicId: string): Promise<boolean> {
         try {
             // Check if admin credentials are available
             if (!CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
-                const errorMsg = 'Cloudinary API credentials not configured. Images will not be deleted from storage. Set EXPO_PUBLIC_CLOUDINARY_API_KEY and EXPO_PUBLIC_CLOUDINARY_API_SECRET in your .env file';
-                throw new Error(errorMsg);
+                console.warn('Cloudinary API credentials not configured for deletion');
+                return false;
             }
 
-            // Try multiple signature generation methods for better mobile compatibility
-            let signature: string;
-            let params: string;
-            let timestamp = Math.round(new Date().getTime() / 1000);
-
-            try {
-                // Method 1: Standard Cloudinary signature (public_id + timestamp only)
-                // CRITICAL: This is the correct format that Cloudinary expects
-                params = `public_id=${publicId}&timestamp=${timestamp}`;
-                signature = await generateHMACSHA1Signature(params, CLOUDINARY_API_SECRET);
-
-            } catch (signatureError: any) {
-                // Method 2: Try with different parameter ordering (Cloudinary sometimes accepts this)
-                try {
-                    params = `timestamp=${timestamp}&public_id=${publicId}`;
-                    signature = await generateHMACSHA1Signature(params, CLOUDINARY_API_SECRET);
-
-                } catch (signatureError2: any) {
-                    // Method 3: Try with raw string concatenation (no URL encoding)
-                    try {
-                        params = `public_id${publicId}timestamp${timestamp}`;
-                        signature = await generateHMACSHA1Signature(params, CLOUDINARY_API_SECRET);
-
-                    } catch (signatureError3: any) {
-                        throw new Error('All signature generation methods failed');
-                    }
-                }
-            }
+            const timestamp = Math.round(Date.now() / 1000).toString();
+            const params = `public_id=${publicId}&timestamp=${timestamp}${CLOUDINARY_API_SECRET}`;
+            const signature = await generateSignature(params);
 
             // Create form data for deletion request
             const formData = new FormData();
             formData.append('public_id', publicId);
             formData.append('api_key', CLOUDINARY_API_KEY);
-            formData.append('timestamp', timestamp.toString());
+            formData.append('timestamp', timestamp);
             formData.append('signature', signature);
 
             const response = await fetch(
@@ -226,33 +211,17 @@ export const cloudinaryService = {
                 }
             );
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
-
-                // If it's an authentication error, try alternative deletion method
-                if (response.status === 401) {
-                    await this.deleteImageAlternative(publicId);
-                    return;
-                }
-
-                throw new Error(`Failed to delete image: ${errorData.error?.message || response.statusText} (Status: ${response.status})`);
-            }
-
-            const responseData = await response.json().catch(() => ({}));
+            const result = await response.json();
+            return result.result === 'ok';
         } catch (error: any) {
+            console.error('Error deleting image from Cloudinary:', error);
+            
             // Check if it's a configuration issue
             if (error.message?.includes('not configured') || error.message?.includes('credentials')) {
-                throw new Error('Cloudinary API credentials not configured. Images cannot be deleted from storage.');
+                console.warn('Cloudinary API credentials not properly configured');
             }
-
-            // Check if it's a signature generation issue
-            if (error.message?.includes('signature') || error.message?.includes('CryptoJS')) {
-                await this.deleteImageAlternative(publicId);
-                return;
-            }
-
-            // Re-throw other errors so the calling function can handle them
-            throw new Error(`Failed to delete images from Cloudinary: ${error.message}`);
+            
+            return false;
         }
     },
 

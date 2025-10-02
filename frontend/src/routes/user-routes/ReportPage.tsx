@@ -75,6 +75,28 @@ export default function ReportPage() {
 
     const newValidFiles: File[] = [];
     files.forEach((file) => {
+      // Check if file is a GIF
+      if (file.type === 'image/gif') {
+        showToast(
+          "error",
+          "Unsupported Format",
+          `GIF files are not supported. Please upload JPG or PNG images instead.`,
+          8000
+        );
+        return;
+      }
+
+      // Check if file is an image (JPG, PNG, etc.)
+      if (!file.type.startsWith('image/')) {
+        showToast(
+          "error",
+          "Invalid File Type",
+          `"${file.name}" is not a valid image file. Please upload JPG or PNG images only.`,
+          8000
+        );
+        return;
+      }
+
       const isDuplicate = selectedFiles.some(
         (f) => f.name === file.name && f.size === file.size
       );
@@ -82,7 +104,7 @@ export default function ReportPage() {
         showToast(
           "error",
           "Duplicate Image",
-          `The image "${file.name}" has already been uploaded. (${Date.now()})`
+          `The image "${file.name}" has already been uploaded.`
         );
       } else {
         newValidFiles.push(file);
@@ -286,6 +308,8 @@ export default function ReportPage() {
 
       // Use Firebase service to create post (with admin notifications)
       const { postService } = await import("../../services/firebase/posts");
+      const { notificationSender } = await import("../../services/firebase/notificationSender");
+      const { adminNotificationService } = await import("../../services/firebase/adminNotifications");
 
       // Prepare post data with images for upload
       const postDataWithImages = {
@@ -293,10 +317,16 @@ export default function ReportPage() {
         images: selectedFiles // Pass files directly for concurrent upload
       };
 
+      const creatorId = shouldTransferToCampusSecurity ? campusSecurityUserId! : userData.uid;
+      const creatorName = shouldTransferToCampusSecurity 
+        ? 'Campus Security' 
+        : `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() || 'Someone';
+      const creatorEmail = userData?.email || 'Unknown';
+
       // Create post with concurrent image upload
       const postId = await postService.createPostWithConcurrentUpload(
         postDataWithImages,
-        shouldTransferToCampusSecurity ? campusSecurityUserId! : userData.uid,
+        creatorId,
         {
           onProgress: (progress: any[]) => {
             setUploadProgress(progress);
@@ -305,11 +335,42 @@ export default function ReportPage() {
             const avgProgress = progress.reduce((sum: number, p: any) => sum + p.percentage, 0) / total;
 
             setSubmitProgress(`Uploading images... (${completed}/${total} completed, ${avgProgress.toFixed(0)}% avg)`);
+          },
+          onSuccess: async (postId: string, post: any) => {
+            try {
+              // Send notifications in the background
+              await Promise.all([
+                // Send notifications to all users
+                notificationSender.sendNewPostNotification({
+                  id: postId,
+                  title: post.title,
+                  category: post.category,
+                  location: post.location,
+                  type: post.type,
+                  creatorId: creatorId,
+                  creatorName: creatorName
+                }),
+                
+                // Send notification to admins about the new post
+                adminNotificationService.notifyAdminsNewPost({
+                  postId: postId,
+                  postTitle: post.title,
+                  postType: post.type,
+                  postCategory: post.category,
+                  postLocation: post.location,
+                  creatorId: creatorId,
+                  creatorName: creatorName,
+                  creatorEmail: creatorEmail
+                })
+              ]);
+              
+              console.log("✅ [UI] Notifications sent successfully after post creation");
+            } catch (error) {
+              console.error("❌ [UI] Error sending notifications after post creation:", error);
+            }
           }
         }
       );
-
-      setSubmitProgress("Sending notifications...");
 
       console.log("Post created successfully with ID:", postId);
 
@@ -326,6 +387,8 @@ export default function ReportPage() {
       setWasSubmitted(false);
       setSubmitProgress("");
       setUploadProgress([]);
+      
+      // Show success modal - notifications will be sent in the background
       setShowSuccessModal(true);
 
       showToast(

@@ -92,8 +92,6 @@ export const postService = {
         const startTime = performance.now();
         console.log(`🚀 [PERF] Starting post creation for user ${creatorId}`);
 
-        let notificationEnd = 0; // Initialize for error handling
-
         try {
             // Step 1: Generate unique post ID
             const postIdStart = performance.now();
@@ -150,7 +148,37 @@ export const postService = {
             const dbSaveEnd = performance.now();
             console.log(`💾 [PERF] Firestore save: ${(dbSaveEnd - dbSaveStart).toFixed(2)}ms`);
 
-            // Step 6: Send notifications
+            // Invalidate relevant caches after successful post creation
+            cacheInvalidation.invalidatePostsByType('all');
+            console.log(`🔄 [CACHE] Invalidated post caches after creating post ${postId}`);
+
+            const endTime = performance.now();
+            const totalTime = endTime - startTime;
+            console.log(`✅ [PERF] Post creation completed successfully in ${totalTime.toFixed(2)}ms`);
+            console.log(`📊 [PERF] Performance breakdown:
+  - Post ID generation: ${(postIdEnd - postIdStart).toFixed(2)}ms
+  - Image upload: ${(imageUploadEnd - imageUploadStart).toFixed(2)}ms
+  - Data sanitization: ${(sanitizeEnd - sanitizeStart).toFixed(2)}ms
+  - Data preparation: ${(prepareEnd - prepareStart).toFixed(2)}ms
+  - Firestore save: ${(dbSaveEnd - dbSaveStart).toFixed(2)}ms
+  - Total: ${totalTime.toFixed(2)}ms`);
+
+            // Start notifications in the background
+            this._sendPostNotificationsInBackground(postId, post, creatorId);
+
+            return postId;
+        } catch (error: any) {
+            const endTime = performance.now();
+            const totalTime = endTime - startTime;
+            console.error(`❌ [PERF] Post creation failed after ${totalTime.toFixed(2)}ms:`, error);
+            throw new Error(error.message || 'Failed to create post');
+        }
+    },
+
+    // Send post notifications in the background without blocking the UI
+    async _sendPostNotificationsInBackground(postId: string, post: Post, creatorId: string): Promise<void> {
+        // Run in background without awaiting
+        (async () => {
             const notificationStart = performance.now();
             try {
                 // Get creator information for the notification (with caching)
@@ -195,54 +223,32 @@ export const postService = {
                     creatorEmail: creatorEmail
                 });
 
-                notificationEnd = performance.now();
-                console.log(`🔔 [PERF] Notifications sent: ${(notificationEnd - notificationStart).toFixed(2)}ms`);
+                const notificationEnd = performance.now();
+                console.log(`🔔 [PERF] Background notifications sent: ${(notificationEnd - notificationStart).toFixed(2)}ms`);
             } catch (notificationError) {
-                // Don't fail post creation if notifications fail
-                console.error('❌ [PERF] Error sending notifications for post:', postId, notificationError);
-                notificationEnd = performance.now();
+                console.error('❌ [PERF] Error sending background notifications for post:', postId, notificationError);
             }
-
-            // Invalidate relevant caches after successful post creation
-            cacheInvalidation.invalidatePostsByType('all');
-            console.log(`🔄 [CACHE] Invalidated post caches after creating post ${postId}`);
-
-            const endTime = performance.now();
-            const totalTime = endTime - startTime;
-            console.log(`✅ [PERF] Post creation completed successfully in ${totalTime.toFixed(2)}ms`);
-            console.log(`📊 [PERF] Performance breakdown:
-  - Post ID generation: ${(postIdEnd - postIdStart).toFixed(2)}ms
-  - Image upload: ${(imageUploadEnd - imageUploadStart).toFixed(2)}ms
-  - Data sanitization: ${(sanitizeEnd - sanitizeStart).toFixed(2)}ms
-  - Data preparation: ${(prepareEnd - prepareStart).toFixed(2)}ms
-  - Firestore save: ${(dbSaveEnd - dbSaveStart).toFixed(2)}ms
-  - Notifications: ${(notificationEnd - notificationStart).toFixed(2)}ms
-  - Total: ${totalTime.toFixed(2)}ms`);
-
-            return postId;
-        } catch (error: any) {
-            const endTime = performance.now();
-            const totalTime = endTime - startTime;
-            console.error(`❌ [PERF] Post creation failed after ${totalTime.toFixed(2)}ms:`, error);
-            throw new Error(error.message || 'Failed to create post');
-        }
+        })();
     },
 
     // Create a new post with concurrent image upload and progress tracking
     async createPostWithConcurrentUpload(
         postData: Omit<Post, 'id' | 'createdAt' | 'creatorId'>,
         creatorId: string,
-        uploadOptions?: { onProgress?: (progress: any[]) => void }
+        uploadOptions?: { 
+            onProgress?: (progress: any[]) => void,
+            onSuccess?: (postId: string, post: Post) => Promise<void> | void
+        }
     ): Promise<string> {
         const startTime = performance.now();
+        let postId = ''; // Track the post ID for error handling
+        
         console.log(`🚀 [CONCURRENT] Starting concurrent post creation for user ${creatorId}`);
-
-        let notificationEnd = 0; // Initialize for error handling
 
         try {
             // Step 1: Generate unique post ID
             const postIdStart = performance.now();
-            const postId = `post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            postId = `post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`; // Assign to outer scope
             const postIdEnd = performance.now();
             console.log(`⚡ [CONCURRENT] Post ID generation: ${(postIdEnd - postIdStart).toFixed(2)}ms`);
 
@@ -310,44 +316,18 @@ export const postService = {
             const dbSaveEnd = performance.now();
             console.log(`💾 [CONCURRENT] Firestore save: ${(dbSaveEnd - dbSaveStart).toFixed(2)}ms`);
 
-            // Step 6: Send notifications
-            const notificationStart = performance.now();
-            try {
-                // Get creator information for the notification
-                const creatorDoc = await getDoc(doc(db, 'users', creatorId));
-                const creatorData = creatorDoc.exists() ? creatorDoc.data() : null;
-                const creatorName = creatorData ? `${creatorData.firstName} ${creatorData.lastName}` : 'Someone';
-                const creatorEmail = creatorData?.email || 'Unknown';
-
-                // Send notifications to all users
-                await notificationSender.sendNewPostNotification({
-                    id: postId,
-                    title: post.title,
-                    category: post.category,
-                    location: post.location,
-                    type: post.type,
-                    creatorId: creatorId,
-                    creatorName: creatorName
-                });
-
-                // Send notification to admins about the new post
-                await adminNotificationService.notifyAdminsNewPost({
-                    postId: postId,
-                    postTitle: post.title,
-                    postType: post.type,
-                    postCategory: post.category,
-                    postLocation: post.location,
-                    creatorId: creatorId,
-                    creatorName: creatorName,
-                    creatorEmail: creatorEmail
-                });
-
-                notificationEnd = performance.now();
-                console.log(`🔔 [CONCURRENT] Notifications sent: ${(notificationEnd - notificationStart).toFixed(2)}ms`);
-            } catch (notificationError) {
-                // Don't fail post creation if notifications fail
-                console.error('❌ [CONCURRENT] Error sending notifications for post:', postId, notificationError);
-                notificationEnd = performance.now();
+            // Call onSuccess callback if provided (run in background without awaiting)
+            if (uploadOptions?.onSuccess) {
+                try {
+                    const result = uploadOptions.onSuccess(postId, post);
+                    if (result && typeof result.catch === 'function') {
+                        result.catch((error: Error) => {
+                            console.error('Error in onSuccess callback:', error);
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error executing onSuccess callback:', error);
+                }
             }
 
             const endTime = performance.now();
@@ -359,7 +339,6 @@ export const postService = {
   - Data sanitization: ${(sanitizeEnd - sanitizeStart).toFixed(2)}ms
   - Data preparation: ${(prepareEnd - prepareStart).toFixed(2)}ms
   - Firestore save: ${(dbSaveEnd - dbSaveStart).toFixed(2)}ms
-  - Notifications: ${(notificationEnd - notificationStart).toFixed(2)}ms
   - Total: ${totalTime.toFixed(2)}ms`);
 
             return postId;
@@ -367,6 +346,18 @@ export const postService = {
             const endTime = performance.now();
             const totalTime = endTime - startTime;
             console.error(`❌ [CONCURRENT] Post creation failed after ${totalTime.toFixed(2)}ms:`, error);
+            
+            // Clean up any uploaded images if the post creation failed
+            if (postId) {
+                try {
+                    // No need to clean up images here as they haven't been uploaded yet
+                    // The error likely occurred before image upload started
+                    console.log('⚠️ [CLEANUP] No images to clean up - error occurred before upload');
+                } catch (cleanupError) {
+                    console.error('❌ [CLEANUP] Error during cleanup:', cleanupError);
+                }
+            }
+            
             throw new Error(error.message || 'Failed to create post');
         }
     },
@@ -436,7 +427,7 @@ export const postService = {
 
                 // Exclude hidden posts (flagged posts that admin chose to hide)
                 if (post.isHidden === true) return false;
-                
+
                 // Exclude soft-deleted posts
                 if (post.deletedAt) return false;
 
@@ -821,7 +812,7 @@ export const postService = {
             // Get the post data before updating to get the original creator
             const postDoc = await getDoc(doc(db, 'posts', postId));
             const originalCreatorId = postDoc.data()?.creatorId;
-            
+
             // Update the document
             await updateDoc(doc(db, 'posts', postId), updateData);
 
@@ -829,16 +820,16 @@ export const postService = {
             if (status === 'confirmed') {
                 console.log(`✅ Creator changed to admin: ${confirmedBy}`);
                 console.log(`✅ User field updated to OSA admin data`);
-                
+
                 // Send notification to the original creator
                 if (originalCreatorId && originalCreatorId !== confirmedBy) {
                     try {
                         const adminDoc = await getDoc(doc(db, 'users', confirmedBy));
                         const adminData = adminDoc.data();
-                        const adminName = adminData ? 
-                            `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim() || 'an administrator' : 
+                        const adminName = adminData ?
+                            `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim() || 'an administrator' :
                             'an administrator';
-                            
+
                         const notificationTitle = 'Item Received';
                         const notificationBody = `Your item "${postDoc.data()?.title || 'item'}" has been received by ${adminName}.`;
                         const notificationData = {
@@ -848,10 +839,10 @@ export const postService = {
                             action: 'item_received',
                             adminId: confirmedBy
                         };
-                        
+
                         // Show the notification
                         await notificationService.showNotification(notificationTitle, notificationBody, notificationData);
-                        
+
                         // Also create a notification record in the database
                         await notificationService.createNotification({
                             userId: originalCreatorId,
@@ -861,7 +852,7 @@ export const postService = {
                             data: notificationData,
                             postId: postId
                         });
-                        
+
                         console.log(`📬 Sent receipt confirmation notification to user ${originalCreatorId}`);
                     } catch (notifError) {
                         console.error('Failed to send receipt confirmation notification:', notifError);
@@ -960,72 +951,71 @@ export const postService = {
             let postRef = doc(db, 'posts', postId);
             let postSnap = await getDoc(postRef);
             let isFromDeletedCollection = false;
-            
+
             // If not found in posts, check deleted_posts
             if (!postSnap.exists()) {
                 postRef = doc(db, 'deleted_posts', postId);
                 postSnap = await getDoc(postRef);
                 isFromDeletedCollection = true;
-                
+
                 if (!postSnap.exists()) {
                     throw new Error('Post not found in active or deleted posts');
                 }
-                
+
                 // If we're not doing a hard delete and found in deleted_posts, it's an error
                 if (!hardDelete) {
                     throw new Error('Cannot soft delete an already deleted post');
                 }
             }
-            
-            // Get the post data
+
+            // Get post data
             const postData = postSnap.data() as Post;
             
-            // If hard delete, delete the post and all associated data
-            if (hardDelete) {
-                // Delete all images from Cloudinary if any exist
-                const allImagesToDelete: string[] = [];
+            // Add original post images to delete list
+            const allImagesToDelete: string[] = [];
+            
+            if (postData.images && postData.images.length > 0) {
+                allImagesToDelete.push(...postData.images as string[]);
+            }
 
-                // Add original post images to delete list
-                if (postData.images && postData.images.length > 0) {
-                    allImagesToDelete.push(...postData.images as string[]);
+            // Add handover and claim images if they exist
+            if (postData.handoverDetails?.handoverItemPhotos) {
+                postData.handoverDetails.handoverItemPhotos.forEach((photo: { url: string }) => {
+                    if (photo.url) allImagesToDelete.push(photo.url);
+                });
+                if (postData.handoverDetails.handoverIdPhoto) {
+                    allImagesToDelete.push(postData.handoverDetails.handoverIdPhoto);
                 }
-
-                // Add handover and claim images if they exist
-                if (postData.handoverDetails?.handoverItemPhotos) {
-                    postData.handoverDetails.handoverItemPhotos.forEach(photo => {
-                        if (photo.url) allImagesToDelete.push(photo.url);
-                    });
-                    if (postData.handoverDetails.handoverIdPhoto) {
-                        allImagesToDelete.push(postData.handoverDetails.handoverIdPhoto);
-                    }
-                    if (postData.handoverDetails.ownerIdPhoto) {
-                        allImagesToDelete.push(postData.handoverDetails.ownerIdPhoto);
-                    }
+                if (postData.handoverDetails.ownerIdPhoto) {
+                    allImagesToDelete.push(postData.handoverDetails.ownerIdPhoto);
                 }
+            }
 
-                // Delete all collected images from Cloudinary if any exist
-                if (allImagesToDelete.length > 0) {
-                    console.log(`🗑️ Deleting ${allImagesToDelete.length} total images from Cloudinary`);
-                    await Promise.all(
-                        allImagesToDelete.map(async (imageUrl) => {
-                            try {
-                                const publicId = extractCloudinaryPublicId(imageUrl);
-                                if (publicId) {
-                                    await cloudinaryService.deleteImage(publicId);
-                                }
-                            } catch (error) {
-                                console.error('Failed to delete image:', imageUrl, error);
+            // Delete all collected images from Cloudinary if any exist
+            if (allImagesToDelete.length > 0) {
+                console.log(`🗑️ Deleting ${allImagesToDelete.length} total images from Cloudinary`);
+                // Run in background without awaiting
+                Promise.all(
+                    allImagesToDelete.map(async (imageUrl: string) => {
+                        try {
+                            const publicId = extractCloudinaryPublicId(imageUrl);
+                            if (publicId) {
+                                await cloudinaryService.deleteImage(publicId);
                             }
-                        })
-                    );
-                }
+                        } catch (error) {
+                            console.error('Failed to delete image:', imageUrl, error);
+                        }
+                    })
+                ).catch(console.error);
+            }
 
-                // Delete the post
+            if (hardDelete) {
+                // Hard delete - remove completely
                 await deleteDoc(postRef);
-                
+
                 // Delete all conversations related to this post
                 await this.deleteConversationsByPostId(postId);
-                
+
                 // Delete all notifications related to this post
                 try {
                     await notificationService.deleteNotificationsByPostId(postId);
@@ -1036,7 +1026,7 @@ export const postService = {
                 // Soft delete - move to deleted collection
                 const deletedAt = new Date().toISOString();
                 const deletedByUser = deletedBy || 'system';
-                
+
                 // Add to deleted collection with deletion metadata
                 await setDoc(doc(db, 'deleted_posts', postId), {
                     ...postData,
@@ -1044,16 +1034,13 @@ export const postService = {
                     deletedBy: deletedByUser,
                     originalId: postId, // Keep reference to original ID
                 });
-                
+
                 // Remove from active posts
                 await deleteDoc(postRef);
-                
+
                 // Log the deletion
                 console.log(`♻️ Post ${postId} moved to deleted_posts collection`);
             }
-
-            // SAFETY NET: Automatic ghost detection and cleanup (commented out as per original code)
-            // This is kept for future implementation
         } catch (error: any) {
             console.error('Post deletion failed:', error);
             throw new Error(error.message || 'Failed to delete post');
@@ -1567,10 +1554,10 @@ export const postService = {
                 orderBy('deletedAt', 'desc'),
                 firestoreLimit(limit)
             );
-            
+
             const querySnapshot = await getDocs(deletedPostsQuery);
             const deletedPosts: Post[] = [];
-            
+
             querySnapshot.forEach((doc) => {
                 const data = doc.data() as Post;
                 const post: Post = {
@@ -1599,33 +1586,33 @@ export const postService = {
                     createdAt: data.createdAt || new Date().toISOString(),
                     updatedAt: data.updatedAt || new Date().toISOString()
                 };
-                
+
                 deletedPosts.push(post);
             });
-            
+
             return deletedPosts;
         } catch (error) {
             console.error('Error fetching deleted posts:', error);
             throw new Error('Failed to fetch deleted posts');
         }
     },
-    
+
     // Restore a soft-deleted post
     async restorePost(postId: string): Promise<void> {
         try {
             const deletedPostRef = doc(db, 'deleted_posts', postId);
             const deletedPostSnap = await getDoc(deletedPostRef);
-            
+
             if (!deletedPostSnap.exists()) {
                 throw new Error('Deleted post not found');
             }
-            
+
             const postData = deletedPostSnap.data() as Post;
             const originalId = postData.originalId || postId;
-            
+
             // Remove deleted-specific fields before restoring
             const { deletedAt, deletedBy, originalId: _, isDeleted, ...restoredData } = postData;
-            
+
             // Create a new post document with the restored data
             const postToRestore: Post = {
                 ...restoredData,
@@ -1659,46 +1646,46 @@ export const postService = {
                     return expiry;
                 })()
             };
-            
+
             // Use a batch to ensure atomicity
             const batch = writeBatch(db);
-            
+
             // Add the post back to the main collection
             const postRef = doc(db, 'posts', originalId);
             batch.set(postRef, postToRestore);
-            
+
             // Remove from deleted_posts
             batch.delete(deletedPostRef);
-            
+
             // Commit the batch
             await batch.commit();
-            
+
             console.log(`♻️ Post ${postId} restored from deleted_posts`);
         } catch (error) {
             console.error('Error restoring post:', error);
             throw new Error('Failed to restore post');
         }
     },
-    
+
     // Permanently delete a post (from deleted_posts collection)
     async permanentlyDeletePost(postId: string): Promise<void> {
         try {
             // Call the deletePost function directly with hardDelete=true
             await postService.deletePost(postId, true);
-            
+
             // Also remove from deleted_posts if it exists there
             const deletedPostRef = doc(db, 'deleted_posts', postId);
             await deleteDoc(deletedPostRef).catch(() => {
                 // Ignore if not found in deleted_posts
             });
-            
+
             console.log(`🗑️ Post ${postId} permanently deleted`);
         } catch (error) {
             console.error('Error permanently deleting post:', error);
             throw error; // Re-throw the original error to preserve the error message
         }
     },
-    
+
     // Get flagged posts (admin only)
     async getFlaggedPosts(): Promise<Post[]> {
         try {
@@ -1706,17 +1693,17 @@ export const postService = {
                 collection(db, 'posts'),
                 where('isFlagged', '==', true)
             );
-            
+
             const querySnapshot = await getDocs(q);
             const flaggedPosts: Post[] = [];
-            
+
             querySnapshot.forEach((doc) => {
                 flaggedPosts.push({
                     id: doc.id,
                     ...doc.data()
                 } as Post);
             });
-            
+
             // Sort by flaggedAt (most recently flagged first)
             flaggedPosts.sort((a: Post, b: Post) => {
                 if (!a.flaggedAt || !b.flaggedAt) return 0;
@@ -1724,7 +1711,7 @@ export const postService = {
                 const bTime = b.flaggedAt instanceof Date ? b.flaggedAt.getTime() : new Date(b.flaggedAt).getTime();
                 return bTime - aTime;
             });
-            
+
             console.log(`✅ Retrieved ${flaggedPosts.length} flagged posts`);
             return flaggedPosts;
         } catch (error: any) {

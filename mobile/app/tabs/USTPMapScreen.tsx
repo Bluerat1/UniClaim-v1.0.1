@@ -179,77 +179,28 @@ export default function USTPMapScreen() {
           [8.4875, 124.6550]  // BOTTOM-LEFT corner
         ];
         
+        // Add subtle boundary with minimal visual impact
         const boundaryPolygon = L.polygon(campusBoundary, {
-          color: '#FF0000',
-          weight: 3,
-          fillColor: '#FF0000',
-          fillOpacity: 0.05,
-          dashArray: '10, 5' // Dashed line
+          color: '#CCCCCC',  // Lighter color
+          weight: 1,         // Thinner line
+          fillColor: '#CCCCCC',
+          fillOpacity: 0.02,  // More transparent
+          dashArray: '5, 5'   // More subtle dashes
         }).addTo(map);
 
-        // Add boundary corner indicators
-        const boundaryCornerLabels = ['TL', 'TR', 'BR', 'BL']; // Top-Left, Top-Right, Bottom-Right, Bottom-Left
-        campusBoundary.forEach((coord, index) => {
-          const cornerIcon = L.divIcon({
-            className: 'boundary-corner-marker',
-            html: \`<div style="
-              background: #FF0000;
-              border: 3px solid #FFFFFF;
-              border-radius: 50%;
-              width: 32px;
-              height: 32px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: white;
-              font-weight: bold;
-              font-size: 12px;
-              font-family: Arial, sans-serif;
-              box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            ">\${boundaryCornerLabels[index]}</div>\`,
-            iconSize: [32, 32],
-            iconAnchor: [16, 16]
-          });
-          
-          L.marker(coord, { icon: cornerIcon }).addTo(map);
-        });
+        // Remove boundary corner indicators for cleaner mobile view
 
-        // Add building polygons
+        // Add building outlines with minimal visibility
         buildings.forEach(building => {
           const polygon = L.polygon(building.coordinates, {
-            color: '#3B82F6',
-            weight: 2,
-            fillColor: '#3B82F6',
-            fillOpacity: 0.1
+            color: '#CCCCCC',  // Lighter gray color
+            weight: 0.5,       // Very thin line
+            fill: false,       // No fill
+            opacity: 0.3,      // More transparent
+            fillOpacity: 0     // Ensure no fill
           }).addTo(map);
 
-          // Add corner numbers
-          const cornerLabels = ['1', '2', '3', '4'];
-          building.coordinates.forEach((coord, index) => {
-            if (index < 4) { // Only show first 4 corners
-              const cornerIcon = L.divIcon({
-                className: 'corner-marker',
-                html: \`<div style="
-                  background: #EF4444;
-                  border: 2px solid #DC2626;
-                  border-radius: 50%;
-                  width: 24px;
-                  height: 24px;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  color: white;
-                  font-weight: bold;
-                  font-size: 12px;
-                  font-family: Arial, sans-serif;
-                ">\${cornerLabels[index]}</div>\`,
-                iconSize: [24, 24],
-                iconAnchor: [12, 12]
-              });
-              
-              L.marker(coord, { icon: cornerIcon }).addTo(map);
-            }
-          });
+          // Remove corner markers for cleaner mobile view
         });
 
         let marker;

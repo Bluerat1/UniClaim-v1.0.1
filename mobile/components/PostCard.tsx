@@ -94,6 +94,13 @@ export default function PostCard({ post, descriptionSearch = "", adminStatuses }
           resizeMode="cover"
         />
         
+        {/* Resolved Status Badge */}
+        {post.status === 'resolved' && (
+          <View className="absolute top-3 left-3 bg-green-500 px-3 py-1 rounded-full">
+            <Text className="text-white text-xs font-inter-medium">Resolved</Text>
+          </View>
+        )}
+        
         {/* Triple dot menu positioned at top right of image */}
         <View className="absolute top-3 right-3">
           <PostCardMenu

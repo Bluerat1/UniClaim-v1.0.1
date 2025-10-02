@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   FlatList,
@@ -710,7 +710,7 @@ export default function Chat() {
             )}
             contentContainerStyle={{ padding: 16 }}
             showsVerticalScrollIndicator={false}
-            onContentSizeChange={scrollToBottom}
+            inverted
             onViewableItemsChanged={handleViewableItemsChanged}
             viewabilityConfig={viewabilityConfig}
           />

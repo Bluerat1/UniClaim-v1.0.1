@@ -27,6 +27,16 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     string | null
   >(null);
 
+  const getTotalUnreadCount = (conversation: Conversation) => {
+    if (!conversation.unreadCounts) return 0;
+    return Object.values(conversation.unreadCounts).reduce(
+      (sum: number, count: any) => {
+        return sum + (typeof count === "number" ? count : 0);
+      },
+      0
+    );
+  };
+
   // Filter and sort conversations
   const filteredAndSortedConversations = useMemo(() => {
     let filtered = [...conversations];
@@ -51,13 +61,15 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
           case "unread":
             return getTotalUnreadCount(conversation) > 0;
           case "handover":
-            // This would need to check for handover requests in messages
-            // For now, we'll show all conversations as this requires message analysis
-            return true;
+            // Check if the last message contains handover-related keywords
+            const handoverKeywords = ['handover', 'hand over', 'transfer', 'give', 'pass'];
+            const lastMessageText = conversation.lastMessage?.text?.toLowerCase() || '';
+            return handoverKeywords.some(keyword => lastMessageText.includes(keyword));
           case "claim":
-            // This would need to check for claim requests in messages
-            // For now, we'll show all conversations as this requires message analysis
-            return true;
+            // Check if the last message contains claim-related keywords
+            const claimKeywords = ['claim', 'reclaim', 'mine', 'belong', 'owner', 'lost item'];
+            const lastMsgText = conversation.lastMessage?.text?.toLowerCase() || '';
+            return claimKeywords.some(keyword => lastMsgText.includes(keyword));
           default:
             return true;
         }
@@ -112,7 +124,7 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
       // Sort newest first (descending order)
       return bTimestamp - aTimestamp;
     });
-  }, [conversations]);
+  }, [conversations, filterType, searchQuery]);
 
   const handleDeleteConversation = async (
     conversationId: string,
@@ -141,15 +153,6 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     }
   };
 
-  const getTotalUnreadCount = (conversation: Conversation) => {
-    if (!conversation.unreadCounts) return 0;
-    return Object.values(conversation.unreadCounts).reduce(
-      (sum: number, count: any) => {
-        return sum + (typeof count === "number" ? count : 0);
-      },
-      0
-    );
-  };
 
   const getParticipantNames = (conversation: Conversation) => {
     const participantIds = Object.keys(conversation.participants || {});

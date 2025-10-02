@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useMessage } from "../context/MessageContext";
 import type { Conversation, Message } from "@/types/Post";
 import MessageBubble from "./MessageBubble";
@@ -34,18 +34,43 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const lastMessageCount = useRef(0);
   const { sendMessage, getConversationMessages, markConversationAsRead } =
     useMessage();
   const { userData } = useAuth();
   const { showToast } = useToast() as { showToast: (message: string, type: ToastType) => void };
 
   // Auto-scroll to bottom when new messages arrive
-  const scrollToBottom = () => {
+  const scrollToBottom = (behavior: 'auto' | 'smooth' = 'auto') => {
     if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop =
-        messagesContainerRef.current.scrollHeight;
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior
+      });
+      setIsNearBottom(true);
+      setShowScrollToBottom(false);
     } else if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "auto" });
+      messagesEndRef.current.scrollIntoView({ behavior });
+    }
+  };
+
+  // Handle scroll events to track position and show/hide scroll-to-bottom button
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (!messagesContainerRef.current) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+    
+    setIsNearBottom(isAtBottom);
+    
+    // Only show scroll-to-bottom button if not at bottom and new messages arrive
+    if (isAtBottom) {
+      setShowScrollToBottom(false);
+    } else if (messages.length > lastMessageCount.current) {
+      setShowScrollToBottom(true);
     }
   };
 
@@ -60,14 +85,27 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
     const unsubscribe = getConversationMessages(
       conversation.id,
       (loadedMessages) => {
+        const hadNewMessages = loadedMessages.length > messages.length;
         setMessages(loadedMessages);
         setIsLoading(false);
-        scrollToBottom();
+        
+        // Only auto-scroll if we were near the bottom before new messages arrived
+        if (isNearBottom || hadNewMessages) {
+          scrollToBottom('auto');
+        } else if (loadedMessages.length > lastMessageCount.current) {
+          // If new messages arrived and we're not at bottom, show scroll-to-bottom button
+          setShowScrollToBottom(true);
+        }
+        
+        lastMessageCount.current = loadedMessages.length;
       }
     );
 
-    return unsubscribe;
-  }, [conversation, getConversationMessages]);
+    return () => {
+      unsubscribe();
+      lastMessageCount.current = 0; // Reset when conversation changes
+    };
+  }, [conversation, getConversationMessages, isNearBottom, messages.length]);
 
   // Mark conversation as read when admin views it
   useEffect(() => {
@@ -76,9 +114,30 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
     }
   }, [conversation, userData, markConversationAsRead]);
 
+  // Auto-resize textarea based on content
+  const adjustTextareaHeight = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      // Reset height to get the correct scrollHeight
+      textarea.style.height = 'auto';
+      // Set the height to scrollHeight with a max of 200px
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+    }
+  };
+
+  // Adjust textarea height when newMessage changes
+  useLayoutEffect(() => {
+    adjustTextareaHeight();
+  }, [newMessage]);
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!conversation || !userData || !newMessage.trim()) return;
+    
+    // Reset textarea height after sending
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '40px';
+    }
 
     setIsSending(true);
     try {
@@ -309,16 +368,31 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
       {/* Messages Container */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 w-full"
-        onScroll={(e) => {
-          const target = e.target as HTMLDivElement;
-          const isNearBottom =
-            target.scrollHeight - target.scrollTop - target.clientHeight < 100;
-          if (isNearBottom) {
-            scrollToBottom();
-          }
-        }}
+        className="flex-1 overflow-y-auto p-4 space-y-4 w-full relative"
+        onScroll={handleScroll}
       >
+        {/* Scroll to bottom button */}
+        {showScrollToBottom && (
+          <button
+            onClick={() => scrollToBottom('smooth')}
+            className="sticky left-full bottom-4 ml-2 p-2 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-colors z-10"
+            title="Scroll to bottom"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 14l-7 7m0 0l-7-7m7 7V3"
+              />
+            </svg>
+          </button>
+        )}
         {isLoading ? (
           <div className="flex items-center justify-center h-32">
             <LoadingSpinner />
@@ -396,26 +470,38 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
 
       {/* Admin Message Input */}
       <div className="w-full p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-        <form onSubmit={handleSendMessage} className="flex gap-2">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type a message as admin..."
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            disabled={isSending}
-          />
-          <button
-            type="submit"
-            disabled={!newMessage.trim() || isSending}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSending ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            ) : (
-              "Send"
-            )}
-          </button>
+        <form onSubmit={handleSendMessage} className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <textarea
+              ref={textareaRef}
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage(e);
+                }
+              }}
+              placeholder="Type a message as admin..."
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none overflow-hidden min-h-[40px] max-h-[200px] transition-all duration-100 ease-in-out"
+              style={{ height: '40px' }}
+              rows={1}
+              disabled={isSending}
+            />
+            <button
+              type="submit"
+              disabled={!newMessage.trim() || isSending}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed h-10 self-end"
+            >
+              {isSending ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              )}
+            </button>
+          </div>
         </form>
         <p className="text-xs text-gray-500 mt-2">
           Messages sent as admin will be marked with [ADMIN] prefix

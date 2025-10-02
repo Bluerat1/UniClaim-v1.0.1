@@ -141,7 +141,11 @@ export default function Navigation({
         name="PostDetails"
         component={withScreenWrapper(PostDetails)}
       />
-      <Stack.Screen name="Chat" component={withScreenWrapper(Chat)} />
+      <Stack.Screen 
+        name="Chat" 
+        component={withScreenWrapper(Chat)} 
+        options={{ animation: 'none' }}
+      />
       <Stack.Screen name="ClaimFormScreen" component={withScreenWrapper(ClaimFormScreen)} />
       <Stack.Screen name="PhotoCaptureScreen" component={withScreenWrapper(PhotoCaptureScreen)} />
 

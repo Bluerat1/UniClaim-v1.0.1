@@ -40,7 +40,7 @@ export interface Post {
   };
   createdAt?: string | Date | any; // Firebase timestamp or Date
   updatedAt?: string | Date | any; // Firebase timestamp or Date
-  status?: "pending" | "resolved" | "unclaimed";
+  status?: "pending" | "resolved" | "unclaimed" | "deleted";
   foundAction?: "keep" | "turnover to OSA" | "turnover to Campus Security"; // For found items
   dateTime?: string; // When the item was lost/found
   postedBy?: string; // For backward compatibility
@@ -48,8 +48,9 @@ export interface Post {
   // New fields for 30-day lifecycle system
   expiryDate?: string | Date | any; // When the post expires (30 days from creation)
   isExpired?: boolean; // Boolean flag for quick filtering
+  deletedAt?: string | Date | null; // Timestamp when the post was soft deleted
   movedToUnclaimed?: boolean; // Boolean flag to track if moved to unclaimed
-  originalStatus?: "pending" | "resolved"; // Store the original status before moving to unclaimed
+  originalStatus?: "pending" | "resolved" | "unclaimed" | "deleted"; // Store the original status before moving to unclaimed or deleting
 
   // Flagging system fields
   isFlagged?: boolean; // Whether the post has been flagged by a user
