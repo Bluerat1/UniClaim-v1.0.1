@@ -549,12 +549,26 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     idPhotoFile: File | null,
     itemPhotoFiles: File[]
   ) => {
+    console.log('🔄 ChatWindow: handleSubmitHandover called', {
+      handoverReason,
+      hasIdPhoto: !!idPhotoFile,
+      itemPhotoCount: itemPhotoFiles.length,
+      conversationId: conversation?.id,
+      postTitle: conversation?.postTitle
+    });
+
     if (
       !conversation ||
       !userData ||
       !idPhotoFile ||
       itemPhotoFiles.length === 0
     ) {
+      console.error('❌ ChatWindow: Missing required data for handover request', {
+        hasConversation: !!conversation,
+        hasUserData: !!userData,
+        hasIdPhoto: !!idPhotoFile,
+        itemPhotoCount: itemPhotoFiles.length
+      });
       return;
     }
 
