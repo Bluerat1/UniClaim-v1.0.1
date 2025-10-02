@@ -29,7 +29,8 @@ interface MessageBubbleProps {
   ) => void;
   onClaimResponse?: (
     messageId: string,
-    status: "accepted" | "rejected"
+    status: "accepted" | "rejected",
+    idPhotoUrl?: string
   ) => void;
   onConfirmIdPhotoSuccess?: (messageId: string) => void;
   onMessageSeen?: () => void;
@@ -114,7 +115,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     const callbacks: HandoverClaimCallbacks = {
       onSuccess: (message) => Alert.alert("Success", message),
       onError: (error) => Alert.alert("Error", error),
-      onClearConversation: onConfirmIdPhotoSuccess,
+      onClearConversation: () => {
+        if (onConfirmIdPhotoSuccess) {
+          onConfirmIdPhotoSuccess(message.id);
+        }
+      },
     };
 
     await handoverClaimService.handleConfirmIdPhoto(
@@ -136,7 +141,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
     // For rejection, use the consolidated service
     const callbacks: HandoverClaimCallbacks = {
-      onClaimResponse,
+      onClaimResponse: (messageId, status) => {
+        if (onClaimResponse) {
+          onClaimResponse(messageId, status);
+        }
+      },
       onError: (error) => Alert.alert("Error", error),
     };
 
@@ -153,7 +162,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     setIsUploadingIdPhoto(true);
 
     const callbacks: HandoverClaimCallbacks = {
-      onClaimResponse,
+      onClaimResponse: (messageId, status, idPhotoUrl) => {
+        if (onClaimResponse) {
+          onClaimResponse(messageId, status, idPhotoUrl);
+        }
+      },
       onSuccess: (message) => {
         Alert.alert("Success", message);
         setShowIdPhotoModal(false);
@@ -174,11 +187,28 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const handleConfirmClaimIdPhoto = async () => {
+    console.log('🔄 Mobile MessageBubble: handleConfirmClaimIdPhoto called for message:', message.id);
+    console.log('🔄 Mobile MessageBubble: Message details:', {
+      id: message.id,
+      messageType: message.messageType,
+      claimDataStatus: message.claimData?.status,
+      claimDataPostTitle: message.claimData?.postTitle
+    });
+
     const callbacks: HandoverClaimCallbacks = {
-      onClaimResponse,
+      onClaimResponse: (messageId, status) => {
+        if (onClaimResponse) {
+          onClaimResponse(messageId, status);
+        }
+      },
       onSuccess: (message) => Alert.alert("Success", message),
       onError: (error) => Alert.alert("Error", error),
-      onConfirmIdPhotoSuccess,
+      onClearConversation: () => {
+        console.log('🔄 Mobile MessageBubble: onClearConversation called for message:', message.id);
+        if (onConfirmIdPhotoSuccess) {
+          onConfirmIdPhotoSuccess(message.id);
+        }
+      },
     };
 
     await handoverClaimService.handleConfirmClaimIdPhoto(

@@ -777,6 +777,21 @@ export const messageService = {
                 throw new Error('Message is not a handover request');
             }
 
+            // Get conversation data to find the post ID
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
+
+            if (!conversationDoc.exists()) {
+                throw new Error('Conversation not found');
+            }
+
+            const conversationData = conversationDoc.data();
+            const postId = conversationData.postId;
+
+            if (!postId) {
+                throw new Error('No post ID found in conversation');
+            }
+
             // Update the handover request with confirmation
             await updateDoc(messageRef, {
                 'handoverData.idPhotoConfirmed': true,
@@ -784,8 +799,23 @@ export const messageService = {
                 'handoverData.idPhotoConfirmedBy': confirmBy
             });
 
-            console.log(`✅ Handover ID photo confirmed by ${confirmBy}`);
-            return { success: true, conversationDeleted: false };
+            // Update the post status to completed
+            const postRef = doc(db, 'posts', postId);
+            await updateDoc(postRef, {
+                status: 'completed',
+                updatedAt: serverTimestamp()
+            });
+
+            // Delete the conversation to complete the handover process
+            try {
+                await this.deleteConversation(conversationId);
+                console.log(`✅ Conversation ${conversationId} deleted after handover confirmation`);
+                return { success: true, conversationDeleted: true, postId };
+            } catch (deleteError) {
+                console.warn('⚠️ Failed to delete conversation after handover confirmation:', deleteError);
+                // Continue even if conversation deletion fails
+                return { success: true, conversationDeleted: false, postId };
+            }
         } catch (error: any) {
             console.error('❌ Firebase confirmHandoverIdPhoto failed:', error);
             return { success: false, conversationDeleted: false, error: error.message };
@@ -809,12 +839,43 @@ export const messageService = {
                 throw new Error('Message is not a claim request');
             }
 
+            // Get conversation data to find the post ID
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
+
+            if (!conversationDoc.exists()) {
+                throw new Error('Conversation not found');
+            }
+
+            const conversationData = conversationDoc.data();
+            const postId = conversationData.postId;
+
+            if (!postId) {
+                throw new Error('No post ID found in conversation');
+            }
+
             // Update the claim request with confirmation
             await updateDoc(messageRef, {
                 'claimData.idPhotoConfirmed': true,
                 'claimData.idPhotoConfirmedAt': serverTimestamp(),
                 'claimData.idPhotoConfirmedBy': confirmBy
             });
+
+            // Update the post status to completed
+            const postRef = doc(db, 'posts', postId);
+            await updateDoc(postRef, {
+                status: 'completed',
+                updatedAt: serverTimestamp()
+            });
+
+            // Delete the conversation to complete the claim process
+            try {
+                await this.deleteConversation(conversationId);
+                console.log(`✅ Conversation ${conversationId} deleted after claim confirmation`);
+            } catch (deleteError) {
+                console.warn('⚠️ Failed to delete conversation after claim confirmation:', deleteError);
+                // Continue even if conversation deletion fails
+            }
 
             console.log(`✅ Claim ID photo confirmed by ${confirmBy}`);
         } catch (error: any) {

@@ -104,11 +104,11 @@ export class NotificationSender {
                             notification.body,
                             {
                                 type: notification.type,
-                                postId: notification.postId,
-                                postTitle: notification.postTitle,
-                                postCategory: notification.postCategory,
-                                postLocation: notification.postLocation,
-                                postType: notification.postType
+                                postId: notification.data.postId,
+                                postTitle: notification.data.postTitle,
+                                postCategory: notification.data.postCategory,
+                                postLocation: notification.data.postLocation,
+                                postType: notification.data.postType
                             }
                         );
                     } catch (error) {
@@ -172,6 +172,7 @@ export class NotificationSender {
             console.log(`Sent ${notifications.length} notifications to specific users`);
         } catch (error) {
             console.error('Error sending notifications to specific users:', error);
+            // Don't throw error - notification failures shouldn't break main functionality
         }
     }
 }

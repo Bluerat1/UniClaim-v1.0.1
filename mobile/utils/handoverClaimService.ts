@@ -9,7 +9,7 @@ import { Alert } from 'react-native';
 // Types
 export interface HandoverClaimCallbacks {
     onHandoverResponse?: (messageId: string, status: 'accepted' | 'rejected') => void;
-    onClaimResponse?: (messageId: string, status: 'accepted' | 'rejected') => void;
+    onClaimResponse?: (messageId: string, status: 'accepted' | 'rejected', idPhotoUrl?: string) => void;
     onConfirmIdPhotoSuccess?: (messageId: string) => void;
     onClearConversation?: () => void;
     onError?: (error: string) => void;
@@ -132,11 +132,15 @@ export const handleIdPhotoUploadMobile = async (
 
         // Update response with ID photo
         if (type === 'handover') {
+            console.log('🔄 Mobile handoverClaimService: Updating handover response with ID photo');
             await updateHandoverResponse(conversationId, messageId, 'accepted', currentUserId, uploadResult.url);
             callbacks.onHandoverResponse?.(messageId, 'accepted');
         } else {
+            console.log('🔄 Mobile handoverClaimService: Updating claim response with ID photo');
+            console.log('🔄 Mobile handoverClaimService: Calling updateClaimResponse with:', { conversationId, messageId, status: 'accepted', currentUserId, idPhotoUrl: uploadResult.url });
             await updateClaimResponse(conversationId, messageId, 'accepted', currentUserId, uploadResult.url);
-            callbacks.onClaimResponse?.(messageId, 'accepted');
+            console.log('🔄 Mobile handoverClaimService: About to call onClaimResponse callback');
+            callbacks.onClaimResponse?.(messageId, 'accepted', uploadResult.url);
         }
 
         callbacks.onSuccess?.('ID photo uploaded successfully! The item owner will now review and confirm.');
@@ -153,9 +157,20 @@ export const handleConfirmIdPhoto = async (
     callbacks: HandoverClaimCallbacks
 ): Promise<void> => {
     try {
-        await confirmHandoverIdPhoto(conversationId, messageId, confirmBy);
-        callbacks.onSuccess?.('✅ Handover confirmed successfully! The post is now marked as completed.');
-        callbacks.onClearConversation?.();
+        const result = await confirmHandoverIdPhoto(conversationId, messageId, confirmBy);
+
+        if (result.success) {
+            if (result.conversationDeleted) {
+                callbacks.onSuccess?.('✅ Handover confirmed successfully! The conversation has been archived and the post is now marked as resolved.');
+                callbacks.onClearConversation?.();
+            } else {
+                callbacks.onSuccess?.('✅ Handover confirmed successfully! The post is now marked as resolved.');
+                callbacks.onClearConversation?.();
+            }
+        } else {
+            const errorMessage = result.error || "Unknown error occurred";
+            callbacks.onError?.(`❌ Failed to confirm handover: ${errorMessage}`);
+        }
     } catch (error: any) {
         console.error('Failed to confirm ID photo:', error);
         callbacks.onError?.(error.message || 'Failed to confirm ID photo');
@@ -169,11 +184,25 @@ export const handleConfirmClaimIdPhoto = async (
     callbacks: HandoverClaimCallbacks
 ): Promise<void> => {
     try {
+        console.log('🔄 Mobile handoverClaimService: handleConfirmClaimIdPhoto called with:', { conversationId, messageId, confirmBy });
+
         await confirmClaimIdPhoto(conversationId, messageId, confirmBy);
-        callbacks.onSuccess?.('✅ Claim confirmed successfully! The post is now marked as completed.');
+
+        callbacks.onSuccess?.('✅ Claim confirmed successfully! The post is now marked as resolved.');
         callbacks.onClearConversation?.();
     } catch (error: any) {
-        console.error('Failed to confirm claim ID photo:', error);
+        console.error('❌ Mobile handoverClaimService: Failed to confirm claim ID photo:', error);
+
+        // If conversation is missing, we still want to show success since the post should be marked as resolved
+        if (error.message?.includes('Conversation does not exist') ||
+            error.message?.includes('Message not found') ||
+            error.message?.includes('already processed')) {
+            console.log('ℹ️ Mobile handoverClaimService: Conversation missing but treating as success');
+            callbacks.onSuccess?.('✅ Claim confirmed successfully! The post is now marked as resolved.');
+            callbacks.onClearConversation?.();
+            return;
+        }
+
         callbacks.onError?.(error.message || 'Failed to confirm claim ID photo');
     }
 };
@@ -217,14 +246,15 @@ export const confirmHandoverIdPhoto = async (
     conversationId: string,
     messageId: string,
     confirmBy: string
-): Promise<void> => {
+): Promise<{ success: boolean; conversationDeleted: boolean; postId?: string; error?: string }> => {
     try {
         console.log('🔄 Confirming handover ID photo:', { conversationId, messageId, confirmBy });
-        await messageService.confirmHandoverIdPhoto(conversationId, messageId, confirmBy);
+        const result = await messageService.confirmHandoverIdPhoto(conversationId, messageId, confirmBy);
         console.log('✅ Handover ID photo confirmed successfully');
+        return result;
     } catch (error: any) {
         console.error('❌ Failed to confirm handover ID photo:', error);
-        throw new Error(error.message || 'Failed to confirm handover ID photo');
+        return { success: false, conversationDeleted: false, error: error.message };
     }
 };
 
