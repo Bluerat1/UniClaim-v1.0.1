@@ -808,11 +808,11 @@ const Profile = () => {
       {/* Delete Account Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+          <div className="bg-white rounded-md max-w-md w-full p-6">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <div className="size-8 bg-red-100 rounded-full flex items-center justify-center">
                 <svg
-                  className="w-6 h-6 text-red-600"
+                  className="size-5 text-red-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -825,17 +825,17 @@ const Profile = () => {
                   />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-base font-semibold text-gray-900">
                 Delete Account
               </h3>
             </div>
 
             <div className="mb-6">
-              <p className="text-gray-600 mb-4">
+              <p className="text-black mb-4">
                 This action cannot be undone. This will permanently delete your
                 account and remove all data from our servers, including:
               </p>
-              <ul className="text-sm text-gray-500 space-y-1 mb-4">
+              <ul className="text-sm text-zinc-600 space-y-1 mb-4">
                 <li>• Your profile and personal information</li>
                 <li>• All your posts and images</li>
                 <li>• All conversations and messages</li>
@@ -854,7 +854,7 @@ const Profile = () => {
                 value={deleteConfirmation}
                 onChange={(e) => setDeleteConfirmation(e.target.value)}
                 placeholder="Type DELETE to confirm"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
                 disabled={isDeleting}
               />
 
@@ -863,7 +863,7 @@ const Profile = () => {
                 value={deletePassword}
                 onChange={(e) => setDeletePassword(e.target.value)}
                 placeholder="Enter your password to confirm"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
                 disabled={isDeleting}
               />
 
@@ -871,7 +871,7 @@ const Profile = () => {
                 <button
                   onClick={handleCloseDeleteModal}
                   disabled={isDeleting}
-                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200 disabled:opacity-50"
+                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors duration-200 disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -882,7 +882,7 @@ const Profile = () => {
                     deleteConfirmation !== "DELETE" ||
                     !deletePassword
                   }
-                  className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-lg transition-colors duration-200 disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-md transition-colors duration-200 disabled:opacity-50"
                 >
                   {isDeleting ? "Deleting..." : "Delete Account"}
                 </button>

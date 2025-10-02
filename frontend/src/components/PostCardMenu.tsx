@@ -77,7 +77,12 @@ export default function PostCardMenu({
 
     // Use the external flag handler if provided
     if (onFlag) {
-      onFlag({ id: postId, title: postTitle, creatorId: postOwnerId, user: postOwnerUserData });
+      onFlag({
+        id: postId,
+        title: postTitle,
+        creatorId: postOwnerId,
+        user: postOwnerUserData,
+      });
     } else {
       // Fallback to internal modal if no external handler
       setShowFlagModal(true);
@@ -120,11 +125,12 @@ export default function PostCardMenu({
       setIsOpen(false);
 
       // First, check if a conversation already exists for this post and users
-      const existingConversationId = await messageService.findConversationByPostAndUsers(
-        postId,
-        userData.uid,
-        postOwnerId
-      );
+      const existingConversationId =
+        await messageService.findConversationByPostAndUsers(
+          postId,
+          userData.uid,
+          postOwnerId
+        );
 
       let conversationId = existingConversationId;
 
@@ -142,8 +148,8 @@ export default function PostCardMenu({
 
       // Navigate to messages page with the specific conversation
       navigate(`/messages?conversation=${conversationId}`, {
-        replace: true,  // Replace current entry in history stack
-        state: { fromPost: true }  // Indicate we're coming from a post
+        replace: true, // Replace current entry in history stack
+        state: { fromPost: true }, // Indicate we're coming from a post
       });
     } catch (error: any) {
       console.error("Error handling conversation:", error);
@@ -184,7 +190,7 @@ export default function PostCardMenu({
                   ${
                     isCreatingConversation || postOwnerId === userData?.uid
                       ? "text-gray-400 cursor-not-allowed"
-                      : "text-gray-700 hover:bg-navyblue/10 hover:text-navyblue"
+                      : "text-gray-700 hover:bg-blue-50 hover:text-blue-700"
                   }
                 `}
               >
@@ -195,20 +201,36 @@ export default function PostCardMenu({
               {/* Flag Post Button */}
               <button
                 onClick={handleFlagClick}
-                disabled={isAlreadyFlaggedByUser || isLoading || postOwnerId === user?.uid}
+                disabled={
+                  isAlreadyFlaggedByUser ||
+                  isLoading ||
+                  postOwnerId === user?.uid
+                }
                 className={`
                   w-full px-4 py-2 text-left text-sm flex items-center gap-2
                   transition-colors duration-200
                   ${
-                    isAlreadyFlaggedByUser || isLoading || postOwnerId === user?.uid
+                    isAlreadyFlaggedByUser ||
+                    isLoading ||
+                    postOwnerId === user?.uid
                       ? "text-gray-400 cursor-not-allowed"
                       : "text-gray-700 hover:bg-red-50 hover:text-red-700"
                   }
                 `}
-                title={postOwnerId === user?.uid ? "You cannot flag your own post" : isAlreadyFlaggedByUser ? "You've already flagged this post" : "Flag this post"}
+                title={
+                  postOwnerId === user?.uid
+                    ? "You cannot flag your own post"
+                    : isAlreadyFlaggedByUser
+                    ? "You've already flagged this post"
+                    : "Flag this post"
+                }
               >
                 <IoFlagOutline className="w-4 h-4" />
-                {isAlreadyFlaggedByUser ? "Already Flagged" : postOwnerId === user?.uid ? "Can't Flag Own Post" : "Flag this post"}
+                {isAlreadyFlaggedByUser
+                  ? "Already Flagged"
+                  : postOwnerId === user?.uid
+                  ? "Can't Flag Own Post"
+                  : "Flag this post"}
               </button>
             </div>
           </div>

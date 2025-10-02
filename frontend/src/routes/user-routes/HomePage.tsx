@@ -67,21 +67,24 @@ export default function HomePage() {
     setShowFlagModal(true);
   }, []);
 
-  const handleFlagSubmit = useCallback(async (reason: string) => {
-    if (!user || !postToFlag) return;
+  const handleFlagSubmit = useCallback(
+    async (reason: string) => {
+      if (!user || !postToFlag) return;
 
-    setIsFlagging(true);
-    try {
-      await postService.flagPost(postToFlag.id, user.uid, reason);
-      setShowFlagModal(false);
-      setPostToFlag(null);
-      showToast("success", "Post has been flagged for review");
-    } catch (error: any) {
-      showToast("error", error.message || "Failed to flag post");
-    } finally {
-      setIsFlagging(false);
-    }
-  }, [user, postToFlag, showToast]);
+      setIsFlagging(true);
+      try {
+        await postService.flagPost(postToFlag.id, user.uid, reason);
+        setShowFlagModal(false);
+        setPostToFlag(null);
+        showToast("success", "Post has been flagged for review");
+      } catch (error: any) {
+        showToast("error", error.message || "Failed to flag post");
+      } finally {
+        setIsFlagging(false);
+      }
+    },
+    [user, postToFlag, showToast]
+  );
 
   // ✅ New state for instant category filtering
   const [selectedCategoryFilter, setSelectedCategoryFilter] =
@@ -193,7 +196,7 @@ export default function HomePage() {
     currentPage * itemsPerPage
   );
   const hasMorePosts = postsToDisplay.length > totalPostsToShow;
-  
+
   // Calculate the start index for the oldest posts
   const startIndex = Math.max(0, postsToDisplay.length - totalPostsToShow);
 

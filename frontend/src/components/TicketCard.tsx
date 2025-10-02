@@ -61,7 +61,7 @@ const TicketCard = ({ post, onClick }: PostCardProps) => {
           </p>
         </div>
 
-        <span className="text-sm text-gray-600 line-clamp-3 font-inter">
+        <span className="text-sm text-gray-600 line-clamp-1 font-inter">
           {post.description}
         </span>
       </div>

@@ -298,14 +298,14 @@ export default function MyTicket() {
                 )}
                 <TicketCard post={post} onClick={() => setSelectedPost(post)} />
                 {activeTab === "deleted_tickets" && (
-                  <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg p-4 space-y-2">
+                  <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-sm p-4 space-y-2">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleRestorePost(post.id);
                       }}
                       disabled={restoringPostId === post.id}
-                      className="w-full bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full bg-green-500 hover:bg-green-600 text-white p-3 rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {restoringPostId === post.id ? "Restoring..." : "Restore"}
                     </button>
@@ -315,7 +315,7 @@ export default function MyTicket() {
                         handlePermanentlyDeletePost(post.id);
                       }}
                       disabled={permanentlyDeletingPostId === post.id}
-                      className="w-full bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full bg-red-500 hover:bg-red-600 text-white p-3 rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {permanentlyDeletingPostId === post.id
                         ? "Deleting..."
