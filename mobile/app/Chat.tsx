@@ -9,10 +9,11 @@ import {
   Dimensions,
   View,
   TextInput,
-  KeyboardAvoidingView,
   Platform,
   Alert,
+  Keyboard,
 } from "react-native";
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -644,12 +645,19 @@ export default function Chat() {
       </View>
 
       {/* Messages */}
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      <KeyboardAwareScrollView
         style={{ flex: 1 }}
-        enabled
+        contentContainerStyle={{ flexGrow: 1 }}
+        enableOnAndroid={true}
+        enableAutomaticScroll={Platform.OS === 'ios'}
+        extraScrollHeight={Platform.OS === 'ios' ? 90 : 0}
+        keyboardShouldPersistTaps="handled"
+        onKeyboardWillShow={() => {
+          // Force scroll to bottom when keyboard appears
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 100);
+        }}
       >
         {loading ? (
           <View className="flex-1 items-center justify-center">
@@ -797,7 +805,7 @@ export default function Chat() {
             </TouchableOpacity>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
 
       {/* Image Preview Modal */}
       <Modal
