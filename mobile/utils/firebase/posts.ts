@@ -1,10 +1,11 @@
 // Posts service for lost and found items
 import { db } from './config';
+import { cloudinaryService, extractPublicIdFromUrl } from '../cloudinary';
 import {
     doc,
     collection,
-    addDoc,
     getDoc,
+    addDoc,
     updateDoc,
     deleteDoc,
     query,
@@ -252,11 +253,29 @@ export const postService = {
         }
     },
 
-    // Delete post
+    // Delete post and associated images
     async deletePost(postId: string): Promise<void> {
         try {
+            // First get the post to delete its images
+            const postDoc = await getDoc(doc(db, 'posts', postId));
+            if (postDoc.exists()) {
+                const postData = postDoc.data();;
+                
+                // Delete all images associated with the post
+                if (postData.images && Array.isArray(postData.images)) {
+                    await Promise.all(
+                        postData.images.map((imageUrl: string) => {
+                            const publicId = extractPublicIdFromUrl(imageUrl);
+                            return publicId ? cloudinaryService.deleteImage(publicId).catch(console.error) : Promise.resolve();
+                        })
+                    );
+                }
+            }
+            
+            // Then delete the post document
             await deleteDoc(doc(db, 'posts', postId));
         } catch (error: any) {
+            console.error('Error in deletePost:', error);
             throw new Error(error.message || 'Failed to delete post');
         }
     },
