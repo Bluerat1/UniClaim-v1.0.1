@@ -43,15 +43,49 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
   // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = (behavior: 'auto' | 'smooth' = 'auto') => {
     if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTo({
-        top: messagesContainerRef.current.scrollHeight,
-        behavior
+      // Use requestAnimationFrame to ensure DOM is ready
+      requestAnimationFrame(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTo({
+            top: messagesContainerRef.current.scrollHeight,
+            behavior
+          });
+          setShowScrollToBottom(false);
+        }
       });
-      setShowScrollToBottom(false);
     } else if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior });
+      requestAnimationFrame(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior });
+        }
+      });
     }
   };
+
+  // Set up MutationObserver to scroll when messages are added to DOM
+  useEffect(() => {
+    if (!messagesContainerRef.current || messages.length === 0) return;
+
+    const observer = new MutationObserver(() => {
+      // Scroll to bottom when DOM changes (messages added/removed)
+      scrollToBottom('auto');
+    });
+
+    observer.observe(messagesContainerRef.current, {
+      childList: true,
+      subtree: true,
+    });
+
+    return () => observer.disconnect();
+  }, [messages.length]);
+
+  // Always scroll to bottom when messages change or conversation loads
+  useLayoutEffect(() => {
+    if (messages.length > 0) {
+      // Scroll immediately without delay for better UX
+      scrollToBottom('auto');
+    }
+  }, [messages, conversation]);
 
   // Handle scroll events to track position and show/hide scroll-to-bottom button
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -85,9 +119,6 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
           markConversationAsRead(conversation.id);
         }
 
-        // Scroll to bottom when messages are loaded
-        scrollToBottom('auto');
-
         lastMessageCount.current = loadedMessages.length;
       }
     );
@@ -97,6 +128,18 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
       lastMessageCount.current = 0; // Reset when conversation changes
     };
   }, [conversation, getConversationMessages, userData, markConversationAsRead]);
+
+  // Always scroll to bottom when messages change or conversation loads
+  useLayoutEffect(() => {
+    if (messages.length > 0) {
+      // Use setTimeout to ensure DOM is fully rendered
+      const scrollTimer = setTimeout(() => {
+        scrollToBottom('auto');
+      }, 10);
+
+      return () => clearTimeout(scrollTimer);
+    }
+  }, [messages, conversation]);
 
   // Auto-resize textarea based on content
   const adjustTextareaHeight = () => {
