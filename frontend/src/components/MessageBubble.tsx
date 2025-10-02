@@ -829,9 +829,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
+    if (file && file.type.startsWith("image/")) {
       if (file.size > 5 * 1024 * 1024) {
-        alert('File size must be less than 5MB. Please choose a smaller image.');
+        alert(
+          "File size must be less than 5MB. Please choose a smaller image."
+        );
         return;
       }
       setSelectedIdPhoto(file);
@@ -842,15 +844,17 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         handleIdPhotoUpload(file);
       }
     } else {
-      alert('Please select a valid image file (JPEG, PNG, etc.)');
+      alert("Please select a valid image file (JPEG, PNG, etc.)");
     }
   };
 
   const handleCameraCapture = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
+    if (file && file.type.startsWith("image/")) {
       if (file.size > 5 * 1024 * 1024) {
-        alert('File size must be less than 5MB. Please choose a smaller image.');
+        alert(
+          "File size must be less than 5MB. Please choose a smaller image."
+        );
         return;
       }
       setSelectedIdPhoto(file);
@@ -861,7 +865,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         handleIdPhotoUpload(file);
       }
     } else {
-      alert('Please capture a valid image');
+      alert("Please capture a valid image");
     }
   };
 
@@ -884,26 +888,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       message.messageType === "claim_request" &&
       onClaimResponse &&
       message.senderId !== currentUserId;
-
-<<<<<<< HEAD
-    // Use the correct upload handler based on message type and user role
-    const uploadHandler = isUserAcceptingClaim
-      ? handleClaimIdPhotoUpload
-      : handleIdPhotoUpload;
-
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className="bg-white p-6 rounded-md shadow-xl max-w-2xl w-full mx-4">
-          <h3 className="text-lg font-semibold mb-4">
-            {isAdminAcceptingClaim ? "Confirm ID Photo" : "Upload ID Photo"}
-=======
-
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]">
         <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4 relative z-[1001]">
           <h3 className="text-lg font-semibold mb-4">
-            {isAdminAcceptingClaim ? 'Confirm ID Photo' : 'Verify Your Identity'}
->>>>>>> 84e1543c103483dc01f57b741ac7865f3b57cb0d
+            {isAdminAcceptingClaim
+              ? "Confirm ID Photo"
+              : "Verify Your Identity"}
           </h3>
 
           {isAdminAcceptingClaim ? (
@@ -977,37 +968,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               {/* Left Column */}
               <div className="bg-blue-50 p-4 rounded-lg col-span-2 md:col-span-1">
                 <p className="text-blue-800">
-<<<<<<< HEAD
-                  To accept this claim, please upload a clear photo of your
+                  To complete your claim, please upload a clear photo of your
                   government-issued ID for verification.
-=======
-                  To complete your claim, please upload a clear photo of your government-issued ID for verification.
->>>>>>> 84e1543c103483dc01f57b741ac7865f3b57cb0d
                 </p>
                 <p className="text-sm text-blue-700 mt-2">
                   Your ID will only be used for verification purposes and will
                   be handled securely.
                 </p>
               </div>
-<<<<<<< HEAD
-
-              {/* Right Column */}
-              <div className="col-span-2 md:col-span-1">
-                <ImagePicker
-                  onImageSelect={(file) => {
-                    uploadHandler(file);
-                  }}
-                  onClose={() => {
-                    if (!isUploadingIdPhoto) {
-                      setShowIdPhotoModal(false);
-                    } else {
-                      alert("Please wait while we process your ID photo.");
-                    }
-                  }}
-                  isUploading={isUploadingIdPhoto}
-                />
-=======
-              
               <div className="border border-dashed border-gray-300 rounded-lg p-4 text-center">
                 {/* Hidden file inputs */}
                 <input
@@ -1025,7 +993,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                   onChange={handleCameraCapture}
                   className="hidden"
                 />
-                
+
                 {/* Action buttons */}
                 <div className="space-y-3">
                   <button
@@ -1037,7 +1005,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     <span>📷</span>
                     <span>Take Photo</span>
                   </button>
-                  
+
                   <div className="relative my-4">
                     <div className="absolute inset-0 flex items-center">
                       <div className="w-full border-t border-gray-300"></div>
@@ -1046,7 +1014,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       <span className="px-2 bg-white text-gray-500">or</span>
                     </div>
                   </div>
-                  
+
                   <button
                     type="button"
                     onClick={openGallery}
@@ -1057,15 +1025,17 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     <span>Choose from Gallery</span>
                   </button>
                 </div>
-                
+
                 {/* Selected image preview */}
                 {selectedIdPhoto && (
                   <div className="mt-4 p-2 border border-gray-200 rounded-md">
-                    <p className="text-sm text-gray-600 mb-2">Selected photo:</p>
+                    <p className="text-sm text-gray-600 mb-2">
+                      Selected photo:
+                    </p>
                     <div className="relative">
-                      <img 
-                        src={URL.createObjectURL(selectedIdPhoto)} 
-                        alt="Selected ID" 
+                      <img
+                        src={URL.createObjectURL(selectedIdPhoto)}
+                        alt="Selected ID"
                         className="max-h-40 mx-auto rounded"
                       />
                       {isUploadingIdPhoto && (
@@ -1076,7 +1046,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     </div>
                   </div>
                 )}
-                
+
                 {/* Close button */}
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <button
@@ -1090,10 +1060,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     className="w-full px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                     disabled={isUploadingIdPhoto}
                   >
-                    {isUploadingIdPhoto ? 'Uploading...' : 'Cancel'}
+                    {isUploadingIdPhoto ? "Uploading..." : "Cancel"}
                   </button>
                 </div>
->>>>>>> 84e1543c103483dc01f57b741ac7865f3b57cb0d
               </div>
             </div>
           )}
@@ -1201,11 +1170,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             </div>
           </div>
 
-<<<<<<< HEAD
           {/* Delete confirmation dialog */}
           {showDeleteConfirm && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="bg-white p-4 rounded-lg shadow-lg max-w-sm mx-4">
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[999]">
+              <div className="bg-white p-4 rounded-lg shadow-lg max-w-sm mx-4 relative z-[1000]">
                 <h3 className="text-lg font-semibold mb-2">Delete Message?</h3>
                 <p className="text-gray-600 mb-4">
                   This action cannot be undone.
@@ -1226,31 +1194,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     {isDeleting ? "Deleting..." : "Delete"}
                   </button>
                 </div>
-=======
-        {/* Delete confirmation dialog */}
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[999]">
-            <div className="bg-white p-4 rounded-lg shadow-lg max-w-sm mx-4 relative z-[1000]">
-              <h3 className="text-lg font-semibold mb-2">Delete Message?</h3>
-              <p className="text-gray-600 mb-4">
-                This action cannot be undone.
-              </p>
-              <div className="flex gap-2 justify-end">
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="px-3 py-1 text-gray-600 hover:text-gray-800 transition-colors"
-                  disabled={isDeleting}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDeleteMessage}
-                  className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors disabled:opacity-50"
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? "Deleting..." : "Delete"}
-                </button>
->>>>>>> 84e1543c103483dc01f57b741ac7865f3b57cb0d
               </div>
             </div>
           )}
