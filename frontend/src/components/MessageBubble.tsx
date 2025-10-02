@@ -7,6 +7,7 @@ import {
   type HandoverClaimCallbacks,
 } from "../services/handoverClaimService";
 import { useAuth } from "@/context/AuthContext";
+import { AiOutlineDelete } from "react-icons/ai";
 
 interface MessageBubbleProps {
   message: Message;
@@ -140,7 +141,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
         // Wait for Firebase to fully update before calling parent callback
         setTimeout(() => {
-          onHandoverResponse?.(msgId, 'accepted');
+          onHandoverResponse?.(msgId, "accepted");
 
           // Additional delay to ensure parent has processed the callback
           setTimeout(() => {
@@ -262,9 +263,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
         // For handover requests, call onHandoverResponse; for claim requests, call onClaimResponse
         if (message.messageType === "handover_request") {
-          onHandoverResponse?.(msgId, 'accepted');
+          onHandoverResponse?.(msgId, "accepted");
         } else {
-          onClaimResponse?.(msgId, 'accepted');
+          onClaimResponse?.(msgId, "accepted");
         }
 
         // Small delay to ensure modal closes before parent callback
@@ -868,7 +869,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       }
       setSelectedIdPhoto(file);
       // Auto-upload the selected file using the appropriate handler
-      if (message.messageType === "claim_request" && message.senderId !== currentUserId) {
+      if (
+        message.messageType === "claim_request" &&
+        message.senderId !== currentUserId
+      ) {
         handleClaimIdPhotoUpload(file);
       } else {
         handleIdPhotoUpload(file);
@@ -889,7 +893,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       }
       setSelectedIdPhoto(file);
       // Auto-upload the captured photo using the appropriate handler
-      if (message.messageType === "claim_request" && message.senderId !== currentUserId) {
+      if (
+        message.messageType === "claim_request" &&
+        message.senderId !== currentUserId
+      ) {
         handleClaimIdPhotoUpload(file);
       } else {
         handleIdPhotoUpload(file);
@@ -1025,7 +1032,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
                     disabled={isUploadingIdPhoto}
                   >
-                    {isUploadingIdPhoto ? "Uploading..." : "Choose from Gallery"}
+                    {isUploadingIdPhoto
+                      ? "Uploading..."
+                      : "Choose from Gallery"}
                   </button>
                   <button
                     onClick={openCamera}
@@ -1051,41 +1060,29 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   return (
-    <div ref={messageRef} className={`mb-4 ${isOwnMessage ? 'ml-auto' : 'mr-auto'} max-w-xs lg:max-w-md`}>
-      {/* Message Bubble Content */}
+    <div
+      ref={messageRef}
+      className={`mb-4 flex flex-col ${
+        isOwnMessage ? "items-end" : "items-start"
+      }`}
+    >
+      {/* Message Bubble */}
       <div
-        className={`relative p-3 rounded-lg ${
-          isOwnMessage
-            ? 'bg-navyblue text-white ml-auto'
-            : 'bg-gray-100 text-gray-900'
-        }`}
+        className={`relative p-3 rounded-lg break-words whitespace-pre-wrap 
+                inline-block max-w-xs lg:max-w-lg ${
+                  isOwnMessage
+                    ? "bg-navyblue text-white"
+                    : "bg-gray-100 text-gray-900"
+                }`}
       >
-        {/* Sender name for group conversations */}
         {showSenderName && !isOwnMessage && (
           <div className="text-xs font-medium text-gray-600 mb-1">
             {message.senderName}
           </div>
         )}
 
-        {/* Message text */}
-        {message.text && (
-          <div className="text-sm whitespace-pre-wrap break-words">
-            {message.text}
-          </div>
-        )}
+        {message.text && <div className="text-sm">{message.text}</div>}
 
-        {/* Message timestamp */}
-        {message.timestamp && (
-          <div
-            className={`text-xs mt-1 ${
-              isOwnMessage ? 'text-blue-200' : 'text-gray-500'
-            }`}
-          >
-            {formatTime(message.timestamp)}
-          </div>
-        )}
-
-        {/* Render special message types */}
         {renderHandoverRequest()}
         {renderHandoverResponse()}
         {renderClaimRequest()}
@@ -1093,54 +1090,31 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         {renderSystemMessage()}
       </div>
 
-      {/* Delete button for own messages */}
-      {isOwnMessage && (
-        <div className="flex justify-end mt-1">
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="text-xs text-gray-400 hover:text-gray-600 p-1"
-            title="Delete message"
+      {/* Timestamp + delete button outside bubble */}
+      {message.timestamp && (
+        <div
+          className={`flex items-center mt-1 gap-2 ${
+            isOwnMessage ? "justify-end" : "justify-start mt-2"
+          } w-full`}
+        >
+          <span
+            className={`text-xs ${
+              isOwnMessage ? "text-navyblue" : "text-gray-600"
+            }`}
           >
-            🗑️
-          </button>
-        </div>
-      )}
+            {formatTime(message.timestamp)}
+          </span>
 
-      {/* Delete confirmation modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded-lg shadow-lg max-w-sm mx-4">
-            <h3 className="text-lg font-semibold mb-3">Delete Message?</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              This action cannot be undone.
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="px-3 py-2 text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
-                disabled={isDeleting}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteMessage}
-                className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
-                disabled={isDeleting}
-              >
-                {isDeleting ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
+          {isOwnMessage && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="text-xs text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+              title="Delete message"
+            >
+              <AiOutlineDelete className="size-4 text-red-500 hover:text-red-700 transition-colors duration-300" />
+            </button>
+          )}
         </div>
-      )}
-
-      {/* Image Modal */}
-      {showImageModal && selectedImage && (
-        <ImageModal
-          imageUrl={selectedImage.url}
-          altText={selectedImage.altText}
-          onClose={() => setShowImageModal(false)}
-        />
       )}
 
       {/* ID Photo Modal */}

@@ -7,6 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useUserPostsWithSet } from "../../hooks/usePosts";
 import { postService } from "../../services/firebase";
 import { useToast } from "../../context/ToastContext";
+import { MdOutlineClear } from "react-icons/md";
 
 export default function MyTicket() {
   const { userData, loading: authLoading } = useAuth();
@@ -245,12 +246,16 @@ export default function MyTicket() {
             <button className="bg-brand rounded text-white text-sm lg:text-base px-3 py-2 hover:bg-yellow-600 transition-colors">
               Search
             </button>
-            <button
-              onClick={() => setSearchText("")}
-              className="bg-gray-200 rounded text-black text-sm lg:text-base px-3 py-2 hover:bg-gray-300 transition-colors"
-            >
-              Clear
-            </button>
+            {/* only shows if and user nag input og text sa search input box*/}
+            {searchText && (
+              <button
+                onClick={() => setSearchText("")}
+                className="bg-red-100 text-red-500 rounded text-sm lg:text-base px-3 py-2 hover:bg-red-200 transition-colors"
+                title="Clear search"
+              >
+                <MdOutlineClear className="size-6" />
+              </button>
+            )}
           </div>
           <div className="hidden w-full lg:block lg:text-right space-y-1">
             <h1 className="font-medium text-sm">My Ticket</h1>

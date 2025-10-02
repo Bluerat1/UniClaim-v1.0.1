@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import { useMessage } from "../context/MessageContext";
 import type { Conversation, Message } from "@/types/Post";
 import MessageBubble from "./MessageBubble";
@@ -450,22 +456,25 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     messageId: string,
     status: "accepted" | "rejected"
   ) => {
-    console.log('🔄 ChatWindow: handleHandoverResponse called', { messageId, status });
+    console.log("🔄 ChatWindow: handleHandoverResponse called", {
+      messageId,
+      status,
+    });
 
     // Update the local messages state to reflect the new handover response
-    setMessages(prevMessages =>
-      prevMessages.map(msg => {
+    setMessages((prevMessages) =>
+      prevMessages.map((msg) => {
         if (msg.id === messageId && msg.handoverData) {
-          console.log('📝 ChatWindow: Updating message handover data', msg.id);
+          console.log("📝 ChatWindow: Updating message handover data", msg.id);
 
           return {
             ...msg,
             handoverData: {
               ...msg.handoverData,
-              status: status === 'accepted' ? 'pending_confirmation' : status,
+              status: status === "accepted" ? "pending_confirmation" : status,
               respondedAt: new Date(),
-              respondedBy: userData?.uid || '',
-            } as any // Type assertion to handle optional properties
+              respondedBy: userData?.uid || "",
+            } as any, // Type assertion to handle optional properties
           };
         }
         return msg;
@@ -473,18 +482,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     );
 
     // Refresh message data from Firebase after upload to get complete updated data with ownerIdPhoto
-    if (status === 'accepted') {
+    if (status === "accepted") {
       setTimeout(() => {
-        console.log('🔄 ChatWindow: Refreshing message data from Firebase after upload');
+        console.log(
+          "🔄 ChatWindow: Refreshing message data from Firebase after upload"
+        );
         if (conversation?.id) {
           getConversationMessages(conversation.id, (updatedMessages) => {
-            console.log('✅ ChatWindow: Refreshed messages from Firebase', updatedMessages.length);
+            console.log(
+              "✅ ChatWindow: Refreshed messages from Firebase",
+              updatedMessages.length
+            );
 
             // Force re-render of MessageBubble components by updating a key or state
             setMessages(updatedMessages);
 
             // Additional force re-render by updating a dummy state
-            setForceRerender(prev => prev + 1);
+            setForceRerender((prev) => prev + 1);
           });
         }
       }, 1000); // Longer delay to allow Firebase to fully update
@@ -495,22 +509,25 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     messageId: string,
     status: "accepted" | "rejected"
   ) => {
-    console.log('🔄 ChatWindow: handleClaimResponse called', { messageId, status });
+    console.log("🔄 ChatWindow: handleClaimResponse called", {
+      messageId,
+      status,
+    });
 
     // Update the local messages state to reflect the new claim response
-    setMessages(prevMessages =>
-      prevMessages.map(msg => {
+    setMessages((prevMessages) =>
+      prevMessages.map((msg) => {
         if (msg.id === messageId && msg.claimData) {
-          console.log('📝 ChatWindow: Updating message claim data', msg.id);
+          console.log("📝 ChatWindow: Updating message claim data", msg.id);
 
           return {
             ...msg,
             claimData: {
               ...msg.claimData,
-              status: status === 'accepted' ? 'pending_confirmation' : status,
+              status: status === "accepted" ? "pending_confirmation" : status,
               respondedAt: new Date(),
-              respondedBy: userData?.uid || '',
-            } as any // Type assertion to handle optional properties
+              respondedBy: userData?.uid || "",
+            } as any, // Type assertion to handle optional properties
           };
         }
         return msg;
@@ -518,18 +535,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     );
 
     // Refresh message data from Firebase after upload to get complete updated data
-    if (status === 'accepted') {
+    if (status === "accepted") {
       setTimeout(() => {
-        console.log('🔄 ChatWindow: Refreshing message data from Firebase after claim upload');
+        console.log(
+          "🔄 ChatWindow: Refreshing message data from Firebase after claim upload"
+        );
         if (conversation?.id) {
           getConversationMessages(conversation.id, (updatedMessages) => {
-            console.log('✅ ChatWindow: Refreshed messages from Firebase', updatedMessages.length);
+            console.log(
+              "✅ ChatWindow: Refreshed messages from Firebase",
+              updatedMessages.length
+            );
 
             // Force re-render of MessageBubble components by updating a key or state
             setMessages(updatedMessages);
 
             // Additional force re-render by updating a dummy state
-            setForceRerender(prev => prev + 1);
+            setForceRerender((prev) => prev + 1);
           });
         }
       }, 1000); // Longer delay to allow Firebase to fully update
@@ -549,12 +571,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     idPhotoFile: File | null,
     itemPhotoFiles: File[]
   ) => {
-    console.log('🔄 ChatWindow: handleSubmitHandover called', {
+    console.log("🔄 ChatWindow: handleSubmitHandover called", {
       handoverReason,
       hasIdPhoto: !!idPhotoFile,
       itemPhotoCount: itemPhotoFiles.length,
       conversationId: conversation?.id,
-      postTitle: conversation?.postTitle
+      postTitle: conversation?.postTitle,
     });
 
     if (
@@ -563,12 +585,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       !idPhotoFile ||
       itemPhotoFiles.length === 0
     ) {
-      console.error('❌ ChatWindow: Missing required data for handover request', {
-        hasConversation: !!conversation,
-        hasUserData: !!userData,
-        hasIdPhoto: !!idPhotoFile,
-        itemPhotoCount: itemPhotoFiles.length
-      });
+      console.error(
+        "❌ ChatWindow: Missing required data for handover request",
+        {
+          hasConversation: !!conversation,
+          hasUserData: !!userData,
+          hasIdPhoto: !!idPhotoFile,
+          itemPhotoCount: itemPhotoFiles.length,
+        }
+      );
       return;
     }
 
@@ -1065,7 +1090,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       }
 
       console.log("Showing claim button for admin post");
-      
+
       return true;
     }
 
@@ -1290,7 +1315,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           {/* Scroll to Bottom Button - Above Input */}
           <button
             onClick={scrollToBottomWithAnimation}
-            className={`absolute -top-15 left-1/2 transform -translate-x-1/2 p-2 border border-gray-300 rounded-full shadow-sm hover:bg-gray-50 transition-all duration-300 bg-white z-10 ${
+            className={`absolute -top-30 left-1/2 transform -translate-x-1/2 p-2 border border-gray-300 rounded-full shadow-sm hover:bg-gray-50 transition-all duration-300 bg-white z-10 ${
               showScrollToBottom
                 ? "animate-slide-up opacity-100"
                 : "animate-slide-down opacity-0"
@@ -1316,7 +1341,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             </svg>
           </button>
 
-          <form onSubmit={handleSendMessage} className="flex gap-2">
+          <form
+            onSubmit={handleSendMessage}
+            className="flex items-center gap-2"
+          >
             <div className="flex-1 relative">
               <textarea
                 ref={textareaRef}
@@ -1361,12 +1389,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 {newMessage.length}/200
               </div>
             </div>
+
             <button
               type="submit"
               disabled={
                 !newMessage.trim() || isSending || newMessage.length > 200
               }
-              className="px-4 py-2 bg-navyblue text-white rounded-lg hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-10 px-4 bg-navyblue text-white rounded-lg hover:bg-blue-900 focus:outline-none focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSending ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
