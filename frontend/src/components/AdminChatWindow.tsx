@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useMessage } from "../context/MessageContext";
 import type { Conversation, Message } from "@/types/Post";
 import MessageBubble from "./MessageBubble";
-import LoadingSpinner from "./LoadingSpinner";
 import { useAuth } from "../context/AuthContext";
 import ProfilePicture from "./ProfilePicture";
 import { messageService } from "../utils/firebase";
@@ -25,7 +24,6 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   // Removed unused state
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(
@@ -35,7 +33,6 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [isNearBottom, setIsNearBottom] = useState(true);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const lastMessageCount = useRef(0);
   const { sendMessage, getConversationMessages, markConversationAsRead } =
@@ -50,7 +47,6 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
         top: messagesContainerRef.current.scrollHeight,
         behavior
       });
-      setIsNearBottom(true);
       setShowScrollToBottom(false);
     } else if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior });
@@ -63,8 +59,6 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
     
     const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
-    
-    setIsNearBottom(isAtBottom);
     
     // Only show scroll-to-bottom button if not at bottom and new messages arrive
     if (isAtBottom) {
@@ -81,22 +75,19 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
       return;
     }
 
-    setIsLoading(true);
     const unsubscribe = getConversationMessages(
       conversation.id,
       (loadedMessages) => {
-        const hadNewMessages = loadedMessages.length > messages.length;
         setMessages(loadedMessages);
-        setIsLoading(false);
-        
-        // Only auto-scroll if we were near the bottom before new messages arrived
-        if (isNearBottom || hadNewMessages) {
-          scrollToBottom('auto');
-        } else if (loadedMessages.length > lastMessageCount.current) {
-          // If new messages arrived and we're not at bottom, show scroll-to-bottom button
-          setShowScrollToBottom(true);
+
+        // Mark conversation as read when messages are loaded (similar to ChatWindow)
+        if (userData && conversation?.unreadCounts?.[userData.uid] > 0) {
+          markConversationAsRead(conversation.id);
         }
-        
+
+        // Scroll to bottom when messages are loaded
+        scrollToBottom('auto');
+
         lastMessageCount.current = loadedMessages.length;
       }
     );
@@ -105,14 +96,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
       unsubscribe();
       lastMessageCount.current = 0; // Reset when conversation changes
     };
-  }, [conversation, getConversationMessages, isNearBottom, messages.length]);
-
-  // Mark conversation as read when admin views it
-  useEffect(() => {
-    if (conversation && userData) {
-      markConversationAsRead(conversation.id);
-    }
-  }, [conversation, userData, markConversationAsRead]);
+  }, [conversation, getConversationMessages, userData, markConversationAsRead]);
 
   // Auto-resize textarea based on content
   const adjustTextareaHeight = () => {
@@ -182,8 +166,6 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
     if (!conversation || !userData?.uid) return;
 
     try {
-      setIsLoading(true);
-      
       // Create a Firestore-compatible timestamp
       const timestamp = new Date();
       
@@ -239,8 +221,6 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
           return msg;
         })
       );
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -393,11 +373,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
             </svg>
           </button>
         )}
-        {isLoading ? (
-          <div className="flex items-center justify-center h-32">
-            <LoadingSpinner />
-          </div>
-        ) : messages.length === 0 ? (
+        {messages.length === 0 ? (
           <div className="flex items-center justify-center h-32">
             <p className="text-gray-500">No messages yet</p>
           </div>
