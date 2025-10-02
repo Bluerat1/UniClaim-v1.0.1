@@ -113,6 +113,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const handleIdPhotoUpload = async (photoFile: File) => {
     setIsUploadingIdPhoto(true);
 
+    // Capture message ID for the callback
+    const msgId = message.id;
+
     const callbacks: HandoverClaimCallbacks = {
       onHandoverResponse,
       onClaimResponse: (messageId, status) => {
@@ -122,21 +125,27 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         }
         // Don't close the modal yet, wait for the success callback
       },
-      onSuccess: (message: any) => {
-        // Show success message
-        if (message.success) {
-          alert(
-            "ID photo uploaded successfully. Your claim is being processed."
-          );
-        } else {
-          alert(message.message || "ID photo uploaded successfully.");
-        }
+      onSuccess: (_message: any) => {
+        console.log('✅ MessageBubble: Upload successful, calling parent callback');
 
         // Close the modal and reset the photo
         setShowIdPhotoModal(false);
         setSelectedIdPhoto(null);
+        // Small delay to ensure modal closes before parent callback
+        setTimeout(() => {
+          console.log('🔄 MessageBubble: Calling parent callback after modal close');
+          onHandoverResponse?.(msgId, 'accepted');
+
+          // Force refresh of message data from Firebase to get complete updated data
+          setTimeout(() => {
+            console.log('🔄 MessageBubble: Forcing Firebase refresh for complete data');
+            // The parent component will refresh the message data from Firebase
+            // This ensures we get the complete updated message with ownerIdPhoto
+          }, 200);
+        }, 100);
       },
       onError: (error) => {
+        console.error('❌ MessageBubble: Upload failed:', error);
         let errorMessage = error;
         if (error.includes("Network request failed")) {
           errorMessage =
@@ -235,12 +244,26 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const handleClaimIdPhotoUpload = async (photoFile: File) => {
     setIsUploadingIdPhoto(true);
 
+    // Capture message ID for the callback
+    const msgId = message.id;
+
     const callbacks: HandoverClaimCallbacks = {
       onClaimResponse,
-      onSuccess: (message) => {
-        alert(message);
+      onSuccess: (_message) => {
         setShowIdPhotoModal(false);
         setSelectedIdPhoto(null);
+
+        // For handover requests, call onHandoverResponse; for claim requests, call onClaimResponse
+        if (message.messageType === "handover_request") {
+          onHandoverResponse?.(msgId, 'accepted');
+        } else {
+          onClaimResponse?.(msgId, 'accepted');
+        }
+
+        // Small delay to ensure modal closes before parent callback
+        setTimeout(() => {
+          // Force refresh hint for parent component
+        }, 200);
       },
       onError: (error) => {
         let errorMessage = error;
@@ -368,10 +391,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               handoverData.ownerIdPhoto &&
               typeof handoverData.ownerIdPhoto === "string"
             ) {
-              console.log(
-                "🔍 Displaying owner ID photo:",
-                handoverData.ownerIdPhoto.substring(0, 50) + "..."
-              );
               return (
                 <div className="mb-3 p-2 bg-white rounded border">
                   <div className="text-xs text-gray-600 mb-1">
@@ -994,74 +1013,29 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                   className="hidden"
                 />
 
-                {/* Action buttons */}
+                {/* Upload buttons */}
                 <div className="space-y-3">
                   <button
-                    type="button"
-                    onClick={openCamera}
-                    className="w-full bg-navyblue text-white p-3 rounded-lg hover:bg-blue-900 transition-colors flex items-center justify-center gap-2"
-                    disabled={isUploadingIdPhoto}
-                  >
-                    <span>📷</span>
-                    <span>Take Photo</span>
-                  </button>
-
-                  <div className="relative my-4">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-300"></div>
-                    </div>
-                    <div className="relative flex justify-center text-sm">
-                      <span className="px-2 bg-white text-gray-500">or</span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
                     onClick={openGallery}
-                    className="w-full bg-navyblue text-white p-3 rounded-lg hover:bg-blue-900 transition-colors flex items-center justify-center gap-2"
+                    className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
                     disabled={isUploadingIdPhoto}
                   >
-                    <span>🖼️</span>
-                    <span>Choose from Gallery</span>
+                    {isUploadingIdPhoto ? "Uploading..." : "Choose from Gallery"}
                   </button>
-                </div>
-
-                {/* Selected image preview */}
-                {selectedIdPhoto && (
-                  <div className="mt-4 p-2 border border-gray-200 rounded-md">
-                    <p className="text-sm text-gray-600 mb-2">
-                      Selected photo:
-                    </p>
-                    <div className="relative">
-                      <img
-                        src={URL.createObjectURL(selectedIdPhoto)}
-                        alt="Selected ID"
-                        className="max-h-40 mx-auto rounded"
-                      />
-                      {isUploadingIdPhoto && (
-                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Close button */}
-                <div className="mt-4 pt-4 border-t border-gray-200">
                   <button
-                    type="button"
-                    onClick={() => {
-                      if (!isUploadingIdPhoto) {
-                        setShowIdPhotoModal(false);
-                        setSelectedIdPhoto(null);
-                      }
-                    }}
-                    className="w-full px-4 py-2 border border-navyblue text-gray-600 hover:bg-navyblue/5 rounded-lg transition-colors"
+                    onClick={openCamera}
+                    className="w-full px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
                     disabled={isUploadingIdPhoto}
                   >
-                    {isUploadingIdPhoto ? "Uploading..." : "Cancel"}
+                    {isUploadingIdPhoto ? "Uploading..." : "Take Photo"}
                   </button>
+                  {selectedIdPhoto && (
+                    <div className="mt-3 p-2 bg-gray-100 rounded">
+                      <p className="text-sm text-gray-600">
+                        Selected: {selectedIdPhoto.name}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1072,146 +1046,101 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   return (
-    <>
-      {renderIdPhotoModal()}
+    <div ref={messageRef} className={`mb-4 ${isOwnMessage ? 'ml-auto' : 'mr-auto'} max-w-xs lg:max-w-md`}>
+      {/* Message Bubble Content */}
       <div
-        ref={messageRef}
-        className={`flex ${
-          isOwnMessage ? "justify-end" : "justify-start"
-        } mb-3`}
+        className={`relative p-3 rounded-lg ${
+          isOwnMessage
+            ? 'bg-navyblue text-white ml-auto'
+            : 'bg-gray-100 text-gray-900'
+        }`}
       >
-        <div
-          className={`max-w-xs lg:max-w-md ${
-            isOwnMessage ? "order-2" : "order-1"
-          }`}
-        >
-          {showSenderName && !isOwnMessage && (
-            <div className="flex items-center gap-2 text-xs text-gray-500 mb-1 ml-2">
-              <ProfilePicture
-                src={message.senderProfilePicture}
-                alt="sender profile"
-                size="xs"
-              />
-              <span>{message.senderName}</span>
-            </div>
-          )}
+        {/* Sender name for group conversations */}
+        {showSenderName && !isOwnMessage && (
+          <div className="text-xs font-medium text-gray-600 mb-1">
+            {message.senderName}
+          </div>
+        )}
 
+        {/* Message text */}
+        {message.text && (
+          <div className="text-sm whitespace-pre-wrap break-words">
+            {message.text}
+          </div>
+        )}
+
+        {/* Message timestamp */}
+        {message.timestamp && (
           <div
-            className={`px-4 py-2 rounded-lg ${
-              isOwnMessage
-                ? "bg-navyblue text-white rounded-br-md"
-                : "bg-gray-200 text-gray-800 rounded-bl-md"
+            className={`text-xs mt-1 ${
+              isOwnMessage ? 'text-blue-200' : 'text-gray-500'
             }`}
           >
-            <p className="text-sm break-words">{message.text}</p>
-
-            {/* Render special message types */}
-            {renderHandoverRequest()}
-            {renderHandoverResponse()}
-            {renderClaimRequest()}
-            {renderClaimResponse()}
-            {renderSystemMessage()}
+            {formatTime(message.timestamp)}
           </div>
+        )}
 
-          <div
-            className={`text-xs text-gray-400 mt-1 ${
-              isOwnMessage ? "text-right mr-2" : "ml-2"
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1">
-                <span>{formatTime(message.timestamp)}</span>
-                {isOwnMessage && (
-                  <span className="ml-1">
-                    {message.readBy && message.readBy.length > 1 ? (
-                      <span className="text-blue-500" title="Seen">
-                        <svg
-                          className="w-3 h-3"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                          <path
-                            fillRule="evenodd"
-                            d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </span>
-                    ) : (
-                      <span className="text-gray-400" title="Delivered">
-                        <svg
-                          className="w-3 h-3"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </span>
-                    )}
-                  </span>
-                )}
-              </div>
-
-              {/* Delete button for own messages */}
-              {isOwnMessage && (
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="ml-2 text-red-400 hover:text-red-600 transition-colors"
-                  title="Delete message"
-                >
-                  🗑️
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Delete confirmation dialog */}
-          {showDeleteConfirm && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[999]">
-              <div className="bg-white p-4 rounded-lg shadow-lg max-w-md mx-4 relative z-[1000]">
-                <h3 className="text-lg font-semibold mb-2">Delete Message?</h3>
-                <p className="text-gray-600 mb-4">
-                  This action cannot be undone.
-                </p>
-                <div className="flex gap-2 justify-end">
-                  <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="px-3 py-1 text-gray-600 hover:text-gray-800 transition-colors"
-                    disabled={isDeleting}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleDeleteMessage}
-                    className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors disabled:opacity-50"
-                    disabled={isDeleting}
-                  >
-                    {isDeleting ? "Deleting..." : "Delete"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Image Modal */}
-          {showImageModal && selectedImage && (
-            <ImageModal
-              imageUrl={selectedImage.url}
-              altText={selectedImage.altText}
-              onClose={() => {
-                setShowImageModal(false);
-                setSelectedImage(null);
-              }}
-            />
-          )}
-        </div>
+        {/* Render special message types */}
+        {renderHandoverRequest()}
+        {renderHandoverResponse()}
+        {renderClaimRequest()}
+        {renderClaimResponse()}
+        {renderSystemMessage()}
       </div>
-    </>
+
+      {/* Delete button for own messages */}
+      {isOwnMessage && (
+        <div className="flex justify-end mt-1">
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="text-xs text-gray-400 hover:text-gray-600 p-1"
+            title="Delete message"
+          >
+            🗑️
+          </button>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-4 rounded-lg shadow-lg max-w-sm mx-4">
+            <h3 className="text-lg font-semibold mb-3">Delete Message?</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-3 py-2 text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteMessage}
+                className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Modal */}
+      {showImageModal && selectedImage && (
+        <ImageModal
+          imageUrl={selectedImage.url}
+          altText={selectedImage.altText}
+          onClose={() => setShowImageModal(false)}
+        />
+      )}
+
+      {/* ID Photo Modal */}
+      {renderIdPhotoModal()}
+    </div>
   );
 };
 

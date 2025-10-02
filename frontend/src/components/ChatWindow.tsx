@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useMessage } from "../context/MessageContext";
 import type { Conversation, Message } from "@/types/Post";
 import MessageBubble from "./MessageBubble";
@@ -33,6 +33,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [isHandoverSubmitting, setIsHandoverSubmitting] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [infoPage, setInfoPage] = useState(1);
+  const [forceRerender, setForceRerender] = useState(0); // Force re-render of MessageBubble components
   
   const infoPages = [
     {
@@ -440,19 +441,93 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   const handleHandoverResponse = (
-    _messageId: string,
-    _status: "accepted" | "rejected"
+    messageId: string,
+    status: "accepted" | "rejected"
   ) => {
-    // This function will be called when a handover response is made
-    // The actual update is handled in the MessageBubble component
+    console.log('🔄 ChatWindow: handleHandoverResponse called', { messageId, status });
+
+    // Update the local messages state to reflect the new handover response
+    setMessages(prevMessages =>
+      prevMessages.map(msg => {
+        if (msg.id === messageId && msg.handoverData) {
+          console.log('📝 ChatWindow: Updating message handover data', msg.id);
+
+          return {
+            ...msg,
+            handoverData: {
+              ...msg.handoverData,
+              status: status === 'accepted' ? 'pending_confirmation' : status,
+              respondedAt: new Date(),
+              respondedBy: userData?.uid || '',
+            } as any // Type assertion to handle optional properties
+          };
+        }
+        return msg;
+      })
+    );
+
+    // Refresh message data from Firebase after upload to get complete updated data with ownerIdPhoto
+    if (status === 'accepted') {
+      setTimeout(() => {
+        console.log('🔄 ChatWindow: Refreshing message data from Firebase after upload');
+        if (conversation?.id) {
+          getConversationMessages(conversation.id, (updatedMessages) => {
+            console.log('✅ ChatWindow: Refreshed messages from Firebase', updatedMessages.length);
+
+            // Force re-render of MessageBubble components by updating a key or state
+            setMessages(updatedMessages);
+
+            // Additional force re-render by updating a dummy state
+            setForceRerender(prev => prev + 1);
+          });
+        }
+      }, 1000); // Longer delay to allow Firebase to fully update
+    }
   };
 
   const handleClaimResponse = (
-    _messageId: string,
-    _status: "accepted" | "rejected"
+    messageId: string,
+    status: "accepted" | "rejected"
   ) => {
-    // This function will be called when a claim response is made
-    // The actual update is handled in the MessageBubble component
+    console.log('🔄 ChatWindow: handleClaimResponse called', { messageId, status });
+
+    // Update the local messages state to reflect the new claim response
+    setMessages(prevMessages =>
+      prevMessages.map(msg => {
+        if (msg.id === messageId && msg.claimData) {
+          console.log('📝 ChatWindow: Updating message claim data', msg.id);
+
+          return {
+            ...msg,
+            claimData: {
+              ...msg.claimData,
+              status: status === 'accepted' ? 'pending_confirmation' : status,
+              respondedAt: new Date(),
+              respondedBy: userData?.uid || '',
+            } as any // Type assertion to handle optional properties
+          };
+        }
+        return msg;
+      })
+    );
+
+    // Refresh message data from Firebase after upload to get complete updated data
+    if (status === 'accepted') {
+      setTimeout(() => {
+        console.log('🔄 ChatWindow: Refreshing message data from Firebase after claim upload');
+        if (conversation?.id) {
+          getConversationMessages(conversation.id, (updatedMessages) => {
+            console.log('✅ ChatWindow: Refreshed messages from Firebase', updatedMessages.length);
+
+            // Force re-render of MessageBubble components by updating a key or state
+            setMessages(updatedMessages);
+
+            // Additional force re-render by updating a dummy state
+            setForceRerender(prev => prev + 1);
+          });
+        }
+      }, 1000); // Longer delay to allow Firebase to fully update
+    }
   };
 
   const handleOpenHandoverModal = () => {
@@ -899,8 +974,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       : null;
   };
 
-  // Check if handover button should be shown
-  const shouldShowHandoverButton = () => {
+  // Check if handover button should be shown (memoized)
+  const shouldShowHandoverButton = useMemo(() => {
     if (!conversation || !userData) return false;
 
     // Only show for lost items
@@ -913,30 +988,21 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     if (conversation.postCreatorId === userData.uid) return false;
 
     return true;
-  };
+  }, [conversation, userData]);
 
-  // Check if claim item button should be shown
-  const shouldShowClaimItemButton = () => {
-    console.log('=== shouldShowClaimItemButton called ===');
-    console.log('conversation:', conversation);
-    console.log('userData:', userData);
-    
+  // Check if claim item button should be shown (memoized to prevent excessive logging)
+  const shouldShowClaimItemButton = useMemo(() => {
     if (!conversation || !userData) {
-      console.log('Missing conversation or userData');
       return false;
     }
 
     // Only show for found items
-    console.log('postType:', conversation.postType);
     if (conversation.postType !== "found") {
-      console.log('Not a found item');
       return false;
     }
 
     // Only show if post is still pending
-    console.log('postStatus:', conversation.postStatus);
     if (conversation.postStatus !== "pending") {
-      console.log('Post is not pending');
       return false;
     }
 
@@ -949,47 +1015,31 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                        (creatorData?.firstName === 'System' && creatorData?.lastName === 'Administrator') ||
                        (creatorData?.firstName === 'Campus' && creatorData?.lastName === 'Security');
     
-    console.log('=== Admin Post Detection ===');
-    console.log('isAdminPost flag:', conversation.isAdminPost);
-    console.log('creatorData:', creatorData);
-    console.log('creator role:', creatorData?.role);
-    console.log('isAdminPost result:', isAdminPost);
-    console.log('postCreatorId:', conversation.postCreatorId);
-    console.log('current user id:', userData.uid);
-    console.log('participants:', conversation.participants);
-    
     // For admin posts, ignore foundAction
     if (isAdminPost) {
-      console.log('Admin post detected, ignoring foundAction');
       const isCurrentUserPostCreator = conversation.postCreatorId === userData.uid;
       
       // Don't show claim button for the admin who created the post
       if (isCurrentUserPostCreator) {
-        console.log('Current user is the post creator, hiding claim button');
         return false;
       }
       
-      console.log('Showing claim button for admin post');
       return true;
     }
 
 
     // For non-admin posts, check if the item is turned over
     if (conversation.foundAction && conversation.foundAction !== 'keep') {
-      console.log('Item has been turned over, hiding claim button');
       return false;
     }
 
     // Don't show if current user is the post creator
     if (conversation.postCreatorId === userData.uid) {
-      console.log('Current user is the post creator, hiding claim button');
       return false;
     }
-    
-    console.log('All conditions met, showing claim button');
 
     return true;
-  };
+  }, [conversation, userData]);
 
   if (!conversation) {
     return (
@@ -1059,7 +1109,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             </button>
 
             {/* Handover Item Button */}
-            {shouldShowHandoverButton() && (
+            {shouldShowHandoverButton && (
               <button
                 onClick={handleOpenHandoverModal}
                 className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
@@ -1069,7 +1119,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             )}
 
             {/* Claim Item Button */}
-            {shouldShowClaimItemButton() && (
+            {shouldShowClaimItemButton && (
               <button
                 onClick={handleOpenClaimModal}
                 className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
@@ -1107,7 +1157,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           <div className="space-y-3">
             {messages.map((message) => (
               <MessageBubble
-                key={message.id}
+                key={`${message.id}-${forceRerender}`}
                 message={message}
                 isOwnMessage={message.senderId === userData?.uid}
                 showSenderName={
