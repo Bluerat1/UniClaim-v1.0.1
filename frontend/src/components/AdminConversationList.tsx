@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import { useMessage } from "../context/MessageContext";
 import { useAuth } from "../context/AuthContext";
 import type { Conversation } from "../types/Post";
 import LoadingSpinner from "./LoadingSpinner";
-import ProfilePicture from "./ProfilePicture";
 import { messageService } from "../services/firebase/messages";
 import { useToast } from "../context/ToastContext";
+// Simple button component for the mark all as read functionality
 
 interface AdminConversationListProps {
   onSelectConversation: (conversation: Conversation) => void;
@@ -27,15 +27,11 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     string | null
   >(null);
 
-  const getTotalUnreadCount = (conversation: Conversation) => {
-    if (!conversation.unreadCounts) return 0;
-    return Object.values(conversation.unreadCounts).reduce(
-      (sum: number, count: any) => {
-        return sum + (typeof count === "number" ? count : 0);
-      },
-      0
-    );
-  };
+  const getTotalUnreadCount = useCallback((conversation: Conversation) => {
+    if (!conversation.unreadCounts || !userData?.uid) return 0;
+    return conversation.unreadCounts[userData.uid] || 0;
+  }, [userData?.uid]);
+
 
   // Filter and sort conversations
   const filteredAndSortedConversations = useMemo(() => {
@@ -48,7 +44,8 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
         (conversation) =>
           conversation.postTitle?.toLowerCase().includes(query) ||
           Object.values(conversation.participants || {}).some((participant) =>
-            participant.name?.toLowerCase().includes(query)
+            (participant.firstName?.toLowerCase().includes(query) ||
+             participant.lastName?.toLowerCase().includes(query))
           ) ||
           conversation.lastMessage?.text?.toLowerCase().includes(query)
       );
@@ -160,39 +157,30 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     return participantIds
       .map((id) => {
         const participant = conversation.participants[id];
+        if (!participant) return "Unknown User";
 
         // If we have both first and last name, combine them
-        if (participant?.firstName && participant?.lastName) {
+        if (participant.firstName && participant.lastName) {
           return `${participant.firstName} ${participant.lastName}`.trim();
         }
 
         // If we have just first name
-        if (participant?.firstName) {
+        if (participant.firstName) {
           return participant.firstName;
         }
 
         // If we have just last name
-        if (participant?.lastName) {
+        if (participant.lastName) {
           return participant.lastName;
         }
 
-        // Fallback to name if it exists (for backward compatibility)
-        if (participant?.name) {
-          return participant.name;
-        }
-
-        // If we have a userId but no name, use the ID
-        if (participant?.userId) {
-          return `User ${participant.userId.substring(0, 6)}`;
+        // Fallback to displayName if it exists
+        if ('displayName' in participant && participant.displayName) {
+          return participant.displayName;
         }
 
         // If we only have the ID, use that
-        if (id) {
-          return `User ${id.substring(0, 6)}`;
-        }
-
-        // Last resort fallback
-        return "Unknown User";
+        return `User ${id.substring(0, 6)}`;
       })
       .filter((name) => name !== "User System") // Filter out system user
       .join(", ");
@@ -281,7 +269,7 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
                   <div className="flex items-center gap-2">
                     <p className="text-sm text-gray-500 truncate flex-1">
                       <span className="font-medium">
-                        {conversation.lastMessage.senderName}:
+                        {conversation.lastMessage.senderId === userData?.uid ? 'You' : 'User'}:
                       </span>{" "}
                       {conversation.lastMessage.text}
                     </p>
@@ -323,6 +311,7 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
                     >
                       <path
                         strokeLinecap="round"
