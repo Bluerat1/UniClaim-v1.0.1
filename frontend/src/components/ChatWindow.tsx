@@ -999,13 +999,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     return true;
   }, [conversation, userData]);
 
-  // Check if claim item button should be shown
-  const shouldShowClaimItemButton = () => {
-    console.log("=== shouldShowClaimItemButton called ===");
-    console.log("conversation:", conversation);
-    console.log("userData:", userData);
-
-  // Check if claim item button should be shown (memoized to prevent excessive logging)
   const shouldShowClaimItemButton = useMemo(() => {
     if (!conversation || !userData) {
       console.log("Missing conversation or userData");
@@ -1047,22 +1040,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     console.log("current user id:", userData.uid);
     console.log("participants:", conversation.participants);
 
-    const isAdminPost = conversation.isAdminPost === true || 
-                       creatorData?.role === 'admin' || 
-                       creatorData?.role === 'campus_security' ||
-                       // Check if creator is admin/campus security by name (fallback)
-                       (creatorData?.firstName === 'System' && creatorData?.lastName === 'Administrator') ||
-                       (creatorData?.firstName === 'Campus' && creatorData?.lastName === 'Security');
-    
-    // For admin posts, ignore foundAction
     if (isAdminPost) {
       console.log("Admin post detected, ignoring foundAction");
       const isCurrentUserPostCreator =
         conversation.postCreatorId === userData.uid;
 
-      const isCurrentUserPostCreator = conversation.postCreatorId === userData.uid;
-      
-      // Don't show claim button for the admin who created the post
       if (isCurrentUserPostCreator) {
         console.log("Current user is the post creator, hiding claim button");
         return false;
@@ -1076,7 +1058,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     // For non-admin posts, check if the item is turned over
     if (conversation.foundAction && conversation.foundAction !== "keep") {
       console.log("Item has been turned over, hiding claim button");
-    if (conversation.foundAction && conversation.foundAction !== 'keep') {
       return false;
     }
 

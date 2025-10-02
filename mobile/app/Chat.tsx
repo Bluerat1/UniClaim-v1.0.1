@@ -645,20 +645,7 @@ export default function Chat() {
       </View>
 
       {/* Messages */}
-      <KeyboardAwareScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ flexGrow: 1 }}
-        enableOnAndroid={true}
-        enableAutomaticScroll={Platform.OS === 'ios'}
-        extraScrollHeight={Platform.OS === 'ios' ? 90 : 0}
-        keyboardShouldPersistTaps="handled"
-        onKeyboardWillShow={() => {
-          // Force scroll to bottom when keyboard appears
-          setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
-          }, 100);
-        }}
-      >
+      <View style={{ flex: 1 }}>
         {loading ? (
           <View className="flex-1 items-center justify-center">
             <Text className="text-gray-500">Creating conversation...</Text>
@@ -724,6 +711,7 @@ export default function Chat() {
             inverted
             onViewableItemsChanged={handleViewableItemsChanged}
             viewabilityConfig={viewabilityConfig}
+            keyboardShouldPersistTaps="handled"
           />
         )}
 
@@ -774,7 +762,7 @@ export default function Chat() {
         </View>
 
         {/* Message Input */}
-        <View 
+        <View
           className="border-t border-gray-200 bg-white p-4"
           style={Platform.OS === 'ios' ? { paddingBottom: 20 } : { paddingBottom: 16 }}
         >
@@ -805,7 +793,7 @@ export default function Chat() {
             </TouchableOpacity>
           </View>
         </View>
-      </KeyboardAwareScrollView>
+      </View>
 
       {/* Image Preview Modal */}
       <Modal
