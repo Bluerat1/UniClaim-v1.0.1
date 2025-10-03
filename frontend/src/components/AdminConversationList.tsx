@@ -11,7 +11,7 @@ interface AdminConversationListProps {
   onSelectConversation: (conversation: Conversation) => void;
   selectedConversationId?: string;
   searchQuery?: string;
-  filterType?: "all" | "unread" | "handover" | "claim";
+  filterType?: "all" | "unread" | "claim";
 }
 
 const AdminConversationList: React.FC<AdminConversationListProps> = ({
@@ -57,16 +57,9 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
         switch (filterType) {
           case "unread":
             return getTotalUnreadCount(conversation) > 0;
-          case "handover":
-            // Check if the last message contains handover-related keywords
-            const handoverKeywords = ['handover', 'hand over', 'transfer', 'give', 'pass'];
-            const lastMessageText = conversation.lastMessage?.text?.toLowerCase() || '';
-            return handoverKeywords.some(keyword => lastMessageText.includes(keyword));
           case "claim":
-            // Check if the last message contains claim-related keywords
-            const claimKeywords = ['claim', 'reclaim', 'mine', 'belong', 'owner', 'lost item'];
-            const lastMsgText = conversation.lastMessage?.text?.toLowerCase() || '';
-            return claimKeywords.some(keyword => lastMsgText.includes(keyword));
+            // Check if conversation has a claim request
+            return conversation.hasClaimRequest === true;
           default:
             return true;
         }
@@ -155,6 +148,7 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     const participantIds = Object.keys(conversation.participants || {});
 
     return participantIds
+      .filter((id) => id !== userData?.uid) // Filter out current admin user
       .map((id) => {
         const participant = conversation.participants[id];
         if (!participant) return "Unknown User";
@@ -186,6 +180,38 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
       .join(", ");
   };
 
+  const getProfilePictureUrl = (participant: any): string => {
+    return participant?.profilePicture || participant?.profileImageUrl || '';
+  };
+
+  const getSenderName = (conversation: Conversation, senderId: string): string => {
+    const participant = conversation.participants?.[senderId];
+    if (!participant) return "Unknown User";
+
+    // If we have both first and last name, combine them
+    if (participant.firstName && participant.lastName) {
+      return `${participant.firstName} ${participant.lastName}`.trim();
+    }
+
+    // If we have just first name
+    if (participant.firstName) {
+      return participant.firstName;
+    }
+
+    // If we have just last name
+    if (participant.lastName) {
+      return participant.lastName;
+    }
+
+    // Fallback to displayName if it exists
+    if ('displayName' in participant && participant.displayName) {
+      return String(participant.displayName);
+    }
+
+    // If we only have the ID, use that
+    return `User ${senderId.substring(0, 6)}`;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -213,16 +239,34 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
 
     const date = timestamp instanceof Date ? timestamp : timestamp.toDate();
     const now = new Date();
-    const diffInMinutes = (now.getTime() - date.getTime()) / (1000 * 60);
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInMinutes = diffInMs / (1000 * 60);
+    const diffInHours = diffInMinutes / 60;
+    const diffInDays = diffInHours / 24;
+    const diffInWeeks = diffInDays / 7;
+    const diffInMonths = diffInDays / 30;
+    const diffInYears = diffInDays / 365;
 
     if (diffInMinutes < 1) {
       return "Just now";
     } else if (diffInMinutes < 60) {
-      return `${Math.floor(diffInMinutes)}m ago`;
-    } else if (diffInMinutes < 1440) {
-      return `${Math.floor(diffInMinutes / 60)}h ago`;
+      const minutes = Math.floor(diffInMinutes);
+      return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+    } else if (diffInHours < 24) {
+      const hours = Math.floor(diffInHours);
+      return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+    } else if (diffInDays < 7) {
+      const days = Math.floor(diffInDays);
+      return `${days} day${days === 1 ? '' : 's'} ago`;
+    } else if (diffInWeeks < 4.5) {
+      const weeks = Math.floor(diffInWeeks);
+      return `${weeks} week${weeks === 1 ? '' : 's'} ago`;
+    } else if (diffInMonths < 12) {
+      const months = Math.floor(diffInMonths);
+      return `${months} month${months === 1 ? '' : 's'} ago`;
     } else {
-      return date.toLocaleDateString();
+      const years = Math.floor(diffInYears);
+      return `${years} year${years === 1 ? '' : 's'} ago`;
     }
   };
 
@@ -260,16 +304,43 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
                 </div>
 
                 {/* Participants */}
-                <p className="text-sm text-gray-600 mb-1 truncate">
-                  Participants: {participantNames}
-                </p>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="flex -space-x-2">
+                    {Object.keys(conversation.participants || {})
+                      .filter((id) => id !== userData?.uid) // Filter out current admin user
+                      .slice(0, 3) // Show max 3 profile pictures
+                      .map((id) => {
+                        const participant = conversation.participants[id];
+                        const profilePictureUrl = getProfilePictureUrl(participant);
+
+                        return (
+                          <div key={id} className="w-6 h-6 rounded-full bg-gray-300 border-2 border-white overflow-hidden flex-shrink-0">
+                            {profilePictureUrl ? (
+                              <img
+                                src={profilePictureUrl}
+                                alt={`${getSenderName(conversation, id)}'s profile`}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-gray-400 flex items-center justify-center text-xs text-white font-medium">
+                                {(getSenderName(conversation, id).charAt(0) || 'U').toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                  <p className="text-sm text-gray-600 truncate">
+                    {participantNames}
+                  </p>
+                </div>
 
                 {/* Last Message */}
                 {conversation.lastMessage && (
                   <div className="flex items-center gap-2">
                     <p className="text-sm text-gray-500 truncate flex-1">
                       <span className="font-medium">
-                        {conversation.lastMessage.senderId === userData?.uid ? 'You' : 'User'}:
+                        {getSenderName(conversation, conversation.lastMessage.senderId) || 'Unknown User'}:
                       </span>{" "}
                       {conversation.lastMessage.text}
                     </p>

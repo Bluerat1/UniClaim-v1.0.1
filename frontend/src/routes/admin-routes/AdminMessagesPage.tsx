@@ -13,7 +13,7 @@ const AdminMessagesPage: React.FC = () => {
   const [isGoingBack, setIsGoingBack] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<
-    "all" | "unread" | "handover" | "claim"
+    "all" | "unread" | "claim"
   >("all");
 
   // Handle URL changes and clear selected conversation when no conversation is specified
@@ -118,16 +118,6 @@ const AdminMessagesPage: React.FC = () => {
                       }`}
                     >
                       Unread
-                    </button>
-                    <button
-                      onClick={() => setFilterType("handover")}
-                      className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                        filterType === "handover"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      Handover
                     </button>
                     <button
                       onClick={() => setFilterType("claim")}
