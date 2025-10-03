@@ -12,6 +12,7 @@ import {
   Platform,
   Alert,
   Keyboard,
+  KeyboardAvoidingView,
 } from "react-native";
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -117,7 +118,6 @@ export default function Chat() {
   const [conversationData, setConversationData] = useState<any>(null);
   const [isConversationDataReady, setIsConversationDataReady] = useState(false);
 
-  // Modal states (like web version)
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [showHandoverModal, setShowHandoverModal] = useState(false);
   const [isClaimSubmitting, setIsClaimSubmitting] = useState(false);
@@ -128,6 +128,10 @@ export default function Chat() {
     uri: string;
     alt: string;
   } | null>(null);
+
+  // Keyboard handling state
+  const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState<boolean>(false);
 
   const flatListRef = useRef<FlatList>(null);
 
@@ -360,18 +364,60 @@ export default function Chat() {
       isMounted = false;
       isLoadingRef.current = false;
     };
-  }, [conversationId]); // Remove getConversation from dependencies
+  }, [conversationId, getConversation]); // Add getConversation back to dependencies
 
-  // Mark conversation as read
+  // Keyboard handling
   useEffect(() => {
-    if (!conversationId || !userData?.uid || messages.length === 0) return;
+    const keyboardDidShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+        setIsKeyboardVisible(true);
+      }
+    );
 
-    try {
-      markConversationAsRead(conversationId, userData.uid);
-    } catch {
-      console.log("Failed to mark conversation as read");
+    const keyboardDidHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+        setIsKeyboardVisible(false);
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
+
+  // Keyboard handling
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+        setIsKeyboardVisible(true);
+      }
+    );
+
+    const keyboardDidHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+        setIsKeyboardVisible(false);
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
+  const scrollToBottom = () => {
+    if (flatListRef.current && messages.length > 0) {
+      flatListRef.current.scrollToEnd({ animated: true });
     }
-  }, [conversationId, userData, messages.length, markConversationAsRead]);
+  };
 
   // Handle message visibility changes to mark messages as read
   const handleViewableItemsChanged = useCallback(
@@ -395,13 +441,6 @@ export default function Chat() {
   const viewabilityConfig = {
     itemVisiblePercentThreshold: 50, // Item is visible when 50% is shown
     minimumViewTime: 100, // Minimum time item must be visible (100ms)
-  };
-
-  // Simple scroll to bottom
-  const scrollToBottom = () => {
-    if (flatListRef.current && messages.length > 0) {
-      flatListRef.current.scrollToEnd({ animated: true });
-    }
   };
 
   // Send message
@@ -681,7 +720,7 @@ export default function Chat() {
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top", "bottom"]}>
-      {/* Header */}
+      {/* Header - Stays fixed at top */}
       <View className="bg-white border-b border-gray-200 pb-4 px-4 mt-3 flex-row items-center">
         <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3">
           <Ionicons name="arrow-back" size={24} color="#374151" />
@@ -733,156 +772,165 @@ export default function Chat() {
         )}
       </View>
 
-      {/* Messages */}
-      <View style={{ flex: 1 }}>
-        {loading ? (
-          <View className="flex-1 items-center justify-center">
-            <Text className="text-gray-500">Creating conversation...</Text>
-          </View>
-        ) : messages.length === 0 ? (
-          <View className="flex-1 items-center justify-center p-6">
-            {postOwnerId === user?.uid ? (
-              <>
-                <Ionicons
-                  name="person-circle-outline"
-                  size={64}
-                  color="#F59E0B"
-                />
-                <Text className="text-gray-700 text-center mt-4 mb-2 text-lg font-semibold">
-                  This is your post
-                </Text>
-                <Text className="text-gray-500 text-center mt-2 mb-6 leading-6">
-                  You cannot start a conversation with yourself about &quot;
-                  {postTitle}&quot;
-                </Text>
-                <TouchableOpacity
-                  onPress={() => navigation.goBack()}
-                  className="bg-blue-500 px-6 py-3 rounded-full"
-                >
-                  <Text className="text-white font-semibold">Go Back</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <Ionicons
-                  name="chatbubbles-outline"
-                  size={64}
-                  color="#9CA3AF"
-                />
-                <Text className="text-gray-500 text-center mt-4">
-                  Start the conversation about &quot;{postTitle}&quot;
-                </Text>
-              </>
-            )}
-          </View>
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <MessageBubble
-                message={item}
-                isOwnMessage={item.senderId === userData?.uid}
-                conversationId={conversationId}
-                currentUserId={userData?.uid || ""}
-                isCurrentUserPostOwner={postOwnerId === userData?.uid}
-                onHandoverResponse={handleHandoverResponse}
-                onClaimResponse={handleClaimResponse}
-                onConfirmIdPhotoSuccess={handleConfirmIdPhotoSuccess}
-                onImageClick={(imageUrl, altText) =>
-                  setSelectedImage({ uri: imageUrl, alt: altText })
-                }
-              />
-            )}
-            contentContainerStyle={{ padding: 16 }}
-            showsVerticalScrollIndicator={false}
-            inverted
-            onViewableItemsChanged={handleViewableItemsChanged}
-            viewabilityConfig={viewabilityConfig}
-            keyboardShouldPersistTaps="handled"
-          />
-        )}
-
-        {/* Message Limit Counter */}
-        <View className="bg-gray-50 border-b border-gray-200 px-4 py-2">
-          <View className="flex-row justify-between items-center mb-1">
-            <Text className="text-sm text-gray-600 font-medium">
-              Messages in conversation
-            </Text>
-            <View className="flex-row items-center">
-              <Text
-                className={`text-sm font-medium ${
-                  messages.length >= 45 ? "text-red-500" : "text-green-600"
-                }`}
-              >
-                {messages.length}/50
-              </Text>
-              {messages.length >= 45 && (
-                <Text className="text-xs text-red-500 font-medium ml-2">
-                  {50 - messages.length} left
-                </Text>
+      {/* Chat Content - Moves up with keyboard */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        style={{ flex: 1 }}
+      >
+        {/* Messages Container with Custom Spacing */}
+        <View style={{ flex: 1, marginBottom: 10 }}>
+          {loading ? (
+            <View className="flex-1 items-center justify-center">
+              <Text className="text-gray-500">Creating conversation...</Text>
+            </View>
+          ) : messages.length === 0 ? (
+            <View className="flex-1 items-center justify-center p-6">
+              {postOwnerId === user?.uid ? (
+                <>
+                  <Ionicons
+                    name="person-circle-outline"
+                    size={64}
+                    color="#F59E0B"
+                  />
+                  <Text className="text-gray-700 text-center mt-4 mb-2 text-lg font-semibold">
+                    This is your post
+                  </Text>
+                  <Text className="text-gray-500 text-center mt-2 mb-6 leading-6">
+                    You cannot start a conversation with yourself about &quot;
+                    {postTitle}&quot;
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => navigation.goBack()}
+                    className="bg-blue-500 px-6 py-3 rounded-full"
+                  >
+                    <Text className="text-white font-semibold">Go Back</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Ionicons
+                    name="chatbubbles-outline"
+                    size={64}
+                    color="#9CA3AF"
+                  />
+                  <Text className="text-gray-500 text-center mt-4">
+                    Start the conversation about &quot;{postTitle}&quot;
+                  </Text>
+                </>
               )}
             </View>
-          </View>
-
-          {/* Progress Bar */}
-          <View className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-            <View
-              className="h-full"
-              style={[
-                {
-                  width: `${(messages.length / 50) * 100}%`,
-                },
-                messages.length >= 45
-                  ? { backgroundColor: "#EF4444" }
-                  : { backgroundColor: "#10B981" },
-              ]}
-            />
-          </View>
-
-          {/* Warning Message */}
-          {messages.length >= 45 && (
-            <Text className="text-xs text-red-500 text-center mt-1">
-              ⚠️ Oldest messages will be automatically removed when limit is
-              reached
-            </Text>
-          )}
-        </View>
-
-        {/* Message Input */}
-        <View
-          className="border-t border-gray-200 bg-white p-4"
-          style={Platform.OS === 'ios' ? { paddingBottom: 20 } : { paddingBottom: 16 }}
-        >
-          <View className="flex-row items-center gap-3">
-            <View className="flex-1">
-              <TextInput
-                value={newMessage}
-                onChangeText={setNewMessage}
-                placeholder="Type a message..."
-                className="border rounded-full font-inter px-4 py-3 text-base border-gray-300 bg-white"
-                multiline
-                maxLength={200}
-                editable={!loading}
+          ) : (
+            <View style={{ flex: 1, paddingBottom: 20 }}>
+              <FlatList
+                ref={flatListRef}
+                data={messages}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <MessageBubble
+                    message={item}
+                    isOwnMessage={item.senderId === userData?.uid}
+                    conversationId={conversationId}
+                    currentUserId={userData?.uid || ""}
+                    isCurrentUserPostOwner={postOwnerId === userData?.uid}
+                    onHandoverResponse={handleHandoverResponse}
+                    onClaimResponse={handleClaimResponse}
+                    onConfirmIdPhotoSuccess={handleConfirmIdPhotoSuccess}
+                    onImageClick={(imageUrl, altText) =>
+                      setSelectedImage({ uri: imageUrl, alt: altText })
+                    }
+                  />
+                )}
+                contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+                showsVerticalScrollIndicator={false}
+                inverted
+                onViewableItemsChanged={handleViewableItemsChanged}
+                viewabilityConfig={viewabilityConfig}
+                keyboardShouldPersistTaps="handled"
               />
             </View>
-            <TouchableOpacity
-              onPress={handleSendMessage}
-              disabled={!newMessage.trim() || loading}
-              className={`w-12 h-12 rounded-full items-center justify-center ${
-                newMessage.trim() && !loading ? "bg-yellow-500" : "bg-gray-300"
-              }`}
-            >
-              <Ionicons
-                name="send"
-                size={20}
-                color={newMessage.trim() && !loading ? "white" : "#9CA3AF"}
+          )}
+
+          {/* Spacer between messages and counter */}
+          <View style={{ height: 0 }} />
+
+          {/* Message Limit Counter */}
+          <View className="bg-gray-50 border-b border-gray-200 px-4 py-2 mx-4 rounded-t-lg">
+            <View className="flex-row justify-between items-center mb-1">
+              <Text className="text-sm text-gray-600 font-medium">
+                Messages in conversation
+              </Text>
+              <View className="flex-row items-center">
+                <Text
+                  className={`text-sm font-medium ${
+                    messages.length >= 45 ? "text-red-500" : "text-green-600"
+                  }`}
+                >
+                  {messages.length}/50
+                </Text>
+                {messages.length >= 45 && (
+                  <Text className="text-xs text-red-500 font-medium ml-2">
+                    {50 - messages.length} left
+                  </Text>
+                )}
+              </View>
+            </View>
+
+            {/* Progress Bar */}
+            <View className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+              <View
+                className="h-full"
+                style={[
+                  {
+                    width: `${(messages.length / 50) * 100}%`,
+                  },
+                  messages.length >= 45
+                    ? { backgroundColor: "#EF4444" }
+                    : { backgroundColor: "#10B981" },
+                ]}
               />
-            </TouchableOpacity>
+            </View>
+
+            {/* Warning Message */}
+            {messages.length >= 45 && (
+              <Text className="text-xs text-red-500 text-center mt-1">
+                ⚠️ Oldest messages will be automatically removed when limit is
+                reached
+              </Text>
+            )}
+          </View>
+
+          {/* Input Area with bottom spacing */}
+          <View className="bg-white px-4 pb-8 pt-2 mb-2">
+            <View className="flex-row items-center gap-3">
+              <View className="flex-1">
+                <TextInput
+                  value={newMessage}
+                  onChangeText={setNewMessage}
+                  placeholder="Type a message..."
+                  className="border rounded-full font-inter px-4 py-3 text-base border-gray-300 bg-white"
+                  multiline
+                  maxLength={200}
+                  editable={!loading}
+                />
+              </View>
+              <TouchableOpacity
+                onPress={handleSendMessage}
+                disabled={!newMessage.trim() || loading}
+                className={`w-12 h-12 rounded-full items-center justify-center ${
+                  newMessage.trim() && !loading ? "bg-yellow-500" : "bg-gray-300"
+                }`}
+              >
+                <Ionicons
+                  name="send"
+                  size={20}
+                  color={newMessage.trim() && !loading ? "white" : "#9CA3AF"}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
 
       {/* Image Preview Modal */}
       <Modal
