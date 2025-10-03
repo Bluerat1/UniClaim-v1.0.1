@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/services/firebase/config";
 import type { Conversation } from "@/types/Post";
 import ConversationList from "../../components/ConversationList";
 import ChatWindow from "../../components/ChatWindow";
@@ -13,36 +11,28 @@ const MessagesPage: React.FC = () => {
     useState<Conversation | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Handle initial load and URL changes
+  // Handle initial page load with conversation in URL
   useEffect(() => {
     const conversationParam = searchParams.get("conversation");
-    if (conversationParam && (!selectedConversation || selectedConversation.id !== conversationParam)) {
-      // Just validate the conversation exists
-      const validateConversation = async () => {
-        try {
-          const conversationDoc = await getDoc(doc(db, 'conversations', conversationParam));
-          if (!conversationDoc.exists()) {
-            setSearchParams(new URLSearchParams());
-          }
-        } catch (error) {
-          console.error("Error loading conversation:", error);
-          setSearchParams(new URLSearchParams());
-        }
-      };
-      validateConversation();
+    if (conversationParam && !selectedConversation) {
+      // Only handle URL-based conversation loading on initial page load
+      // The ConversationList component will handle the actual selection
+      console.log('Page loaded with conversation in URL:', conversationParam);
     }
-  }, [searchParams, setSearchParams]);
+  }, []); // Only run on mount
 
   // Update URL when selected conversation changes
   useEffect(() => {
     if (selectedConversation) {
       const newSearchParams = new URLSearchParams();
       newSearchParams.set('conversation', selectedConversation.id);
-      window.history.replaceState({}, '', `?${newSearchParams.toString()}`);
+      setSearchParams(newSearchParams);
+    } else {
+      setSearchParams(new URLSearchParams());
     }
   }, [selectedConversation]);
 
-  const handleSelectConversation = useCallback((conversation: Conversation) => {
+  const handleSelectConversation = useCallback((conversation: Conversation | null) => {
     setSelectedConversation(conversation);
   }, []);
 
@@ -83,7 +73,7 @@ const MessagesPage: React.FC = () => {
             <div className="w-full lg:max-w-sm border-r border-gray-200 flex flex-col">
               <ConversationList
                 onSelectConversation={handleSelectConversation}
-                selectedConversationId={selectedConversation?.id}
+                selectedConversationId={selectedConversation?.id || undefined}
               />
             </div>
 

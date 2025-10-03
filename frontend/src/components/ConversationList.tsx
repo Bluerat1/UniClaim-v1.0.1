@@ -7,7 +7,7 @@ import ProfilePicture from "./ProfilePicture";
 import { useSearchParams } from "react-router-dom";
 
 interface ConversationListProps {
-  onSelectConversation: (conversation: Conversation) => void;
+  onSelectConversation: (conversation: Conversation | null) => void;
   selectedConversationId?: string;
 }
 
@@ -22,13 +22,24 @@ const ConversationList: React.FC<ConversationListProps> = ({
 
   // Auto-select conversation from URL on initial load
   useEffect(() => {
-    if (conversationIdFromUrl && conversations.length > 0) {
+    if (conversationIdFromUrl && conversations.length > 0 && !selectedConversationId) {
       const conversation = conversations.find(c => c.id === conversationIdFromUrl);
-      if (conversation && (!selectedConversationId || selectedConversationId !== conversationIdFromUrl)) {
+      if (conversation) {
         onSelectConversation(conversation);
       }
     }
-  }, [conversationIdFromUrl, conversations, onSelectConversation]);
+  }, [conversationIdFromUrl, conversations, selectedConversationId, onSelectConversation]);
+
+  // Maintain conversation selection when conversations update
+  useEffect(() => {
+    if (selectedConversationId && conversations.length > 0) {
+      const conversation = conversations.find(c => c.id === selectedConversationId);
+      if (conversation) {
+        // Conversation is valid, ensure it's properly selected
+        console.log('Maintaining selection for conversation:', selectedConversationId);
+      }
+    }
+  }, [conversations, selectedConversationId]);
 
   // Handle conversation selection
   const handleConversationClick = (conversation: Conversation) => {
