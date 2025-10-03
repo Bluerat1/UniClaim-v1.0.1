@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../services/firebase/config";
@@ -18,11 +18,26 @@ const AdminMessagesPage: React.FC = () => {
     "all" | "unread" | "claim"
   >("all");
 
+  // Use a ref to track the current conversation ID being loaded to prevent race conditions
+  const loadingConversationIdRef = useRef<string | null>(null);
+
   // Handle URL changes and conversation selection
   useEffect(() => {
     const conversationParam = searchParams.get("conversation");
-    if (conversationParam && (!selectedConversation || selectedConversation.id !== conversationParam)) {
-      // Load and select the conversation
+
+    if (conversationParam) {
+      // Check if we're already loading this conversation to prevent duplicate requests
+      if (loadingConversationIdRef.current === conversationParam) {
+        return;
+      }
+
+      // Check if we already have the correct conversation loaded
+      if (selectedConversation && selectedConversation.id === conversationParam) {
+        return;
+      }
+
+      // Load the conversation
+      loadingConversationIdRef.current = conversationParam;
       const loadConversation = async () => {
         try {
           const conversationDoc = await getDoc(doc(db, 'conversations', conversationParam));
@@ -39,14 +54,18 @@ const AdminMessagesPage: React.FC = () => {
         } catch (error) {
           console.error("Error loading conversation:", error);
           setSearchParams(new URLSearchParams());
+        } finally {
+          // Clear the loading ref when done
+          loadingConversationIdRef.current = null;
         }
       };
       loadConversation();
-    } else if (!conversationParam) {
+    } else {
       // No conversation in URL, clear the selected conversation
       setSelectedConversation(null);
+      loadingConversationIdRef.current = null;
     }
-  }, [searchParams, selectedConversation]);
+  }, [searchParams]); // Removed selectedConversation from dependencies
 
   const handleSelectConversation = (conversation: Conversation) => {
     if (!isGoingBack) {
