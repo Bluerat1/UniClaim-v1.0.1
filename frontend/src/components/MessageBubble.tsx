@@ -9,6 +9,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { AiOutlineDelete } from "react-icons/ai";
+import { EyeIcon } from "@heroicons/react/24/outline";
 
 // Define valid toast types
 type ToastType = 'success' | 'error' | 'info' | 'warning';
@@ -67,7 +68,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  // Intersection observer to detect when message comes into view
+  // Function to check if other users have seen this message
+  const hasOtherUsersSeenMessage = (): boolean => {
+    if (!message.readBy || message.readBy.length === 0) return false;
+
+    // Check if any user other than the current user has read this message
+    return message.readBy.some(userId => userId !== currentUserId);
+  };
   useEffect(() => {
     if (!messageRef.current || !onMessageSeen || hasBeenSeen || isOwnMessage)
       return;
@@ -1099,7 +1106,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         {renderSystemMessage()}
       </div>
 
-      {/* Timestamp + delete button outside bubble */}
+      {/* Timestamp + seen indicator + delete button outside bubble */}
       {message.timestamp && (
         <div
           className={`flex items-center mt-1 gap-2 ${
@@ -1113,6 +1120,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           >
             {formatTime(message.timestamp)}
           </span>
+
+          {/* Seen indicator - show on sent messages when others have read them */}
+          {isOwnMessage && hasOtherUsersSeenMessage() && (
+            <EyeIcon className="w-3 h-3 text-gray-400" title="Seen by others" />
+          )}
 
           {isOwnMessage && (
             <button
