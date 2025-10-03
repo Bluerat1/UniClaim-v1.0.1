@@ -194,46 +194,47 @@ export const postService = {
                 updatedAt: serverTimestamp()
             };
 
-
-
             const postRef = await addDoc(collection(db, 'posts'), enhancedPostData);
 
-            // Send notifications to all users about the new post
-            try {
-                // Get creator information for the notification
-                const creatorDoc = await getDoc(doc(db, 'users', postData.creatorId || postData.user?.uid));
-                const creatorData = creatorDoc.exists() ? creatorDoc.data() : null;
-                const creatorName = creatorData ? `${creatorData.firstName} ${creatorData.lastName}` : 'Someone';
-                const creatorEmail = creatorData?.email || 'Unknown';
+            // Send notifications to all users about the new post in the background
+            // This runs asynchronously and doesn't block post creation
+            setTimeout(async () => {
+                try {
+                    // Get creator information for the notification
+                    const creatorDoc = await getDoc(doc(db, 'users', postData.creatorId || postData.user?.uid));
+                    const creatorData = creatorDoc.exists() ? creatorDoc.data() : null;
+                    const creatorName = creatorData ? `${creatorData.firstName} ${creatorData.lastName}` : 'Someone';
+                    const creatorEmail = creatorData?.email || 'Unknown';
 
-                // Send notifications to all users
-                await notificationSender.sendNewPostNotification({
-                    id: postRef.id,
-                    title: postData.title,
-                    category: postData.category,
-                    location: postData.location,
-                    type: postData.type,
-                    creatorId: postData.creatorId || postData.user?.uid,
-                    creatorName: creatorName
-                });
+                    // Send notifications to all users
+                    await notificationSender.sendNewPostNotification({
+                        id: postRef.id,
+                        title: postData.title,
+                        category: postData.category,
+                        location: postData.location,
+                        type: postData.type,
+                        creatorId: postData.creatorId || postData.user?.uid,
+                        creatorName: creatorName
+                    });
 
-                // Send notification to admins about the new post
-                await adminNotificationService.notifyAdminsNewPost({
-                    postId: postRef.id,
-                    postTitle: postData.title,
-                    postType: postData.type,
-                    postCategory: postData.category,
-                    postLocation: postData.location,
-                    creatorId: postData.creatorId || postData.user?.uid,
-                    creatorName: creatorName,
-                    creatorEmail: creatorEmail
-                });
+                    // Send notification to admins about the new post
+                    await adminNotificationService.notifyAdminsNewPost({
+                        postId: postRef.id,
+                        postTitle: postData.title,
+                        postType: postData.type,
+                        postCategory: postData.category,
+                        postLocation: postData.location,
+                        creatorId: postData.creatorId || postData.user?.uid,
+                        creatorName: creatorName,
+                        creatorEmail: creatorEmail
+                    });
 
-                console.log('Notifications sent to users and admins for new post:', postRef.id);
-            } catch (notificationError) {
-                // Don't fail post creation if notifications fail
-                console.error('Error sending notifications for post:', postRef.id, notificationError);
-            }
+                    console.log('✅ Background notifications sent successfully for new post:', postRef.id);
+                } catch (notificationError) {
+                    // Don't fail post creation if notifications fail - just log the error
+                    console.error('❌ Error sending background notifications for post:', postRef.id, notificationError);
+                }
+            }, 0);
 
             return postRef.id;
         } catch (error: any) {
