@@ -97,7 +97,9 @@ export default function PostCard({ post, descriptionSearch = "", adminStatuses }
         {/* Resolved Status Badge */}
         {post.status === 'resolved' && (
           <View className="absolute top-3 left-3 bg-green-500 px-3 py-1 rounded-full">
-            <Text className="text-white text-xs font-inter-medium">Resolved</Text>
+            <Text className="text-white text-xs font-inter-medium">
+              {post.claimDetails ? 'Claimed' : post.handoverDetails ? 'Handed Over' : 'Resolved'}
+            </Text>
           </View>
         )}
         
@@ -106,7 +108,7 @@ export default function PostCard({ post, descriptionSearch = "", adminStatuses }
           <PostCardMenu
             postId={post.id}
             postTitle={post.title}
-            postOwnerId={post.creatorId || post.postedById}
+            postOwnerId={post.creatorId || post.postedById || ''}
             postOwnerUserData={post.user}
             postType={post.type}
             postStatus={post.status}

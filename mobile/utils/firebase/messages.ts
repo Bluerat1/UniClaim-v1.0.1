@@ -353,78 +353,20 @@ export const messageService: MessageService = {
         }
     },
 
-    // Confirm handover ID photo
+    // Confirm handover ID photo with detail preservation (matches web implementation)
     async confirmHandoverIdPhoto(conversationId: string, messageId: string, userId: string): Promise<{ success: boolean; conversationDeleted: boolean; postId?: string; error?: string }> {
         try {
             console.log('🔄 Mobile: confirmHandoverIdPhoto called with:', { conversationId, messageId, userId });
 
             const messageRef = doc(db, `conversations/${conversationId}/messages`, messageId);
-            console.log('🔍 Mobile: Looking for handover message at path:', messageRef.path);
-
             const messageDoc = await getDoc(messageRef);
 
             if (!messageDoc.exists()) {
-                console.error('❌ Mobile: Handover message not found at path:', messageRef.path);
-                console.error('❌ Mobile: Available message IDs in conversation:', conversationId);
-
-                // Let's check if the conversation exists and list its messages
-                try {
-                    const conversationRef = doc(db, 'conversations', conversationId);
-                    const conversationDoc = await getDoc(conversationRef);
-
-                    if (conversationDoc.exists()) {
-                        console.log('✅ Mobile: Conversation exists:', conversationId);
-
-                        // List all messages in the conversation to debug
-                        const messagesQuery = query(collection(db, `conversations/${conversationId}/messages`));
-                        const messagesSnapshot = await getDocs(messagesQuery);
-                        const messageIds = messagesSnapshot.docs.map(doc => doc.id);
-                        console.log('📋 Mobile: Available message IDs:', messageIds);
-
-                        // Check if our messageId is in the list (case-sensitive check)
-                        if (!messageIds.includes(messageId)) {
-                            console.error('❌ Mobile: Handover message ID not found in conversation. Looking for:', messageId);
-
-                            // Check if message was already confirmed and conversation should be cleaned up
-                            console.log('🔍 Mobile: Checking if handover message was already processed...');
-                            const conversationData = conversationDoc.data();
-
-                            // If conversation is marked as completed, the message was likely already processed
-                            if (conversationData.status === 'completed' || conversationData.claimCompleted || conversationData.handoverCompleted) {
-                                console.log('✅ Mobile: Conversation already marked as completed - handover message was likely already processed');
-
-                                // Try to get post info and mark it as completed if not already done
-                                const postId = conversationData.postId;
-                                if (postId) {
-                                    console.log('🔄 Mobile: Ensuring post status is completed');
-                                    const postRef = doc(db, 'posts', postId);
-                                    await updateDoc(postRef, {
-                                        status: 'completed',
-                                        updatedAt: serverTimestamp()
-                                    });
-                                    console.log('✅ Mobile: Post marked as completed');
-                                }
-
-                                // Delete the conversation since it was already processed
-                                await deleteDoc(conversationRef);
-                                console.log('✅ Mobile: Conversation deleted (was already processed)');
-
-                                return { success: true, conversationDeleted: true, postId };
-                            }
-                        }
-                    } else {
-                        console.error('❌ Mobile: Conversation does not exist:', conversationId);
-                    }
-                } catch (debugError) {
-                    console.error('❌ Mobile: Error debugging handover message lookup:', debugError);
-                }
-
+                console.error('❌ Mobile: Handover message not found');
                 return { success: false, conversationDeleted: false, error: 'Handover message not found' };
             }
 
             const messageData = messageDoc.data();
-            console.log('✅ Mobile: Found handover message data:', { messageType: messageData.messageType, status: messageData.handoverData?.status });
-
             if (messageData.messageType !== 'handover_request') {
                 return { success: false, conversationDeleted: false, error: 'Message is not a handover request' };
             }
@@ -451,14 +393,112 @@ export const messageService: MessageService = {
                 'handoverData.idPhotoConfirmedBy': userId
             });
 
-            // Update the post status to resolved
-            const postRef = doc(db, 'posts', postId);
-            await updateDoc(postRef, {
-                status: 'resolved',
-                updatedAt: serverTimestamp()
-            });
+            // Extract handover details and preserve in post before deletion
+            const handoverData = messageData.handoverData;
+            if (handoverData) {
+                console.log('📋 Mobile: handoverData available:', JSON.stringify(handoverData, null, 2));
+                console.log('📋 Mobile: handoverData fields:', Object.keys(handoverData || {}));
+                // Get handover person user data
+                const handoverPersonId = messageData.senderId;
+                const handoverPersonDoc = await getDoc(doc(db, 'users', handoverPersonId));
+                const handoverPersonData = handoverPersonDoc.exists() ? handoverPersonDoc.data() : null;
 
-            // Delete the conversation to complete the handover process
+                // Get owner user data (person who confirmed)
+                const ownerDoc = await getDoc(doc(db, 'users', userId));
+                const ownerData = ownerDoc.exists() ? ownerDoc.data() : null;
+                const ownerName = ownerData ? `${ownerData.firstName || ''} ${ownerData.lastName || ''}`.trim() : 'Unknown';
+
+                // Prepare handover request details for the post
+                const handoverRequestDetails: any = {
+                    // Original message details
+                    messageId: messageId,
+                    messageText: messageData.text || '',
+                    messageTimestamp: messageData.timestamp,
+                    senderId: messageData.senderId,
+                    senderName: messageData.senderName || '',
+                    senderProfilePicture: messageData.senderProfilePicture || '',
+
+                    // Handover data from the message
+                    handoverReason: handoverData.handoverReason || '',
+                    handoverRequestedAt: handoverData.requestedAt || null,
+                    handoverRespondedAt: handoverData.respondedAt || null,
+                    handoverResponseMessage: handoverData.responseMessage || '',
+
+                    // ID photo verification details
+                    idPhotoUrl: handoverData.idPhotoUrl || '',
+                    idPhotoConfirmed: true,
+                    idPhotoConfirmedAt: serverTimestamp(),
+                    idPhotoConfirmedBy: userId,
+
+                    // Item photos
+                    itemPhotos: handoverData.itemPhotos || [],
+                    itemPhotosConfirmed: handoverData.itemPhotosConfirmed || false,
+                    itemPhotosConfirmedAt: handoverData.itemPhotosConfirmedAt || null,
+                    itemPhotosConfirmedBy: handoverData.itemPhotosConfirmedBy || '',
+
+                    // Owner verification details
+                    ownerIdPhoto: handoverData.ownerIdPhoto || '',
+                    ownerIdPhotoConfirmed: handoverData.ownerIdPhotoConfirmed || false,
+                    ownerIdPhotoConfirmedAt: handoverData.ownerIdPhotoConfirmedAt || null,
+                    ownerIdPhotoConfirmedBy: handoverData.ownerIdPhotoConfirmedBy || ''
+                };
+
+                // Add handover confirmed timestamp to request details
+                handoverRequestDetails.handoverConfirmedAt = serverTimestamp();
+                handoverRequestDetails.handoverConfirmedBy = userId;
+
+                // Prepare handover details for the post
+                const handoverDetails = {
+                    handoverPersonName: handoverPersonData ? `${handoverPersonData.firstName || ''} ${handoverPersonData.lastName || ''}`.trim() : 'Unknown',
+                    handoverPersonContact: handoverPersonData?.contactNum || '',
+                    handoverPersonStudentId: handoverPersonData?.studentId || '',
+                    handoverPersonEmail: handoverPersonData?.email || '',
+                    handoverItemPhotos: handoverData.itemPhotos || [],
+                    handoverIdPhoto: handoverData.idPhotoUrl || '',
+                    ownerIdPhoto: handoverData.ownerIdPhoto || '',
+                    handoverConfirmedAt: serverTimestamp(),
+                    handoverConfirmedBy: userId,
+                    ownerName: ownerName,
+                    // Store the complete handover request chat bubble details
+                    handoverRequestDetails: handoverRequestDetails
+                };
+
+                // Get all messages from the conversation to preserve the chat history
+                const messagesRef = collection(db, 'conversations', conversationId, 'messages');
+                const messagesQuery = query(messagesRef, orderBy('timestamp', 'asc'));
+                const messagesSnap = await getDocs(messagesQuery);
+
+                const conversationMessages = messagesSnap.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                // Update post with handover details, status, and conversation data
+                await updateDoc(doc(db, 'posts', postId), {
+                    status: 'resolved',
+                    handoverDetails: handoverDetails,
+                    conversationData: {
+                        conversationId: conversationId,
+                        messages: conversationMessages,
+                        participants: conversationData.participants || {},
+                        createdAt: conversationData.createdAt || serverTimestamp(),
+                        lastMessage: conversationData.lastMessage || null
+                    },
+                    updatedAt: serverTimestamp()
+                });
+
+                console.log('✅ Mobile: Post updated with complete handover details and conversation data');
+                console.log('📋 Mobile: handoverDetails saved:', JSON.stringify(handoverDetails, null, 2));
+            } else {
+                console.warn('⚠️ Mobile: No handover data found in message, cannot store handover details');
+                // Fallback: just update post status
+                await updateDoc(doc(db, 'posts', postId), {
+                    status: 'resolved',
+                    updatedAt: serverTimestamp()
+                });
+            }
+
+            // Delete the conversation after successful data preservation
             try {
                 // First, delete all messages in the conversation
                 const messagesQuery = query(collection(db, `conversations/${conversationId}/messages`));
@@ -473,153 +513,174 @@ export const messageService: MessageService = {
                 await deleteDoc(conversationRef);
 
                 console.log(`✅ Mobile: Conversation ${conversationId} deleted after handover confirmation`);
-                return { success: true, conversationDeleted: true, postId };
             } catch (deleteError) {
                 console.warn('⚠️ Mobile: Failed to delete conversation after handover confirmation:', deleteError);
                 // Continue even if conversation deletion fails
-                return { success: true, conversationDeleted: false, postId };
             }
+
+            console.log(`✅ Mobile: Handover ID photo confirmed by ${userId}`);
+            return { success: true, conversationDeleted: true, postId };
         } catch (error: any) {
             console.error('❌ Mobile: confirmHandoverIdPhoto failed:', error);
             return { success: false, conversationDeleted: false, error: error.message };
         }
     },
 
-    // Confirm claim ID photo
+    // Confirm claim ID photo with detail preservation (matches web implementation)
     async confirmClaimIdPhoto(conversationId: string, messageId: string, userId: string): Promise<{ success: boolean; conversationDeleted: boolean; postId?: string; error?: string }> {
         try {
             console.log('🔄 Mobile: confirmClaimIdPhoto called with:', { conversationId, messageId, userId });
 
             const messageRef = doc(db, `conversations/${conversationId}/messages`, messageId);
-            console.log('🔍 Mobile: Looking for message at path:', messageRef.path);
-
             const messageDoc = await getDoc(messageRef);
 
             if (!messageDoc.exists()) {
-                console.error('❌ Mobile: Message not found at path:', messageRef.path);
-                console.error('❌ Mobile: Available message IDs in conversation:', conversationId);
-
-                // Let's check if the conversation exists and list its messages
-                try {
-                    const conversationRef = doc(db, 'conversations', conversationId);
-                    const conversationDoc = await getDoc(conversationRef);
-
-                    if (conversationDoc.exists()) {
-                        console.log('✅ Mobile: Conversation exists:', conversationId);
-
-                        // List all messages in the conversation to debug
-                        const messagesQuery = query(collection(db, `conversations/${conversationId}/messages`));
-                        const messagesSnapshot = await getDocs(messagesQuery);
-                        const messageIds = messagesSnapshot.docs.map(doc => doc.id);
-                        console.log('📋 Mobile: Available message IDs:', messageIds);
-
-                        // Check if our messageId is in the list (case-sensitive check)
-                        if (!messageIds.includes(messageId)) {
-                            console.error('❌ Mobile: Message ID not found in conversation. Looking for:', messageId);
-
-                            // Check if message was already confirmed and conversation should be cleaned up
-                            console.log('🔍 Mobile: Checking if message was already processed...');
-                            const conversationData = conversationDoc.data();
-
-                            // If conversation is marked as resolved, the message was likely already processed
-                            if (conversationData.status === 'resolved' || conversationData.claimCompleted || conversationData.handoverCompleted) {
-                                console.log('✅ Mobile: Conversation already marked as resolved - message was likely already processed');
-
-                                // Try to get post info and mark it as resolved if not already done
-                                const postId = conversationData.postId;
-                                if (postId) {
-                                    console.log('🔄 Mobile: Ensuring post status is resolved');
-                                    const postRef = doc(db, 'posts', postId);
-                                    await updateDoc(postRef, {
-                                        status: 'resolved',
-                                        updatedAt: serverTimestamp()
-                                    });
-                                    console.log('✅ Mobile: Post marked as resolved');
-                                }
-
-                                // Delete the conversation since it was already processed
-                                await deleteDoc(conversationRef);
-                                console.log('✅ Mobile: Conversation deleted (was already processed)');
-
-                                return { success: true, conversationDeleted: true, postId };
-                            }
-                        }
-                    } else {
-                        console.error('❌ Mobile: Conversation does not exist:', conversationId);
-                    }
-                } catch (debugError) {
-                    console.error('❌ Mobile: Error debugging message lookup:', debugError);
-                }
-
-                throw new Error('Message not found');
+                console.error('❌ Mobile: Message not found');
+                return { success: false, conversationDeleted: false, error: 'Message not found' };
             }
 
             const messageData = messageDoc.data();
-            console.log('✅ Mobile: Found message data:', { messageType: messageData.messageType, status: messageData.claimData?.status });
-
             if (messageData.messageType !== 'claim_request') {
-                console.error('❌ Mobile: Message type validation failed. Expected: claim_request, Got:', messageData.messageType);
                 return { success: false, conversationDeleted: false, error: 'Message is not a claim request' };
             }
-
-            console.log('✅ Mobile: Message type validation passed for claim_request');
 
             // Get conversation data to find the post ID
             const conversationRef = doc(db, 'conversations', conversationId);
             const conversationDoc = await getDoc(conversationRef);
 
             if (!conversationDoc.exists()) {
-                console.error('❌ Mobile: Conversation not found:', conversationId);
-                return { success: false, conversationDeleted: false, error: 'Conversation not found' };
+                throw new Error('Conversation not found');
             }
 
-            console.log('✅ Mobile: Conversation found, getting post ID...');
             const conversationData = conversationDoc.data();
             const postId = conversationData.postId;
 
             if (!postId) {
-                console.error('❌ Mobile: No post ID found in conversation:', conversationId);
-                return { success: false, conversationDeleted: false, error: 'No post ID found in conversation' };
+                throw new Error('No post ID found in conversation');
             }
 
-            console.log('✅ Mobile: Found post ID:', postId);
-
-            // Update the claim request with confirmation
-            console.log('🔄 Mobile: Updating claim message with confirmation...');
+            // STEP 1: Update the claim message to confirm the ID photo
             await updateDoc(messageRef, {
                 'claimData.idPhotoConfirmed': true,
                 'claimData.idPhotoConfirmedAt': serverTimestamp(),
                 'claimData.idPhotoConfirmedBy': userId
             });
-            console.log('✅ Mobile: Claim message updated with confirmation');
 
-            // Update the post status to resolved
-            console.log('🔄 Mobile: Updating post status to resolved...');
-            const postRef = doc(db, 'posts', postId);
-            await updateDoc(postRef, {
-                status: 'resolved',
-                updatedAt: serverTimestamp()
-            });
-            console.log('✅ Mobile: Post status updated to resolved');
+            // STEP 2: Get conversation data and prepare claim details
+            const claimData = messageData.claimData;
+            if (claimData) {
+                // Get claimer user data
+                const claimerId = messageData.senderId;
+                const claimerDoc = await getDoc(doc(db, 'users', claimerId));
+                const claimerData = claimerDoc.exists() ? claimerDoc.data() : null;
 
-            // Delete the conversation to complete the claim process
-            console.log('🔄 Mobile: Starting conversation deletion...');
+                // Get owner user data
+                const ownerDoc = await getDoc(doc(db, 'users', userId));
+                const ownerData = ownerDoc.exists() ? ownerDoc.data() : null;
+                const ownerName = ownerData ? `${ownerData.firstName || ''} ${ownerData.lastName || ''}`.trim() : 'Unknown';
+
+                // Prepare claim request details for the post
+                const claimRequestDetails: any = {
+                    // Original message details
+                    messageId: messageId,
+                    messageText: messageData.text || '',
+                    messageTimestamp: messageData.timestamp,
+                    senderId: messageData.senderId,
+                    senderName: messageData.senderName || '',
+                    senderProfilePicture: messageData.senderProfilePicture || '',
+
+                    // Claim data from the message
+                    claimReason: claimData.claimReason || '',
+                    claimRequestedAt: claimData.requestedAt || null,
+                    claimRespondedAt: claimData.respondedAt || null,
+                    claimResponseMessage: claimData.responseMessage || '',
+
+                    // ID photo verification details
+                    idPhotoUrl: claimData.idPhotoUrl || '',
+                    idPhotoConfirmed: true,
+                    idPhotoConfirmedAt: serverTimestamp(),
+                    idPhotoConfirmedBy: userId,
+
+                    // Evidence photos
+                    evidencePhotos: claimData.evidencePhotos || [],
+                    evidencePhotosConfirmed: claimData.evidencePhotosConfirmed || false,
+                    evidencePhotosConfirmedAt: claimData.evidencePhotosConfirmedAt || null,
+                    evidencePhotosConfirmedBy: claimData.evidencePhotosConfirmedBy || '',
+
+                    // Owner verification details
+                    ownerIdPhoto: claimData.ownerIdPhoto || '',
+                    ownerIdPhotoConfirmed: claimData.ownerIdPhotoConfirmed || false,
+                    ownerIdPhotoConfirmedAt: claimData.ownerIdPhotoConfirmedAt || null,
+                    ownerIdPhotoConfirmedBy: claimData.ownerIdPhotoConfirmedBy || ''
+                };
+
+                // Add claim confirmed timestamp to request details
+                claimRequestDetails.claimConfirmedAt = serverTimestamp();
+                claimRequestDetails.claimConfirmedBy = userId;
+
+                // Prepare claim details for the post
+                const claimDetails = {
+                    claimerName: claimerData ? `${claimerData.firstName || ''} ${claimerData.lastName || ''}`.trim() : 'Unknown',
+                    claimerContact: claimerData?.contactNum || '',
+                    claimerStudentId: claimerData?.studentId || '',
+                    claimerEmail: claimerData?.email || '',
+                    evidencePhotos: claimData.evidencePhotos || [],
+                    claimerIdPhoto: claimData.idPhotoUrl || '',
+                    ownerIdPhoto: claimData.ownerIdPhoto || '',
+                    claimConfirmedAt: serverTimestamp(),
+                    claimConfirmedBy: userId,
+                    ownerName: ownerName,
+                    // Store the complete claim request chat bubble details
+                    claimRequestDetails: claimRequestDetails
+                };
+
+                // Get all messages from the conversation to preserve the chat history
+                const messagesRef = collection(db, 'conversations', conversationId, 'messages');
+                const messagesQuery = query(messagesRef, orderBy('timestamp', 'asc'));
+                const messagesSnap = await getDocs(messagesQuery);
+
+                const conversationMessages = messagesSnap.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                // Update post with claim details, status, and conversation data
+                await updateDoc(doc(db, 'posts', postId), {
+                    status: 'resolved',
+                    claimDetails: claimDetails,
+                    conversationData: {
+                        conversationId: conversationId,
+                        messages: conversationMessages,
+                        participants: conversationData.participants || {},
+                        createdAt: conversationData.createdAt || serverTimestamp(),
+                        lastMessage: conversationData.lastMessage || null
+                    },
+                    updatedAt: serverTimestamp()
+                });
+
+                console.log('✅ Mobile: Post updated with complete claim details and conversation data');
+            } else {
+                console.warn('⚠️ Mobile: No claim data found in message, cannot store claim details');
+                // Fallback: just update post status
+                await updateDoc(doc(db, 'posts', postId), {
+                    status: 'resolved',
+                    updatedAt: serverTimestamp()
+                });
+            }
+
+            // Delete the conversation after successful data preservation
             try {
                 // First, delete all messages in the conversation
                 const messagesQuery = query(collection(db, `conversations/${conversationId}/messages`));
                 const messagesSnapshot = await getDocs(messagesQuery);
 
-                console.log(`📋 Mobile: Found ${messagesSnapshot.docs.length} messages to delete`);
-
                 // Delete all messages
                 for (const messageDoc of messagesSnapshot.docs) {
                     await deleteDoc(doc(db, `conversations/${conversationId}/messages`, messageDoc.id));
-                    console.log('✅ Mobile: Deleted message:', messageDoc.id);
                 }
 
                 // Then delete the conversation document
                 await deleteDoc(conversationRef);
-                console.log('✅ Mobile: Conversation document deleted');
 
                 console.log(`✅ Mobile: Conversation ${conversationId} deleted after claim confirmation`);
             } catch (deleteError) {
@@ -631,7 +692,7 @@ export const messageService: MessageService = {
             return { success: true, conversationDeleted: true, postId };
         } catch (error: any) {
             console.error('❌ Mobile: confirmClaimIdPhoto failed:', error);
-            throw new Error(error.message || 'Failed to confirm claim ID photo');
+            return { success: false, conversationDeleted: false, error: error.message };
         }
     },
 

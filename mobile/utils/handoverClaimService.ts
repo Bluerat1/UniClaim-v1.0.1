@@ -186,10 +186,20 @@ export const handleConfirmClaimIdPhoto = async (
     try {
         console.log('🔄 Mobile handoverClaimService: handleConfirmClaimIdPhoto called with:', { conversationId, messageId, confirmBy });
 
-        await confirmClaimIdPhoto(conversationId, messageId, confirmBy);
+        const result = await confirmClaimIdPhoto(conversationId, messageId, confirmBy);
 
-        callbacks.onSuccess?.('✅ Claim confirmed successfully! The post is now marked as resolved.');
-        callbacks.onClearConversation?.();
+        if (result.success) {
+            if (result.conversationDeleted) {
+                callbacks.onSuccess?.('✅ Claim confirmed successfully! The conversation has been archived and the post is now marked as resolved.');
+                callbacks.onClearConversation?.();
+            } else {
+                callbacks.onSuccess?.('✅ Claim confirmed successfully! The post is now marked as resolved.');
+                callbacks.onClearConversation?.();
+            }
+        } else {
+            const errorMessage = result.error || "Unknown error occurred";
+            callbacks.onError?.(`❌ Failed to confirm claim: ${errorMessage}`);
+        }
     } catch (error: any) {
         console.error('❌ Mobile handoverClaimService: Failed to confirm claim ID photo:', error);
 
@@ -262,14 +272,15 @@ export const confirmClaimIdPhoto = async (
     conversationId: string,
     messageId: string,
     confirmBy: string
-): Promise<void> => {
+): Promise<{ success: boolean; conversationDeleted: boolean; postId?: string; error?: string }> => {
     try {
         console.log('🔄 Confirming claim ID photo:', { conversationId, messageId, confirmBy });
-        await messageService.confirmClaimIdPhoto(conversationId, messageId, confirmBy);
+        const result = await messageService.confirmClaimIdPhoto(conversationId, messageId, confirmBy);
         console.log('✅ Claim ID photo confirmed successfully');
+        return result;
     } catch (error: any) {
         console.error('❌ Failed to confirm claim ID photo:', error);
-        throw new Error(error.message || 'Failed to confirm claim ID photo');
+        return { success: false, conversationDeleted: false, error: error.message };
     }
 };
 

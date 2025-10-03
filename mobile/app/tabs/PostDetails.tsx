@@ -317,45 +317,123 @@ export default function PostDetailsScreen() {
           </View>
         </View>
 
-        {/* Show turnover information if this post was turned over */}
-        {post.turnoverDetails && (
-          <View className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        {/* Show claim information if this post has a resolved claim */}
+        {post.claimDetails && (
+          <View className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
             <View className="flex-row items-center gap-2 mb-3">
-              <Text className="text-blue-600 text-lg">🔄</Text>
-              <Text className="text-sm font-semibold text-blue-800">Turnover Information</Text>
+              <Text className="text-green-600 text-lg">✅</Text>
+              <Text className="text-sm font-semibold text-green-800">Claim Information</Text>
             </View>
             <View className="space-y-2">
               <View className="flex-row items-center gap-2">
-                <Text className="text-sm text-blue-700 font-medium">Originally found by:</Text>
-                <ProfilePicture
-                  src={post.turnoverDetails.originalFinder.profilePicture}
-                  size="sm"
-                />
-                <Text className="text-sm text-blue-700">
-                  {post.turnoverDetails.originalFinder.firstName} {post.turnoverDetails.originalFinder.lastName}
+                <Text className="text-sm text-green-700 font-medium">Claimed by:</Text>
+                <Text className="text-sm text-green-700">
+                  {post.claimDetails.claimerName}
                 </Text>
               </View>
-              <View>
-                <Text className="text-sm text-blue-700">
-                  <Text className="font-medium">Student ID:</Text> {post.turnoverDetails.originalFinder.studentId || 'N/A'}
-                </Text>
-              </View>
-              <View>
-                <Text className="text-sm text-blue-700">
-                  <Text className="font-medium">Email:</Text> {post.turnoverDetails.originalFinder.email}
-                </Text>
-              </View>
-              {post.turnoverDetails.originalFinder.contactNum && (
+              {post.claimDetails.claimerContact && (
                 <View>
-                  <Text className="text-sm text-blue-700">
-                    <Text className="font-medium">Contact:</Text> {post.turnoverDetails.originalFinder.contactNum}
+                  <Text className="text-sm text-green-700">
+                    <Text className="font-medium">Contact:</Text> {post.claimDetails.claimerContact}
                   </Text>
                 </View>
               )}
+              {post.claimDetails.claimerStudentId && (
+                <View>
+                  <Text className="text-sm text-green-700">
+                    <Text className="font-medium">Student ID:</Text> {post.claimDetails.claimerStudentId}
+                  </Text>
+                </View>
+              )}
+              {post.claimDetails.claimerEmail && (
+                <View>
+                  <Text className="text-sm text-green-700">
+                    <Text className="font-medium">Email:</Text> {post.claimDetails.claimerEmail}
+                  </Text>
+                </View>
+              )}
+              {post.claimDetails.claimerIdPhoto && (
+                <View>
+                  <Text className="text-sm text-green-700 font-medium">ID Photo Verified</Text>
+                </View>
+              )}
               <View>
-                <Text className="text-sm text-blue-700">
-                  <Text className="font-medium">Turned over to:</Text>{" "}
-                  {post.turnoverDetails.turnoverAction === "turnover to OSA" ? "OSA" : "Campus Security"}
+                <Text className="text-sm text-green-700">
+                  <Text className="font-medium">Claimed on:</Text>{" "}
+                  {post.claimDetails.claimConfirmedAt
+                    ? new Date(post.claimDetails.claimConfirmedAt.seconds * 1000).toLocaleDateString()
+                    : 'Date not available'}
+                </Text>
+              </View>
+              <View>
+                <Text className="text-sm text-green-700">
+                  <Text className="font-medium">Confirmed by:</Text> {post.claimDetails.ownerName}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Show handover information if this post has a resolved handover */}
+        {post.handoverDetails && (
+          <View className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+            <View className="flex-row items-center gap-2 mb-3">
+              <Text className="text-purple-600 text-lg">🔄</Text>
+              <Text className="text-sm font-semibold text-purple-800">Handover Information</Text>
+            </View>
+            <View className="space-y-2">
+              <View className="flex-row items-center gap-2">
+                <Text className="text-sm text-purple-700 font-medium">Handed over by:</Text>
+                <Text className="text-sm text-purple-700">
+                  {post.handoverDetails.handoverPersonName || 'Unknown'}
+                </Text>
+              </View>
+              {post.handoverDetails.handoverPersonContact && (
+                <View>
+                  <Text className="text-sm text-purple-700">
+                    <Text className="font-medium">Contact:</Text> {post.handoverDetails.handoverPersonContact}
+                  </Text>
+                </View>
+              )}
+              {post.handoverDetails.handoverPersonStudentId && (
+                <View>
+                  <Text className="text-sm text-purple-700">
+                    <Text className="font-medium">Student ID:</Text> {post.handoverDetails.handoverPersonStudentId}
+                  </Text>
+                </View>
+              )}
+              {post.handoverDetails.handoverPersonEmail && (
+                <View>
+                  <Text className="text-sm text-purple-700">
+                    <Text className="font-medium">Email:</Text> {post.handoverDetails.handoverPersonEmail}
+                  </Text>
+                </View>
+              )}
+              {post.handoverDetails.handoverIdPhoto && (
+                <View>
+                  <Text className="text-sm text-purple-700 font-medium">ID Photo Verified</Text>
+                </View>
+              )}
+              <View>
+                <Text className="text-sm text-purple-700">
+                  <Text className="font-medium">Handed over on:</Text>{" "}
+                  {post.handoverDetails.handoverConfirmedAt
+                    ? (() => {
+                        const timestamp = post.handoverDetails.handoverConfirmedAt;
+                        if (timestamp && timestamp.seconds) {
+                          return new Date(timestamp.seconds * 1000).toLocaleDateString();
+                        } else if (timestamp) {
+                          return new Date(timestamp).toLocaleDateString();
+                        } else {
+                          return 'Date not available';
+                        }
+                      })()
+                    : 'Date not available'}
+                </Text>
+              </View>
+              <View>
+                <Text className="text-sm text-purple-700">
+                  <Text className="font-medium">Confirmed by:</Text> {post.handoverDetails.ownerName || 'Unknown'}
                 </Text>
               </View>
             </View>

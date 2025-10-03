@@ -129,7 +129,10 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
 
   const confirmHandoverIdPhoto = async (conversationId: string, messageId: string, userId: string): Promise<void> => {
     try {
-      await messageService.confirmHandoverIdPhoto(conversationId, messageId, userId);
+      const result = await messageService.confirmHandoverIdPhoto(conversationId, messageId, userId);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to confirm handover ID photo');
+      }
     } catch (error: any) {
       throw new Error(error.message || 'Failed to confirm handover ID photo');
     }
@@ -169,7 +172,13 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
 
   const confirmClaimIdPhoto = async (conversationId: string, messageId: string, userId: string): Promise<void> => {
     try {
-      await messageService.confirmClaimIdPhoto(conversationId, messageId, userId);
+      console.log('🔄 Mobile MessageContext: confirmClaimIdPhoto called with:', { conversationId, messageId, userId });
+      const result = await messageService.confirmClaimIdPhoto(conversationId, messageId, userId);
+      if (!result.success) {
+        console.error('❌ Mobile MessageContext: confirmClaimIdPhoto failed:', result.error);
+        throw new Error(result.error || 'Failed to confirm claim ID photo');
+      }
+      console.log('✅ Mobile MessageContext: confirmClaimIdPhoto succeeded');
     } catch (error: any) {
       console.error('❌ Mobile MessageContext: confirmClaimIdPhoto failed:', error);
       throw new Error(error.message || 'Failed to confirm claim ID photo');
