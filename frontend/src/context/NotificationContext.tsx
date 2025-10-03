@@ -1,22 +1,12 @@
 // Notification context for managing notification state
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { notificationService } from '../services/firebase/notifications';
 import { SoundUtils } from '../utils/soundUtils';
+import type { NotificationData as ServiceNotificationData } from '../services/firebase/notifications';
 
-// Inline type definition to avoid import issues
-interface NotificationData {
-  id: string;
-  userId: string;
-  type: 'new_post' | 'message' | 'claim_update' | 'admin_alert';
-  title: string;
-  body: string;
-  data?: any;
-  read: boolean;
-  createdAt: any;
-  postId?: string;
-  conversationId?: string;
-}
+// Use the service notification data type directly
+type NotificationData = ServiceNotificationData;
 
 interface NotificationContextType {
   notifications: NotificationData[];
@@ -67,32 +57,6 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     return () => clearInterval(interval);
   }, [isAuthenticated, userData?.uid, userData?.emailVerified]);
 
-  // Handle playing notification sounds asynchronously
-  const playNotificationSounds = async (newNotifications: any[], userId: string) => {
-    try {
-      const userPreferences = await notificationService.getNotificationPreferences(userId);
-      if (userPreferences.soundEnabled) {
-        newNotifications.forEach(async (notification) => {
-          try {
-            await SoundUtils.playNotificationSoundByType(notification.type);
-          } catch (error) {
-            console.error('Error playing notification sound:', error);
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Error checking sound preferences:', error);
-      // Fallback: play sound if we can't check preferences
-      newNotifications.forEach(async (notification) => {
-        try {
-          await SoundUtils.playNotificationSoundByType(notification.type);
-        } catch (error) {
-          console.error('Error playing notification sound:', error);
-        }
-      });
-    }
-  };
-
   const loadNotifications = async () => {
     if (!userData?.uid) return;
 
@@ -102,16 +66,46 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       
       const userNotifications = await notificationService.getUserNotifications(userData.uid, 50);
       
+      console.log(`📬 Loaded ${userNotifications.length} notifications for user ${userData.uid}`);
+      userNotifications.forEach(notif => {
+        if (notif.type === 'claim_update' && notif.data?.notificationType === 'claim_confirmed') {
+          console.log(`🎉 Found claim confirmation notification:`, notif);
+        }
+      });
+      
       // Check for new notifications and play sound
       setNotifications(prevNotifications => {
-        const newNotifications = userNotifications.filter(newNotif => 
-          !prevNotifications.some(prevNotif => prevNotif.id === newNotif.id)
+        const newNotifications = userNotifications.filter((newNotif: NotificationData) =>
+          !prevNotifications.some((prevNotif: NotificationData) => prevNotif.id === newNotif.id)
         );
         
         // Play sound for new notifications (if enabled in preferences)
         if (newNotifications.length > 0) {
           // Handle sound playing asynchronously outside of setState
-          playNotificationSounds(newNotifications, userData.uid);
+          (async () => {
+            try {
+              const userPreferences = await notificationService.getNotificationPreferences(userData.uid);
+              if (userPreferences.soundEnabled) {
+                newNotifications.forEach(async (notification) => {
+                  try {
+                    await SoundUtils.playNotificationSoundByType(notification.type);
+                  } catch (error) {
+                    console.error('Error playing notification sound:', error);
+                  }
+                });
+              }
+            } catch (error) {
+              console.error('Error checking sound preferences:', error);
+              // Fallback: play sound if we can't check preferences
+              newNotifications.forEach(async (notification) => {
+                try {
+                  await SoundUtils.playNotificationSoundByType(notification.type);
+                } catch (error) {
+                  console.error('Error playing notification sound:', error);
+                }
+              });
+            }
+          })();
         }
         
         return userNotifications;

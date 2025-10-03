@@ -1,4 +1,8 @@
 import React, { useState } from "react";
+import { useToast } from "../context/ToastContext";
+
+// Define valid toast types
+type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 interface ClaimVerificationModalProps {
   isOpen: boolean;
@@ -23,6 +27,7 @@ const ClaimVerificationModal: React.FC<ClaimVerificationModalProps> = ({
   isLoading = false,
   onSuccess,
 }) => {
+  const { showToast } = useToast();
   const [claimReason, setClaimReason] = useState("");
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [idPhotoFile, setIdPhotoFile] = useState<File | null>(null);
@@ -63,8 +68,9 @@ const ClaimVerificationModal: React.FC<ClaimVerificationModalProps> = ({
     if (file && file.type.startsWith("image/")) {
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert(
-          "File size must be less than 5MB. Please choose a smaller image."
+        showToast(
+          "File size must be less than 5MB. Please choose a smaller image.",
+          'error'
         );
         return;
       }

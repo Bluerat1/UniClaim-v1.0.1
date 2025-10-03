@@ -11,14 +11,14 @@ interface MessageContextType {
   getConversationMessages: (conversationId: string, callback: (messages: Message[]) => void) => () => void;
   markConversationAsRead: (conversationId: string) => Promise<void>;
   markMessageAsRead: (conversationId: string, messageId: string) => Promise<void>;
-  markAllUnreadMessagesAsRead: (conversationId: string) => Promise<void>; // New: Mark all unread messages as read
-  deleteMessage: (conversationId: string, messageId: string) => Promise<void>; // New: Delete message function
-  updateHandoverResponse: (conversationId: string, messageId: string, status: 'accepted' | 'rejected') => Promise<void>; // New: Update handover response
-  confirmHandoverIdPhoto: (conversationId: string, messageId: string) => Promise<{ success: boolean; conversationDeleted: boolean; postId?: string; error?: string }>; // New: Confirm ID photo function
-  sendClaimRequest: (conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, postType: 'lost' | 'found', claimReason?: string, idPhotoUrl?: string, evidencePhotos?: { url: string; uploadedAt: any; description?: string }[]) => Promise<void>; // New: Send claim request
-  updateClaimResponse: (conversationId: string, messageId: string, status: 'accepted' | 'rejected') => Promise<void>; // New: Update claim response
-  confirmClaimIdPhoto: (conversationId: string, messageId: string) => Promise<void>; // New: Confirm claim ID photo
-  refreshConversations: () => Promise<void>; // Simplified refresh function
+  markAllUnreadMessagesAsRead: (conversationId: string) => Promise<void>;
+  deleteMessage: (conversationId: string, messageId: string) => Promise<void>;
+  updateHandoverResponse: (conversationId: string, messageId: string, status: 'accepted' | 'rejected') => Promise<void>;
+  confirmHandoverIdPhoto: (conversationId: string, messageId: string) => Promise<{ success: boolean; conversationDeleted: boolean; postId?: string; error?: string }>;
+  sendClaimRequest: (conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, postType: 'lost' | 'found', claimReason?: string, idPhotoUrl?: string, evidencePhotos?: { url: string; uploadedAt: any; description?: string }[]) => Promise<void>;
+  updateClaimResponse: (conversationId: string, messageId: string, status: 'accepted' | 'rejected') => Promise<void>;
+  confirmClaimIdPhoto: (conversationId: string, messageId: string) => Promise<void>;
+  refreshConversations: () => Promise<void>;
 }
 
 const MessageContext = createContext<MessageContextType | undefined>(undefined);
@@ -29,7 +29,6 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
 
   // Calculate total unread count for the current user
   const totalUnreadCount = conversations.reduce((total, conv) => {
-    // Get the current user's unread count from this conversation
     const userUnreadCount = conv.unreadCounts?.[userId || ''] || 0;
     return total + userUnreadCount;
   }, 0);
@@ -43,16 +42,14 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
     }
 
     setLoading(true);
-    
-    // Simple listener that automatically handles conversation updates
+
     const unsubscribe = messageService.getUserConversations(userId, (loadedConversations) => {
       setConversations(loadedConversations);
       setLoading(false);
     }, (error) => {
       console.error('MessageContext: Listener error:', error);
       setLoading(false);
-      
-      // If there's an error, try to refresh conversations manually
+
       if (error?.code === 'permission-denied' || error?.code === 'not-found') {
         refreshConversations();
       }
@@ -84,7 +81,6 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
   };
 
   const markConversationAsRead = async (conversationId: string): Promise<void> => {
-    // Guard clause: don't proceed if conversationId is null, undefined, or empty
     if (!conversationId || conversationId.trim() === '') {
       console.log('🛡️ markConversationAsRead: Skipping - conversationId is empty or null');
       return;
@@ -93,12 +89,19 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
     try {
       await messageService.markConversationAsRead(conversationId, userId!);
     } catch (error: any) {
+      if (error.message?.includes('No document to update') ||
+          error.message?.includes('not-found') ||
+          error.code === 'not-found') {
+        console.log('🛡️ markConversationAsRead: Conversation no longer exists, skipping silently');
+        return;
+      }
+
+      console.error('❌ Failed to mark conversation as read:', error);
       throw new Error(error.message || 'Failed to mark conversation as read');
     }
   };
 
   const markMessageAsRead = async (conversationId: string, messageId: string): Promise<void> => {
-    // Guard clause: don't proceed if conversationId or messageId is null, undefined, or empty
     if (!conversationId || conversationId.trim() === '' || !messageId || messageId.trim() === '') {
       console.log('🛡️ markMessageAsRead: Skipping - conversationId or messageId is empty or null');
       return;
@@ -107,156 +110,152 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
     try {
       await messageService.markMessageAsRead(conversationId, messageId, userId!);
     } catch (error: any) {
-      throw new Error(error.message || 'Failed to mark conversation as read');
+      if (error.message?.includes('No document to update') ||
+          error.message?.includes('not-found') ||
+          error.code === 'not-found') {
+        console.log('🛡️ markMessageAsRead: Conversation or message no longer exists, skipping silently');
+        return;
+      }
+
+      console.error('❌ Failed to mark message as read:', error);
+      throw new Error(error.message || 'Failed to mark message as read');
     }
   };
 
   const markAllUnreadMessagesAsRead = async (conversationId: string): Promise<void> => {
-    if (!userId) {
-      console.log('🛡️ markAllUnreadMessagesAsRead: Skipping - userId is null');
+    if (!userId || !conversationId || conversationId.trim() === '') {
+      console.log('🛡️ markAllUnreadMessagesAsRead: Skipping - userId or conversationId is empty');
       return;
     }
 
     try {
       await messageService.markAllUnreadMessagesAsRead(conversationId, userId);
     } catch (error: any) {
+      if (error.message?.includes('No document to update') ||
+          error.message?.includes('not-found') ||
+          error.code === 'not-found') {
+        console.log('🛡️ markAllUnreadMessagesAsRead: Conversation no longer exists, skipping silently');
+        return;
+      }
+
+      console.error('❌ Failed to mark all unread messages as read:', error);
       throw new Error(error.message || 'Failed to mark all unread messages as read');
     }
   };
 
   const deleteMessage = async (conversationId: string, messageId: string): Promise<void> => {
+    if (!userId || !conversationId || !messageId) {
+      throw new Error('Invalid parameters for deleteMessage');
+    }
+
     try {
-      await messageService.deleteMessage(conversationId, messageId, userId!);
+      await messageService.deleteMessage(conversationId, messageId, userId);
     } catch (error: any) {
       throw new Error(error.message || 'Failed to delete message');
     }
   };
 
-  const updateHandoverResponse = async (conversationId: string, messageId: string, status: 'accepted' | 'rejected', idPhotoUrl?: string): Promise<void> => {
+  const updateHandoverResponse = async (conversationId: string, messageId: string, status: 'accepted' | 'rejected'): Promise<void> => {
+    if (!userId || !conversationId || !messageId) {
+      throw new Error('Invalid parameters for updateHandoverResponse');
+    }
+
     try {
-      // Use the waterbase service which has photo deletion logic
-      const { messageService: waterbaseMessageService } = await import('../utils/waterbase');
-      await waterbaseMessageService.updateHandoverResponse(conversationId, messageId, status, userId!, idPhotoUrl);
+      await messageService.updateHandoverResponse(conversationId, messageId, status, userId);
     } catch (error: any) {
       throw new Error(error.message || 'Failed to update handover response');
     }
   };
 
   const confirmHandoverIdPhoto = async (conversationId: string, messageId: string): Promise<{ success: boolean; conversationDeleted: boolean; postId?: string; error?: string }> => {
-    try {
-      if (!userId) {
-        throw new Error('User not authenticated - userId is null');
-      }
+    if (!userId || !conversationId || !messageId) {
+      throw new Error('Invalid parameters for confirmHandoverIdPhoto');
+    }
 
-      const result = await messageService.confirmHandoverIdPhoto(conversationId, messageId, userId);
-      
-      // If conversation was successfully deleted, remove it from local state
-      if (result.success && result.conversationDeleted) {
-        console.log('🗑️ Removing deleted conversation from local state:', conversationId);
-        setConversations(prevConversations => 
-          prevConversations.filter(conv => conv.id !== conversationId)
-        );
-      }
-      
-      return result;
+    try {
+      return await messageService.confirmHandoverIdPhoto(conversationId, messageId, userId);
     } catch (error: any) {
-      console.error('Failed to confirm handover ID photo:', error.message);
       throw new Error(error.message || 'Failed to confirm handover ID photo');
     }
   };
 
-  const sendClaimRequest = async (
-    conversationId: string,
-    senderId: string,
-    senderName: string,
-    senderProfilePicture: string,
-    postId: string,
-    postTitle: string,
-    postType: 'lost' | 'found',
-    claimReason?: string,
-    idPhotoUrl?: string,
-    evidencePhotos?: { url: string; uploadedAt: any; description?: string }[]
-  ): Promise<void> => {
+  const sendClaimRequest = async (conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, postType: 'lost' | 'found', claimReason?: string, idPhotoUrl?: string, evidencePhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void> => {
     try {
-      await messageService.sendClaimRequest(
-        conversationId,
-        senderId,
-        senderName,
-        senderProfilePicture,
-        postId,
-        postTitle,
-        postType,
-        claimReason,
-        idPhotoUrl,
-        evidencePhotos
-      );
+      await messageService.sendClaimRequest(conversationId, senderId, senderName, senderProfilePicture, postId, postTitle, postType, claimReason, idPhotoUrl, evidencePhotos);
     } catch (error: any) {
-      console.error('Error in sendClaimRequest:', error);
       throw new Error(error.message || 'Failed to send claim request');
     }
   };
 
-  const updateClaimResponse = async (conversationId: string, messageId: string, status: 'accepted' | 'rejected', idPhotoUrl?: string): Promise<void> => {
+  const updateClaimResponse = async (conversationId: string, messageId: string, status: 'accepted' | 'rejected'): Promise<void> => {
+    if (!userId || !conversationId || !messageId) {
+      throw new Error('Invalid parameters for updateClaimResponse');
+    }
+
     try {
-      console.log('🔄 MessageContext: Calling updateClaimResponse with status:', status);
-      console.log('🔄 MessageContext: Parameters:', { conversationId, messageId, status, responderId: userId });
-      // Use the waterbase service which has photo deletion logic
-      const { messageService: waterbaseMessageService } = await import('../utils/waterbase');
-      await waterbaseMessageService.updateClaimResponse(conversationId, messageId, status, userId!, idPhotoUrl);
-      console.log('✅ MessageContext: updateClaimResponse completed successfully');
+      await messageService.updateClaimResponse(conversationId, messageId, status, userId);
     } catch (error: any) {
-      console.error('❌ MessageContext: updateClaimResponse failed:', error);
       throw new Error(error.message || 'Failed to update claim response');
     }
   };
 
   const confirmClaimIdPhoto = async (conversationId: string, messageId: string): Promise<void> => {
+    if (!userId || !conversationId || !messageId) {
+      throw new Error('Invalid parameters for confirmClaimIdPhoto');
+    }
+
     try {
-      await messageService.confirmClaimIdPhoto(conversationId, messageId, userId!);
+      await messageService.confirmClaimIdPhoto(conversationId, messageId, userId);
     } catch (error: any) {
       throw new Error(error.message || 'Failed to confirm claim ID photo');
     }
   };
 
-  // Simple refresh function that fetches current conversations
   const refreshConversations = async (): Promise<void> => {
     if (!userId) return;
-    
+
+    setLoading(true);
+
     try {
-      setLoading(true);
-      
-      // Use a one-time query to get current state
-      const currentConversations = await messageService.getCurrentConversations(userId);
-      
-      setConversations(currentConversations);
-      setLoading(false);
+      const unsubscribe = messageService.getUserConversations(userId, (loadedConversations) => {
+        setConversations(loadedConversations);
+        setLoading(false);
+      }, (error) => {
+        console.error('refreshConversations: Error loading conversations:', error);
+        setLoading(false);
+      });
+
+      setTimeout(() => {
+        unsubscribe();
+      }, 1000);
+
     } catch (error: any) {
+      console.error('refreshConversations: Failed to refresh conversations:', error);
       setLoading(false);
-      throw new Error(error.message || 'Failed to refresh conversations');
     }
   };
 
+  const value: MessageContextType = {
+    conversations,
+    loading,
+    totalUnreadCount,
+    sendMessage,
+    createConversation,
+    getConversationMessages,
+    markConversationAsRead,
+    markMessageAsRead,
+    markAllUnreadMessagesAsRead,
+    deleteMessage,
+    updateHandoverResponse,
+    confirmHandoverIdPhoto,
+    sendClaimRequest,
+    updateClaimResponse,
+    confirmClaimIdPhoto,
+    refreshConversations
+  };
+
   return (
-    <MessageContext.Provider
-      value={{
-        conversations,
-        loading,
-        totalUnreadCount,
-        sendMessage,
-        createConversation,
-        getConversationMessages,
-        markConversationAsRead,
-        markMessageAsRead,
-        markAllUnreadMessagesAsRead,
-        deleteMessage,
-        updateHandoverResponse,
-        confirmHandoverIdPhoto,
-        sendClaimRequest,
-        updateClaimResponse,
-        confirmClaimIdPhoto,
-        refreshConversations,
-      }}
-    >
+    <MessageContext.Provider value={value}>
       {children}
     </MessageContext.Provider>
   );

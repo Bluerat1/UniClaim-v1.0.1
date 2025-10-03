@@ -435,6 +435,12 @@ export class NotificationSender {
 
             await batch.commit();
             console.log(`Sent ${notifications.length} notifications to specific users using batch write`);
+            console.log(`📨 Notifications sent:`, notifications.map(n => ({
+              userId: n.userId,
+              type: n.type,
+              title: n.title,
+              hasPostId: !!n.data?.postId
+            })));
 
             // Test notification click functionality (development only)
             if (process.env.NODE_ENV === 'development' && notificationData.type === 'message') {

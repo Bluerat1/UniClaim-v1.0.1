@@ -4,6 +4,9 @@
 
 import { cloudinaryService } from '../utils/cloudinary';
 import { messageService as waterbaseMessageService } from '../utils/waterbase';
+import { notificationSender } from './firebase/notificationSender';
+import { db } from '../utils/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 // Types
 export interface HandoverClaimCallbacks {
@@ -292,9 +295,67 @@ export const handleConfirmClaimIdPhoto = async (
   callbacks: HandoverClaimCallbacks
 ): Promise<void> => {
   try {
+    // Get conversation data BEFORE confirming to extract claimer info and postId
+    const conversationRef = doc(db, 'conversations', conversationId);
+    const conversationDoc = await getDoc(conversationRef);
+
+    if (!conversationDoc.exists()) {
+      throw new Error('Conversation not found');
+    }
+
+    const conversationData = conversationDoc.data();
+    const participants = conversationData.participants || {};
+    const claimerId = Object.keys(participants).find(id => id !== confirmBy);
+
+    if (!claimerId) {
+      throw new Error('No claimer found in conversation');
+    }
+
+    const postId = conversationData.postId;
+
+    // Now confirm the claim (this will delete the conversation)
+    console.log(`🔄 Confirming claim and deleting conversation: ${conversationId}`);
     await confirmClaimIdPhoto(conversationId, messageId, confirmBy);
+    console.log(`✅ Conversation deletion completed: ${conversationId}`);
+
+    // Send notification to claimer about admin confirmation (conversation is now deleted)
+    try {
+      console.log(`🔄 Sending claim confirmation notification to claimer: ${claimerId}`);
+      console.log(`📋 Notification data:`, {
+        type: 'claim_update',
+        title: '✅ Your Claim Request Confirmed',
+        body: `Your claim request has been confirmed by an admin. The post is now marked as completed.`,
+        data: {
+          postId: postId,
+          postTitle: conversationData.postTitle,
+          conversationId: conversationId,
+          notificationType: 'claim_confirmed',
+          timestamp: new Date().toISOString()
+        }
+      });
+
+      await notificationSender.sendNotificationToUsers([claimerId], {
+        type: 'claim_update',
+        title: '✅ Your Claim Request Confirmed',
+        body: `Your claim request has been confirmed by an admin. The post is now marked as completed.`,
+        data: {
+          postId: postId,
+          postTitle: conversationData.postTitle,
+          conversationId: conversationId,
+          notificationType: 'claim_confirmed',
+          timestamp: new Date().toISOString()
+        }
+      });
+      console.log(`✅ Claim confirmation notification sent to claimer: ${claimerId}`);
+    } catch (notificationError) {
+      console.warn('⚠️ Failed to send claim confirmation notification:', notificationError);
+      // Don't throw - notification failure shouldn't break the confirmation flow
+    }
+
     callbacks.onSuccess?.('✅ Claim confirmed successfully! The post is now marked as completed.');
-    callbacks.onClearConversation?.();
+
+    // Note: onClearConversation is now handled immediately in the UI component
+    // No need for setTimeout delay since UI closes conversation instantly
   } catch (error: any) {
     console.error('Failed to confirm claim ID photo:', error);
     callbacks.onError?.(error.message || 'Failed to confirm claim ID photo');
@@ -311,13 +372,15 @@ export const handleIdPhotoUploadMobile = async (
   callbacks: HandoverClaimCallbacks
 ): Promise<void> => {
   try {
-    // Upload ID photo to Cloudinary
-    const uploadedUrl = await cloudinaryService.uploadImage(photoUri, "id_photos");
+    // Upload ID photo to Cloudinary using uploadImages which handles string URIs
+    const uploadedUrls = await cloudinaryService.uploadImages([photoUri], "id_photos");
 
-    if (!uploadedUrl) {
+    if (!uploadedUrls || uploadedUrls.length === 0) {
       callbacks.onError?.('Failed to upload ID photo');
       return;
     }
+
+    const uploadedUrl = uploadedUrls[0];
 
     // Update response with ID photo
     if (type === 'handover') {

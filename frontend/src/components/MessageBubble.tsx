@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import type { Message } from "@/types/Post";
-import { useMessage } from "../context/MessageContext";
+import { useMessage } from "@/context/MessageContext";
 import ImageModal from "./ImageModal";
 import {
   handoverClaimService,
   type HandoverClaimCallbacks,
 } from "../services/handoverClaimService";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/context/ToastContext";
 import { AiOutlineDelete } from "react-icons/ai";
+
+// Define valid toast types
+type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 interface MessageBubbleProps {
   message: Message;
@@ -55,10 +59,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const messageRef = useRef<HTMLDivElement>(null);
   const [hasBeenSeen, setHasBeenSeen] = useState(false);
   const { userData } = useAuth();
-  const userRole = userData?.role;
+  const { showToast } = useToast();
+  const userRole = userData?.role ?? "";
   const formatTime = (timestamp: any) => {
     if (!timestamp) return "";
-
     const date = timestamp instanceof Date ? timestamp : timestamp.toDate();
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
@@ -301,9 +305,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const handleConfirmClaimIdPhoto = async () => {
     const callbacks: HandoverClaimCallbacks = {
       onClaimResponse,
-      onSuccess: (message) => alert(message),
-      onError: (error) => alert(error),
-      onClearConversation,
+      onSuccess: (message) => {
+        // Close conversation immediately, then show success toast
+        onClearConversation?.();
+        showToast('success', message);
+      },
+      onError: (error) => {
+        showToast('error', error);
+      },
     };
 
     await handoverClaimService.handleConfirmClaimIdPhoto(
@@ -969,12 +978,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         currentUserId,
                         {
                           onSuccess: (message) => {
-                            alert(message);
+                            showToast('success', message);
                             setShowIdPhotoModal(false);
                             if (onClearConversation) onClearConversation();
                           },
                           onError: (error) => {
-                            alert(error);
+                            showToast('error', error);
                             setShowIdPhotoModal(false);
                           },
                           onClearConversation,
@@ -982,7 +991,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       );
                     } catch (error) {
                       console.error("Error confirming claim:", error);
-                      alert("Failed to confirm claim. Please try again.");
+                      showToast('error', "Failed to confirm claim. Please try again.");
                     } finally {
                       setIsUploadingIdPhoto(false);
                     }
