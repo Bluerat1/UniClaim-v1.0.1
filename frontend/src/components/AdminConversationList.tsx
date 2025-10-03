@@ -352,9 +352,6 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
 
                 {/* Admin Info */}
                 <div className="flex items-center gap-2 mt-2">
-                  <span className="text-xs text-gray-500">
-                    Created: {formatTimestamp(conversation.createdAt)}
-                  </span>
                   {totalUnread > 0 && (
                     <span className="bg-red-100 text-red-800 text-xs px-2 py-0.5 rounded-full">
                       {totalUnread} unread

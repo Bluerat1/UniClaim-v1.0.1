@@ -45,11 +45,13 @@ messaging.onBackgroundMessage((payload) => {
 
 // Handle notification click
 self.addEventListener('notificationclick', (event) => {
-    console.log('Notification clicked:', event);
+    console.log('🔔 Notification clicked:', event);
+    console.log('🔔 Notification data:', event.notification.data);
 
     event.notification.close();
 
     if (event.action === 'dismiss') {
+        console.log('🚫 Notification dismissed');
         return;
     }
 
@@ -57,26 +59,68 @@ self.addEventListener('notificationclick', (event) => {
     const data = event.notification.data;
     let url = '/';
 
+    console.log('🔍 Processing notification data:', data);
+
     if (data?.postId) {
         url = `/post/${data.postId}`;
+        console.log('📍 Post URL:', url);
     } else if (data?.conversationId) {
-        url = `/chat/${data.conversationId}`;
+        url = `/messages?conversation=${data.conversationId}`;
+        console.log('💬 Conversation URL:', url);
+    } else {
+        console.log('❌ No postId or conversationId found in notification data');
     }
+
+    console.log('🎯 Final URL to open:', url);
 
     // Open the app
     event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-            // Check if there's already a window/tab open with the target URL
-            for (const client of clientList) {
-                if (client.url.includes(url) && 'focus' in client) {
-                    return client.focus();
+        (async () => {
+            try {
+                console.log('🔍 Attempting to open URL:', url);
+
+                // Try to focus existing window first
+                const clientsList = await clients.matchAll({
+                    type: 'window',
+                    includeUncontrolled: true
+                });
+
+                console.log('🔍 Found', clientsList.length, 'clients');
+
+                for (const client of clientsList) {
+                    console.log('🔍 Checking client:', client.url);
+
+                    // If we're already on the messages page and have a conversation param, open new window
+                    if (url.includes('conversation=') && (client.url.includes('/messages') || client.url.includes('/'))) {
+                        console.log('✅ Found suitable window, opening new one for conversation');
+                        if (clients.openWindow) {
+                            return clients.openWindow(url);
+                        }
+                    }
+                }
+
+                // Otherwise, open in new window
+                console.log('🪟 Opening new window');
+                if (clients.openWindow) {
+                    return clients.openWindow(url);
+                } else {
+                    console.error('❌ clients.openWindow not available, trying fallback');
+                    // Fallback: try to navigate current context
+                    if (typeof window !== 'undefined' && window.location) {
+                        window.location.href = url;
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error in notification navigation:', error);
+                // Last resort fallback
+                try {
+                    if (clients.openWindow) {
+                        clients.openWindow(url);
+                    }
+                } catch (fallbackError) {
+                    console.error('❌ Fallback also failed:', fallbackError);
                 }
             }
-
-            // If no existing window, open a new one
-            if (clients.openWindow) {
-                return clients.openWindow(url);
-            }
-        })
+        })()
     );
 });

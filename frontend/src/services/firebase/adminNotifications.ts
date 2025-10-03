@@ -123,7 +123,7 @@ export class AdminNotificationService {
             console.log('🔍 Getting admin notifications for adminId:', adminId);
             const adminNotificationsRef = collection(db, 'admin_notifications');
 
-            // First try to get broadcast notifications (adminId: 'all') - no orderBy to avoid composite index
+            // Get broadcast notifications (adminId: 'all')
             console.log('📋 Querying broadcast notifications...');
             const broadcastQuery = query(
                 adminNotificationsRef,
@@ -142,7 +142,7 @@ export class AdminNotificationService {
                 } as AdminNotification);
             });
 
-            // Also try to get specific admin notifications - no orderBy to avoid composite index
+            // Get specific admin notifications
             console.log('📋 Querying specific admin notifications...');
             const specificQuery = query(
                 adminNotificationsRef,
@@ -200,7 +200,7 @@ export class AdminNotificationService {
             const specificSnapshot = await getDocs(specificQuery);
 
             const totalUnread = broadcastSnapshot.size + specificSnapshot.size;
-            console.log('🔢 Total unread notifications:', totalUnread);
+            console.log('🔢 Total unread notifications:', totalUnread, `(broadcast: ${broadcastSnapshot.size}, specific: ${specificSnapshot.size})`);
             return totalUnread;
         } catch (error) {
             console.error('❌ Error getting unread count:', error);
@@ -226,27 +226,45 @@ export class AdminNotificationService {
     async markAllAsRead(adminId: string): Promise<void> {
         try {
             const adminNotificationsRef = collection(db, 'admin_notifications');
-            const q = query(
+
+            // Get all unread notifications for this admin (both broadcast and specific)
+            const broadcastQuery = query(
                 adminNotificationsRef,
-                where('adminId', 'in', [adminId, 'all']),
+                where('adminId', '==', 'all'),
                 where('read', '==', false)
             );
 
-            const snapshot = await getDocs(q);
+            const specificQuery = query(
+                adminNotificationsRef,
+                where('adminId', '==', adminId),
+                where('read', '==', false)
+            );
 
-            if (snapshot.size === 0) {
+            const [broadcastSnapshot, specificSnapshot] = await Promise.all([
+                getDocs(broadcastQuery),
+                getDocs(specificQuery)
+            ]);
+
+            if (broadcastSnapshot.size === 0 && specificSnapshot.size === 0) {
                 console.log('No unread admin notifications to mark as read');
                 return;
             }
 
             // Use batch write for better performance when updating multiple documents
             const batch = writeBatch(db);
-            snapshot.docs.forEach(doc => {
+
+            // Mark broadcast notifications as read
+            broadcastSnapshot.docs.forEach(doc => {
+                batch.update(doc.ref, { read: true });
+            });
+
+            // Mark specific admin notifications as read
+            specificSnapshot.docs.forEach(doc => {
                 batch.update(doc.ref, { read: true });
             });
 
             await batch.commit();
-            console.log(`Marked ${snapshot.size} admin notifications as read for admin: ${adminId} using batch write`);
+            console.log(`Marked ${broadcastSnapshot.size + specificSnapshot.size} admin notifications as read for admin: ${adminId} using batch write`);
         } catch (error) {
             console.error('Error marking all admin notifications as read:', error);
             throw error;
@@ -269,26 +287,43 @@ export class AdminNotificationService {
     async deleteAllNotifications(adminId: string): Promise<void> {
         try {
             const adminNotificationsRef = collection(db, 'admin_notifications');
-            const q = query(
+
+            // Get all notifications for this admin (both broadcast and specific)
+            const broadcastQuery = query(
                 adminNotificationsRef,
-                where('adminId', 'in', [adminId, 'all'])
+                where('adminId', '==', 'all')
             );
 
-            const snapshot = await getDocs(q);
+            const specificQuery = query(
+                adminNotificationsRef,
+                where('adminId', '==', adminId)
+            );
 
-            if (snapshot.size === 0) {
+            const [broadcastSnapshot, specificSnapshot] = await Promise.all([
+                getDocs(broadcastQuery),
+                getDocs(specificQuery)
+            ]);
+
+            if (broadcastSnapshot.size === 0 && specificSnapshot.size === 0) {
                 console.log('No admin notifications to delete');
                 return;
             }
 
             // Use batch write for better performance when deleting multiple documents
             const batch = writeBatch(db);
-            snapshot.docs.forEach(doc => {
+
+            // Delete broadcast notifications
+            broadcastSnapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+
+            // Delete specific admin notifications
+            specificSnapshot.docs.forEach(doc => {
                 batch.delete(doc.ref);
             });
 
             await batch.commit();
-            console.log(`Deleted ${snapshot.size} admin notifications for admin: ${adminId} using batch write`);
+            console.log(`Deleted ${broadcastSnapshot.size + specificSnapshot.size} admin notifications for admin: ${adminId} using batch write`);
         } catch (error) {
             console.error('Error deleting all admin notifications:', error);
             throw error;
@@ -305,39 +340,119 @@ export class AdminNotificationService {
             console.log('🔄 Setting up real-time listener for adminId:', adminId);
             const adminNotificationsRef = collection(db, 'admin_notifications');
 
-            // Set up listener for broadcast notifications only (no orderBy to avoid composite index issues)
+            // Set up listener for broadcast notifications (adminId: 'all')
             const broadcastQuery = query(
                 adminNotificationsRef,
                 where('adminId', '==', 'all'),
                 limit(50)
             );
 
-            return onSnapshot(broadcastQuery,
-                (snapshot) => {
-                    console.log('🔄 Real-time update received, notifications count:', snapshot.size);
-                    const notifications: AdminNotification[] = [];
-                    snapshot.forEach((doc) => {
-                        console.log('📄 Real-time notification:', doc.id, doc.data());
-                        notifications.push({
-                            id: doc.id,
-                            ...doc.data()
-                        } as AdminNotification);
-                    });
+            // Set up listener for specific admin notifications
+            const specificQuery = query(
+                adminNotificationsRef,
+                where('adminId', '==', adminId),
+                limit(50)
+            );
 
-                    // Sort by createdAt descending in JavaScript
-                    notifications.sort((a, b) => {
-                        const aTime = a.createdAt?.toMillis?.() || 0;
-                        const bTime = b.createdAt?.toMillis?.() || 0;
-                        return bTime - aTime;
-                    });
+            // Listen to both queries
+            const unsubscribeBroadcast = onSnapshot(broadcastQuery,
+                (broadcastSnapshot) => {
+                    console.log('🔄 Broadcast notifications update:', broadcastSnapshot.size);
 
-                    onNotificationsChange(notifications);
+                    // Also get specific admin notifications
+                    getDocs(specificQuery).then(specificSnapshot => {
+                        const allNotifications: AdminNotification[] = [];
+
+                        // Add broadcast notifications
+                        broadcastSnapshot.forEach((doc) => {
+                            console.log('📄 Broadcast notification:', doc.id, doc.data());
+                            allNotifications.push({
+                                id: doc.id,
+                                ...doc.data()
+                            } as AdminNotification);
+                        });
+
+                        // Add specific admin notifications
+                        specificSnapshot.forEach((doc) => {
+                            console.log('📄 Specific admin notification:', doc.id, doc.data());
+                            allNotifications.push({
+                                id: doc.id,
+                                ...doc.data()
+                            } as AdminNotification);
+                        });
+
+                        // Sort by createdAt descending
+                        allNotifications.sort((a, b) => {
+                            const aTime = a.createdAt?.toMillis?.() || 0;
+                            const bTime = b.createdAt?.toMillis?.() || 0;
+                            return bTime - aTime;
+                        });
+
+                        console.log('🔄 Total notifications after merge:', allNotifications.length);
+                        onNotificationsChange(allNotifications);
+                    }).catch(error => {
+                        console.error('❌ Error getting specific admin notifications:', error);
+                        if (onError) onError(error);
+                    });
                 },
                 (error) => {
-                    console.error('❌ Admin notifications listener error:', error);
+                    console.error('❌ Broadcast notifications listener error:', error);
                     if (onError) onError(error);
                 }
             );
+
+            // Also listen to specific admin notifications for real-time updates
+            const unsubscribeSpecific = onSnapshot(specificQuery,
+                (specificSnapshot) => {
+                    console.log('🔄 Specific admin notifications update:', specificSnapshot.size);
+
+                    // Get broadcast notifications too
+                    getDocs(broadcastQuery).then(broadcastSnapshot => {
+                        const allNotifications: AdminNotification[] = [];
+
+                        // Add specific admin notifications
+                        specificSnapshot.forEach((doc) => {
+                            console.log('📄 Specific notification:', doc.id, doc.data());
+                            allNotifications.push({
+                                id: doc.id,
+                                ...doc.data()
+                            } as AdminNotification);
+                        });
+
+                        // Add broadcast notifications
+                        broadcastSnapshot.forEach((doc) => {
+                            console.log('📄 Broadcast notification:', doc.id, doc.data());
+                            allNotifications.push({
+                                id: doc.id,
+                                ...doc.data()
+                            } as AdminNotification);
+                        });
+
+                        // Sort by createdAt descending
+                        allNotifications.sort((a, b) => {
+                            const aTime = a.createdAt?.toMillis?.() || 0;
+                            const bTime = b.createdAt?.toMillis?.() || 0;
+                            return bTime - aTime;
+                        });
+
+                        console.log('🔄 Total notifications after merge:', allNotifications.length);
+                        onNotificationsChange(allNotifications);
+                    }).catch(error => {
+                        console.error('❌ Error getting broadcast notifications:', error);
+                        if (onError) onError(error);
+                    });
+                },
+                (error) => {
+                    console.error('❌ Specific admin notifications listener error:', error);
+                    if (onError) onError(error);
+                }
+            );
+
+            // Return unsubscribe function that unsubscribes from both listeners
+            return () => {
+                unsubscribeBroadcast();
+                unsubscribeSpecific();
+            };
         } catch (error) {
             console.error('❌ Error setting up admin notifications listener:', error);
             if (onError) onError(error as Error);

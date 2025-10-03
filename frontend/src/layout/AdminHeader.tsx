@@ -8,8 +8,8 @@ import {
 } from "react-icons/hi";
 import { IoLogOutOutline } from "react-icons/io5";
 import Logo from "../assets/uniclaim_logo.png";
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useAdminView } from "@/context/AdminViewContext";
 import { useAdminNotifications } from "@/context/AdminNotificationContext";
@@ -44,10 +44,19 @@ export default function AdminHeader({
         await markAsRead(notification.id);
       }
 
+      // Handle conversation/message notifications
+      if (notification.data?.conversationId) {
+        console.log("Admin navigating to conversation:", notification.data.conversationId);
+        // Navigate to admin messages page with conversation parameter
+        navigate(`/admin/messages?conversation=${notification.data.conversationId}`);
+        setShowNotif(false); // Close notification panel
+        return;
+      }
+
       // Check for postId in different possible locations
-      const postId = notification.postId || 
+      const postId = notification.postId ||
                     (notification.data && (notification.data.postId || notification.data.id));
-      
+
       if (postId) {
         setIsLoadingPost(true);
         try {
@@ -310,7 +319,9 @@ export default function AdminHeader({
                             {notification.type === "user_report" &&
                               "👤 User Report"}
                             {notification.type === "system_alert" &&
-                              "⚠️ System Alert"}
+                              `${notification.data?.adminNotificationType === 'admin_message' ? '💬' :
+                                notification.data?.adminNotificationType === 'admin_handover' ? '🔄' :
+                                notification.data?.adminNotificationType === 'admin_claim' ? '📋' : '⚠️'} System Alert`}
                             {notification.type === "activity_summary" &&
                               "📊 Activity Summary"}
                           </span>

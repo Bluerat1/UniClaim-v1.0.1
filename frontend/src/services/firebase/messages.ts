@@ -267,12 +267,17 @@ export const messageService = {
                 ...unreadCountUpdates
             });
 
-            // Cleanup old messages after sending to maintain 50-message limit
+            // Send notification to other participants
             try {
-                await messageService.cleanupOldMessages(conversationId);
-            } catch (cleanupError) {
-                console.warn('⚠️ [sendMessage] Message cleanup failed, but message was sent successfully:', cleanupError);
-                // Don't throw error - cleanup failure shouldn't break message sending
+                await notificationSender.sendMessageNotification(conversationId, {
+                    senderId,
+                    senderName,
+                    text,
+                    postTitle: conversationData.postTitle
+                });
+            } catch (notificationError) {
+                console.warn('⚠️ Failed to send message notification:', notificationError);
+                // Don't fail the whole operation if notification fails
             }
         } catch (error) {
             console.error('❌ [sendMessage] Error sending message:', error);
@@ -541,6 +546,19 @@ export const messageService = {
             });
 
             console.log(`✅ Handover request sent successfully: ${messageRef.id}`);
+
+            // Send message notification to other participants
+            try {
+                await notificationSender.sendMessageNotification(conversationId, {
+                    senderId,
+                    senderName,
+                    text: `Handover Request: ${handoverReason || 'No reason provided'}`,
+                    postTitle: postTitle
+                });
+            } catch (notificationError) {
+                console.warn('⚠️ Failed to send handover request message notification:', notificationError);
+                // Don't fail the whole operation if notification fails
+            }
         } catch (error: any) {
             console.error('❌ Firebase sendHandoverRequest failed:', error);
             throw new Error(error.message || 'Failed to send handover request');
@@ -579,11 +597,32 @@ export const messageService = {
 
             await updateDoc(messageRef, updateData);
 
+            // Get conversation data for notifications
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
+            const conversationData = conversationDoc.data();
+
             // Update conversation status
-            await updateDoc(doc(db, 'conversations', conversationId), {
+            await updateDoc(conversationRef, {
                 handoverRequestStatus: status,
                 updatedAt: serverTimestamp()
             });
+
+            // Send response notification to other participants
+            try {
+                if (conversationData) {
+                    await notificationSender.sendResponseNotification(conversationId, {
+                        responderId: userId,
+                        responderName: conversationData.participants[userId]?.firstName + ' ' + conversationData.participants[userId]?.lastName || 'Unknown User',
+                        responseType: 'handover_response',
+                        status: status,
+                        postTitle: conversationData.postTitle
+                    });
+                }
+            } catch (notificationError) {
+                console.warn('⚠️ Failed to send handover response notification:', notificationError);
+                // Don't fail the whole operation if notification fails
+            }
 
             console.log(`✅ Handover response updated: ${status}`);
         } catch (error: any) {
@@ -675,6 +714,19 @@ export const messageService = {
 
             console.log(`✅ Claim request sent successfully: ${messageRef.id}`);
 
+            // Send message notification to other participants (in addition to the specific claim notification)
+            try {
+                await notificationSender.sendMessageNotification(conversationId, {
+                    senderId,
+                    senderName,
+                    text: `Claim Request: ${claimReason || 'No reason provided'}`,
+                    postTitle: postTitle
+                });
+            } catch (notificationError) {
+                console.warn('⚠️ Failed to send claim request message notification:', notificationError);
+                // Don't fail the whole operation if notification fails
+            }
+
             // Send notification to the post owner
             try {
                 await notificationSender.sendClaimRequestNotification(conversationId, {
@@ -747,11 +799,32 @@ export const messageService = {
 
             await updateDoc(messageRef, updateData);
 
+            // Get conversation data for notifications
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
+            const conversationData = conversationDoc.data();
+
             // Update conversation status
-            await updateDoc(doc(db, 'conversations', conversationId), {
+            await updateDoc(conversationRef, {
                 claimRequestStatus: status,
                 updatedAt: serverTimestamp()
             });
+
+            // Send response notification to other participants
+            try {
+                if (conversationData) {
+                    await notificationSender.sendResponseNotification(conversationId, {
+                        responderId: userId,
+                        responderName: conversationData.participants[userId]?.firstName + ' ' + conversationData.participants[userId]?.lastName || 'Unknown User',
+                        responseType: 'claim_response',
+                        status: status,
+                        postTitle: conversationData.postTitle
+                    });
+                }
+            } catch (notificationError) {
+                console.warn('⚠️ Failed to send claim response notification:', notificationError);
+                // Don't fail the whole operation if notification fails
+            }
 
             console.log(`✅ Claim response updated: ${status}`);
         } catch (error: any) {
@@ -805,6 +878,20 @@ export const messageService = {
                 status: 'completed',
                 updatedAt: serverTimestamp()
             });
+
+            // Send confirmation notification to other participants
+            try {
+                await notificationSender.sendResponseNotification(conversationId, {
+                    responderId: confirmBy,
+                    responderName: conversationData.participants[confirmBy]?.firstName + ' ' + conversationData.participants[confirmBy]?.lastName || 'Unknown User',
+                    responseType: 'handover_response',
+                    status: 'accepted', // Confirmation is essentially accepting
+                    postTitle: conversationData.postTitle
+                });
+            } catch (notificationError) {
+                console.warn('⚠️ Failed to send handover confirmation notification:', notificationError);
+                // Don't fail the whole operation if notification fails
+            }
 
             // Delete the conversation to complete the handover process
             try {
@@ -867,6 +954,20 @@ export const messageService = {
                 status: 'completed',
                 updatedAt: serverTimestamp()
             });
+
+            // Send confirmation notification to other participants
+            try {
+                await notificationSender.sendResponseNotification(conversationId, {
+                    responderId: confirmBy,
+                    responderName: conversationData.participants[confirmBy]?.firstName + ' ' + conversationData.participants[confirmBy]?.lastName || 'Unknown User',
+                    responseType: 'claim_response',
+                    status: 'accepted', // Confirmation is essentially accepting
+                    postTitle: conversationData.postTitle
+                });
+            } catch (notificationError) {
+                console.warn('⚠️ Failed to send claim confirmation notification:', notificationError);
+                // Don't fail the whole operation if notification fails
+            }
 
             // Delete the conversation to complete the claim process
             try {

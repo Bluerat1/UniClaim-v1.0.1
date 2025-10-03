@@ -70,13 +70,22 @@ export default function HomeHeader({
     checkAdminStatus();
   }, [user]);
 
-  // Handle notification clicks to open post modal
+  // Handle notification clicks to open post modal or navigate to conversation
   const handleNotificationClick = async (notification: any) => {
     console.log("Notification clicked:", notification);
 
     // Mark as read first
     if (!notification.read) {
       await markAsRead(notification.id);
+    }
+
+    // Handle different notification types
+    if (notification.type === 'message' && notification.data?.conversationId) {
+      console.log("Navigating to conversation:", notification.data.conversationId);
+      // Navigate to messages page with conversation parameter
+      navigate(`/messages?conversation=${notification.data.conversationId}`);
+      toggleNotif(); // Close the notification dropdown
+      return;
     }
 
     // If notification has a postId, fetch the post and open modal

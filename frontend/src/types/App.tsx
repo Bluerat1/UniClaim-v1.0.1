@@ -12,6 +12,8 @@ import { MessageProvider } from "@/context/MessageContext";
 import { useAuth } from "@/context/AuthContext";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { messaging } from "@/services/firebase/config";
+import { onMessage } from "firebase/messaging";
 
 function App() {
   // Initialize audio system on first user interaction
@@ -35,6 +37,44 @@ function App() {
       document.removeEventListener('keydown', handleUserInteraction);
       document.removeEventListener('touchstart', handleUserInteraction);
     };
+  }, []);
+
+  // Initialize Firebase messaging and service worker
+  useEffect(() => {
+    if (messaging) {
+      // Register service worker for push notifications
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker
+          .register('/firebase-messaging-sw.js')
+          .then((registration) => {
+            console.log('✅ Service Worker registered:', registration);
+          })
+          .catch((error) => {
+            console.error('❌ Service Worker registration failed:', error);
+          });
+      }
+
+      // Request notification permission
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().then((permission) => {
+          console.log('🔔 Notification permission:', permission);
+        });
+      }
+
+      // Handle foreground messages
+      onMessage(messaging, (payload) => {
+        console.log('📨 Foreground message received:', payload);
+
+        // You can customize how foreground notifications are shown
+        if (payload.notification) {
+          new Notification(payload.notification.title || 'UniClaim', {
+            body: payload.notification.body || 'You have a new notification',
+            icon: '/uniclaim_logo.png',
+            data: payload.data
+          });
+        }
+      });
+    }
   }, []);
 
   const { user } = useAuth();

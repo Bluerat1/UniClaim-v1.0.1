@@ -18,7 +18,6 @@ import {
     collection,
     query,
     where,
-    limit,
     getDocs
 } from 'firebase/firestore';
 
@@ -340,22 +339,22 @@ export const authService = {
         }
     },
 
-    // Get Campus Security user from database
-    async getCampusSecurityUser(): Promise<UserData | null> {
+    // Get all admin users from database
+    async getAllAdminUsers(): Promise<UserData[]> {
         try {
             const usersRef = collection(db, 'users');
-            const q = query(usersRef, where('role', '==', 'campus_security'), limit(1));
+            const q = query(usersRef, where('role', '==', 'admin'));
             const querySnapshot = await getDocs(q);
 
-            if (!querySnapshot.empty) {
-                const doc = querySnapshot.docs[0];
-                return { uid: doc.id, ...doc.data() } as UserData;
-            }
+            const adminUsers: UserData[] = [];
+            querySnapshot.forEach((doc) => {
+                adminUsers.push({ uid: doc.id, ...doc.data() } as UserData);
+            });
 
-            return null;
+            return adminUsers;
         } catch (error: any) {
-            console.error('Error getting Campus Security user:', error);
-            return null;
+            console.error('Error getting admin users:', error);
+            return [];
         }
     },
 

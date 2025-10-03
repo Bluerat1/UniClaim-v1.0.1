@@ -2,6 +2,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getMessaging, onMessage } from 'firebase/messaging';
 
 // Firebase configuration from environment variables
 // Create a .env file in the frontend folder with your Firebase config:
@@ -33,5 +34,17 @@ if (getApps().length === 0) {
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-// Note: Firebase Storage removed - now using Cloudinary instead
-// export const storage = getStorage(app);
+// Initialize messaging for push notifications (only in browser, not server)
+let messaging = null;
+if (typeof window !== 'undefined') {
+    try {
+        messaging = getMessaging(app);
+    } catch (error) {
+        console.warn('Firebase messaging not available:', error);
+    }
+}
+
+export { messaging };
+
+// Export onMessage for handling foreground messages
+export { onMessage };

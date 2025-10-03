@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../../services/firebase/config";
 import type { Conversation } from "../../types/Post";
 import AdminConversationList from "../../components/AdminConversationList";
 import AdminChatWindow from "../../components/AdminChatWindow";
@@ -16,18 +18,43 @@ const AdminMessagesPage: React.FC = () => {
     "all" | "unread" | "claim"
   >("all");
 
-  // Handle URL changes and clear selected conversation when no conversation is specified
+  // Handle URL changes and conversation selection
   useEffect(() => {
     const conversationParam = searchParams.get("conversation");
-    if (!conversationParam) {
+    if (conversationParam && (!selectedConversation || selectedConversation.id !== conversationParam)) {
+      // Load and select the conversation
+      const loadConversation = async () => {
+        try {
+          const conversationDoc = await getDoc(doc(db, 'conversations', conversationParam));
+          if (conversationDoc.exists()) {
+            const conversationData = {
+              id: conversationDoc.id,
+              ...conversationDoc.data()
+            } as Conversation;
+            setSelectedConversation(conversationData);
+          } else {
+            // Conversation not found, clear the parameter
+            setSearchParams(new URLSearchParams());
+          }
+        } catch (error) {
+          console.error("Error loading conversation:", error);
+          setSearchParams(new URLSearchParams());
+        }
+      };
+      loadConversation();
+    } else if (!conversationParam) {
       // No conversation in URL, clear the selected conversation
       setSelectedConversation(null);
     }
-  }, [searchParams]);
+  }, [searchParams, selectedConversation]);
 
   const handleSelectConversation = (conversation: Conversation) => {
     if (!isGoingBack) {
       setSelectedConversation(conversation);
+      // Update URL with conversation parameter
+      const newSearchParams = new URLSearchParams();
+      newSearchParams.set('conversation', conversation.id);
+      setSearchParams(newSearchParams);
     }
   };
 
