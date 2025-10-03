@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   FlatList,
@@ -14,7 +14,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
 } from "react-native";
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -369,7 +369,7 @@ export default function Chat() {
   // Keyboard handling
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
       (e) => {
         setKeyboardHeight(e.endCoordinates.height);
         setIsKeyboardVisible(true);
@@ -377,7 +377,7 @@ export default function Chat() {
     );
 
     const keyboardDidHideListener = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
       () => {
         setKeyboardHeight(0);
         setIsKeyboardVisible(false);
@@ -393,7 +393,7 @@ export default function Chat() {
   // Keyboard handling
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
       (e) => {
         setKeyboardHeight(e.endCoordinates.height);
         setIsKeyboardVisible(true);
@@ -401,7 +401,7 @@ export default function Chat() {
     );
 
     const keyboardDidHideListener = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
       () => {
         setKeyboardHeight(0);
         setIsKeyboardVisible(false);
@@ -592,21 +592,27 @@ export default function Chat() {
 
     try {
       // Update the local messages state to reflect the new claim response
-      setMessages(prevMessages =>
-        prevMessages.map(msg => {
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) => {
           if (msg.id === messageId && msg.claimData) {
-            console.log('📝 Mobile Chat: Updating message claim data', msg.id);
-            console.log('📝 Mobile Chat: Current status:', msg.claimData.status);
-            console.log('📝 Mobile Chat: New status will be:', status === 'accepted' ? 'pending_confirmation' : status);
+            console.log("📝 Mobile Chat: Updating message claim data", msg.id);
+            console.log(
+              "📝 Mobile Chat: Current status:",
+              msg.claimData.status
+            );
+            console.log(
+              "📝 Mobile Chat: New status will be:",
+              status === "accepted" ? "pending_confirmation" : status
+            );
 
             return {
               ...msg,
               claimData: {
                 ...msg.claimData,
-                status: status === 'accepted' ? 'pending_confirmation' : status,
+                status: status === "accepted" ? "pending_confirmation" : status,
                 respondedAt: new Date(),
                 respondedBy: user.uid,
-              } as any // Type assertion to handle optional properties
+              } as any, // Type assertion to handle optional properties
             };
           }
           return msg;
@@ -614,24 +620,49 @@ export default function Chat() {
       );
 
       // Update the claim response in Firebase with ID photo URL if provided
-      console.log('🔄 Mobile Chat: Calling updateClaimResponse with:', { conversationId, messageId, status, userId: user.uid, idPhotoUrl: idPhotoUrl ? 'provided' : 'not provided' });
-      await updateClaimResponse(conversationId, messageId, status, user.uid, idPhotoUrl);
-      console.log('✅ Mobile Chat: Firebase updateClaimResponse completed');
+      console.log("🔄 Mobile Chat: Calling updateClaimResponse with:", {
+        conversationId,
+        messageId,
+        status,
+        userId: user.uid,
+        idPhotoUrl: idPhotoUrl ? "provided" : "not provided",
+      });
+      await updateClaimResponse(
+        conversationId,
+        messageId,
+        status,
+        user.uid,
+        idPhotoUrl
+      );
+      console.log("✅ Mobile Chat: Firebase updateClaimResponse completed");
 
       // Refresh message data from Firebase after upload to get complete updated data
-      if (status === 'accepted') {
-        console.log('🔄 Mobile Chat: Scheduling Firebase refresh in 2 seconds');
+      if (status === "accepted") {
+        console.log("🔄 Mobile Chat: Scheduling Firebase refresh in 2 seconds");
         setTimeout(() => {
-          console.log('🔄 Mobile Chat: Refreshing message data from Firebase after claim upload');
+          console.log(
+            "🔄 Mobile Chat: Refreshing message data from Firebase after claim upload"
+          );
           if (conversationId) {
             getConversationMessages(conversationId, (updatedMessages) => {
-              console.log('✅ Mobile Chat: Refreshed messages from Firebase', updatedMessages.length);
+              console.log(
+                "✅ Mobile Chat: Refreshed messages from Firebase",
+                updatedMessages.length
+              );
 
               // Log the status of the updated message
-              const updatedMessage = updatedMessages.find(m => m.id === messageId);
+              const updatedMessage = updatedMessages.find(
+                (m) => m.id === messageId
+              );
               if (updatedMessage && updatedMessage.claimData) {
-                console.log('📊 Mobile Chat: Refreshed message status:', updatedMessage.claimData.status);
-                console.log('📊 Mobile Chat: Refreshed message ownerIdPhoto:', updatedMessage.claimData.ownerIdPhoto ? 'present' : 'missing');
+                console.log(
+                  "📊 Mobile Chat: Refreshed message status:",
+                  updatedMessage.claimData.status
+                );
+                console.log(
+                  "📊 Mobile Chat: Refreshed message ownerIdPhoto:",
+                  updatedMessage.claimData.ownerIdPhoto ? "present" : "missing"
+                );
               }
 
               // Force re-render of MessageBubble components by updating a key or state
@@ -641,7 +672,10 @@ export default function Chat() {
         }, 2000); // Increased delay to allow Firebase to fully update
       }
 
-      Alert.alert("Success", `Claim request ${status === 'accepted' ? 'accepted - awaiting verification' : status}!`);
+      Alert.alert(
+        "Success",
+        `Claim request ${status === "accepted" ? "accepted - awaiting verification" : status}!`
+      );
     } catch (error: any) {
       Alert.alert(
         "Error",
@@ -657,52 +691,81 @@ export default function Chat() {
     // Get the message data before trying to confirm
     const message = messages.find((m) => m.id === messageId);
     if (!message) {
-      console.error('❌ Mobile Chat: Message not found in local messages array:', messageId);
+      console.error(
+        "❌ Mobile Chat: Message not found in local messages array:",
+        messageId
+      );
       Alert.alert("Error", "Message not found. Please refresh and try again.");
       return;
     }
 
     try {
-      console.log('🔄 Mobile Chat: Confirming ID photo for message:', { messageId, messageType: message.messageType });
+      console.log("🔄 Mobile Chat: Confirming ID photo for message:", {
+        messageId,
+        messageType: message.messageType,
+      });
 
       if (message.messageType === "handover_request") {
         await confirmHandoverIdPhoto(conversationId, messageId, user.uid);
-        Alert.alert("Success", "Handover ID photo confirmed! The post is now marked as completed.");
+        Alert.alert(
+          "Success",
+          "Handover ID photo confirmed! The post is now marked as completed."
+        );
       } else if (message.messageType === "claim_request") {
         await confirmClaimIdPhoto(conversationId, messageId, user.uid);
-        Alert.alert("Success", "Claim ID photo confirmed! The post is now marked as completed.");
+        Alert.alert(
+          "Success",
+          "Claim ID photo confirmed! The post is now marked as completed."
+        );
       }
 
       // Navigate back to conversations list after successful confirmation
-      console.log('🔄 Mobile Chat: Confirmation successful - navigating back to conversations');
+      console.log(
+        "🔄 Mobile Chat: Confirmation successful - navigating back to conversations"
+      );
       navigation.goBack();
     } catch (error: any) {
-      console.error('❌ Mobile Chat: Error confirming ID photo:', error);
+      console.error("❌ Mobile Chat: Error confirming ID photo:", error);
 
       // Handle different error scenarios
-      if (error.message?.includes('Conversation does not exist') ||
-          error.message?.includes('Message not found') ||
-          error.message?.includes('already processed')) {
-        console.log('🔄 Mobile Chat: Conversation/message missing - ensuring post is resolved');
+      if (
+        error.message?.includes("Conversation does not exist") ||
+        error.message?.includes("Message not found") ||
+        error.message?.includes("already processed")
+      ) {
+        console.log(
+          "🔄 Mobile Chat: Conversation/message missing - ensuring post is resolved"
+        );
 
         // Try to mark the post as completed even if conversation is missing
         try {
-          const { postService } = await import('../utils/firebase/posts');
-          const postId = message.claimData?.postId || message.handoverData?.postId;
+          const { postService } = await import("../utils/firebase/posts");
+          const postId =
+            message.claimData?.postId || message.handoverData?.postId;
           if (postId) {
-            console.log('🔄 Mobile Chat: Marking post as resolved due to missing conversation');
-            await postService.updatePost(postId, { status: 'resolved' });
+            console.log(
+              "🔄 Mobile Chat: Marking post as resolved due to missing conversation"
+            );
+            await postService.updatePost(postId, { status: "resolved" });
             Alert.alert("Success", "Item marked as resolved!");
             navigation.goBack();
             return;
           }
         } catch (checkError) {
-          console.log('⚠️ Mobile Chat: Could not mark post as resolved:', checkError);
+          console.log(
+            "⚠️ Mobile Chat: Could not mark post as resolved:",
+            checkError
+          );
         }
 
         // If we can't mark the post as resolved, navigate back anyway
-        console.log('ℹ️ Mobile Chat: Conversation was missing - navigating back');
-        Alert.alert("Information", "The conversation may have been completed already.");
+        console.log(
+          "ℹ️ Mobile Chat: Conversation was missing - navigating back"
+        );
+        Alert.alert(
+          "Information",
+          "The conversation may have been completed already."
+        );
         navigation.goBack();
       } else {
         Alert.alert("Error", "Failed to confirm ID photo. Please try again.");
@@ -774,12 +837,12 @@ export default function Chat() {
 
       {/* Chat Content - Moves up with keyboard */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
         style={{ flex: 1 }}
       >
         {/* Messages Container with Custom Spacing */}
-        <View style={{ flex: 1, marginBottom: 10 }}>
+        <View style={{ flex: 1, marginBottom: 15 }}>
           {loading ? (
             <View className="flex-1 items-center justify-center">
               <Text className="text-gray-500">Creating conversation...</Text>
@@ -855,7 +918,7 @@ export default function Chat() {
           <View style={{ height: 0 }} />
 
           {/* Message Limit Counter */}
-          <View className="bg-gray-50 border-b border-gray-200 px-4 py-2 mx-4 rounded-t-lg">
+          <View className="border-b border-gray-200 px-4 py-2 bg-gray-100 rounded-t-lg">
             <View className="flex-row justify-between items-center mb-1">
               <Text className="text-sm text-gray-600 font-medium">
                 Messages in conversation
@@ -901,7 +964,7 @@ export default function Chat() {
           </View>
 
           {/* Input Area with bottom spacing */}
-          <View className="bg-white px-4 pb-8 pt-2 mb-2">
+          <View className="bg-white px-4 pt-2">
             <View className="flex-row items-center gap-3">
               <View className="flex-1">
                 <TextInput
@@ -918,7 +981,9 @@ export default function Chat() {
                 onPress={handleSendMessage}
                 disabled={!newMessage.trim() || loading}
                 className={`w-12 h-12 rounded-full items-center justify-center ${
-                  newMessage.trim() && !loading ? "bg-yellow-500" : "bg-gray-300"
+                  newMessage.trim() && !loading
+                    ? "bg-yellow-500"
+                    : "bg-gray-300"
                 }`}
               >
                 <Ionicons
