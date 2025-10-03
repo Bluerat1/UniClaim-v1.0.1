@@ -597,13 +597,14 @@ export const postService = {
             const posts = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
-                createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt
+                createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
+                updatedAt: doc.data().updatedAt?.toDate?.() || doc.data().updatedAt
             })) as Post[];
 
-            // Sort posts by createdAt in JavaScript instead (most recent first for completed reports)
+            // Sort posts by updatedAt in JavaScript instead (most recent resolution first)
             const sortedPosts = posts.sort((a, b) => {
-                const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
-                const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+                const dateA = a.updatedAt instanceof Date ? a.updatedAt : new Date(a.updatedAt || a.createdAt);
+                const dateB = b.updatedAt instanceof Date ? b.updatedAt : new Date(b.updatedAt || b.createdAt);
                 return dateB.getTime() - dateA.getTime(); // Most recent first
             });
 
