@@ -50,7 +50,10 @@ export default function Profile() {
 
   const [profile, setProfile] = useState(() => {
     console.log("Profile initial state - userData:", userData);
-    console.log("Profile initial state - userData.profilePicture:", userData?.profilePicture);
+    console.log(
+      "Profile initial state - userData.profilePicture:",
+      userData?.profilePicture
+    );
 
     return {
       firstName: userData?.firstName || "",
@@ -58,9 +61,12 @@ export default function Profile() {
       email: userData?.email || "",
       contactNumber: userData?.contactNum || "",
       studentId: userData?.studentId || "",
-      imageUri: userData?.profilePicture && userData.profilePicture.trim() !== "" && !userData.profilePicture.includes("/src/assets/")
-        ? { uri: userData.profilePicture }
-        : DEFAULT_PROFILE_PICTURE,
+      imageUri:
+        userData?.profilePicture &&
+        userData.profilePicture.trim() !== "" &&
+        !userData.profilePicture.includes("/src/assets/")
+          ? { uri: userData.profilePicture }
+          : DEFAULT_PROFILE_PICTURE,
     };
   });
   const [hasImageChanged, setHasImageChanged] = useState(false);
@@ -74,10 +80,16 @@ export default function Profile() {
   // Update profile when userData changes
   React.useEffect(() => {
     if (userData) {
-      console.log("Profile useEffect - userData.profilePicture:", userData.profilePicture);
-      const newImageUri = userData.profilePicture && userData.profilePicture.trim() !== "" && !userData.profilePicture.includes("/src/assets/")
-        ? { uri: userData.profilePicture }
-        : DEFAULT_PROFILE_PICTURE;
+      console.log(
+        "Profile useEffect - userData.profilePicture:",
+        userData.profilePicture
+      );
+      const newImageUri =
+        userData.profilePicture &&
+        userData.profilePicture.trim() !== "" &&
+        !userData.profilePicture.includes("/src/assets/")
+          ? { uri: userData.profilePicture }
+          : DEFAULT_PROFILE_PICTURE;
       console.log("Profile useEffect - newImageUri:", newImageUri);
 
       setProfile({
@@ -296,9 +308,12 @@ export default function Profile() {
         email: userData.email || "",
         contactNumber: userData.contactNum || "",
         studentId: userData.studentId || "",
-        imageUri: userData.profilePicture && userData.profilePicture.trim() !== "" && !userData.profilePicture.includes("/src/assets/")
-          ? { uri: userData.profilePicture }
-          : DEFAULT_PROFILE_PICTURE,
+        imageUri:
+          userData.profilePicture &&
+          userData.profilePicture.trim() !== "" &&
+          !userData.profilePicture.includes("/src/assets/")
+            ? { uri: userData.profilePicture }
+            : DEFAULT_PROFILE_PICTURE,
       });
     }
     setIsEditing(false);
@@ -472,7 +487,9 @@ export default function Profile() {
   const handleRemoveProfilePicture = () => {
     // Check if there's a current profile picture to mark for deletion
     const hasCurrentPicture =
-      userData?.profilePicture && userData.profilePicture.trim() !== "" && !userData.profilePicture.includes("/src/assets/");
+      userData?.profilePicture &&
+      userData.profilePicture.trim() !== "" &&
+      !userData.profilePicture.includes("/src/assets/");
 
     if (!hasCurrentPicture) {
       Alert.alert(
@@ -618,31 +635,34 @@ export default function Profile() {
             </TouchableOpacity>
 
             {/* Remove profile picture button - only show when editing and has a profile picture */}
-            {isEditing && userData?.profilePicture && userData.profilePicture.trim() !== "" && !userData.profilePicture.includes("/src/assets/") && (
-              <TouchableOpacity
-                className={`mt-2 rounded-md py-2 px-3 flex-row items-center gap-2 ${
-                  isProfilePictureMarkedForDeletion
-                    ? "bg-orange-500"
-                    : "bg-red-500"
-                }`}
-                onPress={handleRemoveProfilePicture}
-              >
-                <Ionicons
-                  name={
+            {isEditing &&
+              userData?.profilePicture &&
+              userData.profilePicture.trim() !== "" &&
+              !userData.profilePicture.includes("/src/assets/") && (
+                <TouchableOpacity
+                  className={`mt-2 rounded-md py-2 px-3 flex-row items-center gap-2 ${
                     isProfilePictureMarkedForDeletion
-                      ? "warning-outline"
-                      : "trash-outline"
-                  }
-                  size={16}
-                  color="white"
-                />
-                <Text className="text-white text-sm font-manrope-medium">
-                  {isProfilePictureMarkedForDeletion
-                    ? "Marked for Removal"
-                    : "Remove Photo"}
-                </Text>
-              </TouchableOpacity>
-            )}
+                      ? "bg-orange-500"
+                      : "bg-red-500"
+                  }`}
+                  onPress={handleRemoveProfilePicture}
+                >
+                  <Ionicons
+                    name={
+                      isProfilePictureMarkedForDeletion
+                        ? "warning-outline"
+                        : "trash-outline"
+                    }
+                    size={16}
+                    color="white"
+                  />
+                  <Text className="text-white text-sm font-manrope-medium">
+                    {isProfilePictureMarkedForDeletion
+                      ? "Marked for Removal"
+                      : "Remove Photo"}
+                  </Text>
+                </TouchableOpacity>
+              )}
 
             <View className="items-center flex-col gap-1 mt-3">
               <Text className="font-manrope-bold text-xl">
