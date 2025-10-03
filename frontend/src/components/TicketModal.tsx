@@ -357,17 +357,35 @@ const TicketModal = ({
             <>
               <button
                 onClick={handleEditClick}
-                className="bg-brand text-white text-xs px-3 py-2 mr-2 rounded hover:bg-yellow-600"
+                disabled={post.status === "resolved" && !isAdmin}
+                className={`text-xs px-3 py-2 mr-2 rounded hover:bg-yellow-600 ${
+                  post.status === "resolved" && !isAdmin
+                    ? "bg-gray-400 text-gray-600 cursor-not-allowed"
+                    : "bg-brand text-white hover:bg-yellow-600"
+                }`}
+                title={
+                  post.status === "resolved" && !isAdmin
+                    ? "Cannot edit resolved tickets"
+                    : "Edit ticket details"
+                }
               >
                 Edit Ticket
               </button>
               <button
                 onClick={() => onDelete(post.id)}
-                disabled={isDeleting}
-                className="bg-[#FD8E74] text-white text-xs px-3 py-2 mr-2 rounded hover:bg-[#c07c6d] disabled:opacity-50 disabled:cursor-not-allowed"
-                title={`Delete ticket "${post.title}" and ${
-                  post.images.length
-                } associated image${post.images.length !== 1 ? "s" : ""}`}
+                disabled={isDeleting || (post.status === "resolved" && !isAdmin)}
+                className={`text-xs px-3 py-2 mr-2 rounded disabled:opacity-50 disabled:cursor-not-allowed ${
+                  post.status === "resolved" && !isAdmin
+                    ? "bg-gray-400 text-gray-600 cursor-not-allowed"
+                    : "bg-[#FD8E74] text-white hover:bg-[#c07c6d]"
+                }`}
+                title={
+                  post.status === "resolved" && !isAdmin
+                    ? "Cannot delete resolved tickets"
+                    : isDeleting
+                    ? "Deleting ticket..."
+                    : `Delete ticket "${post.title}" and ${post.images.length} associated image${post.images.length !== 1 ? "s" : ""}`
+                }
               >
                 {isDeleting ? "Deleting..." : "Delete Ticket"}
               </button>
