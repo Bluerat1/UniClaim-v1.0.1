@@ -27,11 +27,14 @@ import {
   cloudinaryService,
   deleteOldProfilePicture,
 } from "../../utils/cloudinary";
-import { imageService, userService } from "../../utils/firebase";
+import { userService } from "../../utils/firebase";
 import { postUpdateService } from "../../utils/postUpdateService";
 import { userDeletionService } from "../../utils/firebase/userDeletion";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "Profile">;
+
+// Default profile picture constant
+const DEFAULT_PROFILE_PICTURE = require("../../assets/images/empty_profile.jpg");
 
 export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
@@ -45,15 +48,20 @@ export default function Profile() {
   const [deletePassword, setDeletePassword] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const [profile, setProfile] = useState({
-    firstName: userData?.firstName || "",
-    lastName: userData?.lastName || "",
-    email: userData?.email || "",
-    contactNumber: userData?.contactNum || "",
-    studentId: userData?.studentId || "",
-    imageUri: userData?.profilePicture
-      ? { uri: userData.profilePicture }
-      : require("../../assets/images/squarepic.jpg"), // default local asset
+  const [profile, setProfile] = useState(() => {
+    console.log("Profile initial state - userData:", userData);
+    console.log("Profile initial state - userData.profilePicture:", userData?.profilePicture);
+
+    return {
+      firstName: userData?.firstName || "",
+      lastName: userData?.lastName || "",
+      email: userData?.email || "",
+      contactNumber: userData?.contactNum || "",
+      studentId: userData?.studentId || "",
+      imageUri: userData?.profilePicture && userData.profilePicture.trim() !== "" && !userData.profilePicture.includes("/src/assets/")
+        ? { uri: userData.profilePicture }
+        : DEFAULT_PROFILE_PICTURE,
+    };
   });
   const [hasImageChanged, setHasImageChanged] = useState(false);
 
@@ -66,15 +74,19 @@ export default function Profile() {
   // Update profile when userData changes
   React.useEffect(() => {
     if (userData) {
+      console.log("Profile useEffect - userData.profilePicture:", userData.profilePicture);
+      const newImageUri = userData.profilePicture && userData.profilePicture.trim() !== "" && !userData.profilePicture.includes("/src/assets/")
+        ? { uri: userData.profilePicture }
+        : DEFAULT_PROFILE_PICTURE;
+      console.log("Profile useEffect - newImageUri:", newImageUri);
+
       setProfile({
         firstName: userData.firstName || "",
         lastName: userData.lastName || "",
         email: userData.email || "",
         contactNumber: userData.contactNum || "",
         studentId: userData.studentId || "",
-        imageUri: userData.profilePicture
-          ? { uri: userData.profilePicture }
-          : require("../../assets/images/squarepic.jpg"),
+        imageUri: newImageUri,
       });
       setHasImageChanged(false);
       setIsProfilePictureMarkedForDeletion(false);
@@ -284,9 +296,9 @@ export default function Profile() {
         email: userData.email || "",
         contactNumber: userData.contactNum || "",
         studentId: userData.studentId || "",
-        imageUri: userData.profilePicture
+        imageUri: userData.profilePicture && userData.profilePicture.trim() !== "" && !userData.profilePicture.includes("/src/assets/")
           ? { uri: userData.profilePicture }
-          : require("../../assets/images/squarepic.jpg"),
+          : DEFAULT_PROFILE_PICTURE,
       });
     }
     setIsEditing(false);
@@ -460,7 +472,7 @@ export default function Profile() {
   const handleRemoveProfilePicture = () => {
     // Check if there's a current profile picture to mark for deletion
     const hasCurrentPicture =
-      userData?.profilePicture && userData.profilePicture.trim() !== "";
+      userData?.profilePicture && userData.profilePicture.trim() !== "" && !userData.profilePicture.includes("/src/assets/");
 
     if (!hasCurrentPicture) {
       Alert.alert(
@@ -489,7 +501,7 @@ export default function Profile() {
             // Update local state to show default image immediately
             setProfile((prev) => ({
               ...prev,
-              imageUri: require("../../assets/images/squarepic.jpg"), // Use default image
+              imageUri: DEFAULT_PROFILE_PICTURE, // Use consistent default
             }));
 
             setHasImageChanged(true);
@@ -581,6 +593,11 @@ export default function Profile() {
               <Image
                 source={profile.imageUri}
                 className="size-[7.8rem] rounded-full"
+                onError={(error) => {
+                  console.error("Profile image error:", error);
+                  console.log("Image source:", profile.imageUri);
+                }}
+                defaultSource={DEFAULT_PROFILE_PICTURE}
               />
               {isEditing && (
                 <View className="absolute bottom-0 right-0 flex-row gap-1">
@@ -601,7 +618,7 @@ export default function Profile() {
             </TouchableOpacity>
 
             {/* Remove profile picture button - only show when editing and has a profile picture */}
-            {isEditing && userData?.profilePicture && (
+            {isEditing && userData?.profilePicture && userData.profilePicture.trim() !== "" && !userData.profilePicture.includes("/src/assets/") && (
               <TouchableOpacity
                 className={`mt-2 rounded-md py-2 px-3 flex-row items-center gap-2 ${
                   isProfilePictureMarkedForDeletion
