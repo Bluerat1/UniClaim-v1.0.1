@@ -552,8 +552,8 @@ const TicketCard = ({
               </TouchableOpacity>
             )}
             
-            {/* Show Delete button only for pending or deleted posts */}
-            {onDelete && (!post.deletedAt || post.status === 'pending') && (
+            {/* Show Delete button only for pending posts that are not deleted */}
+            {onDelete && !post.deletedAt && post.status !== 'resolved' && (
               <TouchableOpacity
                 onPress={() => onDelete(post.id)}
                 className={`flex-1 py-2 rounded-md items-center ${
