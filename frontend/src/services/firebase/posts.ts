@@ -992,6 +992,19 @@ export const postService = {
                 }
             }
 
+            // Add claim images if they exist
+            if (postData.claimDetails?.evidencePhotos) {
+                postData.claimDetails.evidencePhotos.forEach((photo: { url: string }) => {
+                    if (photo.url) allImagesToDelete.push(photo.url);
+                });
+                if (postData.claimDetails.claimerIdPhoto) {
+                    allImagesToDelete.push(postData.claimDetails.claimerIdPhoto);
+                }
+                if (postData.claimDetails.ownerIdPhoto) {
+                    allImagesToDelete.push(postData.claimDetails.ownerIdPhoto);
+                }
+            }
+
             // Delete all collected images from Cloudinary if any exist
             if (allImagesToDelete.length > 0) {
                 console.log(`🗑️ Deleting ${allImagesToDelete.length} total images from Cloudinary`);
