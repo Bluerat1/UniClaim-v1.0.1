@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   FlatList,
@@ -927,7 +927,7 @@ export default function Chat() {
               )}
             </View>
           ) : (
-            <View style={{ flex: 1, paddingBottom: 20 }}>
+            <View style={{ flex: 1, paddingBottom: -3 }}>
               <FlatList
                 ref={flatListRef}
                 data={messages}
@@ -947,7 +947,7 @@ export default function Chat() {
                     }
                   />
                 )}
-                contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+                contentContainerStyle={{ padding: 16, paddingBottom: 10 }}
                 showsVerticalScrollIndicator={false}
                 onViewableItemsChanged={handleViewableItemsChanged}
                 viewabilityConfig={viewabilityConfig}
