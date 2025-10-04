@@ -509,8 +509,11 @@ export default function AdminHomePage() {
       let shouldShow = false;
 
       if (viewType === "all") {
-        // Show all posts EXCEPT unclaimed ones in "All Item Reports"
-        shouldShow = post.status !== 'unclaimed' && !post.movedToUnclaimed;
+        // Show all posts EXCEPT unclaimed ones and turnover to OSA items in "All Item Reports"
+        shouldShow = post.status !== 'unclaimed' && !post.movedToUnclaimed &&
+                     !(post.type === "found" &&
+                       post.turnoverDetails &&
+                       post.turnoverDetails.turnoverAction === "turnover to OSA");
       } else if (viewType === "unclaimed") {
         // Show posts that are either status 'unclaimed' OR have movedToUnclaimed flag
         shouldShow = post.status === 'unclaimed' || post.movedToUnclaimed;
@@ -794,7 +797,8 @@ export default function AdminHomePage() {
           Completed Reports
         </button>
 
-        <button
+        {/* Turnover Management Button - Hidden as requested */}
+        {/* <button
           className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
             viewType === "turnover"
               ? "bg-navyblue text-white"
@@ -808,7 +812,7 @@ export default function AdminHomePage() {
           }}
         >
           Turnover Management
-        </button>
+        </button> */}
 
         {/* Flagged Posts Button - Hidden as requested */}
         {/* <button
@@ -852,7 +856,6 @@ export default function AdminHomePage() {
             <span className="text-gray-400">
               Loading {viewType === "unclaimed" ? "unclaimed" :
                        viewType === "completed" ? "completed" :
-                       viewType === "turnover" ? "turnover management" :
                        viewType === "deleted" ? "recently deleted" :
                        viewType} report items...
             </span>
