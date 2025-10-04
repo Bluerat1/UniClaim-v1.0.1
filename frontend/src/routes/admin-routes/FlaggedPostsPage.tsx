@@ -230,7 +230,20 @@ export default function FlaggedPostsPage() {
 
   const formatDate = (date: any) => {
     if (!date) return "Unknown";
+
+    // Handle Firestore Timestamp objects
+    if (date && typeof date === 'object' && 'seconds' in date) {
+      // Convert Firestore Timestamp to JavaScript Date
+      date = new Date(date.seconds * 1000 + date.nanoseconds / 1000000);
+    }
+
     const d = date instanceof Date ? date : new Date(date);
+
+    // Check if date is valid
+    if (isNaN(d.getTime())) {
+      return "Invalid Date";
+    }
+
     return d.toLocaleDateString() + " " + d.toLocaleTimeString();
   };
 
