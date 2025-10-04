@@ -61,15 +61,11 @@ export default function FlaggedPostsPage() {
     const postId = post.id;
 
     try {
-      setActionLoading(postId);
-
       switch (type) {
         case "approve":
           await postService.unflagPost(postId);
-          // Instead of removing, update the post's isFlagged status
-          setFlaggedPosts((prev) =>
-            prev.map((p) => (p.id === postId ? { ...p, isFlagged: false } : p))
-          );
+          // Remove the post from flagged posts list since it's no longer flagged
+          setFlaggedPosts((prev) => prev.filter((p) => p.id !== postId));
           showToast(
             "success",
             "Success",
