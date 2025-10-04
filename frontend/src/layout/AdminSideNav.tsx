@@ -9,10 +9,11 @@ import { LuLayoutDashboard } from "react-icons/lu";
 import NavText from "./NavText";
 import Logo from "../assets/uniclaim_logo.png";
 import clsx from "clsx";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { IoFlagOutline } from "react-icons/io5";
 import { LuMessageSquareMore } from "react-icons/lu";
 import { HiOutlineArrowPath } from "react-icons/hi2";
+import { useAdminPosts } from "@/hooks/usePosts";
 
 interface AdminSideNavProps {
   isOpen: boolean;
@@ -40,6 +41,20 @@ export default function AdminSideNav({
   }
 
   const isMobile = useIsMobile();
+
+  // Get admin posts to count turnover items
+  const { posts = [] } = useAdminPosts();
+
+  // Filter posts for turnover management (same logic as TurnoverManagementPage)
+  const turnoverPostsCount = useMemo(() => {
+    return posts.filter((post) => {
+      // Show only Found items marked for turnover to OSA that need confirmation
+      return post.type === "found" &&
+             post.turnoverDetails &&
+             post.turnoverDetails.turnoverAction === "turnover to OSA" &&
+             post.turnoverDetails.turnoverStatus === "declared";
+    }).length;
+  }, [posts]);
 
   // Lock scroll on body only for mobile nav open
   useEffect(() => {
@@ -145,6 +160,7 @@ export default function AdminSideNav({
               tooltipIconClassName="text-navyblue text-xl"
               tooltipTextClassName="text-navyblue text-base"
               hoverContainerBgClass="bg-gray-100"
+              badge={turnoverPostsCount > 0 ? turnoverPostsCount : undefined}
             />
 
             <NavText
@@ -248,6 +264,7 @@ export default function AdminSideNav({
                   className="hover:bg-gray-50 rounded pl-4 justify-start"
                   iconClassName="text-black"
                   textClassName="font-manrope"
+                  badge={turnoverPostsCount > 0 ? turnoverPostsCount : undefined}
                 />
 
                 <NavText

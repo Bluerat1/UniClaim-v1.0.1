@@ -14,6 +14,7 @@ interface NavLinkItemProps {
   hoverContainerBgClass?: string;
   tooltipIconClassName?: string;
   tooltipTextClassName?: string;
+  badge?: number;
 }
 
 export default function NavText({
@@ -28,6 +29,7 @@ export default function NavText({
   hoverContainerBgClass = "",
   tooltipIconClassName = "",
   tooltipTextClassName = "",
+  badge,
 }: NavLinkItemProps) {
   const location = useLocation();
   const isActive = location.pathname === to;
@@ -43,8 +45,14 @@ export default function NavText({
       )}
     >
       {/* 👇 Icon color changes when active */}
-      <span className={clsx(iconClassName, isActive && "text-brand")}>
+      <span className={clsx(iconClassName, isActive && "text-brand", "relative")}>
         {icon}
+        {/* Badge for showing count - positioned on icon when collapsed */}
+        {!isOpen && badge !== undefined && badge > 0 && (
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-semibold rounded-full h-4 w-4 flex items-center justify-center min-w-[16px] text-[10px]">
+            {badge > 9 ? "9+" : badge}
+          </span>
+        )}
       </span>
 
       {/* 👇 Text color changes when active */}
@@ -58,6 +66,13 @@ export default function NavText({
       >
         {label}
       </span>
+
+      {/* Badge for showing count - when expanded */}
+      {isOpen && badge !== undefined && badge > 0 && (
+        <span className="ml-2 bg-red-500 text-white text-xs font-semibold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]">
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
 
       {/* Tooltip (optional) */}
       {!isOpen && (
