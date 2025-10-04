@@ -810,7 +810,8 @@ export default function AdminHomePage() {
           Turnover Management
         </button>
 
-        <button
+        {/* Flagged Posts Button - Hidden as requested */}
+        {/* <button
           className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
             viewType === "flagged"
               ? "bg-navyblue text-white"
@@ -824,7 +825,7 @@ export default function AdminHomePage() {
           }}
         >
           Flagged Posts
-        </button>
+        </button> */}
 
         <button
           className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
