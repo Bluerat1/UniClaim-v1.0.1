@@ -23,7 +23,6 @@ const AdminProfile = () => {
     lastName: "",
     email: "",
     contact: "",
-    studentId: "",
     profilePicture: "",
   });
 
@@ -44,7 +43,6 @@ const AdminProfile = () => {
         lastName: userData.lastName || "",
         email: userData.email || "",
         contact: userData.contactNum || "",
-        studentId: userData.studentId || "",
         profilePicture: userData.profilePicture || "",
       };
       setUserInfo(updatedInfo);
@@ -149,14 +147,13 @@ const AdminProfile = () => {
   };
 
   const handleSave = async () => {
-    const { firstName, lastName, contact, studentId } = userInfo;
+    const { firstName, lastName, contact } = userInfo;
 
     // Check if any field is empty
     if (
       !firstName.trim() ||
       !lastName.trim() ||
-      !contact.trim() ||
-      !studentId.trim()
+      !contact.trim()
     ) {
       showToast(
         "warning",
@@ -172,7 +169,6 @@ const AdminProfile = () => {
       firstName !== initialUserInfo.firstName ||
       lastName !== initialUserInfo.lastName ||
       contact !== initialUserInfo.contact ||
-      studentId !== initialUserInfo.studentId ||
       hasProfilePictureChanged;
 
     if (!isChanged) {
@@ -255,7 +251,6 @@ const AdminProfile = () => {
           firstName,
           lastName,
           contactNum: contact,
-          studentId,
           profilePicture: finalProfilePicture,
         });
 
@@ -398,7 +393,6 @@ const AdminProfile = () => {
                   ADMIN
                 </span>
               </div>
-              <p className="text-gray-600">Student ID: {userInfo.studentId}</p>
             </div>
           </div>
         </div>
@@ -442,7 +436,6 @@ const AdminProfile = () => {
               ADMIN
             </span>
           </div>
-          <p className="text-sm text-gray-600">Student ID: {userInfo.studentId}</p>
         </div>
 
         {/* account details */}
@@ -509,24 +502,6 @@ const AdminProfile = () => {
                 ) : (
                   <span className="text-gray-800 text-sm">
                     {userInfo.contact}
-                  </span>
-                )}
-              </div>
-
-              {/* Student ID */}
-              <div className="bg-gray-100 border border-gray-700 flex items-center justify-between  rounded px-4 py-2.5">
-                <h1 className="text-sm text-gray-600">Student ID</h1>
-                {isEdit ? (
-                  <input
-                    type="text"
-                    value={userInfo.studentId}
-                    onChange={(e) => handleChange("studentId", e.target.value)}
-                    className="w-60 max-w-sm bg-white border border-gray-300 rounded px-3 py-1.5 text-sm"
-                    placeholder="10 digits"
-                  />
-                ) : (
-                  <span className="text-gray-800 text-sm">
-                    {userInfo.studentId}
                   </span>
                 )}
               </div>
