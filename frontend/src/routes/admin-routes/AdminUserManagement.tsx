@@ -252,119 +252,125 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Email
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Joined
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {users.length === 0 ? (
+          <div className="relative">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
-                    <div className="text-gray-500">
-                      <p className="text-lg font-medium mb-2">
-                        No users available
-                      </p>
-                      <p className="text-sm">
-                        Users will appear here once they register
-                      </p>
-                    </div>
-                  </td>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    User
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Email
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Joined
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
-              ) : (
-                users.map((user) => (
-                  <tr key={user.uid} className="hover:bg-brand/8">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                          {user.profilePicture ? (
-                            <img
-                              src={user.profilePicture}
-                              alt="Profile"
-                              className="h-10 w-10 rounded-full object-cover"
-                            />
+              </thead>
+            </table>
+            <div className="max-h-150 overflow-y-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <tbody className="bg-white">
+                  {users.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center">
+                        <div className="text-gray-500">
+                          <p className="text-lg font-medium mb-2">
+                            No users available
+                          </p>
+                          <p className="text-sm">
+                            Users will appear here once they register
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    users.map((user) => (
+                      <tr key={user.uid} className="hover:bg-brand/8">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                              {user.profilePicture ? (
+                                <img
+                                  src={user.profilePicture}
+                                  alt="Profile"
+                                  className="h-10 w-10 rounded-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-gray-600 font-medium">
+                                  {user.firstName?.charAt(0) || "U"}
+                                </span>
+                              )}
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {user.firstName} {user.lastName}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                @{user.studentId || "No ID"}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {user.email}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              user.status === "deactivated"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-green-100 text-green-800"
+                            }`}
+                          >
+                            {user.status === "deactivated" ? "Deactivated" : "Active"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {user.createdAt
+                            ? user.createdAt.toDate
+                              ? new Date(
+                                  user.createdAt.toDate()
+                                ).toLocaleDateString()
+                              : new Date(user.createdAt).toLocaleDateString()
+                            : "N/A"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button
+                            onClick={() => handleViewUser(user)}
+                            className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors text-sm font-medium mr-2"
+                          >
+                            View
+                          </button>
+                          {user.status === "deactivated" ? (
+                            <button
+                              onClick={() => handleUnbanUser(user)}
+                              className="px-3 py-1 bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors text-sm font-medium"
+                            >
+                              Reactivate
+                            </button>
                           ) : (
-                            <span className="text-gray-600 font-medium">
-                              {user.firstName?.charAt(0) || "U"}
-                            </span>
+                            <button
+                              onClick={() => handleBanUser(user)}
+                              className="px-3 py-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors text-sm font-medium"
+                            >
+                              Deactivate
+                            </button>
                           )}
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {user.firstName} {user.lastName}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            @{user.studentId || "No ID"}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {user.email}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          user.status === "deactivated"
-                            ? "bg-red-100 text-red-800"
-                            : "bg-green-100 text-green-800"
-                        }`}
-                      >
-                        {user.status === "deactivated" ? "Deactivated" : "Active"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {user.createdAt
-                        ? user.createdAt.toDate
-                          ? new Date(
-                              user.createdAt.toDate()
-                            ).toLocaleDateString()
-                          : new Date(user.createdAt).toLocaleDateString()
-                        : "N/A"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleViewUser(user)}
-                        className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors text-sm font-medium mr-2"
-                      >
-                        View
-                      </button>
-                      {user.status === "deactivated" ? (
-                        <button
-                          onClick={() => handleUnbanUser(user)}
-                          className="px-3 py-1 bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors text-sm font-medium"
-                        >
-                          Reactivate
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleBanUser(user)}
-                          className="px-3 py-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors text-sm font-medium"
-                        >
-                          Deactivate
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         {/* Ban User Modal */}
