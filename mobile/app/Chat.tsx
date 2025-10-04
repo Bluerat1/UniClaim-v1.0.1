@@ -949,7 +949,6 @@ export default function Chat() {
                 )}
                 contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
                 showsVerticalScrollIndicator={false}
-                inverted
                 onViewableItemsChanged={handleViewableItemsChanged}
                 viewabilityConfig={viewabilityConfig}
                 keyboardShouldPersistTaps="handled"
@@ -958,7 +957,6 @@ export default function Chat() {
           )}
 
           {/* Spacer between messages and counter */}
-          <View style={{ height: 0 }} />
 
           {/* Message Limit Counter */}
           <View className="border-b border-gray-200 px-4 py-2 bg-gray-100 rounded-t-lg">

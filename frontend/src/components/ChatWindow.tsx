@@ -163,15 +163,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   }, []);
 
-  // Auto-scroll to bottom when new messages arrive (no animation)
+  // Auto-scroll to bottom when new messages arrive (no animation for instant scroll to bottom on conversation open)
   const scrollToBottom = () => {
     if (messagesContainerRef.current) {
       // Direct scroll to bottom - most reliable method
       messagesContainerRef.current.scrollTop =
         messagesContainerRef.current.scrollHeight;
     } else if (messagesEndRef.current) {
-      // Fallback method
-      messagesEndRef.current.scrollIntoView({ behavior: "auto" });
+      // Fallback method using scrollIntoView with block: "end"
+      messagesEndRef.current.scrollIntoView({ behavior: "auto", block: "end" });
     }
   };
 
@@ -264,9 +264,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         }
 
         // Scroll to bottom when conversation is opened and messages are loaded
-        // Use requestAnimationFrame to ensure DOM is fully rendered
+        // Use multiple requestAnimationFrame calls for more reliable scrolling
         requestAnimationFrame(() => {
-          scrollToBottom();
+          requestAnimationFrame(() => {
+            scrollToBottom();
+          });
         });
       }
     );
