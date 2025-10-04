@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   FlatList,
@@ -228,6 +228,15 @@ export default function Chat() {
     const createNewConversation = async () => {
       try {
         setLoading(true);
+        
+        // Double-check that conversation doesn't exist before creating
+        const existingConversation = await getConversation(conversationId || 'dummy');
+        if (existingConversation) {
+          console.log('ℹ️ Chat: Conversation already exists, skipping creation');
+          setLoading(false);
+          return;
+        }
+        
         const newConversationId = await createConversation(
           postId,
           postTitle,
@@ -241,7 +250,19 @@ export default function Chat() {
         );
         setConversationId(newConversationId);
       } catch (error: any) {
-        Alert.alert("Error", "Failed to start conversation. Please try again.");
+        console.error('❌ Chat: Error creating conversation:', error);
+        
+        // Check if conversation was deleted during creation process
+        if (error.message?.includes('Conversation does not exist') || 
+            error.message?.includes('Conversation not found') ||
+            error.message?.includes('Failed to get conversation') ||
+            conversationId) {
+          console.log('ℹ️ Chat: Conversation may have been deleted during creation - navigating back');
+          navigation.goBack();
+          return;
+        }
+        
+        Alert.alert('Error', 'Failed to start conversation. Please try again.');
         navigation.goBack();
       } finally {
         setLoading(false);
@@ -296,6 +317,15 @@ export default function Chat() {
     getConversation(conversationId)
       .then((data) => {
         if (!isMounted) return; // Don't update state if component unmounted
+
+        // Check if conversation doesn't exist (data is null)
+        if (data === null) {
+          console.log('ℹ️ Chat: Conversation data is null - conversation was deleted');
+          setIsConversationDataReady(true);
+          isLoadingRef.current = false;
+          navigation.goBack();
+          return;
+        }
 
         // Check if conversation data has the required fields, if not, fetch from post
         if (data && (!data.postType || !data.postStatus)) {
@@ -355,6 +385,19 @@ export default function Chat() {
       })
       .catch((error) => {
         if (!isMounted) return; // Don't update state if component unmounted
+        console.error('❌ Chat: Error loading conversation:', error);
+        
+        // Check if conversation doesn't exist (deleted after completion)
+        if (error.message?.includes('Conversation does not exist') || 
+            error.message?.includes('Conversation not found') ||
+            error.message?.includes('Failed to get conversation')) {
+          console.log('ℹ️ Chat: Conversation no longer exists - navigating back');
+          setIsConversationDataReady(true);
+          isLoadingRef.current = false;
+          navigation.goBack();
+          return;
+        }
+        
         setIsConversationDataReady(true);
         isLoadingRef.current = false;
       });
