@@ -8,6 +8,7 @@ import AdminUserManagement from "../routes/admin-routes/AdminUserManagement";
 import AdminMessagesPage from "../routes/admin-routes/AdminMessagesPage";
 import FlaggedPostsPage from "../routes/admin-routes/FlaggedPostsPage";
 import AdminAnalyticsPage from "../routes/admin-routes/AdminAnalyticsPage";
+import TurnoverManagementPage from "../routes/admin-routes/TurnoverManagementPage";
 import ConversationCleanupAdmin from "../components/ConversationCleanupAdmin";
 
 import Login from "../routes/user-routes/Login";
@@ -245,6 +246,14 @@ function AppRoutesWithAuth() {
             element={
               <PageWrapper title="Analytics Dashboard">
                 <AdminAnalyticsPage />
+              </PageWrapper>
+            }
+          />
+          <Route
+            path="turnover"
+            element={
+              <PageWrapper title="Turnover Management">
+                <TurnoverManagementPage />
               </PageWrapper>
             }
           />

@@ -1,0 +1,156 @@
+import { useState, useEffect, useCallback, useMemo } from "react";
+import type { Post } from "@/types/Post";
+
+// components
+import AdminPostCard from "@/components/AdminPostCard";
+import TurnoverConfirmationModal from "@/components/TurnoverConfirmationModal";
+import MobileNavText from "@/components/NavHeadComp";
+
+// hooks
+import { useAdminPosts } from "@/hooks/usePosts";
+import { useToast } from "@/context/ToastContext";
+import { useAuth } from "@/context/AuthContext";
+
+export default function TurnoverManagementPage() {
+  const { posts = [], loading, error } = useAdminPosts();
+  const { showToast } = useToast();
+  const { userData } = useAuth();
+
+  // State for turnover confirmation modal
+  const [showTurnoverModal, setShowTurnoverModal] = useState(false);
+  const [postToConfirm, setPostToConfirm] = useState<Post | null>(null);
+  const [confirmationType, setConfirmationType] = useState<"confirmed" | "not_received" | null>(null);
+
+  // Handle turnover confirmation
+  const handleConfirmTurnover = (post: Post, status: "confirmed" | "not_received") => {
+    setPostToConfirm(post);
+    setConfirmationType(status);
+    setShowTurnoverModal(true);
+  };
+
+  const handleTurnoverConfirmation = async (status: "confirmed" | "not_received", notes?: string) => {
+    if (!postToConfirm) return;
+
+    try {
+      const { postService } = await import('../../services/firebase/posts');
+      // Get current admin user ID from auth context
+      const currentUserId = userData?.uid;
+
+      if (!currentUserId) {
+        throw new Error("Admin user ID not found. Please log in again.");
+      }
+
+      console.log(`🔑 Using admin user ID for turnover confirmation: ${currentUserId}`);
+
+      if (status === "not_received") {
+        // Total deletion when OSA marks item as not received
+        await postService.deletePost(postToConfirm.id);
+
+        const statusMessage = `Item "${postToConfirm.title}" has been completely deleted from the system as it was not received by OSA.`;
+        showToast("success", "Item Deleted", statusMessage);
+        console.log('Item completely deleted:', postToConfirm.title, 'Reason: Not received by OSA');
+
+      } else {
+        // Normal status update for confirmed items
+        await postService.updateTurnoverStatus(postToConfirm.id, status, currentUserId, notes);
+
+        const statusMessage = `Item receipt confirmed for "${postToConfirm.title}"`;
+        showToast("success", "Turnover Status Updated", statusMessage);
+        console.log('Turnover status updated successfully:', postToConfirm.title, 'Status:', status);
+      }
+
+    } catch (error: any) {
+      console.error('Failed to process turnover confirmation:', error);
+      const errorMessage = status === "not_received"
+        ? 'Failed to delete item from system'
+        : 'Failed to update turnover status';
+      showToast("error", "Operation Failed", error.message || errorMessage);
+    } finally {
+      setShowTurnoverModal(false);
+      setPostToConfirm(null);
+      setConfirmationType(null);
+    }
+  };
+
+  // Filter posts for turnover management (same logic as AdminHomePage)
+  const turnoverPosts = useMemo(() => {
+    return posts.filter((post) => {
+      // Show only Found items marked for turnover to OSA that need confirmation
+      return post.type === "found" &&
+             post.turnoverDetails &&
+             post.turnoverDetails.turnoverAction === "turnover to OSA" &&
+             post.turnoverDetails.turnoverStatus === "declared";
+    });
+  }, [posts]);
+
+  return (
+    <div className="min-h-screen bg-gray-100 mb-13 font-manrope transition-colors duration-300">
+      <MobileNavText title="Turnover Management" description="Manage turnover to OSA posts" />
+
+      {/* Header Section */}
+      <div className="pt-4 px-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">Turnover Management</h1>
+          <p className="text-gray-600">
+            Manage found items that need to be turned over to OSA (Office of Student Affairs)
+          </p>
+        </div>
+      </div>
+
+      {/* Posts Grid */}
+      <div className="grid grid-cols-1 gap-5 mx-6 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+        {loading ? (
+          <div className="col-span-full flex items-center justify-center h-80">
+            <span className="text-gray-400">Loading turnover posts...</span>
+          </div>
+        ) : error ? (
+          <div className="col-span-full flex flex-col items-center justify-center h-80 text-red-500 p-4">
+            <p>Error loading posts: {error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        ) : turnoverPosts.length === 0 ? (
+          <div className="col-span-full flex items-center justify-center h-80 text-gray-500">
+            No turnover items found.
+          </div>
+        ) : (
+          turnoverPosts.map((post) => (
+            <AdminPostCard
+              key={post.id}
+              post={post}
+              onClick={() => {}} // No-op for turnover management
+              onConfirmTurnover={handleConfirmTurnover}
+              highlightText=""
+              // Hide admin controls that aren't relevant for turnover management
+              onEdit={undefined}
+              onDelete={undefined}
+              onStatusChange={undefined}
+              onActivateTicket={undefined}
+              onRevertResolution={undefined}
+              onUnflagPost={undefined}
+              onHidePost={undefined}
+              onUnhidePost={undefined}
+            />
+          ))
+        )}
+      </div>
+
+      {/* Turnover Confirmation Modal */}
+      <TurnoverConfirmationModal
+        isOpen={showTurnoverModal}
+        onClose={() => {
+          setShowTurnoverModal(false);
+          setPostToConfirm(null);
+          setConfirmationType(null);
+        }}
+        onConfirm={handleTurnoverConfirmation}
+        post={postToConfirm}
+        confirmationType={confirmationType}
+      />
+    </div>
+  );
+}

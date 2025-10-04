@@ -12,6 +12,7 @@ import clsx from "clsx";
 import { useEffect, useState } from "react";
 import { IoFlagOutline } from "react-icons/io5";
 import { LuMessageSquareMore } from "react-icons/lu";
+import { HiOutlineArrowPath } from "react-icons/hi2";
 
 interface AdminSideNavProps {
   isOpen: boolean;
@@ -134,6 +135,19 @@ export default function AdminSideNav({
             />
 
             <NavText
+              icon={<HiOutlineArrowPath className="size-6 stroke-[1.5px]" />}
+              label="Turnover Management"
+              to="/admin/turnover"
+              isOpen={isOpen}
+              className="hover:bg-gray-100"
+              iconClassName="text-black"
+              textClassName="text-black"
+              tooltipIconClassName="text-navyblue text-xl"
+              tooltipTextClassName="text-navyblue text-base"
+              hoverContainerBgClass="bg-gray-100"
+            />
+
+            <NavText
               icon={<HiOutlineChartBar className="size-6 stroke-[1.5px]" />}
               label="Analytics"
               to="/admin/analytics"
@@ -193,9 +207,7 @@ export default function AdminSideNav({
                 />
 
                 <NavText
-                  icon={
-                    <LuMessageSquareMore className="size-6 stroke-[1.5px]" />
-                  }
+                  icon={<LuMessageSquareMore className="size-6 stroke-[1.5px]" />}
                   label="Messages"
                   to="/admin/messages"
                   isOpen={isOpen}
@@ -209,6 +221,28 @@ export default function AdminSideNav({
                   icon={<IoFlagOutline className="size-6 stroke-[1.5px]" />}
                   label="Flagged Posts"
                   to="/admin/flagged-posts"
+                  isOpen={isOpen}
+                  onClick={onMobNavClose}
+                  className="hover:bg-gray-50 rounded pl-4 justify-start"
+                  iconClassName="text-black"
+                  textClassName="font-manrope"
+                />
+
+                <NavText
+                  icon={<HiOutlineCog className="size-6 stroke-[1.5px]" />}
+                  label="System Cleanup"
+                  to="/admin/cleanup"
+                  isOpen={isOpen}
+                  onClick={onMobNavClose}
+                  className="hover:bg-gray-50 rounded pl-4 justify-start"
+                  iconClassName="text-black"
+                  textClassName="font-manrope"
+                />
+
+                <NavText
+                  icon={<HiOutlineArrowPath className="size-6 stroke-[1.5px]" />}
+                  label="Turnover Management"
+                  to="/admin/turnover"
                   isOpen={isOpen}
                   onClick={onMobNavClose}
                   className="hover:bg-gray-50 rounded pl-4 justify-start"
