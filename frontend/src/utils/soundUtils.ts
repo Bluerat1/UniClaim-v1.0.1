@@ -240,7 +240,6 @@ export class SoundUtils {
     static async playNotificationSound(): Promise<void> {
         // Check if audio is ready to play
         if (!this.isAudioReady()) {
-            console.warn('🔊 Audio not ready - user interaction required. Playing fallback sound.');
             this.playFallbackSound();
             return;
         }
@@ -273,10 +272,7 @@ export class SoundUtils {
             // Play the sound
             oscillator.start(audioContext.currentTime);
             oscillator.stop(audioContext.currentTime + 0.3);
-
-            console.log('🔊 Notification sound played');
         } catch (error) {
-            console.error('Error playing notification sound:', error);
             this.handleAudioError(error);
             // Fallback: try to play a simple beep using HTML5 Audio
             this.playFallbackSound();
@@ -327,22 +323,19 @@ export class SoundUtils {
 
         const tryNextStrategy = () => {
             if (strategyIndex >= fallbackStrategies.length) {
-                console.warn(`🔊 All fallback sound strategies failed for ${browser.name}`);
                 return;
             }
 
             try {
                 fallbackStrategies[strategyIndex]()
                     .then(() => {
-                        console.log(`🔊 Fallback sound played using ${browser.name}-specific strategy ${strategyIndex + 1}`);
+                        // Sound played successfully - minimal logging
                     })
-                    .catch((error) => {
-                        console.warn(`Fallback strategy ${strategyIndex + 1} failed:`, error);
+                    .catch(() => {
                         strategyIndex++;
                         tryNextStrategy();
                     });
             } catch (error) {
-                console.warn(`Fallback strategy ${strategyIndex + 1} failed:`, error);
                 strategyIndex++;
                 tryNextStrategy();
             }
@@ -618,7 +611,6 @@ export class SoundUtils {
     static async playMessageSound(): Promise<void> {
         // Check if audio is ready to play
         if (!this.isAudioReady()) {
-            console.warn('🔊 Audio not ready - user interaction required. Playing fallback sound.');
             this.playFallbackSound();
             return;
         }
@@ -646,10 +638,7 @@ export class SoundUtils {
 
             oscillator.start(audioContext.currentTime);
             oscillator.stop(audioContext.currentTime + 0.25);
-
-            console.log('🔊 Message notification sound played');
         } catch (error) {
-            console.error('Error playing message sound:', error);
             this.handleAudioError(error);
             this.playFallbackSound();
         }
@@ -659,7 +648,6 @@ export class SoundUtils {
     static async playClaimSound(): Promise<void> {
         // Check if audio is ready to play
         if (!this.isAudioReady()) {
-            console.warn('🔊 Audio not ready - user interaction required. Playing fallback sound.');
             this.playFallbackSound();
             return;
         }
@@ -691,10 +679,7 @@ export class SoundUtils {
                     oscillator.stop(audioContext.currentTime + 0.15);
                 }, i * 200);
             }
-
-            console.log('🔊 Claim notification sound played');
         } catch (error) {
-            console.error('Error playing claim sound:', error);
             this.handleAudioError(error);
             this.playFallbackSound();
         }

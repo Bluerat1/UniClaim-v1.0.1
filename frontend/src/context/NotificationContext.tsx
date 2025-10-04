@@ -79,31 +79,23 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
           !prevNotifications.some((prevNotif: NotificationData) => prevNotif.id === newNotif.id)
         );
         
-        // Play sound for new notifications (if enabled in preferences)
+        // Play sound for new notifications (if enabled in preferences) - throttled to prevent spam
         if (newNotifications.length > 0) {
-          // Handle sound playing asynchronously outside of setState
+          // Handle sound playing asynchronously outside of setState with throttling
           (async () => {
             try {
               const userPreferences = await notificationService.getNotificationPreferences(userData.uid);
-              if (userPreferences.soundEnabled) {
-                newNotifications.forEach(async (notification) => {
-                  try {
-                    await SoundUtils.playNotificationSoundByType(notification.type);
-                  } catch (error) {
-                    console.error('Error playing notification sound:', error);
-                  }
-                });
+              if (userPreferences.soundEnabled && newNotifications.length > 0) {
+                // Play sound only for the most recent notification to avoid spam
+                const latestNotification = newNotifications[newNotifications.length - 1];
+                try {
+                  await SoundUtils.playNotificationSoundByType(latestNotification.type);
+                } catch (error) {
+                  // Silent fail for sound errors
+                }
               }
             } catch (error) {
-              console.error('Error checking sound preferences:', error);
-              // Fallback: play sound if we can't check preferences
-              newNotifications.forEach(async (notification) => {
-                try {
-                  await SoundUtils.playNotificationSoundByType(notification.type);
-                } catch (error) {
-                  console.error('Error playing notification sound:', error);
-                }
-              });
+              // Silent fail if we can't check preferences
             }
           })();
         }

@@ -1,6 +1,6 @@
 // Admin notification context for managing admin notification state
 // Separate from user NotificationContext for clean architecture
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { adminNotificationService } from '../services/firebase/adminNotifications';
 import type { AdminNotification } from '../types/AdminNotification';
@@ -20,7 +20,7 @@ interface AdminNotificationContextType {
 const AdminNotificationContext = createContext<AdminNotificationContextType | undefined>(undefined);
 
 export const AdminNotificationProvider = ({ children }: { children: ReactNode }) => {
-  const { isAuthenticated, userData, user } = useAuth();
+  const { isAuthenticated, userData } = useAuth();
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -29,25 +29,19 @@ export const AdminNotificationProvider = ({ children }: { children: ReactNode })
   // Check if current user is admin or campus security
   const isAdmin = userData?.role === 'admin' || userData?.role === 'campus_security';
 
-  // Debug logging
-  console.log('🔍 AdminNotificationProvider state:', {
-    isAuthenticated,
-    userId: userData?.uid,
-    userRole: userData?.role,
-    isAdmin,
-    emailVerified: userData?.emailVerified
-  });
+  // Debug logging - only log when state actually changes
+  useEffect(() => {
+    console.log('🔍 AdminNotificationProvider state:', {
+      isAuthenticated,
+      userId: userData?.uid,
+      userRole: userData?.role,
+      isAdmin,
+    });
+  }, [isAuthenticated, userData?.uid, userData?.role, isAdmin]);
 
   // Load notifications when user is authenticated and is admin
   useEffect(() => {
-    console.log('🔄 AdminNotificationProvider useEffect triggered:', {
-      isAuthenticated,
-      userId: userData?.uid,
-      isAdmin,
-      emailVerified: userData?.emailVerified
-    });
-
-    if (isAuthenticated && userData?.uid && isAdmin) {
+    if (isAuthenticated && userData?.uid && isAdmin && userData?.role) {
       console.log('✅ Admin/Campus Security conditions met, loading admin notifications...');
       if (!userData?.emailVerified) {
         console.log('⚠️ Email not verified, but proceeding for testing purposes');
@@ -59,20 +53,15 @@ export const AdminNotificationProvider = ({ children }: { children: ReactNode })
       
       return () => clearTimeout(timer);
     } else {
-      console.log('❌ Admin notification conditions not met:', {
-        authenticated: isAuthenticated,
-        hasUserId: !!userData?.uid,
-        isAdmin: isAdmin,
-        emailVerified: userData?.emailVerified
-      });
+      console.log('❌ Admin notification conditions not met');
       setNotifications([]);
       setUnreadCount(0);
     }
-  }, [isAuthenticated, userData?.uid, isAdmin]);
+  }, [isAuthenticated, userData?.uid, userData?.role, isAdmin]);
 
   // Set up real-time listener for admin notifications
   useEffect(() => {
-    if (!isAuthenticated || !userData?.uid || !isAdmin) return;
+    if (!isAuthenticated || !userData?.uid || !isAdmin || !userData?.role) return;
 
     // Set up real-time Firestore listener
     const unsubscribe = adminNotificationService.setupRealtimeListener(
@@ -110,29 +99,24 @@ export const AdminNotificationProvider = ({ children }: { children: ReactNode })
         unsubscribe();
       }
     };
-  }, [isAuthenticated, userData?.uid, isAdmin]);
+  }, [isAuthenticated, userData?.uid, userData?.role, isAdmin]);
 
   const loadNotifications = async () => {
     if (!userData?.uid || !isAdmin) {
-      console.log('❌ Cannot load notifications - missing uid or not admin');
       return;
     }
 
     try {
-      console.log('📥 Loading admin notifications for user:', userData.uid);
       setLoading(true);
       setError(null);
       
       const adminNotifications = await adminNotificationService.getAdminNotifications(userData.uid, 50);
-      console.log('📋 Loaded admin notifications:', adminNotifications.length, adminNotifications);
       setNotifications(adminNotifications);
       
       const unread = await adminNotificationService.getUnreadCount(userData.uid);
-      console.log('🔢 Unread count:', unread);
       setUnreadCount(unread);
     } catch (err: any) {
       setError(err.message || 'Failed to load admin notifications');
-      console.error('❌ Error loading admin notifications:', err);
     } finally {
       setLoading(false);
     }
