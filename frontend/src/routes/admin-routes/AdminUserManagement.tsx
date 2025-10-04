@@ -305,12 +305,12 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          user.status === "deactivated" || user.status === "banned"
+                          user.status === "deactivated"
                             ? "bg-red-100 text-red-800"
                             : "bg-green-100 text-green-800"
                         }`}
                       >
-                        {user.status === "deactivated" || user.status === "banned" ? "Deactivated" : "Active"}
+                        {user.status === "deactivated" ? "Deactivated" : "Active"}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -325,21 +325,21 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button
                         onClick={() => handleViewUser(user)}
-                        className="text-indigo-600 hover:text-indigo-900 mr-3"
+                        className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors text-sm font-medium mr-2"
                       >
                         View
                       </button>
-                      {user.status === "deactivated" || user.status === "banned" ? (
+                      {user.status === "deactivated" ? (
                         <button
                           onClick={() => handleUnbanUser(user)}
-                          className="text-green-600 hover:text-green-900"
+                          className="px-3 py-1 bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors text-sm font-medium"
                         >
                           Reactivate
                         </button>
                       ) : (
                         <button
                           onClick={() => handleBanUser(user)}
-                          className="text-red-600 hover:text-red-900"
+                          className="px-3 py-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors text-sm font-medium"
                         >
                           Deactivate
                         </button>
@@ -689,12 +689,12 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                       </label>
                       <span
                         className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          selectedUser.status === "deactivated" || selectedUser.status === "banned"
+                          selectedUser.status === "deactivated"
                             ? "bg-red-100 text-red-800"
                             : "bg-green-100 text-green-800"
                         }`}
                       >
-                        {selectedUser.status === "deactivated" || selectedUser.status === "banned" ? "Deactivated" : "Active"}
+                        {selectedUser.status === "deactivated" ? "Deactivated" : "Active"}
                       </span>
                     </div>
 
@@ -741,7 +741,7 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                     >
                       Close
                     </button>
-                    {selectedUser.status === "deactivated" || selectedUser.status === "banned" ? (
+                    {selectedUser.status === "deactivated" ? (
                       <button
                         onClick={() => {
                           handleCloseUserModal();
