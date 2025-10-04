@@ -28,6 +28,7 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
   // Ban user modal states
   const [showBanModal, setShowBanModal] = useState(false);
   const [banReason, setBanReason] = useState("");
+  const [customBanReason, setCustomBanReason] = useState("");
   const [banDuration, setBanDuration] = useState<"temporary" | "permanent">(
     "temporary"
   );
@@ -98,6 +99,7 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
     setBanningUser(null);
     // Reset form fields
     setBanReason("");
+    setCustomBanReason("");
     setBanDuration("temporary");
     setBanDays(7);
     setBanNotes("");
@@ -105,6 +107,12 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
 
   const handleSubmitBan = async () => {
     if (!banningUser || !banReason) return;
+
+    // Validate custom reason if "other" is selected
+    if (banReason === "other" && !customBanReason.trim()) {
+      alert("Please enter a custom ban reason");
+      return;
+    }
 
     try {
       // Calculate ban end date
@@ -114,11 +122,14 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
           ? new Date(banStartDate.getTime() + banDays * 24 * 60 * 60 * 1000)
           : null; // null for permanent bans
 
+      // Determine the final reason to use
+      const finalReason = banReason === "other" ? customBanReason.trim() : banReason;
+
       // Create ban record
       const banData = {
         userId: banningUser.uid,
         adminId: "admin", // TODO: Get actual admin ID from auth context
-        reason: banReason,
+        reason: finalReason,
         duration: banDuration,
         banDays: banDuration === "temporary" ? banDays : null,
         banStartDate: banStartDate,
@@ -140,6 +151,8 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
           isBanned: true,
           banEndDate: banEndDate,
           currentBanId: banData.userId, // This will be the ban document ID
+          reason: finalReason,
+          duration: banDuration,
         },
       });
 
@@ -195,6 +208,8 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
           isBanned: false,
           banEndDate: null,
           currentBanId: null,
+          reason: null,
+          duration: null,
         },
       });
 
@@ -391,7 +406,12 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                     </label>
                     <select
                       value={banReason}
-                      onChange={(e) => setBanReason(e.target.value)}
+                      onChange={(e) => {
+                        setBanReason(e.target.value);
+                        if (e.target.value !== "other") {
+                          setCustomBanReason("");
+                        }
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       required
                     >
@@ -407,6 +427,28 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                       </option>
                       <option value="other">Other</option>
                     </select>
+
+                    {/* Custom Reason Input for "Other" */}
+                    {banReason === "other" && (
+                      <div className="mt-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Custom Reason{" "}
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={customBanReason}
+                          onChange={(e) => setCustomBanReason(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          placeholder="Enter custom ban reason..."
+                          maxLength={100}
+                          required
+                        />
+                        <p className="text-sm text-gray-500 mt-1">
+                          Maximum 100 characters
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Ban Duration */}
