@@ -56,6 +56,11 @@ export default function AdminSideNav({
     }).length;
   }, [posts]);
 
+  // Filter posts for flagged posts count
+  const flaggedPostsCount = useMemo(() => {
+    return posts.filter((post) => post.isFlagged === true).length;
+  }, [posts]);
+
   // Lock scroll on body only for mobile nav open
   useEffect(() => {
     if (isMobile && isSideNavMobileOpen) {
@@ -134,6 +139,7 @@ export default function AdminSideNav({
               tooltipIconClassName="text-navyblue text-xl"
               tooltipTextClassName="text-navyblue text-base"
               hoverContainerBgClass="bg-gray-100"
+              badge={flaggedPostsCount > 0 ? flaggedPostsCount : undefined}
             />
 
             <NavText
@@ -242,6 +248,7 @@ export default function AdminSideNav({
                   className="hover:bg-gray-50 rounded pl-4 justify-start"
                   iconClassName="text-black"
                   textClassName="font-manrope"
+                  badge={flaggedPostsCount > 0 ? flaggedPostsCount : undefined}
                 />
 
                 <NavText
