@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   FlatList,
@@ -293,15 +293,20 @@ export default function Chat() {
       (loadedMessages) => {
         setMessages(loadedMessages);
 
-        // Scroll to bottom on new messages
-        if (loadedMessages.length > 51) {
-          setTimeout(() => scrollToBottom(), 100);
-        }
+        // Scroll to bottom when messages are loaded (for any number of messages)
+        setTimeout(() => scrollToBottom(), 100);
       }
     );
 
     return () => unsubscribe();
   }, [conversationId, getConversationMessages]);
+
+  // Auto-scroll to bottom when messages are updated (e.g., new message received)
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => scrollToBottom(), 100);
+    }
+  }, [messages.length]);
 
   // Load conversation data
   useEffect(() => {
