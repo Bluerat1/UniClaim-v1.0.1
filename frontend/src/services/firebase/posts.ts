@@ -951,13 +951,11 @@ export const postService = {
             // First try to get the post from the main collection
             let postRef = doc(db, 'posts', postId);
             let postSnap = await getDoc(postRef);
-            let isFromDeletedCollection = false;
 
             // If not found in posts, check deleted_posts
             if (!postSnap.exists()) {
                 postRef = doc(db, 'deleted_posts', postId);
                 postSnap = await getDoc(postRef);
-                isFromDeletedCollection = true;
 
                 if (!postSnap.exists()) {
                     throw new Error('Post not found in active or deleted posts');
@@ -1005,25 +1003,25 @@ export const postService = {
                 }
             }
 
-            // Delete all collected images from Cloudinary if any exist
-            if (allImagesToDelete.length > 0) {
-                console.log(`🗑️ Deleting ${allImagesToDelete.length} total images from Cloudinary`);
-                // Run in background without awaiting
-                Promise.all(
-                    allImagesToDelete.map(async (imageUrl: string) => {
-                        try {
-                            const publicId = extractCloudinaryPublicId(imageUrl);
-                            if (publicId) {
-                                await cloudinaryService.deleteImage(publicId);
-                            }
-                        } catch (error) {
-                            console.error('Failed to delete image:', imageUrl, error);
-                        }
-                    })
-                ).catch(console.error);
-            }
-
             if (hardDelete) {
+                // Delete all collected images from Cloudinary if any exist
+                if (allImagesToDelete.length > 0) {
+                    console.log(`🗑️ Deleting ${allImagesToDelete.length} total images from Cloudinary`);
+                    // Run in background without awaiting
+                    Promise.all(
+                        allImagesToDelete.map(async (imageUrl: string) => {
+                            try {
+                                const publicId = extractCloudinaryPublicId(imageUrl);
+                                if (publicId) {
+                                    await cloudinaryService.deleteImage(publicId);
+                                }
+                            } catch (error) {
+                                console.error('Failed to delete image:', imageUrl, error);
+                            }
+                        })
+                    ).catch(console.error);
+                }
+
                 // Hard delete - remove completely
                 await deleteDoc(postRef);
 
