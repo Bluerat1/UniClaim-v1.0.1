@@ -317,7 +317,9 @@ export default function PostDetailsScreen() {
           </View>
         </View>
 
+        {/* Claim and Handover information sections have been hidden as requested */}
         {/* Show claim information if this post has a resolved claim */}
+        {/*
         {post.claimDetails && (
           <View className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
             <View className="flex-row items-center gap-2 mb-3">
@@ -368,13 +370,12 @@ export default function PostDetailsScreen() {
               <View>
                 <Text className="text-sm text-green-700">
                   <Text className="font-medium">Confirmed by:</Text> {post.claimDetails.ownerName}
-                </Text>
-              </View>
             </View>
           </View>
         )}
+        */}
 
-        {/* Show handover information if this post has a resolved handover */}
+        {/*
         {post.handoverDetails && (
           <View className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
             <View className="flex-row items-center gap-2 mb-3">
@@ -439,6 +440,8 @@ export default function PostDetailsScreen() {
             </View>
           </View>
         )}
+        */}
+
       </ScrollView>
     </SafeAreaView>
   );
