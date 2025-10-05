@@ -604,7 +604,7 @@ export const messageService = {
 
             // Update conversation status
             await updateDoc(conversationRef, {
-                handoverRequestStatus: status,
+                handoverRequestStatus: 'accepted',
                 updatedAt: serverTimestamp()
             });
 
@@ -806,7 +806,7 @@ export const messageService = {
 
             // Update conversation status
             await updateDoc(conversationRef, {
-                claimRequestStatus: status,
+                claimRequestStatus: status, // ← Use the actual status (accepted/rejected)
                 updatedAt: serverTimestamp()
             });
 
@@ -869,7 +869,10 @@ export const messageService = {
             await updateDoc(messageRef, {
                 'handoverData.idPhotoConfirmed': true,
                 'handoverData.idPhotoConfirmedAt': serverTimestamp(),
-                'handoverData.idPhotoConfirmedBy': confirmBy
+                'handoverData.idPhotoConfirmedBy': confirmBy,
+                'handoverData.status': 'accepted', // ← Update status to accepted when confirmed
+                'handoverData.respondedAt': serverTimestamp(),
+                'handoverData.responderId': confirmBy
             });
 
             // Update the post status to completed
@@ -878,6 +881,18 @@ export const messageService = {
                 status: 'completed',
                 updatedAt: serverTimestamp()
             });
+
+            // IMPORTANT: Clean up all conversations for this post since it's now completed
+            console.log(`🗑️ Post ${postId} completed, cleaning up all related conversations`);
+            try {
+                // Import the post service to access deleteConversationsByPostId
+                const { postService } = await import('./posts');
+                await postService.deleteConversationsByPostId(postId);
+                console.log(`✅ Successfully cleaned up conversations for completed post ${postId}`);
+            } catch (cleanupError) {
+                console.error('⚠️ Failed to cleanup conversations for completed post:', cleanupError);
+                // Don't fail the whole operation if cleanup fails
+            }
 
             // Send confirmation notification to other participants
             try {
@@ -945,7 +960,10 @@ export const messageService = {
             await updateDoc(messageRef, {
                 'claimData.idPhotoConfirmed': true,
                 'claimData.idPhotoConfirmedAt': serverTimestamp(),
-                'claimData.idPhotoConfirmedBy': confirmBy
+                'claimData.idPhotoConfirmedBy': confirmBy,
+                'claimData.status': 'accepted', // ← Update status to accepted when confirmed
+                'claimData.respondedAt': serverTimestamp(),
+                'claimData.responderId': confirmBy
             });
 
             // Update the post status to completed
@@ -954,6 +972,18 @@ export const messageService = {
                 status: 'completed',
                 updatedAt: serverTimestamp()
             });
+
+            // IMPORTANT: Clean up all conversations for this post since it's now completed
+            console.log(`🗑️ Post ${postId} completed, cleaning up all related conversations`);
+            try {
+                // Import the post service to access deleteConversationsByPostId
+                const { postService } = await import('./posts');
+                await postService.deleteConversationsByPostId(postId);
+                console.log(`✅ Successfully cleaned up conversations for completed post ${postId}`);
+            } catch (cleanupError) {
+                console.error('⚠️ Failed to cleanup conversations for completed post:', cleanupError);
+                // Don't fail the whole operation if cleanup fails
+            }
 
             // Send confirmation notification to other participants
             try {

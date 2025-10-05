@@ -25,7 +25,7 @@ import { notificationSubscriptionService } from './notificationSubscriptions';
 export interface NotificationData {
   id: string;
   userId: string;
-  type: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted';
+  type: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted' | 'claim_response' | 'handover_response';
   title: string;
   body: string;
   data?: any;
@@ -41,6 +41,8 @@ export interface NotificationPreferences {
   messages: boolean;
   claimUpdates: boolean;
   adminAlerts: boolean;
+  claimResponses: boolean;
+  handoverResponses: boolean;
   locationFilter: boolean;
   categoryFilter: string[];
   quietHours: {
@@ -284,6 +286,8 @@ export class NotificationService {
       messages: preferences.messages,
       claimUpdates: preferences.claimUpdates,
       adminAlerts: preferences.adminAlerts,
+      claimResponses: preferences.claimResponses,
+      handoverResponses: preferences.handoverResponses,
       categories: preferences.categoryFilter || [], // Map categoryFilter to categories
       locations: [], // TODO: Add location mapping when location preferences are implemented
       quietHours: preferences.quietHours,
@@ -397,7 +401,7 @@ export class NotificationService {
   // Create a new notification
   async createNotification(notificationData: {
     userId: string;
-    type: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted';
+    type: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted' | 'claim_response' | 'handover_response';
     title: string;
     body: string;
     data?: any;
@@ -433,6 +437,8 @@ export class NotificationService {
       messages: true,
       claimUpdates: true,
       adminAlerts: true,
+      claimResponses: true,
+      handoverResponses: true,
       locationFilter: false,
       categoryFilter: [],
       quietHours: {

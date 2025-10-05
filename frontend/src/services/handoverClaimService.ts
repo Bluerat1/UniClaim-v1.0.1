@@ -6,7 +6,7 @@ import { cloudinaryService } from '../utils/cloudinary';
 import { messageService as waterbaseMessageService } from '../utils/waterbase';
 import { notificationSender } from './firebase/notificationSender';
 import { db } from '../utils/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, query, collection, where, getDocs, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 // Types
 export interface HandoverClaimCallbacks {
@@ -313,9 +313,142 @@ export const handleConfirmClaimIdPhoto = async (
 
     const postId = conversationData.postId;
 
+    // STEP 1: Auto-reject all other pending claim requests for this post before confirming this one
+    console.log(`🔄 Auto-rejecting other pending claim requests for post ${postId}...`);
+    try {
+      // Import postService to access conversation deletion functions
+      const { postService } = await import('./firebase/posts');
+
+      // Find all conversations for this post
+      const conversationsQuery = query(
+        collection(db, 'conversations'),
+        where('postId', '==', postId)
+      );
+      const conversationsSnapshot = await getDocs(conversationsQuery);
+
+      const rejectedRequests: Array<{
+        conversationId: string;
+        messageId: string;
+        requesterId: string;
+        requesterName: string;
+        requestType: 'claim' | 'handover';
+        postTitle: string;
+      }> = [];
+
+      // Process each conversation to find and reject other pending claim requests
+      for (const convDoc of conversationsSnapshot.docs) {
+        const otherConversationId = convDoc.id;
+
+        // Skip the current conversation being confirmed
+        if (otherConversationId === conversationId) continue;
+
+        try {
+          const messagesQuery = query(collection(db, 'conversations', otherConversationId, 'messages'));
+          const messagesSnapshot = await getDocs(messagesQuery);
+
+          for (const messageDoc of messagesSnapshot.docs) {
+            const messageData = messageDoc.data();
+
+            // Check for pending claim requests (but not the one being confirmed)
+            if (messageData.messageType === 'claim_request' &&
+                messageData.claimData?.status === 'pending' &&
+                messageData.senderId !== confirmBy) {
+
+              console.log(`🔄 Auto-rejecting other pending claim request in conversation ${otherConversationId}, message ${messageDoc.id}`);
+
+              // Collect data for notification before updating
+              rejectedRequests.push({
+                conversationId: otherConversationId,
+                messageId: messageDoc.id,
+                requesterId: messageData.senderId,
+                requesterName: messageData.senderName,
+                requestType: 'claim',
+                postTitle: messageData.claimData.postTitle || 'Unknown Post'
+              });
+
+              // Auto-reject the claim request
+              await updateDoc(messageDoc.ref, {
+                'claimData.status': 'rejected',
+                'claimData.respondedAt': serverTimestamp(),
+                'claimData.responderId': confirmBy,
+                'claimData.rejectionReason': 'Another claim request has been confirmed for this post'
+              });
+
+              // Update conversation status
+              await updateDoc(convDoc.ref, {
+                claimRequestStatus: 'rejected',
+                updatedAt: serverTimestamp()
+              });
+
+              console.log(`✅ Auto-rejected other claim request: ${messageDoc.id}`);
+            }
+          }
+        } catch (error: any) {
+          console.warn(`Failed to process conversation ${otherConversationId} for auto-rejection:`, error.message);
+        }
+      }
+
+      // Send notifications for auto-rejected requests
+      if (rejectedRequests.length > 0) {
+        console.log(`📨 Sending notifications for ${rejectedRequests.length} auto-rejected claim requests`);
+
+        const userNotifications = new Map<string, Array<typeof rejectedRequests[0]>>();
+        for (const request of rejectedRequests) {
+          if (!userNotifications.has(request.requesterId)) {
+            userNotifications.set(request.requesterId, []);
+          }
+          userNotifications.get(request.requesterId)!.push(request);
+        }
+
+        for (const [userId, userRequests] of userNotifications) {
+          try {
+            const requestTypeText = userRequests[0].requestType === 'claim' ? 'claim' : 'handover';
+            const postTitles = userRequests.map(r => r.postTitle).join(', ');
+
+            // Send rejection notification (always send these)
+            await notificationSender.sendNotificationToUsers([userId], {
+              type: 'claim_response' as const,
+              title: `${userRequests.length} ${requestTypeText}${userRequests.length > 1 ? 's' : ''} auto-rejected`,
+              body: `Your ${requestTypeText} request${userRequests.length > 1 ? 's' : ''} for "${postTitles}" ${userRequests.length > 1 ? 'have' : 'has'} been automatically rejected because another claim request has been confirmed.`,
+              data: {
+                status: 'rejected',
+                postId: postId,
+                postTitle: postTitles,
+                postCategory: '',
+                postLocation: '',
+                postType: 'lost',
+                creatorId: confirmBy,
+                creatorName: 'Admin',
+                conversationId: userRequests[0].conversationId
+              }
+            });
+
+            console.log(`✅ Sent auto-rejection notification to user ${userId}`);
+          } catch (notificationError) {
+            console.warn(`Failed to send auto-rejection notification to user ${userId}:`, notificationError);
+          }
+        }
+      }
+    } catch (error: any) {
+      console.warn('Failed to auto-reject other pending claim requests:', error.message);
+      // Continue with claim confirmation even if auto-rejection fails
+    }
+
     // Now confirm the claim (this will delete the conversation)
     console.log(`🔄 Confirming claim and deleting conversation: ${conversationId}`);
     await confirmClaimIdPhoto(conversationId, messageId, confirmBy);
+
+    // STEP 2: After claim confirmation, delete ALL conversations for this post (not just the confirmed one)
+    console.log(`🗑️ Deleting all conversations for post ${postId} after claim confirmation...`);
+    try {
+      const { postService } = await import('./firebase/posts');
+      await postService.deleteConversationsByPostId(postId);
+      console.log(`✅ Successfully deleted all conversations for post ${postId}`);
+    } catch (deleteError: any) {
+      console.warn(`⚠️ Failed to delete conversations for post ${postId}:`, deleteError.message);
+      // Continue even if conversation deletion fails
+    }
+
     console.log(`✅ Conversation deletion completed: ${conversationId}`);
 
     // Send notification to claimer about admin confirmation (conversation is now deleted)
@@ -335,13 +468,14 @@ export const handleConfirmClaimIdPhoto = async (
       });
 
       await notificationSender.sendNotificationToUsers([claimerId], {
-        type: 'claim_update',
+        type: 'claim_response',
         title: '✅ Your Claim Request Confirmed',
         body: `Your claim request has been confirmed by an admin. The post is now marked as completed.`,
         data: {
           postId: postId,
           postTitle: conversationData.postTitle,
           conversationId: conversationId,
+          status: 'accepted',
           notificationType: 'claim_confirmed',
           timestamp: new Date().toISOString()
         }

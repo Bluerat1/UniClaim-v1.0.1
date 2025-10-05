@@ -77,13 +77,8 @@ function extractCloudinaryPublicId(url: string): string | null {
     }
 }
 
-// Import other services
+// Import notification sender for auto-rejection notifications
 import { notificationSender } from './notificationSender';
-import { adminNotificationService } from './adminNotifications';
-import { notificationService } from './notifications';
-
-// Import caching system
-import { postCache, userCache, cacheKeys, cacheInvalidation } from '../../utils/advancedCache';
 
 // Post service functions
 export const postService = {
@@ -728,19 +723,74 @@ export const postService = {
         }
     },
 
+    // Cleanup orphaned conversations for posts that are already marked as final status
+    async cleanupOrphanedConversationsForFinalStatusPosts(): Promise<{ cleanedPosts: number; totalConversationsDeleted: number }> {
+        try {
+            console.log('🔄 Starting cleanup of orphaned conversations for posts already marked as final status...');
+
+            // Query for posts that are in final status but might have orphaned conversations
+            const finalStatusPostsQuery = query(
+                collection(db, 'posts'),
+                where('status', 'in', ['resolved', 'completed', 'unclaimed'])
+            );
+
+            const postsSnapshot = await getDocs(finalStatusPostsQuery);
+            let cleanedPosts = 0;
+            let totalConversationsDeleted = 0;
+
+            console.log(`📋 Found ${postsSnapshot.docs.length} posts in final status that may need conversation cleanup`);
+
+            for (const postDoc of postsSnapshot.docs) {
+                const postId = postDoc.id;
+                const postData = postDoc.data();
+
+                try {
+                    // Check if this post has any conversations
+                    const conversationsQuery = query(
+                        collection(db, 'conversations'),
+                        where('postId', '==', postId)
+                    );
+
+                    const conversationsSnapshot = await getDocs(conversationsQuery);
+
+                    if (conversationsSnapshot.docs.length > 0) {
+                        console.log(`🧹 Post ${postId} (${postData.title}) has ${conversationsSnapshot.docs.length} orphaned conversations - cleaning up`);
+
+                        // Clean up conversations for this post
+                        await this.deleteConversationsByPostId(postId);
+                        cleanedPosts++;
+                        totalConversationsDeleted += conversationsSnapshot.docs.length;
+
+                        console.log(`✅ Cleaned up ${conversationsSnapshot.docs.length} conversations for post ${postId}`);
+                    }
+                } catch (error) {
+                    console.warn(`⚠️ Failed to cleanup conversations for post ${postId}:`, error);
+                    // Continue with other posts even if one fails
+                }
+            }
+
+            console.log(`🎯 Orphaned conversation cleanup completed: ${cleanedPosts} posts cleaned, ${totalConversationsDeleted} conversations deleted`);
+            return { cleanedPosts, totalConversationsDeleted };
+
+        } catch (error: any) {
+            console.error('❌ Failed to cleanup orphaned conversations:', error);
+            throw new Error(`Failed to cleanup orphaned conversations: ${error.message}`);
+        }
+    },
+
     // Update post status
-    async updatePostStatus(postId: string, status: 'pending' | 'resolved' | 'unclaimed'): Promise<void> {
+    async updatePostStatus(postId: string, status: 'pending' | 'resolved' | 'unclaimed' | 'completed'): Promise<void> {
         try {
             await updateDoc(doc(db, 'posts', postId), {
                 status,
                 updatedAt: serverTimestamp()
             });
 
-            // If status is changed to 'unclaimed', automatically delete all related conversations
-            if (status === 'unclaimed') {
-                console.log(`🗑️ Post marked as unclaimed, deleting all related conversations for post: ${postId}`);
+            // If status is changed to 'unclaimed', 'completed', or 'resolved', automatically delete all related conversations
+            if (status === 'unclaimed' || status === 'completed' || status === 'resolved') {
+                console.log(`🗑️ Post marked as ${status}, deleting all related conversations for post: ${postId}`);
                 await this.deleteConversationsByPostId(postId);
-                console.log(`✅ Successfully deleted conversations for unclaimed post: ${postId}`);
+                console.log(`✅ Successfully deleted conversations for ${status} post: ${postId}`);
             }
         } catch (error: any) {
             console.error('Error updating post status:', error);
@@ -1074,7 +1124,150 @@ export const postService = {
                 return;
             }
 
-            // STEP 2: Extract all images from all messages before deletion
+            // STEP 2: Auto-reject all pending requests before deletion and collect notification data
+            console.log(`🔄 Auto-rejecting pending requests for ${conversationsSnapshot.docs.length} conversations`);
+
+            const rejectedRequests: Array<{
+                conversationId: string;
+                messageId: string;
+                requesterId: string;
+                requesterName: string;
+                requestType: 'claim' | 'handover';
+                postTitle: string;
+            }> = [];
+
+            for (const convDoc of conversationsSnapshot.docs) {
+                const conversationId = convDoc.id;
+
+                try {
+                    // Get all messages in this conversation to find pending requests
+                    const messagesQuery = query(collection(db, 'conversations', conversationId, 'messages'));
+                    const messagesSnapshot = await getDocs(messagesQuery);
+
+                    if (messagesSnapshot.docs.length > 0) {
+                        // Process each message to find and reject pending requests
+                        for (const messageDoc of messagesSnapshot.docs) {
+                            const messageData = messageDoc.data();
+
+                            // Check for pending claim requests
+                            if (messageData.messageType === 'claim_request' &&
+                                messageData.claimData?.status === 'pending') {
+
+                                console.log(`🔄 Auto-rejecting pending claim request in conversation ${conversationId}, message ${messageDoc.id}`);
+
+                                // Collect data for notification before updating
+                                rejectedRequests.push({
+                                    conversationId,
+                                    messageId: messageDoc.id,
+                                    requesterId: messageData.senderId,
+                                    requesterName: messageData.senderName,
+                                    requestType: 'claim',
+                                    postTitle: messageData.claimData.postTitle || 'Unknown Post'
+                                });
+
+                                // Auto-reject the claim request
+                                await updateDoc(messageDoc.ref, {
+                                    'claimData.status': 'rejected',
+                                    'claimData.respondedAt': serverTimestamp(),
+                                    'claimData.responderId': 'system',
+                                    'claimData.rejectionReason': 'Post has been deleted'
+                                });
+
+                                // Update conversation status
+                                await updateDoc(convDoc.ref, {
+                                    claimRequestStatus: 'rejected',
+                                    updatedAt: serverTimestamp()
+                                });
+
+                                console.log(`✅ Auto-rejected claim request: ${messageDoc.id}`);
+                            }
+
+                            // Check for pending handover requests
+                            if (messageData.messageType === 'handover_request' &&
+                                messageData.handoverData?.status === 'pending') {
+
+                                console.log(`🔄 Auto-rejecting pending handover request in conversation ${conversationId}, message ${messageDoc.id}`);
+
+                                // Collect data for notification before updating
+                                rejectedRequests.push({
+                                    conversationId,
+                                    messageId: messageDoc.id,
+                                    requesterId: messageData.senderId,
+                                    requesterName: messageData.senderName,
+                                    requestType: 'handover',
+                                    postTitle: messageData.handoverData.postTitle || 'Unknown Post'
+                                });
+
+                                // Auto-reject the handover request
+                                await updateDoc(messageDoc.ref, {
+                                    'handoverData.status': 'rejected',
+                                    'handoverData.respondedAt': serverTimestamp(),
+                                    'handoverData.responderId': 'system',
+                                    'handoverData.rejectionReason': 'Post has been deleted'
+                                });
+
+                                // Update conversation status
+                                await updateDoc(convDoc.ref, {
+                                    handoverRequestStatus: 'rejected',
+                                    updatedAt: serverTimestamp()
+                                });
+
+                                console.log(`✅ Auto-rejected handover request: ${messageDoc.id}`);
+                            }
+                        }
+                    }
+                } catch (error: any) {
+                    console.warn(`Failed to process conversation ${conversationId} for request rejection:`, error.message);
+                    // Continue with other conversations even if one fails
+                }
+            }
+
+            // STEP 2.5: Send notifications for auto-rejected requests
+            if (rejectedRequests.length > 0) {
+                console.log(`📨 Sending notifications for ${rejectedRequests.length} auto-rejected requests`);
+
+                // Group requests by user to send batch notifications
+                const userNotifications = new Map<string, Array<typeof rejectedRequests[0]>>();
+
+                for (const request of rejectedRequests) {
+                    if (!userNotifications.has(request.requesterId)) {
+                        userNotifications.set(request.requesterId, []);
+                    }
+                    userNotifications.get(request.requesterId)!.push(request);
+                }
+
+                // Send notification to each user
+                for (const [userId, userRequests] of userNotifications) {
+                    try {
+                        const requestTypeText = userRequests[0].requestType === 'claim' ? 'claim' : 'handover';
+                        const postTitles = userRequests.map(r => r.postTitle).join(', ');
+
+                        await notificationSender.sendNotificationToUser(userId, {
+                            type: 'claim_response',
+                            title: `${userRequests.length} ${requestTypeText}${userRequests.length > 1 ? 's' : ''} auto-rejected`,
+                            body: `Your ${requestTypeText} request${userRequests.length > 1 ? 's' : ''} for "${postTitles}" ${userRequests.length > 1 ? 'have' : 'has'} been automatically rejected because the post${userRequests.length > 1 ? 's were' : ' was'} deleted.`,
+                            data: {
+                                status: 'rejected',
+                                postId: '', // We don't have a single post ID for multiple requests
+                                postTitle: postTitles,
+                                postCategory: '',
+                                postLocation: '',
+                                postType: 'lost', // Default, not critical for this notification
+                                creatorId: 'system',
+                                creatorName: 'System',
+                                conversationId: userRequests[0].conversationId // Use first conversation ID
+                            }
+                        });
+
+                        console.log(`✅ Sent auto-rejection notification to user ${userId} for ${userRequests.length} ${requestTypeText}${userRequests.length > 1 ? 's' : ''}`);
+                    } catch (notificationError) {
+                        console.warn(`Failed to send auto-rejection notification to user ${userId}:`, notificationError);
+                        // Continue with other users even if one fails
+                    }
+                }
+            }
+
+            // STEP 3: Extract all images from all messages before deletion
             console.log(`🗑️ Starting image cleanup for ${conversationsSnapshot.docs.length} conversations`);
             const allImageUrls: string[] = [];
 
@@ -1112,7 +1305,7 @@ export const postService = {
                 }
             }
 
-            // STEP 3: Delete all extracted images from Cloudinary
+            // STEP 4: Delete all extracted images from Cloudinary
             if (allImageUrls.length > 0) {
                 console.log(`🗑️ Attempting to delete ${allImageUrls.length} total images from Cloudinary`);
 
@@ -1132,15 +1325,15 @@ export const postService = {
                 console.log('🗑️ No images found in conversations to delete');
             }
 
-            // STEP 4: Create a batch operation for atomic deletion of database records
+            // STEP 5: Create a batch operation for atomic deletion of database records
             const batch = writeBatch(db);
 
-            // STEP 5: Delete messages and conversations in the correct order
+            // STEP 6: Delete messages and conversations in the correct order
             for (const convDoc of conversationsSnapshot.docs) {
                 const conversationId = convDoc.id;
 
                 try {
-                    // STEP 5a: Delete all messages in the subcollection first
+                    // STEP 6a: Delete all messages in the subcollection first
                     const messagesQuery = query(collection(db, 'conversations', conversationId, 'messages'));
                     const messagesSnapshot = await getDocs(messagesQuery);
 
@@ -1151,7 +1344,7 @@ export const postService = {
                         });
                     }
 
-                    // STEP 5b: Add conversation document to deletion batch
+                    // STEP 6b: Add conversation document to deletion batch
                     batch.delete(convDoc.ref);
 
                 } catch (error: any) {
@@ -1159,10 +1352,10 @@ export const postService = {
                 }
             }
 
-            // STEP 6: Execute the batch operation atomically
+            // STEP 7: Execute the batch operation atomically
             await batch.commit();
 
-            // STEP 7: Verify deletion was successful
+            // STEP 8: Verify deletion was successful
             const verifyQuery = query(
                 collection(db, 'conversations'),
                 where('postId', '==', postId)
