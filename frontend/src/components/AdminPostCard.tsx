@@ -15,7 +15,6 @@ interface AdminPostCardProps {
     post: Post,
     status: "confirmed" | "not_received"
   ) => void;
-  onUnflagPost?: (post: Post) => void;
   onHidePost?: (post: Post) => void;
   onUnhidePost?: (post: Post) => void;
   onRestore?: (post: Post) => void;
@@ -24,7 +23,7 @@ interface AdminPostCardProps {
   isDeleting?: boolean;
 }
 
-import { formatDateTime, formatRelativeTime } from "@/utils/dateUtils";
+import { formatDateTime } from "@/utils/dateUtils";
 
 // Format function for post creation time
 const formatPostTime = (date: Date | string | { seconds: number; nanoseconds: number }) => {
@@ -62,7 +61,6 @@ function AdminPostCard({
   onStatusChange,
   onActivateTicket,
   onRevertResolution,
-  onUnflagPost,
   onHidePost,
   onUnhidePost,
   onRestore,
@@ -154,7 +152,7 @@ function AdminPostCard({
 
           {/* Admin Controls */}
           <div className="flex gap-2">
-            {post.status === "resolved" && onRevertResolution && (
+            {(post.status === "resolved" || post.status === "completed") && onRevertResolution && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -445,6 +443,7 @@ function AdminPostCard({
                 <option value="pending">Pending</option>
                 <option value="unclaimed">Unclaimed</option>
                 <option value="resolved">Resolved</option>
+                <option value="completed">Completed</option>
               </select>
             </div>
           )}

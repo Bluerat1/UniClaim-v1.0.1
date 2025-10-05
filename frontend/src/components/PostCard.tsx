@@ -210,7 +210,7 @@ function PostCard({
               )}
 
               {/* Status Badge */}
-              {post.status === "resolved" && (
+              {(post.status === "resolved" || post.status === "completed") && (
                 <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-green-100 text-green-700 text-[11px]">
                   ✅ RESOLVED
                 </span>
