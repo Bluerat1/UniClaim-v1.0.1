@@ -966,26 +966,14 @@ export const messageService = {
                 'claimData.responderId': confirmBy
             });
 
-            // Update the post status to completed
+            // Update the post status to resolved (not completed to avoid conversation cleanup issues)
             const postRef = doc(db, 'posts', postId);
             await updateDoc(postRef, {
-                status: 'completed',
+                status: 'resolved',
                 updatedAt: serverTimestamp()
             });
 
-            // IMPORTANT: Clean up all conversations for this post since it's now completed
-            console.log(`🗑️ Post ${postId} completed, cleaning up all related conversations`);
-            try {
-                // Import the post service to access deleteConversationsByPostId
-                const { postService } = await import('./posts');
-                await postService.deleteConversationsByPostId(postId);
-                console.log(`✅ Successfully cleaned up conversations for completed post ${postId}`);
-            } catch (cleanupError) {
-                console.error('⚠️ Failed to cleanup conversations for completed post:', cleanupError);
-                // Don't fail the whole operation if cleanup fails
-            }
-
-            // Send confirmation notification to other participants
+            // Send confirmation notification to other participants BEFORE deleting conversation
             try {
                 await notificationSender.sendResponseNotification(conversationId, {
                     responderId: confirmBy,

@@ -234,7 +234,8 @@ export class NotificationSender {
             const conversationDoc = await getDoc(conversationRef);
 
             if (!conversationDoc.exists()) {
-                throw new Error('Conversation not found');
+                console.warn('⚠️ Conversation not found for response notification, skipping silently');
+                return;
             }
 
             const conversationData = conversationDoc.data();
@@ -307,7 +308,8 @@ export class NotificationSender {
             const conversationDoc = await getDoc(conversationRef);
 
             if (!conversationDoc.exists()) {
-                throw new Error('Conversation not found');
+                console.warn('⚠️ Conversation not found for message notification, skipping silently');
+                return;
             }
 
             const conversationData = conversationDoc.data();

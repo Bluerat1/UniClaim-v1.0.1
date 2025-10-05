@@ -20,6 +20,7 @@ interface AdminPostCardProps {
   onUnhidePost?: (post: Post) => void;
   onRestore?: (post: Post) => void;
   onPermanentDelete?: (post: Post) => void;
+  hideDeleteButton?: boolean;
   isDeleting?: boolean;
 }
 
@@ -61,13 +62,14 @@ function AdminPostCard({
   onStatusChange,
   onActivateTicket,
   onRevertResolution,
-  onConfirmTurnover,
   onUnflagPost,
   onHidePost,
   onUnhidePost,
   onRestore,
   onPermanentDelete,
+  hideDeleteButton = false,
   isDeleting = false,
+  onConfirmTurnover,
 }: AdminPostCardProps) {
   const previewUrl = useMemo(() => {
     if (post.images && post.images.length > 0) {
@@ -219,7 +221,7 @@ function AdminPostCard({
               </button>
             )}
 
-            {!onPermanentDelete && !onRestore && (
+            {!onPermanentDelete && !onRestore && !hideDeleteButton && (
               <button
                 onClick={handleDelete}
                 disabled={isDeleting}

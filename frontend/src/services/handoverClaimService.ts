@@ -3,7 +3,7 @@
 // to eliminate duplication and provide a single source of truth
 
 import { cloudinaryService } from '../utils/cloudinary';
-import { messageService as waterbaseMessageService } from '../utils/waterbase';
+import { messageService } from './firebase/messages';
 import { notificationSender } from './firebase/notificationSender';
 import { db } from '../utils/firebase';
 import { doc, getDoc, query, collection, where, getDocs, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -34,7 +34,7 @@ export const updateHandoverResponse = async (
 ): Promise<void> => {
     try {
         console.log('🔄 Updating handover response:', { conversationId, messageId, status, responderId, idPhotoUrl });
-        await waterbaseMessageService.updateHandoverResponse(conversationId, messageId, status, responderId, idPhotoUrl);
+        await messageService.updateHandoverResponse(conversationId, messageId, status, responderId, idPhotoUrl);
         console.log('✅ Handover response updated successfully');
     } catch (error: any) {
         console.error('❌ Failed to update handover response:', error);
@@ -51,7 +51,7 @@ export const updateClaimResponse = async (
 ): Promise<void> => {
     try {
         console.log('🔄 Updating claim response:', { conversationId, messageId, status, responderId, idPhotoUrl });
-        await waterbaseMessageService.updateClaimResponse(conversationId, messageId, status, responderId, idPhotoUrl);
+        await messageService.updateClaimResponse(conversationId, messageId, status, responderId, idPhotoUrl);
         console.log('✅ Claim response updated successfully');
     } catch (error: any) {
         console.error('❌ Failed to update claim response:', error);
@@ -66,7 +66,7 @@ export const confirmHandoverIdPhoto = async (
 ): Promise<{ success: boolean; conversationDeleted: boolean; postId?: string; error?: string }> => {
     try {
         console.log('🔄 Confirming handover ID photo:', { conversationId, messageId, confirmBy });
-        const result = await waterbaseMessageService.confirmHandoverIdPhoto(conversationId, messageId, confirmBy);
+        const result = await messageService.confirmHandoverIdPhoto(conversationId, messageId, confirmBy);
         console.log('✅ Handover ID photo confirmed successfully');
         return result;
     } catch (error: any) {
@@ -82,7 +82,7 @@ export const confirmClaimIdPhoto = async (
 ): Promise<void> => {
     try {
         console.log('🔄 Confirming claim ID photo:', { conversationId, messageId, confirmBy });
-        await waterbaseMessageService.confirmClaimIdPhoto(conversationId, messageId, confirmBy);
+        await messageService.confirmClaimIdPhoto(conversationId, messageId, confirmBy);
         console.log('✅ Claim ID photo confirmed successfully');
     } catch (error: any) {
         console.error('❌ Failed to confirm claim ID photo:', error);
@@ -438,20 +438,7 @@ export const handleConfirmClaimIdPhoto = async (
     console.log(`🔄 Confirming claim and deleting conversation: ${conversationId}`);
     await confirmClaimIdPhoto(conversationId, messageId, confirmBy);
 
-    // STEP 2: After claim confirmation, delete ALL conversations for this post (not just the confirmed one)
-    console.log(`🗑️ Deleting all conversations for post ${postId} after claim confirmation...`);
-    try {
-      const { postService } = await import('./firebase/posts');
-      await postService.deleteConversationsByPostId(postId);
-      console.log(`✅ Successfully deleted all conversations for post ${postId}`);
-    } catch (deleteError: any) {
-      console.warn(`⚠️ Failed to delete conversations for post ${postId}:`, deleteError.message);
-      // Continue even if conversation deletion fails
-    }
-
-    console.log(`✅ Conversation deletion completed: ${conversationId}`);
-
-    // Send notification to claimer about admin confirmation (conversation is now deleted)
+    // Send notification to claimer about admin confirmation (before conversation is deleted)
     try {
       console.log(`🔄 Sending claim confirmation notification to claimer: ${claimerId}`);
       console.log(`📋 Notification data:`, {
@@ -485,6 +472,19 @@ export const handleConfirmClaimIdPhoto = async (
       console.warn('⚠️ Failed to send claim confirmation notification:', notificationError);
       // Don't throw - notification failure shouldn't break the confirmation flow
     }
+
+    // STEP 2: After claim confirmation, delete ALL conversations for this post (not just the confirmed one)
+    console.log(`🗑️ Deleting all conversations for post ${postId} after claim confirmation...`);
+    try {
+      const { postService } = await import('./firebase/posts');
+      await postService.deleteConversationsByPostId(postId);
+      console.log(`✅ Successfully deleted all conversations for post ${postId}`);
+    } catch (deleteError: any) {
+      console.warn(`⚠️ Failed to delete conversations for post ${postId}:`, deleteError.message);
+      // Continue even if conversation deletion fails
+    }
+
+    console.log(`✅ Conversation deletion completed: ${conversationId}`);
 
     callbacks.onSuccess?.('✅ Claim confirmed successfully! The post is now marked as completed.');
 

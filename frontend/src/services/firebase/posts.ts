@@ -77,8 +77,11 @@ function extractCloudinaryPublicId(url: string): string | null {
     }
 }
 
-// Import notification sender for auto-rejection notifications
-import { notificationSender } from './notificationSender';
+// Import notification service for notification cleanup
+import { notificationService } from './notifications';
+
+// Import admin notification service for admin alerts
+import { adminNotificationService } from './adminNotifications';
 
 // Post service functions
 export const postService = {
@@ -493,13 +496,20 @@ export const postService = {
                 createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt
             })) as Post[];
 
-            // Filter out expired posts and resolved posts on the client side
+            // Filter out expired posts and resolved/completed posts on the client side
             // BUT include items with turnoverStatus: "declared" for admin use
             const adminPosts = posts.filter(post => {
                 if (post.movedToUnclaimed) return false;
 
-                // Exclude resolved posts from active sections
-                if (post.status === 'resolved') return false;
+                // Exclude resolved and completed posts from active sections (they're handled by getResolvedPosts)
+                if (post.status === 'resolved' || post.status === 'completed') return false;
+
+                // SPECIAL CASE: Include posts with turnoverStatus "declared" for admin use
+                // These are posts awaiting OSA confirmation and should be visible to admins
+                if (post.turnoverDetails &&
+                    post.turnoverDetails.turnoverStatus === "declared") {
+                    return true; // Include these posts for admin visibility
+                }
 
                 // Check if post has expired
                 if (post.expiryDate) {
@@ -584,7 +594,7 @@ export const postService = {
     getResolvedPosts(callback: (posts: Post[]) => void) {
         const q = query(
             collection(db, 'posts'),
-            where('status', '==', 'resolved')
+            where('status', 'in', ['resolved', 'completed']) // Query for both resolved and completed posts
             // Removed orderBy to avoid composite index requirement
         );
 
