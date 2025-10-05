@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   FlatList,
@@ -228,15 +228,19 @@ export default function Chat() {
     const createNewConversation = async () => {
       try {
         setLoading(true);
-        
+
         // Double-check that conversation doesn't exist before creating
-        const existingConversation = await getConversation(conversationId || 'dummy');
+        const existingConversation = await getConversation(
+          conversationId || "dummy"
+        );
         if (existingConversation) {
-          console.log('ℹ️ Chat: Conversation already exists, skipping creation');
+          console.log(
+            "ℹ️ Chat: Conversation already exists, skipping creation"
+          );
           setLoading(false);
           return;
         }
-        
+
         const newConversationId = await createConversation(
           postId,
           postTitle,
@@ -250,19 +254,23 @@ export default function Chat() {
         );
         setConversationId(newConversationId);
       } catch (error: any) {
-        console.error('❌ Chat: Error creating conversation:', error);
-        
+        console.error("❌ Chat: Error creating conversation:", error);
+
         // Check if conversation was deleted during creation process
-        if (error.message?.includes('Conversation does not exist') || 
-            error.message?.includes('Conversation not found') ||
-            error.message?.includes('Failed to get conversation') ||
-            conversationId) {
-          console.log('ℹ️ Chat: Conversation may have been deleted during creation - navigating back');
+        if (
+          error.message?.includes("Conversation does not exist") ||
+          error.message?.includes("Conversation not found") ||
+          error.message?.includes("Failed to get conversation") ||
+          conversationId
+        ) {
+          console.log(
+            "ℹ️ Chat: Conversation may have been deleted during creation - navigating back"
+          );
           navigation.goBack();
           return;
         }
-        
-        Alert.alert('Error', 'Failed to start conversation. Please try again.');
+
+        Alert.alert("Error", "Failed to start conversation. Please try again.");
         navigation.goBack();
       } finally {
         setLoading(false);
@@ -325,7 +333,9 @@ export default function Chat() {
 
         // Check if conversation doesn't exist (data is null)
         if (data === null) {
-          console.log('ℹ️ Chat: Conversation data is null - conversation was deleted');
+          console.log(
+            "ℹ️ Chat: Conversation data is null - conversation was deleted"
+          );
           setIsConversationDataReady(true);
           isLoadingRef.current = false;
           navigation.goBack();
@@ -390,19 +400,23 @@ export default function Chat() {
       })
       .catch((error) => {
         if (!isMounted) return; // Don't update state if component unmounted
-        console.error('❌ Chat: Error loading conversation:', error);
-        
+        console.error("❌ Chat: Error loading conversation:", error);
+
         // Check if conversation doesn't exist (deleted after completion)
-        if (error.message?.includes('Conversation does not exist') || 
-            error.message?.includes('Conversation not found') ||
-            error.message?.includes('Failed to get conversation')) {
-          console.log('ℹ️ Chat: Conversation no longer exists - navigating back');
+        if (
+          error.message?.includes("Conversation does not exist") ||
+          error.message?.includes("Conversation not found") ||
+          error.message?.includes("Failed to get conversation")
+        ) {
+          console.log(
+            "ℹ️ Chat: Conversation no longer exists - navigating back"
+          );
           setIsConversationDataReady(true);
           isLoadingRef.current = false;
           navigation.goBack();
           return;
         }
-        
+
         setIsConversationDataReady(true);
         isLoadingRef.current = false;
       });
@@ -890,7 +904,7 @@ export default function Chat() {
         style={{ flex: 1 }}
       >
         {/* Messages Container with Custom Spacing */}
-        <View style={{ flex: 1, marginBottom: 15 }}>
+        <View style={{ flex: 1, marginBottom: 0 }}>
           {loading ? (
             <View className="flex-1 items-center justify-center">
               <Text className="text-gray-500">Creating conversation...</Text>
@@ -932,7 +946,7 @@ export default function Chat() {
               )}
             </View>
           ) : (
-            <View style={{ flex: 1, paddingBottom: -3 }}>
+            <View style={{ flex: 1 }}>
               <FlatList
                 ref={flatListRef}
                 data={messages}
@@ -1010,7 +1024,7 @@ export default function Chat() {
           </View>
 
           {/* Input Area with bottom spacing */}
-          <View className="bg-white px-4 pt-2">
+          <View className="bg-white px-4 pt-2 pb-2">
             <View className="flex-row items-center gap-3">
               <View className="flex-1">
                 <TextInput
