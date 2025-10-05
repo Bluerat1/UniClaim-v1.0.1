@@ -19,6 +19,7 @@ import {
     arrayUnion,
     serverTimestamp
 } from 'firebase/firestore';
+import { notificationSender } from './notificationSender';
 
 // Message service interface
 interface MessageService {
@@ -171,6 +172,26 @@ export const messageService: MessageService = {
                 },
                 ...unreadCountUpdates
             });
+
+            // Send notifications to other participants (mobile and web users)
+            if (otherParticipantIds.length > 0) {
+                try {
+                    await notificationSender.sendMessageNotifications(
+                        otherParticipantIds,
+                        {
+                            conversationId,
+                            senderId,
+                            senderName,
+                            messageText: text,
+                            conversationData
+                        }
+                    );
+                    console.log(`✅ Mobile: Sent message notifications to ${otherParticipantIds.length} participants`);
+                } catch (notificationError) {
+                    console.warn('⚠️ Mobile: Failed to send message notifications, but message was sent:', notificationError);
+                    // Continue even if notifications fail - message is already sent
+                }
+            }
         } catch (error: any) {
             throw new Error(error.message || 'Failed to send message');
         }
@@ -761,8 +782,12 @@ export const messageService: MessageService = {
             // Add message to conversation
             const messageRef = await addDoc(collection(db, `conversations/${conversationId}/messages`), messageData);
 
-            // Update conversation with handover request flag
+            // Get conversation data for notifications
             const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
+            const conversationData = conversationDoc.data();
+
+            // Update conversation with handover request flag
             await updateDoc(conversationRef, {
                 handoverRequested: true,
                 updatedAt: serverTimestamp(),
@@ -772,6 +797,33 @@ export const messageService: MessageService = {
                     timestamp: serverTimestamp()
                 }
             });
+
+            // Send notifications to other participants for handover request
+            if (conversationData) {
+                const participantIds = Object.keys(conversationData.participants || {});
+                const otherParticipantIds = participantIds.filter(id => id !== senderId);
+
+                if (otherParticipantIds.length > 0) {
+                    try {
+                        await notificationSender.sendMessageNotifications(
+                            otherParticipantIds,
+                            {
+                                conversationId,
+                                senderId,
+                                senderName,
+                                messageText: `Handover Request: ${handoverReason || 'No reason provided'}`,
+                                conversationData
+                            }
+                        );
+                        console.log(`✅ Mobile: Sent handover request notifications to ${otherParticipantIds.length} participants`);
+                    } catch (notificationError) {
+                        console.warn('⚠️ Mobile: Failed to send handover request notifications, but request was sent:', notificationError);
+                        // Continue even if notifications fail - request is already sent
+                    }
+                }
+            } else {
+                console.warn('⚠️ Mobile: No conversation data available for handover request notifications');
+            }
 
             console.log('✅ Mobile: Handover request sent successfully');
         } catch (error: any) {
@@ -916,8 +968,12 @@ export const messageService: MessageService = {
             // Add message to conversation
             const messageRef = await addDoc(collection(db, `conversations/${conversationId}/messages`), messageData);
 
-            // Update conversation with claim request flag
+            // Get conversation data for notifications
             const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
+            const conversationData = conversationDoc.data();
+
+            // Update conversation with claim request flag
             await updateDoc(conversationRef, {
                 claimRequested: true,
                 updatedAt: serverTimestamp(),
@@ -927,6 +983,33 @@ export const messageService: MessageService = {
                     timestamp: serverTimestamp()
                 }
             });
+
+            // Send notifications to other participants for claim request
+            if (conversationData) {
+                const participantIds = Object.keys(conversationData.participants || {});
+                const otherParticipantIds = participantIds.filter(id => id !== senderId);
+
+                if (otherParticipantIds.length > 0) {
+                    try {
+                        await notificationSender.sendMessageNotifications(
+                            otherParticipantIds,
+                            {
+                                conversationId,
+                                senderId,
+                                senderName,
+                                messageText: `Claim Request: ${claimReason || 'No reason provided'}`,
+                                conversationData
+                            }
+                        );
+                        console.log(`✅ Mobile: Sent claim request notifications to ${otherParticipantIds.length} participants`);
+                    } catch (notificationError) {
+                        console.warn('⚠️ Mobile: Failed to send claim request notifications, but request was sent:', notificationError);
+                        // Continue even if notifications fail - request is already sent
+                    }
+                }
+            } else {
+                console.warn('⚠️ Mobile: No conversation data available for claim request notifications');
+            }
 
             console.log('✅ Mobile: Claim request sent successfully');
         } catch (error: any) {
