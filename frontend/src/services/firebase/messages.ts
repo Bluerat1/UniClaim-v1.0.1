@@ -595,12 +595,13 @@ export const messageService = {
                 updateData['handoverData.status'] = 'pending_confirmation'; // New status for photo confirmation
             }
 
-            // If rejecting, clean up any uploaded photos
+            // If rejecting, clean up any uploaded photos (including owner's photo if they accepted and uploaded one first, then rejected later)
             if (status === 'rejected' && messageData.handoverData) {
                 try {
                     // Collect all image URLs to be deleted
                     const imageUrls = [
                         ...(messageData.handoverData.idPhotoUrl ? [messageData.handoverData.idPhotoUrl] : []),
+                        ...(messageData.handoverData.ownerIdPhoto ? [messageData.handoverData.ownerIdPhoto] : []),
                         ...(messageData.handoverData.itemPhotos?.map((p: any) => p.url) || [])
                     ];
 
@@ -784,12 +785,13 @@ export const messageService = {
                 throw new Error('Message is not a claim request');
             }
 
-            // If rejecting, clean up any uploaded photos
+            // If rejecting, clean up any uploaded photos (including owner's photo if they accepted and uploaded one first, then rejected later)
             if (status === 'rejected' && messageData.claimData) {
                 try {
                     // Collect all image URLs to be deleted
                     const imageUrls = [
                         ...(messageData.claimData.idPhotoUrl ? [messageData.claimData.idPhotoUrl] : []),
+                        ...(messageData.claimData.ownerIdPhoto ? [messageData.claimData.ownerIdPhoto] : []),
                         ...(messageData.claimData.evidencePhotos?.map((p: any) => p.url) || [])
                     ];
 
