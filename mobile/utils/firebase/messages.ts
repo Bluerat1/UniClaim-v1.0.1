@@ -1018,12 +1018,19 @@ export const messageService: MessageService = {
         }
     },
 
-    // Update claim response
+    // Update claim response (matches web implementation with photo deletion on rejection)
     async updateClaimResponse(conversationId: string, messageId: string, status: 'accepted' | 'rejected', userId: string, idPhotoUrl?: string): Promise<void> {
         try {
             console.log('🔄 Mobile Firebase: updateClaimResponse called with:', { conversationId, messageId, status, userId, idPhotoUrl: idPhotoUrl ? 'provided' : 'not provided' });
 
             const messageRef = doc(db, `conversations/${conversationId}/messages`, messageId);
+            const messageDoc = await getDoc(messageRef);
+
+            if (!messageDoc.exists()) {
+                throw new Error('Message not found');
+            }
+
+            const messageData = messageDoc.data();
 
             // Update the claim message with the response and ID photo
             const updateData: any = {
@@ -1037,8 +1044,72 @@ export const messageService: MessageService = {
                 console.log('📸 Mobile Firebase: Setting status to pending_confirmation with ID photo');
                 updateData['claimData.ownerIdPhoto'] = idPhotoUrl; // Store owner's photo with correct field name
                 updateData['claimData.status'] = 'pending_confirmation'; // New status for photo confirmation
-            } else {
-                console.log('❌ Mobile Firebase: Not setting pending_confirmation status');
+            }
+
+            // If rejecting, delete all photos from Cloudinary and clear photo URLs (like handover rejection)
+            if (status === 'rejected') {
+                console.log('🗑️ Mobile: CLAIM REJECTION DETECTED - Starting photo deletion process');
+                console.log('🗑️ Mobile: Message data:', JSON.stringify(messageData, null, 2));
+                try {
+                    const { extractMessageImages, deleteMessageImages } = await import('../cloudinary');
+                    const imageUrls = extractMessageImages(messageData);
+
+                    console.log(`🗑️ Mobile: Found ${imageUrls.length} images to delete for claim rejection`);
+                    console.log('🗑️ Mobile: Full image URLs:', imageUrls);
+                    if (imageUrls.length > 0) {
+                        console.log('🗑️ Mobile: Images to delete:', imageUrls.map(url => url.split('/').pop()));
+
+                        // Try to delete from Cloudinary
+                        let cloudinaryDeletionSuccess = false;
+                        try {
+                            const imageDeletionResult = await deleteMessageImages(imageUrls);
+                            cloudinaryDeletionSuccess = imageDeletionResult.success;
+
+                            if (!imageDeletionResult.success) {
+                                console.warn(`⚠️ Mobile: Cloudinary deletion completed with some failures. Deleted: ${imageDeletionResult.deleted.length}, Failed: ${imageDeletionResult.failed.length}`);
+                            } else {
+                                console.log('✅ Mobile: Photos deleted from Cloudinary after claim rejection:', imageUrls.length);
+                            }
+                        } catch (cloudinaryError: any) {
+                            console.warn('Mobile: Cloudinary deletion failed (likely missing API credentials):', cloudinaryError.message);
+                            // Continue with database cleanup even if Cloudinary deletion fails
+                        }
+
+                        // Always clear photo URLs from the message data in database
+                        const photoCleanupData: any = {};
+
+                        // Clear ID photo URL
+                        if (messageData.claimData?.idPhotoUrl) {
+                            photoCleanupData['claimData.idPhotoUrl'] = null;
+                        }
+
+                        // Clear owner's ID photo URL
+                        if (messageData.claimData?.ownerIdPhoto) {
+                            photoCleanupData['claimData.ownerIdPhoto'] = null;
+                        }
+
+                        // Clear evidence photos array
+                        if (messageData.claimData?.evidencePhotos && messageData.claimData.evidencePhotos.length > 0) {
+                            photoCleanupData['claimData.evidencePhotos'] = [];
+                        }
+
+                        // Add photos deleted indicator to the message
+                        photoCleanupData['claimData.photosDeleted'] = true;
+                        photoCleanupData['claimData.photosDeletedAt'] = serverTimestamp();
+                        photoCleanupData['claimData.cloudinaryDeletionSuccess'] = cloudinaryDeletionSuccess;
+
+                        // Merge photo cleanup data with update data
+                        Object.assign(updateData, photoCleanupData);
+                        console.log('✅ Mobile: Photo URLs cleared from database and deletion indicator added');
+
+                        if (!cloudinaryDeletionSuccess) {
+                            console.log('ℹ️ Mobile: Note - Photos may still exist in Cloudinary due to missing API credentials. Consider adding EXPO_PUBLIC_CLOUDINARY_API_KEY and EXPO_PUBLIC_CLOUDINARY_API_SECRET to your .env file for complete cleanup.');
+                        }
+                    }
+                } catch (photoError: any) {
+                    console.warn('Mobile: Failed to process photo deletion during claim rejection, but continuing with rejection:', photoError.message);
+                    // Continue with rejection even if photo deletion fails
+                }
             }
 
             console.log('📝 Mobile Firebase: Final updateData:', updateData);

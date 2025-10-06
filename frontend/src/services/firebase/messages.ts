@@ -595,6 +595,27 @@ export const messageService = {
                 updateData['handoverData.status'] = 'pending_confirmation'; // New status for photo confirmation
             }
 
+            // If rejecting, clean up any uploaded photos
+            if (status === 'rejected' && messageData.handoverData) {
+                try {
+                    // Collect all image URLs to be deleted
+                    const imageUrls = [
+                        ...(messageData.handoverData.idPhotoUrl ? [messageData.handoverData.idPhotoUrl] : []),
+                        ...(messageData.handoverData.itemPhotos?.map((p: any) => p.url) || [])
+                    ];
+
+                    if (imageUrls.length > 0) {
+                        console.log('🗑️ Cleaning up images for rejected handover');
+                        const { deleteMessageImages } = await import('../../utils/cloudinary');
+                        const result = await deleteMessageImages(imageUrls);
+                        console.log(`✅ Cleanup result: ${result.deleted.length} deleted, ${result.failed.length} failed`);
+                    }
+                } catch (cleanupError) {
+                    console.error('⚠️ Failed to clean up handover images:', cleanupError);
+                    // Don't fail the whole operation if cleanup fails
+                }
+            }
+
             await updateDoc(messageRef, updateData);
 
             // Get conversation data for notifications
