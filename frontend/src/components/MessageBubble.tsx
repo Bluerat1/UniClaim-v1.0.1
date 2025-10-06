@@ -1167,6 +1167,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       )}
 
       {/* ID Photo Modal */}
+      {renderIdPhotoModal()}
     </div>
   );
 };
