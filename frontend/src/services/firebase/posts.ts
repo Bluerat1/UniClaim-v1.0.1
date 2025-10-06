@@ -420,8 +420,8 @@ export const postService = {
             const activePosts = posts.filter(post => {
                 if (post.movedToUnclaimed) return false;
 
-                // Exclude resolved posts from active sections
-                if (post.status === 'resolved') return false;
+                // Exclude resolved, completed, and unclaimed posts from active sections
+                if (post.status === 'resolved' || post.status === 'completed' || post.status === 'unclaimed') return false;
 
                 // Exclude hidden posts (flagged posts that admin chose to hide)
                 if (post.isHidden === true) return false;
@@ -501,8 +501,11 @@ export const postService = {
             const adminPosts = posts.filter(post => {
                 if (post.movedToUnclaimed) return false;
 
-                // Exclude resolved and completed posts from active sections (they're handled by getResolvedPosts)
-                if (post.status === 'resolved' || post.status === 'completed') return false;
+                // Exclude resolved, completed, and any other final status posts from active sections
+                // These should only appear in the resolved posts section
+                if (post.status === 'resolved' || post.status === 'completed' || post.status === 'unclaimed') {
+                    return false;
+                }
 
                 // SPECIAL CASE: Include posts with turnoverStatus "declared" for admin use
                 // These are posts awaiting OSA confirmation and should be visible to admins
