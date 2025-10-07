@@ -10,6 +10,7 @@ import HandoverDetailsDisplay from "./HandoverDetailsDisplay";
 import ClaimDetailsDisplay from "./ClaimDetailsDisplay";
 import FlagButton from "./FlagButton";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { usePostCreatorData } from "@/hooks/usePostCreatorData";
 
 interface PostModalProps {
   post: Post;
@@ -47,6 +48,9 @@ export default function PostModal({
 
   // Check if current user is the creator of the post
   const isCurrentUserCreator = userData?.uid === post.creatorId;
+
+  // Get real-time creator data for the current user's posts
+  const creatorData = usePostCreatorData(post);
 
   const categoryStyles: Record<string, string> = {
     "Student Essentials": "bg-yellow-300 text-black",
@@ -181,15 +185,15 @@ export default function PostModal({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <ProfilePicture
-              src={post.user?.profilePicture}
+              src={creatorData?.profilePicture}
               alt="user profile"
               size="md"
             />
             <div className="flex flex-col">
               <p className="text-xs text-gray-500">Posted by:</p>
               <p className="text-sm">
-                {post.user?.firstName && post.user?.lastName
-                  ? `${post.user.firstName} ${post.user.lastName}`
+                {creatorData?.firstName && creatorData?.lastName
+                  ? `${creatorData.firstName} ${creatorData.lastName}`
                   : "Anonymous"}
               </p>
             </div>
