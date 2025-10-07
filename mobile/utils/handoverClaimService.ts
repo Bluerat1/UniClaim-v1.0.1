@@ -162,7 +162,7 @@ export const handleConfirmIdPhoto = async (
         if (result.success) {
             if (result.conversationDeleted) {
                 callbacks.onSuccess?.('✅ Handover confirmed successfully! The conversation has been archived and the post is now marked as resolved.');
-                callbacks.onClearConversation?.();
+                // Don't call onClearConversation if conversation is already deleted - this prevents duplicate confirmations
             } else {
                 callbacks.onSuccess?.('✅ Handover confirmed successfully! The post is now marked as resolved.');
                 callbacks.onClearConversation?.();
@@ -191,7 +191,7 @@ export const handleConfirmClaimIdPhoto = async (
         if (result.success) {
             if (result.conversationDeleted) {
                 callbacks.onSuccess?.('✅ Claim confirmed successfully! The conversation has been archived and the post is now marked as resolved.');
-                callbacks.onClearConversation?.();
+                // Don't call onClearConversation if conversation is already deleted - this prevents duplicate confirmations
             } else {
                 callbacks.onSuccess?.('✅ Claim confirmed successfully! The post is now marked as resolved.');
                 callbacks.onClearConversation?.();

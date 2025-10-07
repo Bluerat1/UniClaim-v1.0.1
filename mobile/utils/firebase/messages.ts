@@ -519,23 +519,104 @@ export const messageService: MessageService = {
                 });
             }
 
-            // Delete the conversation after successful data preservation
+            // Delete ALL conversations tied to this post after successful data preservation
             try {
-                // First, delete all messages in the conversation
-                const messagesQuery = query(collection(db, `conversations/${conversationId}/messages`));
-                const messagesSnapshot = await getDocs(messagesQuery);
+                // First, find all conversations for this post
+                const conversationsQuery = query(
+                    collection(db, 'conversations'),
+                    where('postId', '==', postId)
+                );
+                const conversationsSnapshot = await getDocs(conversationsQuery);
 
-                // Delete all messages
-                for (const messageDoc of messagesSnapshot.docs) {
-                    await deleteDoc(doc(db, `conversations/${conversationId}/messages`, messageDoc.id));
+                console.log(`🔍 Mobile: Found ${conversationsSnapshot.docs.length} conversations for post ${postId}`);
+
+                // STEP 1: Collect all image URLs from all conversations, but preserve only confirmed request photos
+                const allImageUrls: string[] = [];
+                const confirmedRequestPhotos: string[] = []; // Only photos from the confirmed request should be preserved
+
+                for (const conversationDoc of conversationsSnapshot.docs) {
+                    const conversationId = conversationDoc.id;
+
+                    // Get all messages in this conversation to extract image URLs
+                    const messagesQuery = query(collection(db, `conversations/${conversationId}/messages`));
+                    const messagesSnapshot = await getDocs(messagesQuery);
+
+                    console.log(`📸 Mobile: Scanning ${messagesSnapshot.docs.length} messages for images in conversation ${conversationId}`);
+
+                    // Extract image URLs from each message
+                    for (const messageDoc of messagesSnapshot.docs) {
+                        const messageData = messageDoc.data();
+                        const messageImageUrls = await import('../cloudinary').then(module => module.extractMessageImages(messageData));
+
+                        // Check if this is the specific confirmed handover request message
+                        if (messageDoc.id === messageId && messageData.handoverData && messageData.handoverData.idPhotoConfirmed) {
+                            // This is the confirmed handover request - preserve its photos
+                            if (messageData.handoverData.idPhotoUrl) {
+                                confirmedRequestPhotos.push(messageData.handoverData.idPhotoUrl);
+                                console.log('🛡️ Mobile: Preserving confirmed handover request requester photo:', messageData.handoverData.idPhotoUrl.split('/').pop());
+                            }
+                            if (messageData.handoverData.ownerIdPhoto) {
+                                confirmedRequestPhotos.push(messageData.handoverData.ownerIdPhoto);
+                                console.log('🛡️ Mobile: Preserving confirmed handover request owner photo:', messageData.handoverData.ownerIdPhoto.split('/').pop());
+                            }
+                            // Also preserve item photos from the confirmed request
+                            if (messageData.handoverData.itemPhotos && Array.isArray(messageData.handoverData.itemPhotos)) {
+                                messageData.handoverData.itemPhotos.forEach((photo: any) => {
+                                    if (photo.url) {
+                                        confirmedRequestPhotos.push(photo.url);
+                                        console.log('🛡️ Mobile: Preserving confirmed handover request item photo:', photo.url.split('/').pop());
+                                    }
+                                });
+                            }
+                        }
+
+                        allImageUrls.push(...messageImageUrls);
+                    }
                 }
 
-                // Then delete the conversation document
-                await deleteDoc(conversationRef);
+                // STEP 2: Filter out only the confirmed request photos from deletion list
+                const imagesToDelete = allImageUrls.filter(url => !confirmedRequestPhotos.includes(url));
 
-                console.log(`✅ Mobile: Conversation ${conversationId} deleted after handover confirmation`);
+                // STEP 3: Delete all non-confirmed-request images from Cloudinary
+                if (imagesToDelete.length > 0) {
+                    console.log(`🗑️ Mobile: Deleting ${imagesToDelete.length} images from Cloudinary (preserving ${confirmedRequestPhotos.length} photos from confirmed request)`);
+                    const { deleteMessageImages } = await import('../cloudinary');
+                    const deletionResult = await deleteMessageImages(imagesToDelete);
+
+                    if (deletionResult.success) {
+                        console.log(`✅ Mobile: Successfully deleted ${deletionResult.deleted.length} images from Cloudinary`);
+                    } else {
+                        console.warn(`⚠️ Mobile: Cloudinary deletion completed with issues: ${deletionResult.deleted.length} deleted, ${deletionResult.failed.length} failed`);
+                    }
+                } else {
+                    console.log('ℹ️ Mobile: No images to delete (all images are from confirmed request or no images found)');
+                }
+
+                // STEP 4: Delete each conversation and all its messages
+                for (const conversationDoc of conversationsSnapshot.docs) {
+                    const conversationId = conversationDoc.id;
+                    const conversationRef = doc(db, 'conversations', conversationId);
+
+                    // Delete all messages in the conversation
+                    const messagesQuery = query(collection(db, `conversations/${conversationId}/messages`));
+                    const messagesSnapshot = await getDocs(messagesQuery);
+
+                    console.log(`🗑️ Mobile: Deleting ${messagesSnapshot.docs.length} messages from conversation ${conversationId}`);
+
+                    // Delete all messages
+                    for (const messageDoc of messagesSnapshot.docs) {
+                        await deleteDoc(doc(db, `conversations/${conversationId}/messages`, messageDoc.id));
+                    }
+
+                    // Then delete the conversation document
+                    await deleteDoc(conversationRef);
+
+                    console.log(`✅ Mobile: Conversation ${conversationId} deleted`);
+                }
+
+                console.log(`✅ Mobile: All ${conversationsSnapshot.docs.length} conversations for post ${postId} deleted after handover confirmation`);
             } catch (deleteError) {
-                console.warn('⚠️ Mobile: Failed to delete conversation after handover confirmation:', deleteError);
+                console.warn('⚠️ Mobile: Failed to delete all conversations after handover confirmation:', deleteError);
                 // Continue even if conversation deletion fails
             }
 
@@ -689,23 +770,104 @@ export const messageService: MessageService = {
                 });
             }
 
-            // Delete the conversation after successful data preservation
+            // Delete ALL conversations tied to this post after successful data preservation
             try {
-                // First, delete all messages in the conversation
-                const messagesQuery = query(collection(db, `conversations/${conversationId}/messages`));
-                const messagesSnapshot = await getDocs(messagesQuery);
+                // First, find all conversations for this post
+                const conversationsQuery = query(
+                    collection(db, 'conversations'),
+                    where('postId', '==', postId)
+                );
+                const conversationsSnapshot = await getDocs(conversationsQuery);
 
-                // Delete all messages
-                for (const messageDoc of messagesSnapshot.docs) {
-                    await deleteDoc(doc(db, `conversations/${conversationId}/messages`, messageDoc.id));
+                console.log(`🔍 Mobile: Found ${conversationsSnapshot.docs.length} conversations for post ${postId}`);
+
+                // STEP 1: Collect all image URLs from all conversations, but preserve only confirmed request photos
+                const allImageUrls: string[] = [];
+                const confirmedRequestPhotos: string[] = []; // Only photos from the confirmed request should be preserved
+
+                for (const conversationDoc of conversationsSnapshot.docs) {
+                    const conversationId = conversationDoc.id;
+
+                    // Get all messages in this conversation to extract image URLs
+                    const messagesQuery = query(collection(db, `conversations/${conversationId}/messages`));
+                    const messagesSnapshot = await getDocs(messagesQuery);
+
+                    console.log(`📸 Mobile: Scanning ${messagesSnapshot.docs.length} messages for images in conversation ${conversationId}`);
+
+                    // Extract image URLs from each message
+                    for (const messageDoc of messagesSnapshot.docs) {
+                        const messageData = messageDoc.data();
+                        const messageImageUrls = await import('../cloudinary').then(module => module.extractMessageImages(messageData));
+
+                        // Check if this is the specific confirmed claim request message
+                        if (messageDoc.id === messageId && messageData.claimData && messageData.claimData.idPhotoConfirmed) {
+                            // This is the confirmed claim request - preserve its photos
+                            if (messageData.claimData.idPhotoUrl) {
+                                confirmedRequestPhotos.push(messageData.claimData.idPhotoUrl);
+                                console.log('🛡️ Mobile: Preserving confirmed claim request claimer photo:', messageData.claimData.idPhotoUrl.split('/').pop());
+                            }
+                            if (messageData.claimData.ownerIdPhoto) {
+                                confirmedRequestPhotos.push(messageData.claimData.ownerIdPhoto);
+                                console.log('🛡️ Mobile: Preserving confirmed claim request owner photo:', messageData.claimData.ownerIdPhoto.split('/').pop());
+                            }
+                            // Also preserve evidence photos from the confirmed request
+                            if (messageData.claimData.evidencePhotos && Array.isArray(messageData.claimData.evidencePhotos)) {
+                                messageData.claimData.evidencePhotos.forEach((photo: any) => {
+                                    if (photo.url) {
+                                        confirmedRequestPhotos.push(photo.url);
+                                        console.log('🛡️ Mobile: Preserving confirmed claim request evidence photo:', photo.url.split('/').pop());
+                                    }
+                                });
+                            }
+                        }
+
+                        allImageUrls.push(...messageImageUrls);
+                    }
                 }
 
-                // Then delete the conversation document
-                await deleteDoc(conversationRef);
+                // STEP 2: Filter out only the confirmed request photos from deletion list
+                const imagesToDelete = allImageUrls.filter(url => !confirmedRequestPhotos.includes(url));
 
-                console.log(`✅ Mobile: Conversation ${conversationId} deleted after claim confirmation`);
+                // STEP 3: Delete all non-confirmed-request images from Cloudinary
+                if (imagesToDelete.length > 0) {
+                    console.log(`🗑️ Mobile: Deleting ${imagesToDelete.length} images from Cloudinary (preserving ${confirmedRequestPhotos.length} photos from confirmed request)`);
+                    const { deleteMessageImages } = await import('../cloudinary');
+                    const deletionResult = await deleteMessageImages(imagesToDelete);
+
+                    if (deletionResult.success) {
+                        console.log(`✅ Mobile: Successfully deleted ${deletionResult.deleted.length} images from Cloudinary`);
+                    } else {
+                        console.warn(`⚠️ Mobile: Cloudinary deletion completed with issues: ${deletionResult.deleted.length} deleted, ${deletionResult.failed.length} failed`);
+                    }
+                } else {
+                    console.log('ℹ️ Mobile: No images to delete (all images are from confirmed request or no images found)');
+                }
+
+                // STEP 4: Delete each conversation and all its messages
+                for (const conversationDoc of conversationsSnapshot.docs) {
+                    const conversationId = conversationDoc.id;
+                    const conversationRef = doc(db, 'conversations', conversationId);
+
+                    // Delete all messages in the conversation
+                    const messagesQuery = query(collection(db, `conversations/${conversationId}/messages`));
+                    const messagesSnapshot = await getDocs(messagesQuery);
+
+                    console.log(`🗑️ Mobile: Deleting ${messagesSnapshot.docs.length} messages from conversation ${conversationId}`);
+
+                    // Delete all messages
+                    for (const messageDoc of messagesSnapshot.docs) {
+                        await deleteDoc(doc(db, `conversations/${conversationId}/messages`, messageDoc.id));
+                    }
+
+                    // Then delete the conversation document
+                    await deleteDoc(conversationRef);
+
+                    console.log(`✅ Mobile: Conversation ${conversationId} deleted`);
+                }
+
+                console.log(`✅ Mobile: All ${conversationsSnapshot.docs.length} conversations for post ${postId} deleted after claim confirmation`);
             } catch (deleteError) {
-                console.warn('⚠️ Mobile: Failed to delete conversation after claim confirmation:', deleteError);
+                console.warn('⚠️ Mobile: Failed to delete all conversations after claim confirmation:', deleteError);
                 // Continue even if conversation deletion fails
             }
 
