@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import type { Message } from "@/types/Post";
 import { useMessage } from "@/context/MessageContext";
 import ImageModal from "./ImageModal";
-import {
-  handoverClaimService,
+import handoverClaimService, {
   type HandoverClaimCallbacks,
 } from "../services/handoverClaimService";
 import { useAuth } from "@/context/AuthContext";
@@ -107,6 +106,20 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     // If accepting, show ID photo modal
     if (status === "accepted") {
       setShowIdPhotoModal(true);
+      return;
+    }
+
+    // For rejection, check if this is after ID photo confirmation
+    if (message.handoverData?.status === "pending_confirmation" || message.handoverData?.ownerIdPhoto) {
+      console.log("🔄 Rejecting handover after ID photo confirmation");
+      try {
+        const { rejectHandoverAfterConfirmation } = await import("../services/handoverClaimService");
+        await rejectHandoverAfterConfirmation(conversationId, message.id, currentUserId);
+        onHandoverResponse(message.id, "rejected");
+      } catch (error: any) {
+        console.error("Failed to reject handover after confirmation:", error);
+        alert(`Failed to reject handover: ${error.message}`);
+      }
       return;
     }
 
@@ -247,6 +260,20 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       else {
         // Set a flag to indicate this is for a claim acceptance
         setShowIdPhotoModal(true);
+      }
+      return;
+    }
+
+    // For rejection, check if this is after ID photo confirmation
+    if (message.claimData?.status === "pending_confirmation" || message.claimData?.ownerIdPhoto) {
+      console.log("🔄 Rejecting claim after ID photo confirmation");
+      try {
+        const { rejectClaimAfterConfirmation } = await import("../services/handoverClaimService");
+        await rejectClaimAfterConfirmation(conversationId, message.id, currentUserId);
+        onClaimResponse(message.id, "rejected");
+      } catch (error: any) {
+        console.error("Failed to reject claim after confirmation:", error);
+        alert(`Failed to reject claim: ${error.message}`);
       }
       return;
     }

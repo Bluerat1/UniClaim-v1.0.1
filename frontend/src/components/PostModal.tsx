@@ -397,16 +397,16 @@ export default function PostModal({
           </div>
         </div>
 
-        {/* Show claim details if post is resolved, has claim details, and user is admin */}
-        {post.status === "resolved" && post.claimDetails && isAdmin && (
+        {/* Show claim details if post is resolved or completed, has claim details, and user is admin */}
+        {(post.status === "resolved" || post.status === "completed") && post.claimDetails && isAdmin && (
           <ClaimDetailsDisplay
             claimDetails={post.claimDetails}
             conversationData={post.conversationData}
           />
         )}
 
-        {/* Show handover details if post is resolved, has handover details, no claim details, and user is admin */}
-        {post.status === "resolved" &&
+        {/* Show handover details if post is resolved or completed, has handover details, no claim details, and user is admin */}
+        {(post.status === "resolved" || post.status === "completed") &&
           post.handoverDetails &&
           !post.claimDetails &&
           isAdmin && (

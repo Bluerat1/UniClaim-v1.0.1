@@ -1922,19 +1922,203 @@ export const postService = {
                 } as Post);
             });
 
-            // Sort by flaggedAt (most recently flagged first)
-            flaggedPosts.sort((a: Post, b: Post) => {
-                if (!a.flaggedAt || !b.flaggedAt) return 0;
-                const aTime = a.flaggedAt instanceof Date ? a.flaggedAt.getTime() : new Date(a.flaggedAt).getTime();
-                const bTime = b.flaggedAt instanceof Date ? b.flaggedAt.getTime() : new Date(b.flaggedAt).getTime();
-                return bTime - aTime;
-            });
-
             console.log(`✅ Retrieved ${flaggedPosts.length} flagged posts`);
             return flaggedPosts;
         } catch (error: any) {
             console.error('❌ Firebase getFlaggedPosts failed:', error);
             throw new Error(error.message || 'Failed to get flagged posts');
         }
-    }
+    },
+
+    // Cleanup handover details and photos when reverting a resolution
+    async cleanupHandoverDetailsAndPhotos(postId: string): Promise<{ photosDeleted: number; errors: string[] }> {
+        try {
+            console.log(`🧹 Starting cleanup of handover details and photos for post ${postId}...`);
+
+            // Get the post to access handover details
+            const postDoc = await getDoc(doc(db, 'posts', postId));
+            if (!postDoc.exists()) {
+                throw new Error('Post not found');
+            }
+
+            const postData = postDoc.data() as Post;
+            const handoverDetails = postData.handoverDetails;
+
+            if (!handoverDetails) {
+                console.log('ℹ️ No handover details found for cleanup');
+                return { photosDeleted: 0, errors: [] };
+            }
+
+            let photosDeleted = 0;
+            const errors: string[] = [];
+
+            // Collect all image URLs to delete
+            const imageUrls: string[] = [];
+
+            // Add handover item photos
+            if (handoverDetails.handoverItemPhotos && Array.isArray(handoverDetails.handoverItemPhotos)) {
+                handoverDetails.handoverItemPhotos.forEach((photo: any) => {
+                    if (photo.url) {
+                        imageUrls.push(photo.url);
+                    }
+                });
+            }
+
+            // Add handover ID photo
+            if (handoverDetails.handoverIdPhoto) {
+                imageUrls.push(handoverDetails.handoverIdPhoto);
+            }
+
+            // Add owner ID photo
+            if (handoverDetails.ownerIdPhoto) {
+                imageUrls.push(handoverDetails.ownerIdPhoto);
+            }
+
+            // Add photos from handoverRequestDetails if they exist
+            if (handoverDetails.handoverRequestDetails?.itemPhotos) {
+                handoverDetails.handoverRequestDetails.itemPhotos.forEach((photo: any) => {
+                    if (photo.url) {
+                        imageUrls.push(photo.url);
+                    }
+                });
+            }
+
+            if (handoverDetails.handoverRequestDetails?.idPhotoUrl) {
+                imageUrls.push(handoverDetails.handoverRequestDetails.idPhotoUrl);
+            }
+
+            if (handoverDetails.handoverRequestDetails?.ownerIdPhoto) {
+                imageUrls.push(handoverDetails.handoverRequestDetails.ownerIdPhoto);
+            }
+
+            // Delete images from Cloudinary
+            if (imageUrls.length > 0) {
+                console.log(`🗑️ Deleting ${imageUrls.length} handover photos from Cloudinary`);
+
+                try {
+                    const { deleteMessageImages } = await import('../../utils/cloudinary');
+                    const result = await deleteMessageImages(imageUrls);
+
+                    photosDeleted = result.deleted.length;
+                    console.log(`✅ Cloudinary cleanup result: ${result.deleted.length} deleted, ${result.failed.length} failed`);
+
+                    if (result.failed.length > 0) {
+                        errors.push(...result.failed.map((fail: any) => `Failed to delete ${fail.url}: ${fail.error}`));
+                    }
+                } catch (cloudinaryError) {
+                    console.error('❌ Cloudinary deletion failed:', cloudinaryError);
+                    errors.push(`Cloudinary deletion failed: ${cloudinaryError}`);
+                }
+            }
+
+            // Clear handover details from post (but keep the basic info for record)
+            await updateDoc(doc(db, 'posts', postId), {
+                handoverDetails: null,
+                updatedAt: serverTimestamp()
+            });
+
+            console.log(`✅ Handover cleanup completed: ${photosDeleted} photos deleted`);
+            return { photosDeleted, errors };
+
+        } catch (error: any) {
+            console.error('❌ Failed to cleanup handover details:', error);
+            return { photosDeleted: 0, errors: [error.message || 'Failed to cleanup handover details'] };
+        }
+    },
+
+    // Cleanup claim details and photos when reverting a resolution
+    async cleanupClaimDetailsAndPhotos(postId: string): Promise<{ photosDeleted: number; errors: string[] }> {
+        try {
+            console.log(`🧹 Starting cleanup of claim details and photos for post ${postId}...`);
+
+            // Get the post to access claim details
+            const postDoc = await getDoc(doc(db, 'posts', postId));
+            if (!postDoc.exists()) {
+                throw new Error('Post not found');
+            }
+
+            const postData = postDoc.data() as Post;
+            const claimDetails = postData.claimDetails;
+
+            if (!claimDetails) {
+                console.log('ℹ️ No claim details found for cleanup');
+                return { photosDeleted: 0, errors: [] };
+            }
+
+            let photosDeleted = 0;
+            const errors: string[] = [];
+
+            // Collect all image URLs to delete
+            const imageUrls: string[] = [];
+
+            // Add evidence photos
+            if (claimDetails.evidencePhotos && Array.isArray(claimDetails.evidencePhotos)) {
+                claimDetails.evidencePhotos.forEach((photo: any) => {
+                    if (photo.url) {
+                        imageUrls.push(photo.url);
+                    }
+                });
+            }
+
+            // Add claimer ID photo
+            if (claimDetails.claimerIdPhoto) {
+                imageUrls.push(claimDetails.claimerIdPhoto);
+            }
+
+            // Add owner ID photo
+            if (claimDetails.ownerIdPhoto) {
+                imageUrls.push(claimDetails.ownerIdPhoto);
+            }
+
+            // Add photos from claimRequestDetails if they exist
+            if (claimDetails.claimRequestDetails?.evidencePhotos) {
+                claimDetails.claimRequestDetails.evidencePhotos.forEach((photo: any) => {
+                    if (photo.url) {
+                        imageUrls.push(photo.url);
+                    }
+                });
+            }
+
+            if (claimDetails.claimRequestDetails?.idPhotoUrl) {
+                imageUrls.push(claimDetails.claimRequestDetails.idPhotoUrl);
+            }
+
+            if (claimDetails.claimRequestDetails?.ownerIdPhoto) {
+                imageUrls.push(claimDetails.claimRequestDetails.ownerIdPhoto);
+            }
+
+            // Delete images from Cloudinary
+            if (imageUrls.length > 0) {
+                console.log(`🗑️ Deleting ${imageUrls.length} claim photos from Cloudinary`);
+
+                try {
+                    const { deleteMessageImages } = await import('../../utils/cloudinary');
+                    const result = await deleteMessageImages(imageUrls);
+
+                    photosDeleted = result.deleted.length;
+                    console.log(`✅ Cloudinary cleanup result: ${result.deleted.length} deleted, ${result.failed.length} failed`);
+
+                    if (result.failed.length > 0) {
+                        errors.push(...result.failed.map((fail: any) => `Failed to delete ${fail.url}: ${fail.error}`));
+                    }
+                } catch (cloudinaryError) {
+                    console.error('❌ Cloudinary deletion failed:', cloudinaryError);
+                    errors.push(`Cloudinary deletion failed: ${cloudinaryError}`);
+                }
+            }
+
+            // Clear claim details from post (but keep the basic info for record)
+            await updateDoc(doc(db, 'posts', postId), {
+                claimDetails: null,
+                updatedAt: serverTimestamp()
+            });
+
+            console.log(`✅ Claim cleanup completed: ${photosDeleted} photos deleted`);
+            return { photosDeleted, errors };
+
+        } catch (error: any) {
+            console.error('❌ Failed to cleanup claim details:', error);
+            return { photosDeleted: 0, errors: [error.message || 'Failed to cleanup claim details'] };
+        }
+    },
 };
