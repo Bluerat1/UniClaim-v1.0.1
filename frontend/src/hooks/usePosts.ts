@@ -427,7 +427,7 @@ export const useUserPostsWithSet = (userEmail: string, includeDeleted: boolean =
     };
 };
 
-// Custom hook for resolved posts (completed reports)
+// Custom hook for resolved posts (resolved reports)
 export const useResolvedPosts = () => {
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);

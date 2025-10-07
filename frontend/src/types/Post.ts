@@ -21,14 +21,14 @@ export interface Post {
   };
   createdAt?: string | Date | any; // Firebase timestamp or Date
   updatedAt?: string | Date | any; // Firebase timestamp or Date
-  status?: "pending" | "resolved" | "unclaimed" | "completed";
+  status?: "pending" | "resolved" | "unclaimed";
   foundAction?: "keep" | "turnover to OSA" | "turnover to Campus Security"; // For found items
   dateTime?: string; // When the item was lost/found
   // New fields for 30-day lifecycle system
   expiryDate?: string | Date | any; // When the post expires (30 days from creation)
   isExpired?: boolean; // Boolean flag for quick filtering
   movedToUnclaimed?: boolean; // Boolean flag to track if moved to unclaimed
-  originalStatus?: "pending" | "resolved" | "unclaimed" | "completed"; // Store the original status before moving to unclaimed
+  originalStatus?: "pending" | "resolved" | "unclaimed"; // Store the original status before moving to unclaimed
 
   // Flagging system fields
   isFlagged?: boolean; // Whether the post has been flagged by a user

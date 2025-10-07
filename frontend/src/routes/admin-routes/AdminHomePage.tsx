@@ -541,7 +541,7 @@ export default function AdminHomePage() {
                        post.turnoverDetails.turnoverStatus === "declared");
       } else if (viewType === "unclaimed") {
         // Show posts that are either status 'unclaimed' OR have movedToUnclaimed flag
-        shouldShow = post.status === 'unclaimed' || post.movedToUnclaimed;
+        shouldShow = post.status === 'unclaimed' || Boolean(post.movedToUnclaimed);
       } else if (viewType === "completed") {
         shouldShow = true; // resolvedPosts already filtered
       } else if (viewType === "turnover") {
@@ -736,7 +736,7 @@ export default function AdminHomePage() {
           <span className="text-sm text-gray-600">Current View: </span>
           <span className="text-sm font-semibold text-blue-600 capitalize">
             {viewType === "unclaimed" ? "Unclaimed Items" :
-             viewType === "completed" ? "Completed Reports" :
+             viewType === "completed" ? "Resolved Reports" :
              viewType === "turnover" ? "Turnover Management" :
              viewType === "flagged" ? "Flagged Posts" :
              `${viewType} Item Reports`}
@@ -880,7 +880,7 @@ export default function AdminHomePage() {
           <div className="col-span-full flex items-center justify-center h-80">
             <span className="text-gray-400">
               Loading {viewType === "unclaimed" ? "unclaimed" :
-                       viewType === "completed" ? "completed" :
+                       viewType === "completed" ? "resolved" :
                        viewType === "deleted" ? "recently deleted" :
                        viewType} report items...
             </span>
