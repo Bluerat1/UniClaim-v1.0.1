@@ -152,7 +152,7 @@ function AdminPostCard({
 
           {/* Admin Controls */}
           <div className="flex gap-2">
-            {(post.status === "resolved") && onRevertResolution && (
+            {(post.status === "resolved" || post.status === "completed") && onRevertResolution && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();

@@ -922,10 +922,13 @@ export const messageService = {
             // Update the post status to completed and preserve handover details to the post itself so they can be shown in completed posts section
             const postRef = doc(db, 'posts', postId);
 
-            // Enhanced handover details with essential information
+            // Enhanced handover details with essential information for handover person only
             const handoverDetails = {
                 handoverPersonName: conversationData.participants[confirmBy]?.firstName + ' ' + conversationData.participants[confirmBy]?.lastName || 'Unknown User',
                 handoverPersonId: confirmBy,
+                handoverPersonEmail: conversationData.participants[confirmBy]?.email || '',
+                handoverPersonContact: conversationData.participants[confirmBy]?.contactNum || '',
+                handoverPersonStudentId: conversationData.participants[confirmBy]?.studentId || '',
                 handoverIdPhoto: messageData.handoverData?.idPhotoUrl || '',
                 ownerIdPhoto: messageData.handoverData?.ownerIdPhoto || '',
                 handoverConfirmedAt: serverTimestamp(),
@@ -1076,10 +1079,13 @@ export const messageService = {
             // Update the post status to resolved and preserve claim details to the post itself so they can be shown in resolved posts section
             const postRef = doc(db, 'posts', postId);
 
-            // Enhanced claim details with essential information
+            // Enhanced claim details with essential information for claimer only
             const claimDetails = {
                 claimerName: conversationData.participants[confirmBy]?.firstName + ' ' + conversationData.participants[confirmBy]?.lastName || 'Unknown User',
                 claimerId: confirmBy,
+                claimerEmail: conversationData.participants[confirmBy]?.email || '',
+                claimerContact: conversationData.participants[confirmBy]?.contactNum || '',
+                claimerStudentId: conversationData.participants[confirmBy]?.studentId || '',
                 claimerIdPhoto: messageData.claimData?.idPhotoUrl || '',
                 ownerIdPhoto: messageData.claimData?.ownerIdPhoto || '',
                 claimConfirmedAt: serverTimestamp(),
