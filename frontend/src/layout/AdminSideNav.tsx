@@ -49,10 +49,12 @@ export default function AdminSideNav({
   const turnoverPostsCount = useMemo(() => {
     return posts.filter((post) => {
       // Show only Found items marked for turnover to OSA that need confirmation
-      return post.type === "found" &&
-             post.turnoverDetails &&
-             post.turnoverDetails.turnoverAction === "turnover to OSA" &&
-             post.turnoverDetails.turnoverStatus === "declared";
+      return (
+        post.type === "found" &&
+        post.turnoverDetails &&
+        post.turnoverDetails.turnoverAction === "turnover to OSA" &&
+        post.turnoverDetails.turnoverStatus === "declared"
+      );
     }).length;
   }, [posts]);
 
@@ -157,7 +159,7 @@ export default function AdminSideNav({
 
             <NavText
               icon={<HiOutlineArrowPath className="size-6 stroke-[1.5px]" />}
-              label="Turnover Management"
+              label="Manage Turnover"
               to="/admin/turnover"
               isOpen={isOpen}
               className="hover:bg-gray-100"
@@ -229,7 +231,9 @@ export default function AdminSideNav({
                 />
 
                 <NavText
-                  icon={<LuMessageSquareMore className="size-6 stroke-[1.5px]" />}
+                  icon={
+                    <LuMessageSquareMore className="size-6 stroke-[1.5px]" />
+                  }
                   label="Messages"
                   to="/admin/messages"
                   isOpen={isOpen}
@@ -263,7 +267,9 @@ export default function AdminSideNav({
                 />
 
                 <NavText
-                  icon={<HiOutlineArrowPath className="size-6 stroke-[1.5px]" />}
+                  icon={
+                    <HiOutlineArrowPath className="size-6 stroke-[1.5px]" />
+                  }
                   label="Turnover Management"
                   to="/admin/turnover"
                   isOpen={isOpen}
@@ -271,7 +277,9 @@ export default function AdminSideNav({
                   className="hover:bg-gray-50 rounded pl-4 justify-start"
                   iconClassName="text-black"
                   textClassName="font-manrope"
-                  badge={turnoverPostsCount > 0 ? turnoverPostsCount : undefined}
+                  badge={
+                    turnoverPostsCount > 0 ? turnoverPostsCount : undefined
+                  }
                 />
 
                 <NavText

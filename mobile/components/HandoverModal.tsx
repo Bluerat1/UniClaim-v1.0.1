@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,9 +7,10 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-} from 'react-native';
-import ImagePicker from './ImagePicker';
-import { cloudinaryService } from '../utils/cloudinary';
+} from "react-native";
+import ImagePicker from "./ImagePicker";
+import { cloudinaryService } from "../utils/cloudinary";
+import { Ionicons } from "@expo/vector-icons";
 
 interface HandoverModalProps {
   visible: boolean;
@@ -30,8 +31,8 @@ export default function HandoverModal({
   isLoading = false,
   postTitle,
 }: HandoverModalProps) {
-  const [handoverReason, setHandoverReason] = useState('');
-  const [idPhotoUri, setIdPhotoUri] = useState('');
+  const [handoverReason, setHandoverReason] = useState("");
+  const [idPhotoUri, setIdPhotoUri] = useState("");
   const [itemPhotoUris, setItemPhotoUris] = useState<string[]>([]);
   const [isUploadingIdPhoto, setIsUploadingIdPhoto] = useState(false);
   const [isUploadingItemPhoto, setIsUploadingItemPhoto] = useState(false);
@@ -45,27 +46,27 @@ export default function HandoverModal({
   };
 
   const handleItemPhotoSelect = (photoUri: string) => {
-    setItemPhotoUris(prev => [...prev, photoUri]);
+    setItemPhotoUris((prev) => [...prev, photoUri]);
     setShowItemPhotoPicker(false);
   };
 
   const removeItemPhoto = (index: number) => {
-    setItemPhotoUris(prev => prev.filter((_, i) => i !== index));
+    setItemPhotoUris((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async () => {
     if (!handoverReason.trim()) {
-      Alert.alert('Error', 'Please provide a reason for the handover request.');
+      Alert.alert("Error", "Please provide a reason for the handover request.");
       return;
     }
 
     if (!idPhotoUri) {
-      Alert.alert('Error', 'Please select your ID photo for verification.');
+      Alert.alert("Error", "Please select your ID photo for verification.");
       return;
     }
 
     if (itemPhotoUris.length === 0) {
-      Alert.alert('Error', 'Please select at least one photo of the item.');
+      Alert.alert("Error", "Please select at least one photo of the item.");
       return;
     }
 
@@ -73,16 +74,19 @@ export default function HandoverModal({
       setIsHandoverSubmitting(true);
 
       // Upload ID photo
-      const idPhotoUrl = await cloudinaryService.uploadImage(idPhotoUri, 'id_photos');
+      const idPhotoUrl = await cloudinaryService.uploadImage(
+        idPhotoUri,
+        "id_photos"
+      );
 
       // Upload item photos
       const itemPhotos = await Promise.all(
         itemPhotoUris.map(async (uri) => {
-          const url = await cloudinaryService.uploadImage(uri, 'item_photos');
+          const url = await cloudinaryService.uploadImage(uri, "item_photos");
           return {
             url,
             uploadedAt: new Date(),
-            description: '',
+            description: "",
           };
         })
       );
@@ -93,16 +97,16 @@ export default function HandoverModal({
         itemPhotos,
       });
     } catch (error) {
-      console.error('Error uploading photos:', error);
-      Alert.alert('Error', 'Failed to upload photos. Please try again.');
+      console.error("Error uploading photos:", error);
+      Alert.alert("Error", "Failed to upload photos. Please try again.");
     } finally {
       setIsHandoverSubmitting(false);
     }
   };
 
   const resetForm = () => {
-    setHandoverReason('');
-    setIdPhotoUri('');
+    setHandoverReason("");
+    setIdPhotoUri("");
     setItemPhotoUris([]);
   };
 
@@ -114,69 +118,25 @@ export default function HandoverModal({
   if (!visible) return null;
 
   return (
-    <View
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 2000,
-      }}
-    >
-      <View
-        style={{
-          backgroundColor: 'white',
-          borderRadius: 12,
-          padding: 20,
-          margin: 20,
-          width: '90%',
-          maxWidth: 500,
-          maxHeight: '80%',
-        }}
-      >
+    <View className="absolute inset-0 bg-black/50 justify-center items-center z-[2000]">
+      <View className="bg-white rounded-xl p-5 m-5 w-[90%] max-w-[500px]">
         <ScrollView showsVerticalScrollIndicator={false}>
-          <Text
-            style={{
-              fontSize: 18,
-              fontWeight: 'bold',
-              marginBottom: 16,
-              textAlign: 'center',
-            }}
-          >
+          <Text className="text-lg font-manrope-bold mb-2 text-center">
             Handover Request
           </Text>
 
-          <Text
-            style={{
-              fontSize: 14,
-              color: '#666',
-              marginBottom: 20,
-              textAlign: 'center',
-            }}
-          >
+          <Text className="text-sm font-inter text-blue-500 bg-blue-50 p-3 rounded-md mb-5 text-center">
             Requesting to handover: {postTitle}
           </Text>
 
           {/* Handover Reason */}
-          <View style={{ marginBottom: 20 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>
-              Reason for Handover *
+          <View className="mb-5">
+            <Text className="text-base font-manrope-semibold mb-2">
+              Reason for Handover <Text className="text-red-500">*</Text>
             </Text>
             <TextInput
-              style={{
-                borderWidth: 1,
-                borderColor: '#d1d5db',
-                borderRadius: 8,
-                padding: 12,
-                fontSize: 14,
-                minHeight: 80,
-                textAlignVertical: 'top',
-              }}
-              placeholder="Please explain why you want to handover this item..."
+              className="border font-inter text-base border-gray-300 rounded-lg p-3 text-top"
+              placeholder="State why do you want to hand over this item..."
               value={handoverReason}
               onChangeText={setHandoverReason}
               multiline
@@ -185,39 +145,34 @@ export default function HandoverModal({
           </View>
 
           {/* ID Photo Selection */}
-          <View style={{ marginBottom: 20 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>
-              ID Photo for Verification *
+          <View className="mb-5">
+            <Text className="text-base font-manrope-semibold mb-2">
+              ID Photo for Verification <Text className="text-red-500">*</Text>
             </Text>
             {idPhotoUri ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <Text style={{ color: '#10b981', fontSize: 14, flex: 1 }}>
+              <View className="flex-row items-center mb-2">
+                <Text className="text-green-500 text-sm flex-1">
                   ✓ ID photo selected
                 </Text>
                 <TouchableOpacity
-                  onPress={() => setIdPhotoUri('')}
-                  style={{ padding: 4 }}
+                  onPress={() => setIdPhotoUri("")}
+                  className="p-1"
                 >
-                  <Text style={{ color: '#ef4444', fontSize: 14 }}>Remove</Text>
+                  <Text className="text-red-500 text-sm">Remove</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <TouchableOpacity
                 onPress={() => setShowIdPhotoPicker(true)}
-                style={{
-                  borderWidth: 2,
-                  borderColor: '#d1d5db',
-                  borderStyle: 'dashed',
-                  borderRadius: 8,
-                  padding: 20,
-                  alignItems: 'center',
-                  backgroundColor: 'white',
-                }}
+                className="border-2 border-gray-300 border-dashed rounded-lg p-5 items-center bg-white"
               >
-                <Text style={{ color: '#6b7280', fontSize: 14, marginBottom: 4 }}>
-                  📷 Tap to select ID photo
-                </Text>
-                <Text style={{ color: '#9ca3af', fontSize: 12 }}>
+                <View className="flex items-center justify-center gap-3">
+                  <Ionicons name="camera-outline" size={30} color="gray" />
+                  <Text className="text-gray-500 text-sm mb-1">
+                    Tap to select ID photo
+                  </Text>
+                </View>
+                <Text className="text-gray-400 text-xs">
                   Required for verification
                 </Text>
               </TouchableOpacity>
@@ -225,11 +180,11 @@ export default function HandoverModal({
           </View>
 
           {/* Item Photos Selection */}
-          <View style={{ marginBottom: 20 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>
-              Item Photos *
+          <View className="mb-5">
+            <Text className="text-base font-manrope-semibold mb-2">
+              Item Photos <Text className="text-red-500">*</Text>
             </Text>
-            <Text style={{ color: '#6b7280', fontSize: 12, marginBottom: 8 }}>
+            <Text className="text-gray-500 text-sm font-inter mb-2">
               Select photos of the item (up to 3 photos)
             </Text>
 
@@ -237,23 +192,16 @@ export default function HandoverModal({
             {itemPhotoUris.map((uri, index) => (
               <View
                 key={index}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  marginBottom: 8,
-                  padding: 8,
-                  backgroundColor: '#f9fafb',
-                  borderRadius: 6,
-                }}
+                className="flex-row items-center mb-2 p-2 bg-gray-50 rounded-md"
               >
-                <Text style={{ color: '#10b981', fontSize: 14, flex: 1 }}>
+                <Text className="text-green-500 text-sm flex-1">
                   ✓ Photo {index + 1} selected
                 </Text>
                 <TouchableOpacity
                   onPress={() => removeItemPhoto(index)}
-                  style={{ padding: 4 }}
+                  className="p-1"
                 >
-                  <Text style={{ color: '#ef4444', fontSize: 14 }}>Remove</Text>
+                  <Text className="text-red-500 text-sm">Remove</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -262,60 +210,50 @@ export default function HandoverModal({
             {itemPhotoUris.length < 3 && (
               <TouchableOpacity
                 onPress={() => setShowItemPhotoPicker(true)}
-                style={{
-                  borderWidth: 2,
-                  borderColor: '#d1d5db',
-                  borderStyle: 'dashed',
-                  borderRadius: 8,
-                  padding: 16,
-                  alignItems: 'center',
-                  backgroundColor: 'white',
-                }}
+                className="border-2 border-gray-300 border-dashed rounded-lg p-4 items-center bg-white"
               >
-                <Text style={{ color: '#6b7280', fontSize: 14, marginBottom: 4 }}>
-                  📷 Add Item Photo ({itemPhotoUris.length}/3)
+                <Ionicons name="camera-outline" size={30} color="gray" />
+                <Text className="text-gray-500 text-sm mb-1">
+                  Add Item Photo ({itemPhotoUris.length}/3)
                 </Text>
-                <Text style={{ color: '#9ca3af', fontSize: 12 }}>
-                  Tap to select
-                </Text>
+                <Text className="text-gray-400 text-xs">Tap to select</Text>
               </TouchableOpacity>
             )}
           </View>
 
           {/* Action Buttons */}
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-around',
-              marginTop: 20,
-            }}
-          >
-            <TouchableOpacity
-              onPress={handleClose}
-              style={{
-                paddingHorizontal: 20,
-                paddingVertical: 12,
-                borderRadius: 8,
-                backgroundColor: '#6b7280',
-              }}
-            >
-              <Text style={{ color: 'white', fontWeight: '500' }}>
-                Cancel
-              </Text>
-            </TouchableOpacity>
-
+          <View className="flex-col gap-3 justify-around mt-5">
             <TouchableOpacity
               onPress={handleSubmit}
-              disabled={isLoading || isHandoverSubmitting || !handoverReason.trim() || !idPhotoUri || itemPhotoUris.length === 0}
-              style={{
-                paddingHorizontal: 20,
-                paddingVertical: 12,
-                borderRadius: 8,
-                backgroundColor: isLoading || isHandoverSubmitting || !handoverReason.trim() || !idPhotoUri || itemPhotoUris.length === 0 ? '#9ca3af' : '#10b981',
-              }}
+              disabled={
+                isLoading ||
+                isHandoverSubmitting ||
+                !handoverReason.trim() ||
+                !idPhotoUri ||
+                itemPhotoUris.length === 0
+              }
+              className={`px-5 py-3 rounded-lg ${
+                isLoading ||
+                isHandoverSubmitting ||
+                !handoverReason.trim() ||
+                !idPhotoUri ||
+                itemPhotoUris.length === 0
+                  ? "bg-gray-400"
+                  : "bg-green-500"
+              }`}
             >
-              <Text style={{ color: 'white', fontWeight: '500' }}>
-                {isLoading || isHandoverSubmitting ? 'Uploading & Sending...' : 'Send Request'}
+              <Text className="text-white font-manrope-medium text-center">
+                {isLoading || isHandoverSubmitting
+                  ? "Uploading & Sending..."
+                  : "Send Request"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleClose}
+              className="px-5 py-3 rounded-lg bg-red-50"
+            >
+              <Text className="text-red-500 font-manrope-medium text-center">
+                Cancel
               </Text>
             </TouchableOpacity>
           </View>

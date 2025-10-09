@@ -123,7 +123,8 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
           : null; // null for permanent bans
 
       // Determine the final reason to use
-      const finalReason = banReason === "other" ? customBanReason.trim() : banReason;
+      const finalReason =
+        banReason === "other" ? customBanReason.trim() : banReason;
 
       // Create ban record
       const banData = {
@@ -241,7 +242,7 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-lg mb-10 shadow overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-medium">
             Regular Users ({users.length})
@@ -329,7 +330,9 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                                 : "bg-green-100 text-green-800"
                             }`}
                           >
-                            {user.status === "deactivated" ? "Deactivated" : "Active"}
+                            {user.status === "deactivated"
+                              ? "Deactivated"
+                              : "Active"}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -438,8 +441,7 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                     {banReason === "other" && (
                       <div className="mt-3">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Custom Reason{" "}
-                          <span className="text-red-500">*</span>
+                          Custom Reason <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -742,7 +744,9 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                             : "bg-green-100 text-green-800"
                         }`}
                       >
-                        {selectedUser.status === "deactivated" ? "Deactivated" : "Active"}
+                        {selectedUser.status === "deactivated"
+                          ? "Deactivated"
+                          : "Active"}
                       </span>
                     </div>
 
