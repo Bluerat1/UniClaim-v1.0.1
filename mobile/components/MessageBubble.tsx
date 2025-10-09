@@ -35,6 +35,7 @@ interface MessageBubbleProps {
   onConfirmIdPhotoSuccess?: (messageId: string) => void;
   onMessageSeen?: () => void;
   onImageClick?: (imageUrl: string, altText: string) => void;
+  isConfirmationInProgress?: boolean;
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -48,6 +49,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onConfirmIdPhotoSuccess,
   onMessageSeen,
   onImageClick,
+  isConfirmationInProgress = false,
 }) => {
   const { deleteMessage } = useMessage();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -388,9 +390,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           <View className="flex-row gap-2">
             <TouchableOpacity
               onPress={handleConfirmIdPhoto}
-              className="px-3 py-1 bg-blue-500 rounded-md"
+              disabled={isConfirmationInProgress}
+              className={`px-3 py-1 rounded-md ${isConfirmationInProgress ? 'bg-gray-400' : 'bg-blue-500'}`}
             >
-              <Text className="text-white text-xs">Confirm ID Photo</Text>
+              <Text className="text-white text-xs">
+                {isConfirmationInProgress ? 'Confirming...' : 'Confirm ID Photo'}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => handleHandoverResponse("rejected")}
@@ -690,9 +695,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           <View className="flex-row gap-2">
             <TouchableOpacity
               onPress={handleConfirmClaimIdPhoto}
-              className="px-3 py-1 bg-blue-500 rounded-md"
+              disabled={isConfirmationInProgress}
+              className={`px-3 py-1 rounded-md ${isConfirmationInProgress ? 'bg-gray-400' : 'bg-blue-500'}`}
             >
-              <Text className="text-white text-xs">Confirm ID Photo</Text>
+              <Text className="text-white text-xs">
+                {isConfirmationInProgress ? 'Confirming...' : 'Confirm ID Photo'}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => handleClaimResponse("rejected")}

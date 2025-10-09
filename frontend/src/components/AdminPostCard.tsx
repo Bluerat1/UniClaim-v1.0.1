@@ -15,15 +15,15 @@ interface AdminPostCardProps {
     post: Post,
     status: "confirmed" | "not_received"
   ) => void;
-  onUnflagPost?: (post: Post) => void;
   onHidePost?: (post: Post) => void;
   onUnhidePost?: (post: Post) => void;
   onRestore?: (post: Post) => void;
   onPermanentDelete?: (post: Post) => void;
+  hideDeleteButton?: boolean;
   isDeleting?: boolean;
 }
 
-import { formatDateTime, formatRelativeTime } from "@/utils/dateUtils";
+import { formatDateTime } from "@/utils/dateUtils";
 
 // Format function for post creation time
 const formatPostTime = (date: Date | string | { seconds: number; nanoseconds: number }) => {
@@ -61,13 +61,13 @@ function AdminPostCard({
   onStatusChange,
   onActivateTicket,
   onRevertResolution,
-  onConfirmTurnover,
-  onUnflagPost,
   onHidePost,
   onUnhidePost,
   onRestore,
   onPermanentDelete,
+  hideDeleteButton = false,
   isDeleting = false,
+  onConfirmTurnover,
 }: AdminPostCardProps) {
   const previewUrl = useMemo(() => {
     if (post.images && post.images.length > 0) {
@@ -152,7 +152,7 @@ function AdminPostCard({
 
           {/* Admin Controls */}
           <div className="flex gap-2">
-            {post.status === "resolved" && onRevertResolution && (
+            {(post.status === "resolved" || post.status === "completed") && onRevertResolution && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -219,7 +219,7 @@ function AdminPostCard({
               </button>
             )}
 
-            {!onPermanentDelete && !onRestore && (
+            {!onPermanentDelete && !onRestore && !hideDeleteButton && (
               <button
                 onClick={handleDelete}
                 disabled={isDeleting}

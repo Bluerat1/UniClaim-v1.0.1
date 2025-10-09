@@ -37,10 +37,13 @@ const MessagesPage: React.FC = () => {
   }, []);
 
   const handleBackToConversations = () => {
-    // Clear the conversation parameter from URL
+    console.log('Back button clicked, clearing conversation...');
+    // Clear the conversation parameter from URL first
     setSearchParams(new URLSearchParams());
-    // Clear the selected conversation state
-    setSelectedConversation(null);
+    // Small delay to ensure URL is cleared before clearing conversation
+    setTimeout(() => {
+      setSelectedConversation(null);
+    }, 10);
   };
 
   // Auto-selection is now handled entirely by ConversationList component
@@ -122,6 +125,7 @@ const MessagesPage: React.FC = () => {
                   <ChatWindow
                     conversation={selectedConversation}
                     onClearConversation={() => {
+                      console.log('ChatWindow clearing conversation...');
                       setSelectedConversation(null);
                       setSearchParams({});
                     }}

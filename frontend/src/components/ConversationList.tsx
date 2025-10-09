@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useMessage } from "../context/MessageContext";
 import { useAuth } from "../context/AuthContext";
 import type { Conversation } from "../types/Post";
@@ -20,9 +20,12 @@ const ConversationList: React.FC<ConversationListProps> = ({
   const [searchParams] = useSearchParams();
   const conversationIdFromUrl = searchParams.get('conversation');
 
-  // Auto-select conversation from URL on initial load
+  // Auto-select conversation from URL on initial load only
   useEffect(() => {
+    // Only auto-select if we have a URL parameter, conversations are loaded,
+    // and no conversation is currently selected
     if (conversationIdFromUrl && conversations.length > 0 && !selectedConversationId) {
+      console.log('Auto-selecting conversation from URL:', conversationIdFromUrl);
       const conversation = conversations.find(c => c.id === conversationIdFromUrl);
       if (conversation) {
         onSelectConversation(conversation);
@@ -30,16 +33,27 @@ const ConversationList: React.FC<ConversationListProps> = ({
     }
   }, [conversationIdFromUrl, conversations, selectedConversationId, onSelectConversation]);
 
-  // Maintain conversation selection when conversations update
+  // Prevent auto-selection when conversation is explicitly cleared
+  const [isUserClearing, setIsUserClearing] = useState(false);
+
   useEffect(() => {
-    if (selectedConversationId && conversations.length > 0) {
-      const conversation = conversations.find(c => c.id === selectedConversationId);
+    if (!selectedConversationId && !conversationIdFromUrl) {
+      setIsUserClearing(true);
+      // Reset the flag after a short delay
+      setTimeout(() => setIsUserClearing(false), 100);
+    }
+  }, [selectedConversationId, conversationIdFromUrl]);
+
+  // Modified auto-selection that respects user clearing
+  useEffect(() => {
+    if (conversationIdFromUrl && conversations.length > 0 && !selectedConversationId && !isUserClearing) {
+      console.log('Auto-selecting conversation from URL:', conversationIdFromUrl);
+      const conversation = conversations.find(c => c.id === conversationIdFromUrl);
       if (conversation) {
-        // Conversation is valid, ensure it's properly selected
-        console.log('Maintaining selection for conversation:', selectedConversationId);
+        onSelectConversation(conversation);
       }
     }
-  }, [conversations, selectedConversationId]);
+  }, [conversationIdFromUrl, conversations, selectedConversationId, isUserClearing, onSelectConversation]);
 
   // Handle conversation selection
   const handleConversationClick = (conversation: Conversation) => {

@@ -985,8 +985,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         );
       }
 
-      // Close modal and show success message
-      setShowClaimModal(false);
+      // Show success message - modal will be closed by onSuccess callback
       alert("Claim request sent successfully!");
     } catch (error) {
       console.error("Failed to send claim request:", error);
@@ -1423,9 +1422,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         itemTitle={conversation?.postTitle || ""}
         isLoading={isClaimSubmitting}
         onSuccess={() => {
-          // This will be called after successful form submission
-          // The form is already cleared by the modal component
-          console.log("Claim form submitted and cleared successfully");
+          // Close modal and ensure it's properly reset
+          setShowClaimModal(false);
+          console.log("Claim form submitted and modal closed successfully");
         }}
       />
 

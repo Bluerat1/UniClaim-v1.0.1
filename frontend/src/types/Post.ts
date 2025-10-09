@@ -21,14 +21,14 @@ export interface Post {
   };
   createdAt?: string | Date | any; // Firebase timestamp or Date
   updatedAt?: string | Date | any; // Firebase timestamp or Date
-  status?: "pending" | "resolved" | "unclaimed";
+  status?: "pending" | "resolved" | "unclaimed" | "completed";
   foundAction?: "keep" | "turnover to OSA" | "turnover to Campus Security"; // For found items
   dateTime?: string; // When the item was lost/found
   // New fields for 30-day lifecycle system
   expiryDate?: string | Date | any; // When the post expires (30 days from creation)
   isExpired?: boolean; // Boolean flag for quick filtering
   movedToUnclaimed?: boolean; // Boolean flag to track if moved to unclaimed
-  originalStatus?: "pending" | "resolved" | "unclaimed"; // Store the original status before moving to unclaimed
+  originalStatus?: "pending" | "resolved" | "unclaimed" | "completed"; // Store the original status before moving to unclaimed
 
   // Flagging system fields
   isFlagged?: boolean; // Whether the post has been flagged by a user
@@ -36,7 +36,7 @@ export interface Post {
   flaggedBy?: string; // User ID who flagged the post
   flaggedAt?: string | Date | any; // When the post was flagged
   isHidden?: boolean; // Whether admin chose to hide the post from public view
-  
+
   // Soft delete fields
   deletedAt?: string | Date | null; // When the post was soft deleted (null means not deleted)
   deletedBy?: string; // User ID who performed the deletion
@@ -279,13 +279,12 @@ export interface Conversation {
   postTitle: string;
   // New fields for handover button functionality
   postType: "lost" | "found";
-  postStatus?: "pending" | "resolved" | "unclaimed";
+  postStatus?: "pending" | "resolved" | "unclaimed" | "completed";
   postCreatorId: string;
   foundAction?: "keep" | "turnover to OSA" | "turnover to Campus Security"; // For found items
   participants: {
     [userId: string]: {
       uid: string;
-      firstName: string;
       lastName: string;
       profilePicture?: string;
       profileImageUrl?: string;

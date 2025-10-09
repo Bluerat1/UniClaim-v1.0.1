@@ -77,13 +77,11 @@ function extractCloudinaryPublicId(url: string): string | null {
     }
 }
 
-// Import other services
-import { notificationSender } from './notificationSender';
-import { adminNotificationService } from './adminNotifications';
+// Import notification service for notification cleanup
 import { notificationService } from './notifications';
 
-// Import caching system
-import { postCache, userCache, cacheKeys, cacheInvalidation } from '../../utils/advancedCache';
+// Import admin notification service for admin alerts
+import { adminNotificationService } from './adminNotifications';
 
 // Post service functions
 export const postService = {
@@ -422,8 +420,8 @@ export const postService = {
             const activePosts = posts.filter(post => {
                 if (post.movedToUnclaimed) return false;
 
-                // Exclude resolved posts from active sections
-                if (post.status === 'resolved') return false;
+                // Exclude resolved, completed, and unclaimed posts from active sections
+                if (post.status === 'resolved' || post.status === 'completed' || post.status === 'unclaimed') return false;
 
                 // Exclude hidden posts (flagged posts that admin chose to hide)
                 if (post.isHidden === true) return false;
@@ -498,13 +496,23 @@ export const postService = {
                 createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt
             })) as Post[];
 
-            // Filter out expired posts and resolved posts on the client side
+            // Filter out expired posts and resolved/completed posts on the client side
             // BUT include items with turnoverStatus: "declared" for admin use
             const adminPosts = posts.filter(post => {
                 if (post.movedToUnclaimed) return false;
 
-                // Exclude resolved posts from active sections
-                if (post.status === 'resolved') return false;
+                // Exclude resolved, completed, and any other final status posts from active sections
+                // These should only appear in the resolved posts section
+                if (post.status === 'resolved' || post.status === 'completed' || post.status === 'unclaimed') {
+                    return false;
+                }
+
+                // SPECIAL CASE: Include posts with turnoverStatus "declared" for admin use
+                // These are posts awaiting OSA confirmation and should be visible to admins
+                if (post.turnoverDetails &&
+                    post.turnoverDetails.turnoverStatus === "declared") {
+                    return true; // Include these posts for admin visibility
+                }
 
                 // Check if post has expired
                 if (post.expiryDate) {
@@ -589,7 +597,7 @@ export const postService = {
     getResolvedPosts(callback: (posts: Post[]) => void) {
         const q = query(
             collection(db, 'posts'),
-            where('status', '==', 'resolved')
+            where('status', 'in', ['resolved', 'completed']) // Query for both resolved and completed posts
             // Removed orderBy to avoid composite index requirement
         );
 
@@ -728,19 +736,74 @@ export const postService = {
         }
     },
 
+    // Cleanup orphaned conversations for posts that are already marked as final status
+    async cleanupOrphanedConversationsForFinalStatusPosts(): Promise<{ cleanedPosts: number; totalConversationsDeleted: number }> {
+        try {
+            console.log('🔄 Starting cleanup of orphaned conversations for posts already marked as final status...');
+
+            // Query for posts that are in final status but might have orphaned conversations
+            const finalStatusPostsQuery = query(
+                collection(db, 'posts'),
+                where('status', 'in', ['resolved', 'completed', 'unclaimed'])
+            );
+
+            const postsSnapshot = await getDocs(finalStatusPostsQuery);
+            let cleanedPosts = 0;
+            let totalConversationsDeleted = 0;
+
+            console.log(`📋 Found ${postsSnapshot.docs.length} posts in final status that may need conversation cleanup`);
+
+            for (const postDoc of postsSnapshot.docs) {
+                const postId = postDoc.id;
+                const postData = postDoc.data();
+
+                try {
+                    // Check if this post has any conversations
+                    const conversationsQuery = query(
+                        collection(db, 'conversations'),
+                        where('postId', '==', postId)
+                    );
+
+                    const conversationsSnapshot = await getDocs(conversationsQuery);
+
+                    if (conversationsSnapshot.docs.length > 0) {
+                        console.log(`🧹 Post ${postId} (${postData.title}) has ${conversationsSnapshot.docs.length} orphaned conversations - cleaning up`);
+
+                        // Clean up conversations for this post
+                        await this.deleteConversationsByPostId(postId);
+                        cleanedPosts++;
+                        totalConversationsDeleted += conversationsSnapshot.docs.length;
+
+                        console.log(`✅ Cleaned up ${conversationsSnapshot.docs.length} conversations for post ${postId}`);
+                    }
+                } catch (error) {
+                    console.warn(`⚠️ Failed to cleanup conversations for post ${postId}:`, error);
+                    // Continue with other posts even if one fails
+                }
+            }
+
+            console.log(`🎯 Orphaned conversation cleanup completed: ${cleanedPosts} posts cleaned, ${totalConversationsDeleted} conversations deleted`);
+            return { cleanedPosts, totalConversationsDeleted };
+
+        } catch (error: any) {
+            console.error('❌ Failed to cleanup orphaned conversations:', error);
+            throw new Error(`Failed to cleanup orphaned conversations: ${error.message}`);
+        }
+    },
+
     // Update post status
-    async updatePostStatus(postId: string, status: 'pending' | 'resolved' | 'unclaimed'): Promise<void> {
+    async updatePostStatus(postId: string, status: 'pending' | 'resolved' | 'unclaimed' | 'completed'): Promise<void> {
         try {
             await updateDoc(doc(db, 'posts', postId), {
                 status,
                 updatedAt: serverTimestamp()
             });
 
-            // If status is changed to 'unclaimed', automatically delete all related conversations
-            if (status === 'unclaimed') {
-                console.log(`🗑️ Post marked as unclaimed, deleting all related conversations for post: ${postId}`);
+            // If status is changed to 'unclaimed', 'completed', or 'resolved', automatically delete all related conversations
+            if (status === 'unclaimed' || status === 'completed' || status === 'resolved') {
+                console.log(`🗑️ Post marked as ${status}, deleting all related conversations for post: ${postId}`);
                 await this.deleteConversationsByPostId(postId);
-                console.log(`✅ Successfully deleted conversations for unclaimed post: ${postId}`);
+                console.log(`✅ Successfully deleted conversations for ${status} post: ${postId}`);
             }
         } catch (error: any) {
             console.error('Error updating post status:', error);
@@ -1074,7 +1137,150 @@ export const postService = {
                 return;
             }
 
-            // STEP 2: Extract all images from all messages before deletion
+            // STEP 2: Auto-reject all pending requests before deletion and collect notification data
+            console.log(`🔄 Auto-rejecting pending requests for ${conversationsSnapshot.docs.length} conversations`);
+
+            const rejectedRequests: Array<{
+                conversationId: string;
+                messageId: string;
+                requesterId: string;
+                requesterName: string;
+                requestType: 'claim' | 'handover';
+                postTitle: string;
+            }> = [];
+
+            for (const convDoc of conversationsSnapshot.docs) {
+                const conversationId = convDoc.id;
+
+                try {
+                    // Get all messages in this conversation to find pending requests
+                    const messagesQuery = query(collection(db, 'conversations', conversationId, 'messages'));
+                    const messagesSnapshot = await getDocs(messagesQuery);
+
+                    if (messagesSnapshot.docs.length > 0) {
+                        // Process each message to find and reject pending requests
+                        for (const messageDoc of messagesSnapshot.docs) {
+                            const messageData = messageDoc.data();
+
+                            // Check for pending claim requests
+                            if (messageData.messageType === 'claim_request' &&
+                                messageData.claimData?.status === 'pending') {
+
+                                console.log(`🔄 Auto-rejecting pending claim request in conversation ${conversationId}, message ${messageDoc.id}`);
+
+                                // Collect data for notification before updating
+                                rejectedRequests.push({
+                                    conversationId,
+                                    messageId: messageDoc.id,
+                                    requesterId: messageData.senderId,
+                                    requesterName: messageData.senderName,
+                                    requestType: 'claim',
+                                    postTitle: messageData.claimData.postTitle || 'Unknown Post'
+                                });
+
+                                // Auto-reject the claim request
+                                await updateDoc(messageDoc.ref, {
+                                    'claimData.status': 'rejected',
+                                    'claimData.respondedAt': serverTimestamp(),
+                                    'claimData.responderId': 'system',
+                                    'claimData.rejectionReason': 'Post has been deleted'
+                                });
+
+                                // Update conversation status
+                                await updateDoc(convDoc.ref, {
+                                    claimRequestStatus: 'rejected',
+                                    updatedAt: serverTimestamp()
+                                });
+
+                                console.log(`✅ Auto-rejected claim request: ${messageDoc.id}`);
+                            }
+
+                            // Check for pending handover requests
+                            if (messageData.messageType === 'handover_request' &&
+                                messageData.handoverData?.status === 'pending') {
+
+                                console.log(`🔄 Auto-rejecting pending handover request in conversation ${conversationId}, message ${messageDoc.id}`);
+
+                                // Collect data for notification before updating
+                                rejectedRequests.push({
+                                    conversationId,
+                                    messageId: messageDoc.id,
+                                    requesterId: messageData.senderId,
+                                    requesterName: messageData.senderName,
+                                    requestType: 'handover',
+                                    postTitle: messageData.handoverData.postTitle || 'Unknown Post'
+                                });
+
+                                // Auto-reject the handover request
+                                await updateDoc(messageDoc.ref, {
+                                    'handoverData.status': 'rejected',
+                                    'handoverData.respondedAt': serverTimestamp(),
+                                    'handoverData.responderId': 'system',
+                                    'handoverData.rejectionReason': 'Post has been deleted'
+                                });
+
+                                // Update conversation status
+                                await updateDoc(convDoc.ref, {
+                                    handoverRequestStatus: 'rejected',
+                                    updatedAt: serverTimestamp()
+                                });
+
+                                console.log(`✅ Auto-rejected handover request: ${messageDoc.id}`);
+                            }
+                        }
+                    }
+                } catch (error: any) {
+                    console.warn(`Failed to process conversation ${conversationId} for request rejection:`, error.message);
+                    // Continue with other conversations even if one fails
+                }
+            }
+
+            // STEP 2.5: Send notifications for auto-rejected requests
+            if (rejectedRequests.length > 0) {
+                console.log(`📨 Sending notifications for ${rejectedRequests.length} auto-rejected requests`);
+
+                // Group requests by user to send batch notifications
+                const userNotifications = new Map<string, Array<typeof rejectedRequests[0]>>();
+
+                for (const request of rejectedRequests) {
+                    if (!userNotifications.has(request.requesterId)) {
+                        userNotifications.set(request.requesterId, []);
+                    }
+                    userNotifications.get(request.requesterId)!.push(request);
+                }
+
+                // Send notification to each user
+                for (const [userId, userRequests] of userNotifications) {
+                    try {
+                        const requestTypeText = userRequests[0].requestType === 'claim' ? 'claim' : 'handover';
+                        const postTitles = userRequests.map(r => r.postTitle).join(', ');
+
+                        await notificationSender.sendNotificationToUser(userId, {
+                            type: 'claim_response',
+                            title: `${userRequests.length} ${requestTypeText}${userRequests.length > 1 ? 's' : ''} auto-rejected`,
+                            body: `Your ${requestTypeText} request${userRequests.length > 1 ? 's' : ''} for "${postTitles}" ${userRequests.length > 1 ? 'have' : 'has'} been automatically rejected because the post${userRequests.length > 1 ? 's were' : ' was'} deleted.`,
+                            data: {
+                                status: 'rejected',
+                                postId: '', // We don't have a single post ID for multiple requests
+                                postTitle: postTitles,
+                                postCategory: '',
+                                postLocation: '',
+                                postType: 'lost', // Default, not critical for this notification
+                                creatorId: 'system',
+                                creatorName: 'System',
+                                conversationId: userRequests[0].conversationId // Use first conversation ID
+                            }
+                        });
+
+                        console.log(`✅ Sent auto-rejection notification to user ${userId} for ${userRequests.length} ${requestTypeText}${userRequests.length > 1 ? 's' : ''}`);
+                    } catch (notificationError) {
+                        console.warn(`Failed to send auto-rejection notification to user ${userId}:`, notificationError);
+                        // Continue with other users even if one fails
+                    }
+                }
+            }
+
+            // STEP 3: Extract all images from all messages before deletion
             console.log(`🗑️ Starting image cleanup for ${conversationsSnapshot.docs.length} conversations`);
             const allImageUrls: string[] = [];
 
@@ -1112,7 +1318,7 @@ export const postService = {
                 }
             }
 
-            // STEP 3: Delete all extracted images from Cloudinary
+            // STEP 4: Delete all extracted images from Cloudinary
             if (allImageUrls.length > 0) {
                 console.log(`🗑️ Attempting to delete ${allImageUrls.length} total images from Cloudinary`);
 
@@ -1132,15 +1338,15 @@ export const postService = {
                 console.log('🗑️ No images found in conversations to delete');
             }
 
-            // STEP 4: Create a batch operation for atomic deletion of database records
+            // STEP 5: Create a batch operation for atomic deletion of database records
             const batch = writeBatch(db);
 
-            // STEP 5: Delete messages and conversations in the correct order
+            // STEP 6: Delete messages and conversations in the correct order
             for (const convDoc of conversationsSnapshot.docs) {
                 const conversationId = convDoc.id;
 
                 try {
-                    // STEP 5a: Delete all messages in the subcollection first
+                    // STEP 6a: Delete all messages in the subcollection first
                     const messagesQuery = query(collection(db, 'conversations', conversationId, 'messages'));
                     const messagesSnapshot = await getDocs(messagesQuery);
 
@@ -1151,7 +1357,7 @@ export const postService = {
                         });
                     }
 
-                    // STEP 5b: Add conversation document to deletion batch
+                    // STEP 6b: Add conversation document to deletion batch
                     batch.delete(convDoc.ref);
 
                 } catch (error: any) {
@@ -1159,10 +1365,10 @@ export const postService = {
                 }
             }
 
-            // STEP 6: Execute the batch operation atomically
+            // STEP 7: Execute the batch operation atomically
             await batch.commit();
 
-            // STEP 7: Verify deletion was successful
+            // STEP 8: Verify deletion was successful
             const verifyQuery = query(
                 collection(db, 'conversations'),
                 where('postId', '==', postId)
@@ -1326,130 +1532,6 @@ export const postService = {
         });
 
         return sanitized;
-    },
-
-    // Cleanup handover details and photos
-    async cleanupHandoverDetailsAndPhotos(postId: string): Promise<{ photosDeleted: number; errors: string[] }> {
-        try {
-            console.log('🔄 Firebase: cleanupHandoverDetailsAndPhotos called for post:', postId);
-
-            const postRef = doc(db, 'posts', postId);
-            const postDoc = await getDoc(postRef);
-
-            if (!postDoc.exists()) {
-                throw new Error('Post not found');
-            }
-
-            const postData = postDoc.data();
-            const handoverDetails = postData.handoverDetails;
-
-            if (!handoverDetails) {
-                console.log('ℹ️ No handover details to cleanup for post:', postId);
-                return { photosDeleted: 0, errors: [] };
-            }
-
-            const photoUrlsToDelete: string[] = [];
-
-            // Collect all photo URLs from handover details
-            if (handoverDetails.handoverIdPhoto) {
-                photoUrlsToDelete.push(handoverDetails.handoverIdPhoto);
-            }
-            if (handoverDetails.ownerIdPhoto) {
-                photoUrlsToDelete.push(handoverDetails.ownerIdPhoto);
-            }
-            if (handoverDetails.handoverItemPhotos && Array.isArray(handoverDetails.handoverItemPhotos)) {
-                handoverDetails.handoverItemPhotos.forEach((photo: any) => {
-                    if (photo.url) {
-                        photoUrlsToDelete.push(photo.url);
-                    }
-                });
-            }
-
-            // Delete photos from Cloudinary
-            let deletionResult: { deleted: string[]; failed: string[]; success: boolean } = { deleted: [], failed: [], success: false };
-            if (photoUrlsToDelete.length > 0) {
-                const { deleteMessageImages } = await import('../../utils/cloudinary');
-                deletionResult = await deleteMessageImages(photoUrlsToDelete);
-            }
-
-            // Clear handover details from post
-            await updateDoc(postRef, {
-                handoverDetails: null,
-                updatedAt: serverTimestamp()
-            });
-
-            console.log(`✅ Cleaned up handover details for post ${postId}. Photos deleted: ${deletionResult.deleted.length}, Failed: ${deletionResult.failed.length}`);
-
-            return {
-                photosDeleted: deletionResult.deleted.length,
-                errors: deletionResult.failed
-            };
-        } catch (error: any) {
-            console.error('❌ Firebase cleanupHandoverDetailsAndPhotos failed:', error);
-            throw new Error(error.message || 'Failed to cleanup handover details and photos');
-        }
-    },
-
-    // Cleanup claim details and photos
-    async cleanupClaimDetailsAndPhotos(postId: string): Promise<{ photosDeleted: number; errors: string[] }> {
-        try {
-            console.log('🔄 Firebase: cleanupClaimDetailsAndPhotos called for post:', postId);
-
-            const postRef = doc(db, 'posts', postId);
-            const postDoc = await getDoc(postRef);
-
-            if (!postDoc.exists()) {
-                throw new Error('Post not found');
-            }
-
-            const postData = postDoc.data();
-            const claimDetails = postData.claimDetails;
-
-            if (!claimDetails) {
-                console.log('ℹ️ No claim details to cleanup for post:', postId);
-                return { photosDeleted: 0, errors: [] };
-            }
-
-            const photoUrlsToDelete: string[] = [];
-
-            // Collect all photo URLs from claim details
-            if (claimDetails.claimerIdPhoto) {
-                photoUrlsToDelete.push(claimDetails.claimerIdPhoto);
-            }
-            if (claimDetails.ownerIdPhoto) {
-                photoUrlsToDelete.push(claimDetails.ownerIdPhoto);
-            }
-            if (claimDetails.evidencePhotos && Array.isArray(claimDetails.evidencePhotos)) {
-                claimDetails.evidencePhotos.forEach((photo: any) => {
-                    if (photo.url) {
-                        photoUrlsToDelete.push(photo.url);
-                    }
-                });
-            }
-
-            // Delete photos from Cloudinary
-            let deletionResult: { deleted: string[]; failed: string[]; success: boolean } = { deleted: [], failed: [], success: false };
-            if (photoUrlsToDelete.length > 0) {
-                const { deleteMessageImages } = await import('../../utils/cloudinary');
-                deletionResult = await deleteMessageImages(photoUrlsToDelete);
-            }
-
-            // Clear claim details from post
-            await updateDoc(postRef, {
-                claimDetails: null,
-                updatedAt: serverTimestamp()
-            });
-
-            console.log(`✅ Cleaned up claim details for post ${postId}. Photos deleted: ${deletionResult.deleted.length}, Failed: ${deletionResult.failed.length}`);
-
-            return {
-                photosDeleted: deletionResult.deleted.length,
-                errors: deletionResult.failed
-            };
-        } catch (error: any) {
-            console.error('❌ Firebase cleanupClaimDetailsAndPhotos failed:', error);
-            throw new Error(error.message || 'Failed to cleanup claim details and photos');
-        }
     },
 
     // Flag a post
@@ -1716,19 +1798,203 @@ export const postService = {
                 } as Post);
             });
 
-            // Sort by flaggedAt (most recently flagged first)
-            flaggedPosts.sort((a: Post, b: Post) => {
-                if (!a.flaggedAt || !b.flaggedAt) return 0;
-                const aTime = a.flaggedAt instanceof Date ? a.flaggedAt.getTime() : new Date(a.flaggedAt).getTime();
-                const bTime = b.flaggedAt instanceof Date ? b.flaggedAt.getTime() : new Date(b.flaggedAt).getTime();
-                return bTime - aTime;
-            });
-
             console.log(`✅ Retrieved ${flaggedPosts.length} flagged posts`);
             return flaggedPosts;
         } catch (error: any) {
             console.error('❌ Firebase getFlaggedPosts failed:', error);
             throw new Error(error.message || 'Failed to get flagged posts');
         }
-    }
+    },
+
+    // Cleanup handover details and photos when reverting a resolution
+    async cleanupHandoverDetailsAndPhotos(postId: string): Promise<{ photosDeleted: number; errors: string[] }> {
+        try {
+            console.log(`🧹 Starting cleanup of handover details and photos for post ${postId}...`);
+
+            // Get the post to access handover details
+            const postDoc = await getDoc(doc(db, 'posts', postId));
+            if (!postDoc.exists()) {
+                throw new Error('Post not found');
+            }
+
+            const postData = postDoc.data() as Post;
+            const handoverDetails = postData.handoverDetails;
+
+            if (!handoverDetails) {
+                console.log('ℹ️ No handover details found for cleanup');
+                return { photosDeleted: 0, errors: [] };
+            }
+
+            let photosDeleted = 0;
+            const errors: string[] = [];
+
+            // Collect all image URLs to delete
+            const imageUrls: string[] = [];
+
+            // Add handover item photos
+            if (handoverDetails.handoverItemPhotos && Array.isArray(handoverDetails.handoverItemPhotos)) {
+                handoverDetails.handoverItemPhotos.forEach((photo: any) => {
+                    if (photo.url) {
+                        imageUrls.push(photo.url);
+                    }
+                });
+            }
+
+            // Add handover ID photo
+            if (handoverDetails.handoverIdPhoto) {
+                imageUrls.push(handoverDetails.handoverIdPhoto);
+            }
+
+            // Add owner ID photo
+            if (handoverDetails.ownerIdPhoto) {
+                imageUrls.push(handoverDetails.ownerIdPhoto);
+            }
+
+            // Add photos from handoverRequestDetails if they exist
+            if (handoverDetails.handoverRequestDetails?.itemPhotos) {
+                handoverDetails.handoverRequestDetails.itemPhotos.forEach((photo: any) => {
+                    if (photo.url) {
+                        imageUrls.push(photo.url);
+                    }
+                });
+            }
+
+            if (handoverDetails.handoverRequestDetails?.idPhotoUrl) {
+                imageUrls.push(handoverDetails.handoverRequestDetails.idPhotoUrl);
+            }
+
+            if (handoverDetails.handoverRequestDetails?.ownerIdPhoto) {
+                imageUrls.push(handoverDetails.handoverRequestDetails.ownerIdPhoto);
+            }
+
+            // Delete images from Cloudinary
+            if (imageUrls.length > 0) {
+                console.log(`🗑️ Deleting ${imageUrls.length} handover photos from Cloudinary`);
+
+                try {
+                    const { deleteMessageImages } = await import('../../utils/cloudinary');
+                    const result = await deleteMessageImages(imageUrls);
+
+                    photosDeleted = result.deleted.length;
+                    console.log(`✅ Cloudinary cleanup result: ${result.deleted.length} deleted, ${result.failed.length} failed`);
+
+                    if (result.failed.length > 0) {
+                        errors.push(...result.failed.map((fail: any) => `Failed to delete ${fail.url}: ${fail.error}`));
+                    }
+                } catch (cloudinaryError) {
+                    console.error('❌ Cloudinary deletion failed:', cloudinaryError);
+                    errors.push(`Cloudinary deletion failed: ${cloudinaryError}`);
+                }
+            }
+
+            // Clear handover details from post (but keep the basic info for record)
+            await updateDoc(doc(db, 'posts', postId), {
+                handoverDetails: null,
+                updatedAt: serverTimestamp()
+            });
+
+            console.log(`✅ Handover cleanup completed: ${photosDeleted} photos deleted`);
+            return { photosDeleted, errors };
+
+        } catch (error: any) {
+            console.error('❌ Failed to cleanup handover details:', error);
+            return { photosDeleted: 0, errors: [error.message || 'Failed to cleanup handover details'] };
+        }
+    },
+
+    // Cleanup claim details and photos when reverting a resolution
+    async cleanupClaimDetailsAndPhotos(postId: string): Promise<{ photosDeleted: number; errors: string[] }> {
+        try {
+            console.log(`🧹 Starting cleanup of claim details and photos for post ${postId}...`);
+
+            // Get the post to access claim details
+            const postDoc = await getDoc(doc(db, 'posts', postId));
+            if (!postDoc.exists()) {
+                throw new Error('Post not found');
+            }
+
+            const postData = postDoc.data() as Post;
+            const claimDetails = postData.claimDetails;
+
+            if (!claimDetails) {
+                console.log('ℹ️ No claim details found for cleanup');
+                return { photosDeleted: 0, errors: [] };
+            }
+
+            let photosDeleted = 0;
+            const errors: string[] = [];
+
+            // Collect all image URLs to delete
+            const imageUrls: string[] = [];
+
+            // Add evidence photos
+            if (claimDetails.evidencePhotos && Array.isArray(claimDetails.evidencePhotos)) {
+                claimDetails.evidencePhotos.forEach((photo: any) => {
+                    if (photo.url) {
+                        imageUrls.push(photo.url);
+                    }
+                });
+            }
+
+            // Add claimer ID photo
+            if (claimDetails.claimerIdPhoto) {
+                imageUrls.push(claimDetails.claimerIdPhoto);
+            }
+
+            // Add owner ID photo
+            if (claimDetails.ownerIdPhoto) {
+                imageUrls.push(claimDetails.ownerIdPhoto);
+            }
+
+            // Add photos from claimRequestDetails if they exist
+            if (claimDetails.claimRequestDetails?.evidencePhotos) {
+                claimDetails.claimRequestDetails.evidencePhotos.forEach((photo: any) => {
+                    if (photo.url) {
+                        imageUrls.push(photo.url);
+                    }
+                });
+            }
+
+            if (claimDetails.claimRequestDetails?.idPhotoUrl) {
+                imageUrls.push(claimDetails.claimRequestDetails.idPhotoUrl);
+            }
+
+            if (claimDetails.claimRequestDetails?.ownerIdPhoto) {
+                imageUrls.push(claimDetails.claimRequestDetails.ownerIdPhoto);
+            }
+
+            // Delete images from Cloudinary
+            if (imageUrls.length > 0) {
+                console.log(`🗑️ Deleting ${imageUrls.length} claim photos from Cloudinary`);
+
+                try {
+                    const { deleteMessageImages } = await import('../../utils/cloudinary');
+                    const result = await deleteMessageImages(imageUrls);
+
+                    photosDeleted = result.deleted.length;
+                    console.log(`✅ Cloudinary cleanup result: ${result.deleted.length} deleted, ${result.failed.length} failed`);
+
+                    if (result.failed.length > 0) {
+                        errors.push(...result.failed.map((fail: any) => `Failed to delete ${fail.url}: ${fail.error}`));
+                    }
+                } catch (cloudinaryError) {
+                    console.error('❌ Cloudinary deletion failed:', cloudinaryError);
+                    errors.push(`Cloudinary deletion failed: ${cloudinaryError}`);
+                }
+            }
+
+            // Clear claim details from post (but keep the basic info for record)
+            await updateDoc(doc(db, 'posts', postId), {
+                claimDetails: null,
+                updatedAt: serverTimestamp()
+            });
+
+            console.log(`✅ Claim cleanup completed: ${photosDeleted} photos deleted`);
+            return { photosDeleted, errors };
+
+        } catch (error: any) {
+            console.error('❌ Failed to cleanup claim details:', error);
+            return { photosDeleted: 0, errors: [error.message || 'Failed to cleanup claim details'] };
+        }
+    },
 };

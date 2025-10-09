@@ -234,7 +234,8 @@ export class NotificationSender {
             const conversationDoc = await getDoc(conversationRef);
 
             if (!conversationDoc.exists()) {
-                throw new Error('Conversation not found');
+                console.warn('⚠️ Conversation not found for response notification, skipping silently');
+                return;
             }
 
             const conversationData = conversationDoc.data();
@@ -253,7 +254,9 @@ export class NotificationSender {
 
             // Send notifications to all other participants
             await this.sendNotificationToUsers(recipientIds, {
-                type: 'message',
+                type: responseData.status === 'rejected' ?
+                    (responseData.responseType === 'handover_response' ? 'handover_response' : 'claim_response') :
+                    'message',
                 title: `${responseData.responseType === 'handover_response' ? 'Handover' : 'Claim'} ${statusText}`,
                 body: `${responseData.responderName} ${statusText} the ${responseData.responseType === 'handover_response' ? 'handover' : 'claim'} request for "${postTitle}"`,
                 data: {
@@ -305,7 +308,8 @@ export class NotificationSender {
             const conversationDoc = await getDoc(conversationRef);
 
             if (!conversationDoc.exists()) {
-                throw new Error('Conversation not found');
+                console.warn('⚠️ Conversation not found for message notification, skipping silently');
+                return;
             }
 
             const conversationData = conversationDoc.data();
@@ -411,39 +415,130 @@ export class NotificationSender {
 
     // Send notification to specific users (for admin alerts, etc.)
     async sendNotificationToUsers(userIds: string[], notificationData: {
-        type: 'admin_alert' | 'claim_update' | 'message';
+        type: 'admin_alert' | 'claim_update' | 'message' | 'claim_response' | 'handover_response';
         title: string;
         body: string;
         data?: any;
     }): Promise<void> {
         try {
-            const notifications = userIds.map(userId => ({
-                userId,
-                ...notificationData,
-                read: false,
-                createdAt: serverTimestamp()
-            }));
+            // Filter users based on their notification preferences for claim/handover responses
+            let filteredUserIds = userIds;
+
+            if (notificationData.type === 'claim_response' || notificationData.type === 'handover_response') {
+                // For response notifications, check if it's a rejection or acceptance
+                const isRejection = notificationData.data?.status === 'rejected';
+
+                // Always send rejection notifications (important for users to know)
+                if (isRejection) {
+                    console.log('📨 Sending rejection notification (always sent regardless of preferences)');
+                    filteredUserIds = userIds;
+                } else {
+                    // For acceptances, respect user preferences
+                    const usersWithPreferences = await Promise.all(
+                        userIds.map(async (userId) => {
+                            try {
+                                // Import notificationService here to avoid circular dependency
+                                const { notificationService } = await import('./notifications');
+                                const preferences = await notificationService.getNotificationPreferences(userId);
+
+                                // Check if user has enabled this type of response notification
+                                const isEnabled = notificationData.type === 'claim_response'
+                                    ? preferences.claimResponses
+                                    : preferences.handoverResponses;
+
+                                return isEnabled ? userId : null;
+                            } catch (error) {
+                                console.warn(`Failed to get preferences for user ${userId}:`, error);
+                                // If we can't get preferences, assume enabled (don't block notifications)
+                                return userId;
+                            }
+                        })
+                    );
+
+                    filteredUserIds = usersWithPreferences.filter((userId): userId is string => userId !== null);
+                }
+            }
+
+            if (filteredUserIds.length === 0) {
+                console.log('⚠️ No users have enabled response notifications for this type');
+                return;
+            }
+
+            const notifications = filteredUserIds.map(userId => {
+                const notification = {
+                    userId,
+                    ...notificationData,
+                    read: false,
+                    createdAt: serverTimestamp()
+                };
+
+                // Debug: Log the notification data to check for issues
+                console.log('🔍 Notification data being sent:', {
+                    userId: notification.userId,
+                    type: notification.type,
+                    title: notification.title,
+                    hasData: !!notification.data,
+                    dataKeys: notification.data ? Object.keys(notification.data) : []
+                });
+
+                return notification;
+            });
 
             // Use Firestore batch for better performance
             const batch = writeBatch(db);
             const notificationsRef = collection(db, 'notifications');
 
-            notifications.forEach(notification => {
-                const docRef = doc(notificationsRef);
-                batch.set(docRef, notification);
+            notifications.forEach((notification, index) => {
+                try {
+                    // Validate notification data before adding to batch
+                    if (!notification.userId || !notification.type || !notification.title) {
+                        console.error(`❌ Invalid notification data at index ${index}:`, notification);
+                        return;
+                    }
+
+                    // Sanitize notification data for Firestore
+                    const sanitizedNotification = {
+                        userId: String(notification.userId), // Ensure string type
+                        type: String(notification.type), // Ensure string type
+                        title: String(notification.title), // Ensure string type
+                        body: String(notification.body || ''), // Ensure string type with fallback
+                        data: notification.data || {},
+                        read: Boolean(false), // Ensure boolean type
+                        createdAt: serverTimestamp(),
+                        ...(notificationData.data?.postId && { postId: String(notificationData.data.postId) }),
+                        ...(notificationData.data?.conversationId && { conversationId: String(notificationData.data.conversationId) })
+                    };
+
+                    // Additional validation for Firestore field name requirements
+                    const invalidFields = Object.keys(sanitizedNotification).filter(key => {
+                        // Firestore doesn't allow field names starting with numbers or containing special chars except underscore
+                        return /^\d/.test(key) || /[^a-zA-Z0-9_]/.test(key);
+                    });
+
+                    if (invalidFields.length > 0) {
+                        console.error(`❌ Invalid field names detected: ${invalidFields.join(', ')}`);
+                        return;
+                    }
+
+                    const docRef = doc(notificationsRef);
+                    batch.set(docRef, sanitizedNotification);
+                    console.log(`📨 Added notification ${index + 1} to batch for user ${notification.userId}`);
+                } catch (error) {
+                    console.error(`❌ Failed to add notification ${index + 1} to batch:`, error, notification);
+                }
             });
 
+            if (notifications.length === 0) {
+                console.log('⚠️ No valid notifications to send');
+                return;
+            }
+
+            console.log(`🔄 Committing batch with ${notifications.length} notifications...`);
             await batch.commit();
-            console.log(`Sent ${notifications.length} notifications to specific users using batch write`);
-            console.log(`📨 Notifications sent:`, notifications.map(n => ({
-              userId: n.userId,
-              type: n.type,
-              title: n.title,
-              hasPostId: !!n.data?.postId
-            })));
+            console.log(`✅ Successfully sent ${notifications.length} notifications to Firestore`);
 
             // Test notification click functionality (development only)
-            if (process.env.NODE_ENV === 'development' && notificationData.type === 'message') {
+            if (process.env.NODE_ENV === 'development' && (notificationData.type === 'message' || notificationData.type === 'claim_response' || notificationData.type === 'handover_response')) {
                 console.log('🧪 Development mode: Testing notification click...');
                 setTimeout(() => {
                     const testUrl = `/messages?conversation=${notificationData.data?.conversationId}`;

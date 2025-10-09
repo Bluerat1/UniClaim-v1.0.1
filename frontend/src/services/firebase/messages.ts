@@ -66,19 +66,21 @@ export const messageService = {
     // Find an existing conversation for a specific post between two users
     async findConversationByPostAndUsers(postId: string, userId1: string, userId2: string): Promise<string | null> {
         try {
-            // Query conversations that include this post and both users
-            const q = query(
+            // Query conversations that include this post and user1
+            const q1 = query(
                 collection(db, 'conversations'),
                 where('postId', '==', postId),
-                where(`participants.${userId1}`, '!=', null),
-                where(`participants.${userId2}`, '!=', null)
+                where(`participants.${userId1}`, '!=', null)
             );
 
-            const snapshot = await getDocs(q);
+            const snapshot1 = await getDocs(q1);
 
-            // Return the first matching conversation ID if found
-            if (!snapshot.empty) {
-                return snapshot.docs[0].id;
+            // Filter results in JavaScript to find conversations with both users
+            for (const docSnap of snapshot1.docs) {
+                const data: any = docSnap.data();
+                if (data.participants && data.participants[userId2]) {
+                    return docSnap.id;
+                }
             }
 
             return null;
@@ -355,6 +357,13 @@ export const messageService = {
                 [`unreadCounts.${userId}`]: 0
             });
         } catch (error: any) {
+            // Handle case where conversation has been deleted (common after handover/claim confirmation)
+            if (error.message?.includes('Missing or insufficient permissions') ||
+                error.message?.includes('not-found') ||
+                error.code === 'permission-denied') {
+                console.warn(`⚠️ Conversation ${conversationId} may have been deleted, skipping mark as read`);
+                return; // Silently handle this case
+            }
             throw new Error(error.message || 'Failed to mark conversation as read');
         }
     },
@@ -370,6 +379,13 @@ export const messageService = {
                 readBy: arrayUnion(userId)
             });
         } catch (error: any) {
+            // Handle case where conversation or message has been deleted (common after handover/claim confirmation)
+            if (error.message?.includes('Missing or insufficient permissions') ||
+                error.message?.includes('not-found') ||
+                error.code === 'permission-denied') {
+                console.warn(`⚠️ Message ${messageId} in conversation ${conversationId} may have been deleted, skipping mark as read`);
+                return; // Silently handle this case
+            }
             throw new Error(error.message || 'Failed to mark message as read');
         }
     },
@@ -404,6 +420,13 @@ export const messageService = {
                 console.log(`✅ Marked ${updatePromises.length} unread messages as read for user ${userId}`);
             }
         } catch (error: any) {
+            // Handle case where conversation has been deleted (common after handover/claim confirmation)
+            if (error.message?.includes('Missing or insufficient permissions') ||
+                error.message?.includes('not-found') ||
+                error.code === 'permission-denied') {
+                console.warn(`⚠️ Conversation ${conversationId} may have been deleted, skipping mark all as read`);
+                return; // Silently handle this case
+            }
             console.error('Failed to mark unread messages as read:', error);
             // Don't throw error - just log it to avoid breaking the chat experience
         }
@@ -595,6 +618,27 @@ export const messageService = {
                 updateData['handoverData.status'] = 'pending_confirmation'; // New status for photo confirmation
             }
 
+            // If rejecting, clean up any uploaded photos
+            if (status === 'rejected' && messageData.handoverData) {
+                try {
+                    // Collect all image URLs to be deleted
+                    const imageUrls = [
+                        ...(messageData.handoverData.idPhotoUrl ? [messageData.handoverData.idPhotoUrl] : []),
+                        ...(messageData.handoverData.itemPhotos?.map((p: any) => p.url) || [])
+                    ];
+
+                    if (imageUrls.length > 0) {
+                        console.log('🗑️ Cleaning up images for rejected handover');
+                        const { deleteMessageImages } = await import('../../utils/cloudinary');
+                        const result = await deleteMessageImages(imageUrls);
+                        console.log(`✅ Cleanup result: ${result.deleted.length} deleted, ${result.failed.length} failed`);
+                    }
+                } catch (cleanupError) {
+                    console.error('⚠️ Failed to clean up handover images:', cleanupError);
+                    // Don't fail the whole operation if cleanup fails
+                }
+            }
+
             await updateDoc(messageRef, updateData);
 
             // Get conversation data for notifications
@@ -604,7 +648,7 @@ export const messageService = {
 
             // Update conversation status
             await updateDoc(conversationRef, {
-                handoverRequestStatus: status,
+                handoverRequestStatus: 'accepted',
                 updatedAt: serverTimestamp()
             });
 
@@ -806,7 +850,7 @@ export const messageService = {
 
             // Update conversation status
             await updateDoc(conversationRef, {
-                claimRequestStatus: status,
+                claimRequestStatus: status, // ← Use the actual status (accepted/rejected)
                 updatedAt: serverTimestamp()
             });
 
@@ -869,17 +913,71 @@ export const messageService = {
             await updateDoc(messageRef, {
                 'handoverData.idPhotoConfirmed': true,
                 'handoverData.idPhotoConfirmedAt': serverTimestamp(),
-                'handoverData.idPhotoConfirmedBy': confirmBy
+                'handoverData.idPhotoConfirmedBy': confirmBy,
+                'handoverData.status': 'accepted', // ← Update status to accepted when confirmed
+                'handoverData.respondedAt': serverTimestamp(),
+                'handoverData.responderId': confirmBy
             });
 
-            // Update the post status to completed
+            // Update the post status to completed and preserve handover details to the post itself so they can be shown in completed posts section
             const postRef = doc(db, 'posts', postId);
+
+            // Enhanced handover details with essential information for handover person only
+            const handoverDetails = {
+                handoverPersonName: conversationData.participants[confirmBy]?.firstName + ' ' + conversationData.participants[confirmBy]?.lastName || 'Unknown User',
+                handoverPersonId: confirmBy,
+                handoverPersonEmail: conversationData.participants[confirmBy]?.email || '',
+                handoverPersonContact: conversationData.participants[confirmBy]?.contactNum || '',
+                handoverPersonStudentId: conversationData.participants[confirmBy]?.studentId || '',
+                handoverIdPhoto: messageData.handoverData?.idPhotoUrl || '',
+                ownerIdPhoto: messageData.handoverData?.ownerIdPhoto || '',
+                handoverConfirmedAt: serverTimestamp(),
+                handoverConfirmedBy: confirmBy,
+                ownerName: messageData.senderName || 'Unknown User',
+                ownerId: messageData.senderId || '',
+                postTitle: conversationData.postTitle || '',
+                postId: postId,
+                handoverReason: messageData.handoverData?.handoverReason || '',
+                handoverRequestedAt: messageData.handoverData?.requestedAt || null,
+                handoverRespondedAt: messageData.handoverData?.respondedAt || null,
+                handoverItemPhotos: messageData.handoverData?.itemPhotos || [],
+                conversationId: conversationId,
+                messageId: messageId,
+                handoverStatus: 'completed',
+                // Preserve original handover request details
+                handoverRequestDetails: {
+                    messageId: messageId,
+                    messageText: messageData.text || '',
+                    messageTimestamp: messageData.timestamp,
+                    senderId: messageData.senderId,
+                    senderName: messageData.senderName || 'Unknown User',
+                    senderProfilePicture: conversationData.participants[messageData.senderId]?.profilePicture,
+                    handoverReason: messageData.handoverData?.handoverReason || '',
+                    handoverRequestedAt: messageData.handoverData?.requestedAt || null,
+                    handoverRespondedAt: messageData.handoverData?.respondedAt || null,
+                    handoverResponseMessage: messageData.handoverData?.responseMessage || '',
+                    idPhotoUrl: messageData.handoverData?.idPhotoUrl || '',
+                    idPhotoConfirmed: messageData.handoverData?.idPhotoConfirmed || false,
+                    idPhotoConfirmedAt: messageData.handoverData?.idPhotoConfirmedAt || null,
+                    idPhotoConfirmedBy: messageData.handoverData?.idPhotoConfirmedBy || '',
+                    itemPhotos: messageData.handoverData?.itemPhotos || [],
+                    itemPhotosConfirmed: messageData.handoverData?.itemPhotosConfirmed || false,
+                    itemPhotosConfirmedAt: messageData.handoverData?.itemPhotosConfirmedAt || null,
+                    itemPhotosConfirmedBy: messageData.handoverData?.itemPhotosConfirmedBy || '',
+                    ownerIdPhoto: messageData.handoverData?.ownerIdPhoto || '',
+                    ownerIdPhotoConfirmed: messageData.handoverData?.ownerIdPhotoConfirmed || false,
+                    ownerIdPhotoConfirmedAt: messageData.handoverData?.ownerIdPhotoConfirmedAt || null,
+                    ownerIdPhotoConfirmedBy: messageData.handoverData?.ownerIdPhotoConfirmedBy || ''
+                }
+            };
+
             await updateDoc(postRef, {
                 status: 'completed',
-                updatedAt: serverTimestamp()
+                updatedAt: serverTimestamp(),
+                handoverDetails
             });
 
-            // Send confirmation notification to other participants
+            // Send confirmation notification to other participants BEFORE deleting conversation
             try {
                 await notificationSender.sendResponseNotification(conversationId, {
                     responderId: confirmBy,
@@ -893,16 +991,43 @@ export const messageService = {
                 // Don't fail the whole operation if notification fails
             }
 
-            // Delete the conversation to complete the handover process
+            // Delete ALL conversations for this post since it's now completed
             try {
-                await this.deleteConversation(conversationId);
-                console.log(`✅ Conversation ${conversationId} deleted after handover confirmation`);
-                return { success: true, conversationDeleted: true, postId };
+                console.log(`🗑️ Finding and deleting ALL conversations for post ${postId}...`);
+
+                // Query all conversations for this post
+                const conversationsQuery = query(
+                    collection(db, 'conversations'),
+                    where('postId', '==', postId)
+                );
+                const conversationsSnapshot = await getDocs(conversationsQuery);
+
+                let deletedCount = 0;
+                const deletePromises = conversationsSnapshot.docs.map(async (convDoc) => {
+                    const convId = convDoc.id;
+                    console.log(`🗑️ Deleting conversation ${convId} for post ${postId}`);
+
+                    // Delete all messages in this conversation first
+                    const messagesQuery = query(collection(db, 'conversations', convId, 'messages'));
+                    const messagesSnapshot = await getDocs(messagesQuery);
+
+                    for (const messageDoc of messagesSnapshot.docs) {
+                        await deleteDoc(doc(db, 'conversations', convId, 'messages', messageDoc.id));
+                    }
+
+                    // Delete the conversation document
+                    await deleteDoc(doc(db, 'conversations', convId));
+                    deletedCount++;
+                });
+
+                await Promise.all(deletePromises);
+                console.log(`✅ Deleted ${deletedCount} conversations for post ${postId}`);
             } catch (deleteError) {
-                console.warn('⚠️ Failed to delete conversation after handover confirmation:', deleteError);
+                console.warn('⚠️ Failed to delete all conversations for post:', deleteError);
                 // Continue even if conversation deletion fails
-                return { success: true, conversationDeleted: false, postId };
             }
+
+            return { success: true, conversationDeleted: true, postId };
         } catch (error: any) {
             console.error('❌ Firebase confirmHandoverIdPhoto failed:', error);
             return { success: false, conversationDeleted: false, error: error.message };
@@ -945,17 +1070,71 @@ export const messageService = {
             await updateDoc(messageRef, {
                 'claimData.idPhotoConfirmed': true,
                 'claimData.idPhotoConfirmedAt': serverTimestamp(),
-                'claimData.idPhotoConfirmedBy': confirmBy
+                'claimData.idPhotoConfirmedBy': confirmBy,
+                'claimData.status': 'accepted', // ← Update status to accepted when confirmed
+                'claimData.respondedAt': serverTimestamp(),
+                'claimData.responderId': confirmBy
             });
 
-            // Update the post status to completed
+            // Update the post status to resolved and preserve claim details to the post itself so they can be shown in resolved posts section
             const postRef = doc(db, 'posts', postId);
+
+            // Enhanced claim details with essential information for claimer only
+            const claimDetails = {
+                claimerName: conversationData.participants[confirmBy]?.firstName + ' ' + conversationData.participants[confirmBy]?.lastName || 'Unknown User',
+                claimerId: confirmBy,
+                claimerEmail: conversationData.participants[confirmBy]?.email || '',
+                claimerContact: conversationData.participants[confirmBy]?.contactNum || '',
+                claimerStudentId: conversationData.participants[confirmBy]?.studentId || '',
+                claimerIdPhoto: messageData.claimData?.idPhotoUrl || '',
+                ownerIdPhoto: messageData.claimData?.ownerIdPhoto || '',
+                claimConfirmedAt: serverTimestamp(),
+                claimConfirmedBy: confirmBy,
+                ownerName: messageData.senderName || 'Unknown User',
+                ownerId: messageData.senderId || '',
+                postTitle: conversationData.postTitle || '',
+                postId: postId,
+                claimReason: messageData.claimData?.claimReason || '',
+                claimRequestedAt: messageData.claimData?.requestedAt || null,
+                claimRespondedAt: messageData.claimData?.respondedAt || null,
+                evidencePhotos: messageData.claimData?.evidencePhotos || [],
+                conversationId: conversationId,
+                messageId: messageId,
+                claimStatus: 'resolved',
+                // Preserve original claim request details
+                claimRequestDetails: {
+                    messageId: messageId,
+                    messageText: messageData.text || '',
+                    messageTimestamp: messageData.timestamp,
+                    senderId: messageData.senderId,
+                    senderName: messageData.senderName || 'Unknown User',
+                    senderProfilePicture: conversationData.participants[messageData.senderId]?.profilePicture,
+                    claimReason: messageData.claimData?.claimReason || '',
+                    claimRequestedAt: messageData.claimData?.requestedAt || null,
+                    claimRespondedAt: messageData.claimData?.respondedAt || null,
+                    claimResponseMessage: messageData.claimData?.responseMessage || '',
+                    idPhotoUrl: messageData.claimData?.idPhotoUrl || '',
+                    idPhotoConfirmed: messageData.claimData?.idPhotoConfirmed || false,
+                    idPhotoConfirmedAt: messageData.claimData?.idPhotoConfirmedAt || null,
+                    idPhotoConfirmedBy: messageData.claimData?.idPhotoConfirmedBy || '',
+                    evidencePhotos: messageData.claimData?.evidencePhotos || [],
+                    evidencePhotosConfirmed: messageData.claimData?.evidencePhotosConfirmed || false,
+                    evidencePhotosConfirmedAt: messageData.claimData?.evidencePhotosConfirmedAt || null,
+                    evidencePhotosConfirmedBy: messageData.claimData?.evidencePhotosConfirmedBy || '',
+                    ownerIdPhoto: messageData.claimData?.ownerIdPhoto || '',
+                    ownerIdPhotoConfirmed: messageData.claimData?.ownerIdPhotoConfirmed || false,
+                    ownerIdPhotoConfirmedAt: messageData.claimData?.ownerIdPhotoConfirmedAt || null,
+                    ownerIdPhotoConfirmedBy: messageData.claimData?.ownerIdPhotoConfirmedBy || ''
+                }
+            };
+
             await updateDoc(postRef, {
-                status: 'completed',
-                updatedAt: serverTimestamp()
+                status: 'resolved',
+                updatedAt: serverTimestamp(),
+                claimDetails
             });
 
-            // Send confirmation notification to other participants
+            // Send confirmation notification to other participants BEFORE deleting conversation
             try {
                 await notificationSender.sendResponseNotification(conversationId, {
                     responderId: confirmBy,
@@ -969,12 +1148,39 @@ export const messageService = {
                 // Don't fail the whole operation if notification fails
             }
 
-            // Delete the conversation to complete the claim process
+            // Delete ALL conversations for this post since it's now resolved
             try {
-                await this.deleteConversation(conversationId);
-                console.log(`✅ Conversation ${conversationId} deleted after claim confirmation`);
+                console.log(`🗑️ Finding and deleting ALL conversations for post ${postId}...`);
+
+                // Query all conversations for this post
+                const conversationsQuery = query(
+                    collection(db, 'conversations'),
+                    where('postId', '==', postId)
+                );
+                const conversationsSnapshot = await getDocs(conversationsQuery);
+
+                let deletedCount = 0;
+                const deletePromises = conversationsSnapshot.docs.map(async (convDoc) => {
+                    const convId = convDoc.id;
+                    console.log(`🗑️ Deleting conversation ${convId} for post ${postId}`);
+
+                    // Delete all messages in this conversation first
+                    const messagesQuery = query(collection(db, 'conversations', convId, 'messages'));
+                    const messagesSnapshot = await getDocs(messagesQuery);
+
+                    for (const messageDoc of messagesSnapshot.docs) {
+                        await deleteDoc(doc(db, 'conversations', convId, 'messages', messageDoc.id));
+                    }
+
+                    // Delete the conversation document
+                    await deleteDoc(doc(db, 'conversations', convId));
+                    deletedCount++;
+                });
+
+                await Promise.all(deletePromises);
+                console.log(`✅ Deleted ${deletedCount} conversations for post ${postId}`);
             } catch (deleteError) {
-                console.warn('⚠️ Failed to delete conversation after claim confirmation:', deleteError);
+                console.warn('⚠️ Failed to delete all conversations for post:', deleteError);
                 // Continue even if conversation deletion fails
             }
 
@@ -1155,6 +1361,194 @@ export const messageService = {
         } catch (error: any) {
             console.error('Error fetching admin message stats:', error);
             throw new Error(error.message || 'Failed to fetch admin message statistics');
+        }
+    },
+
+    // Reject handover request after ID photo confirmation (when status is pending_confirmation or accepted with ownerIdPhoto uploaded but not yet confirmed by owner) - NEW FUNCTION ADDED TO FIX PHOTO DELETION ISSUE
+    async rejectHandoverAfterConfirmation(conversationId: string, messageId: string, rejectBy: string): Promise<void> {
+        try {
+            console.log('🔄 Firebase: rejectHandoverAfterConfirmation called with:', { conversationId, messageId, rejectBy });
+
+            const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
+            const messageDoc = await getDoc(messageRef);
+
+            if (!messageDoc.exists()) {
+                throw new Error('Message not found');
+            }
+
+            const messageData = messageDoc.data();
+            if (messageData.messageType !== 'handover_request') {
+                throw new Error('Message is not a handover request');
+            }
+
+            // Collect all image URLs to be deleted (including owner ID photo)
+            const imageUrls: string[] = [];
+
+            // Add original finder ID photo if exists
+            if (messageData.handoverData?.idPhotoUrl) {
+                imageUrls.push(messageData.handoverData.idPhotoUrl);
+            }
+
+            // Add item photos if exist
+            if (messageData.handoverData?.itemPhotos && Array.isArray(messageData.handoverData.itemPhotos)) {
+                messageData.handoverData.itemPhotos.forEach((photo: any) => {
+                    if (photo.url) {
+                        imageUrls.push(photo.url);
+                    }
+                });
+            }
+
+            // IMPORTANT: Add owner ID photo if exists (this is the key fix)
+            if (messageData.handoverData?.ownerIdPhoto) {
+                imageUrls.push(messageData.handoverData.ownerIdPhoto);
+                console.log('🗑️ Found owner ID photo to delete:', messageData.handoverData.ownerIdPhoto.split('/').pop());
+            }
+
+            // Delete all images from Cloudinary
+            if (imageUrls.length > 0) {
+                console.log('🗑️ Deleting', imageUrls.length, 'images for rejected handover after confirmation');
+                const { deleteMessageImages } = await import('../../utils/cloudinary');
+                const result = await deleteMessageImages(imageUrls);
+                console.log(`✅ Cloudinary cleanup result: ${result.deleted.length} deleted, ${result.failed.length} failed`);
+
+                if (result.failed.length > 0) {
+                    console.warn('⚠️ Some images failed to delete from Cloudinary:', result.failed);
+                }
+            }
+
+            // Update the handover message with rejection data
+            await updateDoc(messageRef, {
+                'handoverData.status': 'rejected',
+                'handoverData.respondedAt': serverTimestamp(),
+                'handoverData.responderId': rejectBy,
+                'handoverData.photosDeleted': true // Mark photos as deleted
+            });
+
+            // Get conversation data for notifications
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
+            const conversationData = conversationDoc.data();
+
+            // Update conversation status
+            await updateDoc(conversationRef, {
+                handoverRequestStatus: 'rejected',
+                updatedAt: serverTimestamp()
+            });
+
+            // Send response notification to other participants
+            try {
+                if (conversationData) {
+                    await notificationSender.sendResponseNotification(conversationId, {
+                        responderId: rejectBy,
+                        responderName: conversationData.participants[rejectBy]?.firstName + ' ' + conversationData.participants[rejectBy]?.lastName || 'Unknown User',
+                        responseType: 'handover_response',
+                        status: 'rejected',
+                        postTitle: conversationData.postTitle
+                    });
+                }
+            } catch (notificationError) {
+                console.warn('⚠️ Failed to send handover rejection notification:', notificationError);
+                // Don't fail the whole operation if notification fails
+            }
+
+            console.log(`✅ Handover rejected after confirmation: ${messageId}`);
+        } catch (error: any) {
+            console.error('❌ Firebase rejectHandoverAfterConfirmation failed:', error);
+            throw new Error(error.message || 'Failed to reject handover after confirmation');
+        }
+    },
+
+    // Reject claim request after ID photo confirmation (when status is pending_confirmation or accepted with ownerIdPhoto uploaded but not yet confirmed by owner) - NEW FUNCTION ADDED TO FIX PHOTO DELETION ISSUE
+    async rejectClaimAfterConfirmation(conversationId: string, messageId: string, rejectBy: string): Promise<void> {
+        try {
+            console.log('🔄 Firebase: rejectClaimAfterConfirmation called with:', { conversationId, messageId, rejectBy });
+
+            const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
+            const messageDoc = await getDoc(messageRef);
+
+            if (!messageDoc.exists()) {
+                throw new Error('Message not found');
+            }
+
+            const messageData = messageDoc.data();
+            if (messageData.messageType !== 'claim_request') {
+                throw new Error('Message is not a claim request');
+            }
+
+            // Collect all image URLs to be deleted (including owner ID photo)
+            const imageUrls: string[] = [];
+
+            // Add original claimer ID photo if exists
+            if (messageData.claimData?.idPhotoUrl) {
+                imageUrls.push(messageData.claimData.idPhotoUrl);
+            }
+
+            // Add evidence photos if exist
+            if (messageData.claimData?.evidencePhotos && Array.isArray(messageData.claimData.evidencePhotos)) {
+                messageData.claimData.evidencePhotos.forEach((photo: any) => {
+                    if (photo.url) {
+                        imageUrls.push(photo.url);
+                    }
+                });
+            }
+
+            // IMPORTANT: Add owner ID photo if exists (this is the key fix)
+            if (messageData.claimData?.ownerIdPhoto) {
+                imageUrls.push(messageData.claimData.ownerIdPhoto);
+                console.log('🗑️ Found owner ID photo to delete:', messageData.claimData.ownerIdPhoto.split('/').pop());
+            }
+
+            // Delete all images from Cloudinary
+            if (imageUrls.length > 0) {
+                console.log('🗑️ Deleting', imageUrls.length, 'images for rejected claim after confirmation');
+                const { deleteMessageImages } = await import('../../utils/cloudinary');
+                const result = await deleteMessageImages(imageUrls);
+                console.log(`✅ Cloudinary cleanup result: ${result.deleted.length} deleted, ${result.failed.length} failed`);
+
+                if (result.failed.length > 0) {
+                    console.warn('⚠️ Some images failed to delete from Cloudinary:', result.failed);
+                }
+            }
+
+            // Update the claim message with rejection data
+            await updateDoc(messageRef, {
+                'claimData.status': 'rejected',
+                'claimData.respondedAt': serverTimestamp(),
+                'claimData.responderId': rejectBy,
+                'claimData.photosDeleted': true // Mark photos as deleted
+            });
+
+            // Get conversation data for notifications
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
+            const conversationData = conversationDoc.data();
+
+            // Update conversation status
+            await updateDoc(conversationRef, {
+                claimRequestStatus: 'rejected',
+                updatedAt: serverTimestamp()
+            });
+
+            // Send response notification to other participants
+            try {
+                if (conversationData) {
+                    await notificationSender.sendResponseNotification(conversationId, {
+                        responderId: rejectBy,
+                        responderName: conversationData.participants[rejectBy]?.firstName + ' ' + conversationData.participants[rejectBy]?.lastName || 'Unknown User',
+                        responseType: 'claim_response',
+                        status: 'rejected',
+                        postTitle: conversationData.postTitle
+                    });
+                }
+            } catch (notificationError) {
+                console.warn('⚠️ Failed to send claim rejection notification:', notificationError);
+                // Don't fail the whole operation if notification fails
+            }
+
+            console.log(`✅ Claim rejected after confirmation: ${messageId}`);
+        } catch (error: any) {
+            console.error('❌ Firebase rejectClaimAfterConfirmation failed:', error);
+            throw new Error(error.message || 'Failed to reject claim after confirmation');
         }
     },
 

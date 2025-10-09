@@ -6,14 +6,16 @@ import {
   HiOutlineCog,
 } from "react-icons/hi";
 import { LuLayoutDashboard } from "react-icons/lu";
+import { IoFlagOutline } from "react-icons/io5";
+import { LuMessageSquareMore } from "react-icons/lu";
+import { HiOutlineArrowPath } from "react-icons/hi2";
 import NavText from "./NavText";
 import Logo from "../assets/uniclaim_logo.png";
 import clsx from "clsx";
 import { useEffect, useState, useMemo } from "react";
-import { IoFlagOutline } from "react-icons/io5";
-import { LuMessageSquareMore } from "react-icons/lu";
-import { HiOutlineArrowPath } from "react-icons/hi2";
+import { useMessage } from "@/context/MessageContext";
 import { useAdminPosts } from "@/hooks/usePosts";
+import type { Post } from "@/types/Post";
 
 interface AdminSideNavProps {
   isOpen: boolean;
@@ -45,9 +47,12 @@ export default function AdminSideNav({
   // Get admin posts to count turnover items
   const { posts = [] } = useAdminPosts();
 
+  // Get total unread message count
+  const { totalUnreadCount = 0 } = useMessage();
+
   // Filter posts for turnover management (same logic as TurnoverManagementPage)
   const turnoverPostsCount = useMemo(() => {
-    return posts.filter((post) => {
+    return posts.filter((post: Post) => {
       // Show only Found items marked for turnover to OSA that need confirmation
       return (
         post.type === "found" &&
@@ -60,7 +65,7 @@ export default function AdminSideNav({
 
   // Filter posts for flagged posts count
   const flaggedPostsCount = useMemo(() => {
-    return posts.filter((post) => post.isFlagged === true).length;
+    return posts.filter((post: Post) => post.isFlagged === true).length;
   }, [posts]);
 
   // Lock scroll on body only for mobile nav open
@@ -128,6 +133,7 @@ export default function AdminSideNav({
               tooltipIconClassName="text-navyblue text-xl"
               tooltipTextClassName="text-navyblue text-base"
               hoverContainerBgClass="bg-gray-100"
+              badge={totalUnreadCount > 0 ? totalUnreadCount : undefined}
             />
 
             <NavText
@@ -241,6 +247,7 @@ export default function AdminSideNav({
                   className="hover:bg-gray-50 rounded pl-4 justify-start"
                   iconClassName="text-black"
                   textClassName="font-manrope"
+                  badge={totalUnreadCount > 0 ? totalUnreadCount : undefined}
                 />
 
                 <NavText

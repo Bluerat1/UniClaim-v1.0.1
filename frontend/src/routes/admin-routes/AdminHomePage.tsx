@@ -119,20 +119,40 @@ export default function AdminHomePage() {
     }
   }, [postToDelete, userData?.email, viewType, showToast]);
 
-  const confirmPermanentDelete = useCallback(async () => {
+  // Fetch deleted posts
+  const fetchDeletedPosts = useCallback(async () => {
+    if (viewType !== 'deleted') return;
+
+    try {
+      setDeletedPostsLoading(true);
+      setDeletedPostsError(null);
+      const { postService } = await import('../../services/firebase/posts');
+      const deleted = await postService.getDeletedPosts();
+      setDeletedPosts(deleted);
+    } catch (error: any) {
+      console.error('Error fetching deleted posts:', error);
+      setDeletedPostsError(error.message || 'Failed to load deleted posts');
+      showToast('error', 'Error', 'Failed to load deleted posts');
+      throw error;
+    } finally {
+      setDeletedPostsLoading(false);
+    }
+  }, [showToast, viewType]);
+
+  const confirmDelete = useCallback(async () => {
     if (!postToDelete) return;
 
     try {
       setDeletingPostId(postToDelete.id);
       const { postService } = await import('../../services/firebase/posts');
-      
+
       // Permanently delete
       await postService.deletePost(postToDelete.id, true, userData?.email || 'admin');
-      
+
       showToast("success", "Post Deleted", "Post has been permanently deleted");
       setShowDeleteModal(false);
       setPostToDelete(null);
-      
+
       // Refresh the deleted posts list if we're in the deleted view
       if (viewType === 'deleted') {
         fetchDeletedPosts();
@@ -143,14 +163,38 @@ export default function AdminHomePage() {
     } finally {
       setDeletingPostId(null);
     }
-  }, [postToDelete, userData?.email, viewType, showToast]);
+  }, [postToDelete, userData?.email, viewType, showToast, fetchDeletedPosts]);
 
   const cancelDelete = useCallback(() => {
     setShowDeleteModal(false);
     setPostToDelete(null);
   }, []);
 
-  // Flag management handlers
+  const confirmPermanentDelete = useCallback(async () => {
+    if (!postToDelete) return;
+
+    try {
+      setDeletingPostId(postToDelete.id);
+      const { postService } = await import('../../services/firebase/posts');
+
+      // Permanently delete
+      await postService.deletePost(postToDelete.id, true, userData?.email || 'admin');
+
+      showToast("success", "Post Deleted", "Post has been permanently deleted");
+      setShowDeleteModal(false);
+      setPostToDelete(null);
+
+      // Refresh the deleted posts list if we're in the deleted view
+      if (viewType === 'deleted') {
+        fetchDeletedPosts();
+      }
+    } catch (error: any) {
+      console.error('Error permanently deleting post:', error);
+      showToast('error', 'Error', error.message || 'Failed to permanently delete post');
+    } finally {
+      setDeletingPostId(null);
+    }
+  }, [postToDelete, userData?.email, viewType, showToast, fetchDeletedPosts]);
   const handleUnflagPost = async (post: Post) => {
     try {
       const { postService } = await import('../../services/firebase/posts');
@@ -183,26 +227,6 @@ export default function AdminHomePage() {
       showToast("error", "Unhide Failed", error?.message || 'Failed to unhide post');
     }
   };
-
-  // Fetch deleted posts
-  const fetchDeletedPosts = useCallback(async () => {
-    if (viewType !== 'deleted') return;
-    
-    try {
-      setDeletedPostsLoading(true);
-      setDeletedPostsError(null);
-      const { postService } = await import('../../services/firebase/posts');
-      const deleted = await postService.getDeletedPosts();
-      setDeletedPosts(deleted);
-    } catch (error: any) {
-      console.error('Error fetching deleted posts:', error);
-      setDeletedPostsError(error.message || 'Failed to load deleted posts');
-      showToast('error', 'Error', 'Failed to load deleted posts');
-      throw error;
-    } finally {
-      setDeletedPostsLoading(false);
-    }
-  }, [showToast, viewType]);
 
   // Load deleted posts when the deleted tab is active
   useEffect(() => {
@@ -509,22 +533,23 @@ export default function AdminHomePage() {
       let shouldShow = false;
 
       if (viewType === "all") {
-        // Show all posts EXCEPT unclaimed ones and turnover to OSA items in "All Item Reports"
+        // Show all posts EXCEPT unclaimed ones and posts awaiting OSA confirmation in "All Item Reports"
         shouldShow = post.status !== 'unclaimed' && !post.movedToUnclaimed &&
                      !(post.type === "found" &&
                        post.turnoverDetails &&
-                       post.turnoverDetails.turnoverAction === "turnover to OSA");
+                       post.turnoverDetails.turnoverAction === "turnover to OSA" &&
+                       post.turnoverDetails.turnoverStatus === "declared");
       } else if (viewType === "unclaimed") {
         // Show posts that are either status 'unclaimed' OR have movedToUnclaimed flag
-        shouldShow = post.status === 'unclaimed' || post.movedToUnclaimed;
+        shouldShow = post.status === 'unclaimed' || Boolean(post.movedToUnclaimed);
       } else if (viewType === "completed") {
         shouldShow = true; // resolvedPosts already filtered
       } else if (viewType === "turnover") {
-        // Show only Found items marked for turnover to OSA that need confirmation
+        // Show only Found items marked for turnover to OSA that have been confirmed as received
         shouldShow = post.type === "found" && 
                     post.turnoverDetails && 
                     post.turnoverDetails.turnoverAction === "turnover to OSA" &&
-                    post.turnoverDetails.turnoverStatus === "declared";
+                    post.turnoverDetails.turnoverStatus === "confirmed";
       } else if (viewType === "flagged") {
         // Show only flagged posts
         shouldShow = post.isFlagged === true;
@@ -711,7 +736,7 @@ export default function AdminHomePage() {
           <span className="text-sm text-gray-600">Current View: </span>
           <span className="text-sm font-semibold text-blue-600 capitalize">
             {viewType === "unclaimed" ? "Unclaimed Items" :
-             viewType === "completed" ? "Completed Reports" :
+             viewType === "completed" ? "Resolved Reports" :
              viewType === "turnover" ? "Turnover Management" :
              viewType === "flagged" ? "Flagged Posts" :
              `${viewType} Item Reports`}
@@ -855,7 +880,7 @@ export default function AdminHomePage() {
           <div className="col-span-full flex items-center justify-center h-80">
             <span className="text-gray-400">
               Loading {viewType === "unclaimed" ? "unclaimed" :
-                       viewType === "completed" ? "completed" :
+                       viewType === "completed" ? "resolved" :
                        viewType === "deleted" ? "recently deleted" :
                        viewType} report items...
             </span>

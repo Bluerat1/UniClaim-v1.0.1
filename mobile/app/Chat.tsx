@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   FlatList,
@@ -175,6 +175,9 @@ export default function Chat() {
 
   // Track if we're currently loading to prevent multiple simultaneous loads
   const isLoadingRef = useRef(false);
+
+  // Track if confirmation is in progress to prevent duplicate calls
+  const [isConfirmationInProgress, setIsConfirmationInProgress] = useState(false);
 
   // Get the other participant's profile picture (exclude current user)
   const getOtherParticipantProfilePicture = () => {
@@ -748,7 +751,10 @@ export default function Chat() {
 
   // Handle ID photo confirmation (like web version)
   const handleConfirmIdPhotoSuccess = async (messageId: string) => {
-    if (!conversationId || !user?.uid) return;
+    if (!conversationId || !user?.uid || isConfirmationInProgress) return;
+
+    // Prevent duplicate confirmations
+    setIsConfirmationInProgress(true);
 
     // Get the message data before trying to confirm
     const message = messages.find((m) => m.id === messageId);
@@ -757,7 +763,9 @@ export default function Chat() {
         "❌ Mobile Chat: Message not found in local messages array:",
         messageId
       );
-      Alert.alert("Error", "Message not found. Please refresh and try again.");
+      setIsConfirmationInProgress(false);
+      // If message is not found, conversation might already be deleted, just navigate back
+      navigation.goBack();
       return;
     }
 
@@ -781,13 +789,15 @@ export default function Chat() {
         );
       }
 
-      // Navigate back to conversations list after successful confirmation
+      // Clear messages and navigate back after successful confirmation
       console.log(
-        "🔄 Mobile Chat: Confirmation successful - navigating back to conversations"
+        "🔄 Mobile Chat: Confirmation successful - clearing messages and navigating back"
       );
+      setMessages([]);
       navigation.goBack();
     } catch (error: any) {
       console.error("❌ Mobile Chat: Error confirming ID photo:", error);
+      setIsConfirmationInProgress(false);
 
       // Handle different error scenarios
       if (
@@ -796,38 +806,11 @@ export default function Chat() {
         error.message?.includes("already processed")
       ) {
         console.log(
-          "🔄 Mobile Chat: Conversation/message missing - ensuring post is resolved"
+          "🔄 Mobile Chat: Conversation/message missing - clearing messages and navigating back"
         );
 
-        // Try to mark the post as completed even if conversation is missing
-        try {
-          const { postService } = await import("../utils/firebase/posts");
-          const postId =
-            message.claimData?.postId || message.handoverData?.postId;
-          if (postId) {
-            console.log(
-              "🔄 Mobile Chat: Marking post as resolved due to missing conversation"
-            );
-            await postService.updatePost(postId, { status: "resolved" });
-            Alert.alert("Success", "Item marked as resolved!");
-            navigation.goBack();
-            return;
-          }
-        } catch (checkError) {
-          console.log(
-            "⚠️ Mobile Chat: Could not mark post as resolved:",
-            checkError
-          );
-        }
-
-        // If we can't mark the post as resolved, navigate back anyway
-        console.log(
-          "ℹ️ Mobile Chat: Conversation was missing - navigating back"
-        );
-        Alert.alert(
-          "Information",
-          "The conversation may have been completed already."
-        );
+        // Clear messages and navigate back since conversation was already deleted
+        setMessages([]);
         navigation.goBack();
       } else {
         Alert.alert("Error", "Failed to confirm ID photo. Please try again.");
@@ -961,6 +944,7 @@ export default function Chat() {
                     onHandoverResponse={handleHandoverResponse}
                     onClaimResponse={handleClaimResponse}
                     onConfirmIdPhotoSuccess={handleConfirmIdPhotoSuccess}
+                    isConfirmationInProgress={isConfirmationInProgress}
                     onImageClick={(imageUrl, altText) =>
                       setSelectedImage({ uri: imageUrl, alt: altText })
                     }

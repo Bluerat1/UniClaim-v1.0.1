@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import type { Message } from "@/types/Post";
 import { useMessage } from "@/context/MessageContext";
 import ImageModal from "./ImageModal";
-import {
-  handoverClaimService,
+import handoverClaimService, {
   type HandoverClaimCallbacks,
 } from "../services/handoverClaimService";
 import { useAuth } from "@/context/AuthContext";
@@ -52,6 +51,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [showIdPhotoModal, setShowIdPhotoModal] = useState(false);
   const [selectedIdPhoto, setSelectedIdPhoto] = useState<File | null>(null);
   const [isUploadingIdPhoto, setIsUploadingIdPhoto] = useState(false);
+  const [showIdPhotoPreview, setShowIdPhotoPreview] = useState(false);
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{
     url: string;
@@ -108,6 +109,20 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       return;
     }
 
+    // For rejection, check if this is after ID photo confirmation
+    if (message.handoverData?.status === "pending_confirmation" || message.handoverData?.ownerIdPhoto) {
+      console.log("🔄 Rejecting handover after ID photo confirmation");
+      try {
+        const { rejectHandoverAfterConfirmation } = await import("../services/handoverClaimService");
+        await rejectHandoverAfterConfirmation(conversationId, message.id, currentUserId);
+        onHandoverResponse(message.id, "rejected");
+      } catch (error: any) {
+        console.error("Failed to reject handover after confirmation:", error);
+        alert(`Failed to reject handover: ${error.message}`);
+      }
+      return;
+    }
+
     // For rejection, use the consolidated service
     const callbacks: HandoverClaimCallbacks = {
       onHandoverResponse,
@@ -149,6 +164,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         // Close the modal and reset the photo
         setShowIdPhotoModal(false);
         setSelectedIdPhoto(null);
+        setPreviewPhotoUrl(null);
+        setShowIdPhotoPreview(false);
 
         // Wait for Firebase to fully update before calling parent callback
         setTimeout(() => {
@@ -176,6 +193,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           errorMessage = "The conversation or message could not be found.";
         }
         alert("Error: " + errorMessage);
+
+        // Reset preview state on error
+        setPreviewPhotoUrl(null);
+        setShowIdPhotoPreview(false);
       },
     };
 
@@ -202,6 +223,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       }
     } catch (error: any) {
       alert(`Error: ${error.message || "Failed to upload ID photo"}`);
+
+      // Reset preview state on error
+      setPreviewPhotoUrl(null);
+      setShowIdPhotoPreview(false);
     }
 
     setIsUploadingIdPhoto(false);
@@ -239,6 +264,20 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       return;
     }
 
+    // For rejection, check if this is after ID photo confirmation
+    if (message.claimData?.status === "pending_confirmation" || message.claimData?.ownerIdPhoto) {
+      console.log("🔄 Rejecting claim after ID photo confirmation");
+      try {
+        const { rejectClaimAfterConfirmation } = await import("../services/handoverClaimService");
+        await rejectClaimAfterConfirmation(conversationId, message.id, currentUserId);
+        onClaimResponse(message.id, "rejected");
+      } catch (error: any) {
+        console.error("Failed to reject claim after confirmation:", error);
+        alert(`Failed to reject claim: ${error.message}`);
+      }
+      return;
+    }
+
     // For rejection, use the consolidated service
     const callbacks: HandoverClaimCallbacks = {
       onClaimResponse,
@@ -271,6 +310,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       onSuccess: (_message) => {
         setShowIdPhotoModal(false);
         setSelectedIdPhoto(null);
+        setPreviewPhotoUrl(null);
+        setShowIdPhotoPreview(false);
 
         // For handover requests, call onHandoverResponse; for claim requests, call onClaimResponse
         if (message.messageType === "handover_request") {
@@ -295,6 +336,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           errorMessage = "Upload configuration error. Please contact support.";
         }
         alert("Upload Error: " + errorMessage);
+
+        // Reset preview state on error
+        setPreviewPhotoUrl(null);
+        setShowIdPhotoPreview(false);
       },
     };
 
@@ -884,15 +929,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         return;
       }
       setSelectedIdPhoto(file);
-      // Auto-upload the selected file using the appropriate handler
-      if (
-        message.messageType === "claim_request" &&
-        message.senderId !== currentUserId
-      ) {
-        handleClaimIdPhotoUpload(file);
-      } else {
-        handleIdPhotoUpload(file);
-      }
+
+      // Create preview URL and show preview instead of auto-uploading
+      const previewUrl = URL.createObjectURL(file);
+      setPreviewPhotoUrl(previewUrl);
+      setShowIdPhotoPreview(true);
     } else {
       alert("Please select a valid image file (JPEG, PNG, etc.)");
     }
@@ -908,18 +949,50 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         return;
       }
       setSelectedIdPhoto(file);
-      // Auto-upload the captured photo using the appropriate handler
-      if (
-        message.messageType === "claim_request" &&
-        message.senderId !== currentUserId
-      ) {
-        handleClaimIdPhotoUpload(file);
-      } else {
-        handleIdPhotoUpload(file);
-      }
+
+      // Create preview URL and show preview instead of auto-uploading
+      const previewUrl = URL.createObjectURL(file);
+      setPreviewPhotoUrl(previewUrl);
+      setShowIdPhotoPreview(true);
     } else {
       alert("Please capture a valid image");
     }
+  };
+
+  // Cleanup preview URL when component unmounts or modal closes
+  useEffect(() => {
+    return () => {
+      if (previewPhotoUrl) {
+        URL.revokeObjectURL(previewPhotoUrl);
+      }
+    };
+  }, [previewPhotoUrl]);
+
+  const handleConfirmUpload = async () => {
+    if (!selectedIdPhoto) return;
+
+    setIsUploadingIdPhoto(true);
+
+    // Use the appropriate upload handler based on message type and user
+    if (
+      message.messageType === "claim_request" &&
+      message.senderId !== currentUserId
+    ) {
+      await handleClaimIdPhotoUpload(selectedIdPhoto);
+    } else {
+      await handleIdPhotoUpload(selectedIdPhoto);
+    }
+  };
+
+  const handleCancelPreview = () => {
+    // Clean up preview URL
+    if (previewPhotoUrl) {
+      URL.revokeObjectURL(previewPhotoUrl);
+    }
+
+    setSelectedIdPhoto(null);
+    setPreviewPhotoUrl(null);
+    setShowIdPhotoPreview(false);
   };
 
   const openGallery = () => fileInputRef.current?.click();
@@ -1024,49 +1097,81 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 </p>
               </div>
               <div className="border border-gray-300 rounded-md p-4 text-center">
-                {/* Hidden file inputs */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleCameraCapture}
-                  className="hidden"
-                />
-
-                {/* Upload buttons */}
-                <div className="space-y-3">
-                  <button
-                    onClick={openGallery}
-                    className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                    disabled={isUploadingIdPhoto}
-                  >
-                    {isUploadingIdPhoto
-                      ? "Uploading..."
-                      : "Choose from Gallery"}
-                  </button>
-                  <button
-                    onClick={openCamera}
-                    className="w-full px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
-                    disabled={isUploadingIdPhoto}
-                  >
-                    {isUploadingIdPhoto ? "Uploading..." : "Take Photo"}
-                  </button>
-                  {selectedIdPhoto && (
-                    <div className="mt-3 p-2 bg-gray-100 rounded">
-                      <p className="text-sm text-gray-600">
-                        Selected: {selectedIdPhoto.name}
-                      </p>
+                {showIdPhotoPreview && previewPhotoUrl ? (
+                  /* Preview Mode */
+                  <div className="space-y-4">
+                    <div className="border border-gray-200 rounded-lg p-2">
+                      <img
+                        src={previewPhotoUrl}
+                        alt="ID Photo Preview"
+                        className="max-w-full h-48 object-contain rounded"
+                      />
                     </div>
-                  )}
-                </div>
+                    <div className="space-y-2">
+                      <button
+                        onClick={handleConfirmUpload}
+                        className="w-full px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50"
+                        disabled={isUploadingIdPhoto}
+                      >
+                        {isUploadingIdPhoto ? "Uploading..." : "Confirm & Upload"}
+                      </button>
+                      <button
+                        onClick={handleCancelPreview}
+                        className="w-full px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+                        disabled={isUploadingIdPhoto}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Upload Mode */
+                  <>
+                    {/* Hidden file inputs */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    <input
+                      ref={cameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleCameraCapture}
+                      className="hidden"
+                    />
+
+                    {/* Upload buttons */}
+                    <div className="space-y-3">
+                      <button
+                        onClick={openGallery}
+                        className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                        disabled={isUploadingIdPhoto}
+                      >
+                        {isUploadingIdPhoto
+                          ? "Uploading..."
+                          : "Choose from Gallery"}
+                      </button>
+                      <button
+                        onClick={openCamera}
+                        className="w-full px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+                        disabled={isUploadingIdPhoto}
+                      >
+                        {isUploadingIdPhoto ? "Uploading..." : "Take Photo"}
+                      </button>
+                      {selectedIdPhoto && !showIdPhotoPreview && (
+                        <div className="mt-3 p-2 bg-gray-100 rounded">
+                          <p className="text-sm text-gray-600">
+                            Selected: {selectedIdPhoto.name}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -1135,6 +1240,34 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               <AiOutlineDelete className="size-4 text-red-500 hover:text-red-700 transition-colors duration-300" />
             </button>
           )}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Delete Message</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete this message? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteMessage}
+                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors disabled:opacity-50"
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
