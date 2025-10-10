@@ -223,9 +223,8 @@ export default function EditTicketModal({
       // Launch image picker with better error handling
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images, // ✅ Using the working API
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
+        allowsEditing: false,
+        quality: 1.0,
         allowsMultipleSelection: false,
       });
 

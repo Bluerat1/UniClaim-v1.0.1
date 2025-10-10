@@ -47,9 +47,8 @@ const ImagePicker: React.FC<ImagePickerProps> = ({
 
       const result = await ExpoImagePicker.launchCameraAsync({
         mediaTypes: ExpoImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
+        allowsEditing: false,
+        quality: 1.0,
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
@@ -69,9 +68,8 @@ const ImagePicker: React.FC<ImagePickerProps> = ({
 
       const result = await ExpoImagePicker.launchImageLibraryAsync({
         mediaTypes: ExpoImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
+        allowsEditing: false,
+        quality: 1.0,
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {

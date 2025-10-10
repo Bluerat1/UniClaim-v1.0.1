@@ -161,6 +161,9 @@ export const messageService: MessageService = {
                 unreadCountUpdates[`unreadCounts.${participantId}`] = increment(1);
             });
 
+            console.log(`📈 Mobile: Incrementing unread counts for ${otherParticipantIds.length} participants:`, otherParticipantIds);
+            console.log(`📈 Mobile: Unread count updates:`, unreadCountUpdates);
+
             // Update conversation with last message and increment unread counts for other participants
             const currentTimestamp = new Date();
             await updateDoc(conversationRef, {
@@ -192,6 +195,8 @@ export const messageService: MessageService = {
                     // Continue even if notifications fail - message is already sent
                 }
             }
+
+            console.log(`✅ Mobile: Message sent successfully. Incremented unread counts for ${otherParticipantIds.length} participants`);
         } catch (error: any) {
             throw new Error(error.message || 'Failed to send message');
         }
@@ -231,6 +236,16 @@ export const messageService: MessageService = {
             const validConversations = conversations.filter((conv: any) => {
                 const participantIds = Object.keys(conv.participants || {});
                 return participantIds.length > 1; // Must have at least 2 participants
+            });
+
+            console.log(`📡 Mobile: Conversation listener triggered for user ${userId}. Found ${validConversations.length} conversations`);
+
+            // Log unread counts for debugging
+            validConversations.forEach(conv => {
+                const userUnreadCount = (conv as any).unreadCounts?.[userId];
+                if (userUnreadCount && userUnreadCount > 0) {
+                    console.log(`📨 Mobile: Conversation ${conv.id} has ${userUnreadCount} unread messages for user ${userId}`);
+                }
             });
 
             callback(validConversations);
@@ -949,16 +964,42 @@ export const messageService: MessageService = {
             const conversationDoc = await getDoc(conversationRef);
             const conversationData = conversationDoc.data();
 
-            // Update conversation with handover request flag
-            await updateDoc(conversationRef, {
-                handoverRequested: true,
-                updatedAt: serverTimestamp(),
-                lastMessage: {
-                    text: messageData.text,
-                    senderId,
-                    timestamp: serverTimestamp()
-                }
-            });
+            // Increment unread count for all participants except the sender
+            if (conversationData) {
+                const participantIds = Object.keys(conversationData.participants || {});
+                const otherParticipantIds = participantIds.filter(id => id !== senderId);
+
+                // Prepare unread count updates for each receiver
+                const unreadCountUpdates: { [key: string]: any } = {};
+                otherParticipantIds.forEach(participantId => {
+                    unreadCountUpdates[`unreadCounts.${participantId}`] = increment(1);
+                });
+
+                console.log(`📈 Mobile: Incrementing unread counts for ${otherParticipantIds.length} participants:`, otherParticipantIds);
+
+                // Update conversation with handover request flag and unread counts
+                await updateDoc(conversationRef, {
+                    handoverRequested: true,
+                    updatedAt: serverTimestamp(),
+                    lastMessage: {
+                        text: messageData.text,
+                        senderId,
+                        timestamp: serverTimestamp()
+                    },
+                    ...unreadCountUpdates
+                });
+            } else {
+                // Fallback if no conversation data
+                await updateDoc(conversationRef, {
+                    handoverRequested: true,
+                    updatedAt: serverTimestamp(),
+                    lastMessage: {
+                        text: messageData.text,
+                        senderId,
+                        timestamp: serverTimestamp()
+                    }
+                });
+            }
 
             // Send notifications to other participants for handover request
             if (conversationData) {
@@ -1135,16 +1176,42 @@ export const messageService: MessageService = {
             const conversationDoc = await getDoc(conversationRef);
             const conversationData = conversationDoc.data();
 
-            // Update conversation with claim request flag
-            await updateDoc(conversationRef, {
-                claimRequested: true,
-                updatedAt: serverTimestamp(),
-                lastMessage: {
-                    text: messageData.text,
-                    senderId,
-                    timestamp: serverTimestamp()
-                }
-            });
+            // Increment unread count for all participants except the sender
+            if (conversationData) {
+                const participantIds = Object.keys(conversationData.participants || {});
+                const otherParticipantIds = participantIds.filter(id => id !== senderId);
+
+                // Prepare unread count updates for each receiver
+                const unreadCountUpdates: { [key: string]: any } = {};
+                otherParticipantIds.forEach(participantId => {
+                    unreadCountUpdates[`unreadCounts.${participantId}`] = increment(1);
+                });
+
+                console.log(`📈 Mobile: Incrementing unread counts for ${otherParticipantIds.length} participants:`, otherParticipantIds);
+
+                // Update conversation with claim request flag and unread counts
+                await updateDoc(conversationRef, {
+                    claimRequested: true,
+                    updatedAt: serverTimestamp(),
+                    lastMessage: {
+                        text: messageData.text,
+                        senderId,
+                        timestamp: serverTimestamp()
+                    },
+                    ...unreadCountUpdates
+                });
+            } else {
+                // Fallback if no conversation data
+                await updateDoc(conversationRef, {
+                    claimRequested: true,
+                    updatedAt: serverTimestamp(),
+                    lastMessage: {
+                        text: messageData.text,
+                        senderId,
+                        timestamp: serverTimestamp()
+                    }
+                });
+            }
 
             // Send notifications to other participants for claim request
             if (conversationData) {

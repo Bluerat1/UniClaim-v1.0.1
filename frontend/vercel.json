@@ -4,5 +4,16 @@
       "source": "/((?!api|_next/static|_next/image|favicon.ico|robots.txt|manifest.json).*)",
       "destination": "/index.html"
     }
+  ],
+  "headers": [
+    {
+      "source": "/firebase-messaging-sw.js",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com"
+        }
+      ]
+    }
   ]
 }

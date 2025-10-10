@@ -470,9 +470,8 @@ export default function Profile() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: "images" as any, // Direct string value avoids all enum deprecation warnings
-      allowsEditing: true, // crop square
-      aspect: [1, 1],
-      quality: 0.8,
+      allowsEditing: false,
+      quality: 1.0,
     });
 
     if (!result.canceled) {
