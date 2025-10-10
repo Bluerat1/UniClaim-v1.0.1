@@ -17,7 +17,7 @@ const MessagesPage: React.FC = () => {
     if (conversationParam && !selectedConversation) {
       // Only handle URL-based conversation loading on initial page load
       // The ConversationList component will handle the actual selection
-      console.log('Page loaded with conversation in URL:', conversationParam);
+      console.log("Page loaded with conversation in URL:", conversationParam);
     }
   }, []); // Only run on mount
 
@@ -25,19 +25,22 @@ const MessagesPage: React.FC = () => {
   useEffect(() => {
     if (selectedConversation) {
       const newSearchParams = new URLSearchParams();
-      newSearchParams.set('conversation', selectedConversation.id);
+      newSearchParams.set("conversation", selectedConversation.id);
       setSearchParams(newSearchParams);
     } else {
       setSearchParams(new URLSearchParams());
     }
   }, [selectedConversation]);
 
-  const handleSelectConversation = useCallback((conversation: Conversation | null) => {
-    setSelectedConversation(conversation);
-  }, []);
+  const handleSelectConversation = useCallback(
+    (conversation: Conversation | null) => {
+      setSelectedConversation(conversation);
+    },
+    []
+  );
 
   const handleBackToConversations = () => {
-    console.log('Back button clicked, clearing conversation...');
+    console.log("Back button clicked, clearing conversation...");
     // Clear the conversation parameter from URL first
     setSearchParams(new URLSearchParams());
     // Small delay to ensure URL is cleared before clearing conversation
@@ -95,7 +98,7 @@ const MessagesPage: React.FC = () => {
             {selectedConversation && (
               <div className="lg:hidden fixed inset-0 z-50 bg-white flex flex-col">
                 {/* Mobile Header */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white flex-shrink-0">
+                <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-white flex-shrink-0">
                   <button
                     onClick={handleBackToConversations}
                     className="p-2 text-gray-500 hover:text-gray-700"
@@ -125,7 +128,7 @@ const MessagesPage: React.FC = () => {
                   <ChatWindow
                     conversation={selectedConversation}
                     onClearConversation={() => {
-                      console.log('ChatWindow clearing conversation...');
+                      console.log("ChatWindow clearing conversation...");
                       setSelectedConversation(null);
                       setSearchParams({});
                     }}

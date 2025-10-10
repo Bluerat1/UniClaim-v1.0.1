@@ -260,7 +260,7 @@ function PostCard({
           </div>
         </div>
 
-        <div className="text-sm lg:text-xs flex gap-2">
+        <div className="text-xs lg:text-xs flex flex-col gap-2">
           {post.location && (
             <p className="font-medium text-black">
               <span className="font-medium">Last seen at </span>
@@ -282,11 +282,13 @@ function PostCard({
         />
 
         {/* Claim Information - only show for resolved posts with claim details, and only if claim is not yet confirmed */}
-        {post.status === "resolved" && 
-         post.claimDetails && 
-         (creatorData?.role === 'admin' || (creatorData?.email && effectiveAdminStatuses.get(creatorData.email))) && 
-         post.claimDetails.claimRequestDetails && 
-         !post.claimDetails.claimConfirmedAt && (
+        {post.status === "resolved" &&
+          post.claimDetails &&
+          (creatorData?.role === "admin" ||
+            (creatorData?.email &&
+              effectiveAdminStatuses.get(creatorData.email))) &&
+          post.claimDetails.claimRequestDetails &&
+          !post.claimDetails.claimConfirmedAt && (
             <div className="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
               <div>
                 <div className="flex items-center gap-2 mb-2">
@@ -358,7 +360,9 @@ function PostCard({
           post.handoverDetails &&
           post.handoverDetails.handoverRequestDetails &&
           !post.claimDetails &&
-          (creatorData?.role === 'admin' || (creatorData?.email && effectiveAdminStatuses.get(creatorData.email))) && (
+          (creatorData?.role === "admin" ||
+            (creatorData?.email &&
+              effectiveAdminStatuses.get(creatorData.email))) && (
             <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
               {/* Show handover request details summary if available */}
               <div>

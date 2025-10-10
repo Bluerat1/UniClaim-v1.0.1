@@ -1128,7 +1128,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const handleConfirmIdPhotoSuccess = (messageId: string): void => {
     // The ID photo confirmation was successful - close the chat window
-    console.log(`ID photo confirmed for message: ${messageId} - closing chat window`);
+    console.log(
+      `ID photo confirmed for message: ${messageId} - closing chat window`
+    );
 
     // Clear the conversation to close the chat window
     if (onClearConversation) {
@@ -1153,8 +1155,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               <span
                 className={`px-2.5 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 ${
                   conversation.postType === "found"
-                    ? "bg-green-300 text-green-800"
-                    : "bg-orange-300 text-orange-800"
+                    ? "bg-green-200 text-green-800"
+                    : "bg-orange-200 text-orange-800"
                 }`}
               >
                 {conversation.postType === "found" ? "FOUND" : "LOST"}

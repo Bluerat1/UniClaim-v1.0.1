@@ -211,7 +211,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-gray-100 mb-13 font-manrope transition-colors duration-300">
       <MobileNavText title="Home" description="Welcome to home" />
 
-      <div className="pt-4 px-6 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+      <div className="pt-4 px-4 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
         {/* SearchBar (grows to fill left side) */}
         <div className="w-full lg:flex-1">
           <SearchBar
@@ -241,7 +241,7 @@ export default function HomePage() {
       </div>
 
       {/* Lost / Found Toggle */}
-      <div className="flex flex-wrap sm:justify-center items-center gap-3 w-full px-6 lg:justify-start lg:gap-3">
+      <div className="flex flex-wrap sm:justify-center items-center gap-3 w-full px-4 lg:justify-start lg:gap-3">
         <button
           className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
             viewType === "all"
@@ -309,7 +309,7 @@ export default function HomePage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 mx-6 mt-7 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 mx-4 mt-7 sm:grid-cols-2 lg:grid-cols-3">
         {/* ✅ Handle Firebase loading state */}
         {loading || resolvedLoading || isLoading ? (
           <div className="col-span-full flex items-center justify-center h-80">

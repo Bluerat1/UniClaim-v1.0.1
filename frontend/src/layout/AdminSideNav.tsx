@@ -5,6 +5,8 @@ import {
   HiOutlineChartBar,
   HiOutlineCog,
 } from "react-icons/hi";
+import { LuInbox } from "react-icons/lu";
+import { GrUserPolice } from "react-icons/gr";
 import { LuLayoutDashboard } from "react-icons/lu";
 import { IoFlagOutline } from "react-icons/io5";
 import { LuMessageSquareMore } from "react-icons/lu";
@@ -55,9 +57,11 @@ export default function AdminSideNav({
     return posts.filter((post: Post) => {
       // Show ALL found items turned over to Campus Security (not just awaiting confirmation)
       // This includes all turnover statuses: declared, confirmed, not_received, transferred
-      return post.type === "found" &&
-             post.turnoverDetails &&
-             post.turnoverDetails.turnoverAction === "turnover to Campus Security";
+      return (
+        post.type === "found" &&
+        post.turnoverDetails &&
+        post.turnoverDetails.turnoverAction === "turnover to Campus Security"
+      );
     }).length;
   }, [posts]);
 
@@ -79,8 +83,9 @@ export default function AdminSideNav({
 
   // Filter posts for unclaimed posts count
   const unclaimedPostsCount = useMemo(() => {
-    return posts.filter((post: Post) =>
-      post.status === 'unclaimed' || Boolean(post.movedToUnclaimed)
+    return posts.filter(
+      (post: Post) =>
+        post.status === "unclaimed" || Boolean(post.movedToUnclaimed)
     ).length;
   }, [posts]);
 
@@ -167,7 +172,7 @@ export default function AdminSideNav({
             />
 
             <NavText
-              icon={<HiOutlineCog className="size-6 stroke-[1.5px]" />}
+              icon={<LuInbox className="size-6 stroke-[1.5px]" />}
               label="Unclaimed Items"
               to="/admin/unclaimed-posts"
               isOpen={isOpen}
@@ -208,7 +213,7 @@ export default function AdminSideNav({
             />
 
             <NavText
-              icon={<HiOutlineChartBar className="size-6 stroke-[1.5px]" />}
+              icon={<GrUserPolice className="size-6 stroke-1" />}
               label="Campus Security"
               to="/admin/campus-security"
               isOpen={isOpen}
@@ -218,7 +223,11 @@ export default function AdminSideNav({
               tooltipIconClassName="text-navyblue text-xl"
               tooltipTextClassName="text-navyblue text-base"
               hoverContainerBgClass="bg-gray-100"
-              badge={campusSecurityPostsCount > 0 ? campusSecurityPostsCount : undefined}
+              badge={
+                campusSecurityPostsCount > 0
+                  ? campusSecurityPostsCount
+                  : undefined
+              }
             />
 
             <NavText
@@ -307,7 +316,7 @@ export default function AdminSideNav({
                 />
 
                 <NavText
-                  icon={<HiOutlineCog className="size-6 stroke-[1.5px]" />}
+                  icon={<LuInbox className="size-6 stroke-[1.5px]" />}
                   label="Unclaimed Items"
                   to="/admin/unclaimed-posts"
                   isOpen={isOpen}
@@ -315,7 +324,9 @@ export default function AdminSideNav({
                   className="hover:bg-gray-50 rounded pl-4 justify-start"
                   iconClassName="text-black"
                   textClassName="font-manrope"
-                  badge={unclaimedPostsCount > 0 ? unclaimedPostsCount : undefined}
+                  badge={
+                    unclaimedPostsCount > 0 ? unclaimedPostsCount : undefined
+                  }
                 />
 
                 <NavText
@@ -346,7 +357,7 @@ export default function AdminSideNav({
                 />
 
                 <NavText
-                  icon={<HiOutlineChartBar className="size-6 stroke-[1.5px]" />}
+                  icon={<GrUserPolice className="size-6 stroke-[1.5px]" />}
                   label="Campus Security"
                   to="/admin/campus-security"
                   isOpen={isOpen}
@@ -355,7 +366,9 @@ export default function AdminSideNav({
                   iconClassName="text-black"
                   textClassName="font-manrope"
                   badge={
-                    campusSecurityPostsCount > 0 ? campusSecurityPostsCount : undefined
+                    campusSecurityPostsCount > 0
+                      ? campusSecurityPostsCount
+                      : undefined
                   }
                 />
 
