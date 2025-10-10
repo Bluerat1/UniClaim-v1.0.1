@@ -525,7 +525,12 @@ export default function AdminHomePage() {
         // Show only flagged posts
         shouldShow = Boolean(post.isFlagged);
       } else {
-        shouldShow = post.type.toLowerCase() === viewType && post.status !== 'unclaimed' && !post.movedToUnclaimed;
+        // Exclude posts with 'awaiting confirmation' status (turnoverStatus === 'declared') for found items
+        shouldShow = post.type.toLowerCase() === viewType && post.status !== 'unclaimed' && !post.movedToUnclaimed &&
+                     !(post.type === "found" &&
+                       post.turnoverDetails &&
+                       post.turnoverDetails.turnoverAction === "turnover to OSA" &&
+                       post.turnoverDetails.turnoverStatus === "declared");
       }
 
       return shouldShow;
