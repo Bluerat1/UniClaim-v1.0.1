@@ -8,7 +8,7 @@ import AdminUserManagement from "../routes/admin-routes/AdminUserManagement";
 import AdminMessagesPage from "../routes/admin-routes/AdminMessagesPage";
 import FlaggedPostsPage from "../routes/admin-routes/FlaggedPostsPage";
 import AdminAnalyticsPage from "../routes/admin-routes/AdminAnalyticsPage";
-import TurnoverManagementPage from "../routes/admin-routes/TurnoverManagementPage";
+import UnclaimedPostsPage from "../routes/admin-routes/UnclaimedPostsPage";
 import ConversationCleanupAdmin from "../components/ConversationCleanupAdmin";
 
 import Login from "../routes/user-routes/Login";
@@ -249,10 +249,10 @@ function AppRoutesWithAuth() {
             }
           />
           <Route
-            path="turnover"
+            path="unclaimed-posts"
             element={
-              <PageWrapper title="Turnover Management">
-                <TurnoverManagementPage />
+              <PageWrapper title="Unclaimed Posts">
+                <UnclaimedPostsPage />
               </PageWrapper>
             }
           />

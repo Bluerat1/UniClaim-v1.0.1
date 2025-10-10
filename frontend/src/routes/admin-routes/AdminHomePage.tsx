@@ -761,7 +761,8 @@ export default function AdminHomePage() {
           Found Item Reports
         </button>
 
-        <button
+        {/* Unclaimed Items Button - Hidden as requested */}
+        {/* <button
           className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
             viewType === "unclaimed"
               ? "bg-navyblue text-white"
@@ -775,7 +776,7 @@ export default function AdminHomePage() {
           }}
         >
           Unclaimed Items
-        </button>
+        </button> */}
 
         <button
           className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${

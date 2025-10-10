@@ -68,6 +68,13 @@ export default function AdminSideNav({
     return posts.filter((post: Post) => post.isFlagged === true).length;
   }, [posts]);
 
+  // Filter posts for unclaimed posts count
+  const unclaimedPostsCount = useMemo(() => {
+    return posts.filter((post: Post) =>
+      post.status === 'unclaimed' || Boolean(post.movedToUnclaimed)
+    ).length;
+  }, [posts]);
+
   // Lock scroll on body only for mobile nav open
   useEffect(() => {
     if (isMobile && isSideNavMobileOpen) {
@@ -148,6 +155,20 @@ export default function AdminSideNav({
               tooltipTextClassName="text-navyblue text-base"
               hoverContainerBgClass="bg-gray-100"
               badge={flaggedPostsCount > 0 ? flaggedPostsCount : undefined}
+            />
+
+            <NavText
+              icon={<HiOutlineCog className="size-6 stroke-[1.5px]" />}
+              label="Unclaimed Posts"
+              to="/admin/unclaimed-posts"
+              isOpen={isOpen}
+              className="hover:bg-gray-100"
+              iconClassName="text-black"
+              textClassName="text-black"
+              tooltipIconClassName="text-navyblue text-xl"
+              tooltipTextClassName="text-navyblue text-base"
+              hoverContainerBgClass="bg-gray-100"
+              badge={unclaimedPostsCount > 0 ? unclaimedPostsCount : undefined}
             />
 
             <NavText
@@ -260,6 +281,18 @@ export default function AdminSideNav({
                   iconClassName="text-black"
                   textClassName="font-manrope"
                   badge={flaggedPostsCount > 0 ? flaggedPostsCount : undefined}
+                />
+
+                <NavText
+                  icon={<HiOutlineCog className="size-6 stroke-[1.5px]" />}
+                  label="Unclaimed Posts"
+                  to="/admin/unclaimed-posts"
+                  isOpen={isOpen}
+                  onClick={onMobNavClose}
+                  className="hover:bg-gray-50 rounded pl-4 justify-start"
+                  iconClassName="text-black"
+                  textClassName="font-manrope"
+                  badge={unclaimedPostsCount > 0 ? unclaimedPostsCount : undefined}
                 />
 
                 <NavText
