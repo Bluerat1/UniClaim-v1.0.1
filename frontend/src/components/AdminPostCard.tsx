@@ -15,6 +15,10 @@ interface AdminPostCardProps {
     post: Post,
     status: "confirmed" | "not_received"
   ) => void;
+  onConfirmCampusSecurityCollection?: (
+    post: Post,
+    status: "collected" | "not_available"
+  ) => void;
   onHidePost?: (post: Post) => void;
   onUnhidePost?: (post: Post) => void;
   onRestore?: (post: Post) => void;
@@ -68,6 +72,7 @@ function AdminPostCard({
   hideDeleteButton = false,
   isDeleting = false,
   onConfirmTurnover,
+  onConfirmCampusSecurityCollection,
 }: AdminPostCardProps) {
   const previewUrl = useMemo(() => {
     if (post.images && post.images.length > 0) {
@@ -421,10 +426,32 @@ function AdminPostCard({
                   </button>
                 </div>
               )}
+
+              {/* Campus Security Collection Buttons - Show for ALL campus security turnover posts */}
+              {post.turnoverDetails.turnoverAction === "turnover to Campus Security" && (
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onConfirmCampusSecurityCollection?.(post, "collected");
+                    }}
+                    className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
+                  >
+                    ✓ Item Collected
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onConfirmCampusSecurityCollection?.(post, "not_available");
+                    }}
+                    className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+                  >
+                    ✗ Not Available
+                  </button>
+                </div>
+              )}
           </div>
         )}
-
-        {/* Status Management - Show dropdown only for pending posts, hide for unclaimed, resolved, and items awaiting turnover confirmation */}
         {post.status === "pending" &&
           !(
             post.turnoverDetails &&

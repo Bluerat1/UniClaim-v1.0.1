@@ -50,6 +50,17 @@ export default function AdminSideNav({
   // Get total unread message count
   const { totalUnreadCount = 0 } = useMessage();
 
+  // Filter posts for campus security management (same logic as CampusSecurityManagementPage)
+  const campusSecurityPostsCount = useMemo(() => {
+    return posts.filter((post: Post) => {
+      // Show ALL found items turned over to Campus Security (not just awaiting confirmation)
+      // This includes all turnover statuses: declared, confirmed, not_received, transferred
+      return post.type === "found" &&
+             post.turnoverDetails &&
+             post.turnoverDetails.turnoverAction === "turnover to Campus Security";
+    }).length;
+  }, [posts]);
+
   // Filter posts for turnover management (same logic as TurnoverManagementPage)
   const turnoverPostsCount = useMemo(() => {
     return posts.filter((post: Post) => {
@@ -62,8 +73,6 @@ export default function AdminSideNav({
       );
     }).length;
   }, [posts]);
-
-  // Filter posts for flagged posts count
   const flaggedPostsCount = useMemo(() => {
     return posts.filter((post: Post) => post.isFlagged === true).length;
   }, [posts]);
@@ -200,6 +209,20 @@ export default function AdminSideNav({
 
             <NavText
               icon={<HiOutlineChartBar className="size-6 stroke-[1.5px]" />}
+              label="Campus Security"
+              to="/admin/campus-security"
+              isOpen={isOpen}
+              className="hover:bg-gray-100"
+              iconClassName="text-black"
+              textClassName="text-black"
+              tooltipIconClassName="text-navyblue text-xl"
+              tooltipTextClassName="text-navyblue text-base"
+              hoverContainerBgClass="bg-gray-100"
+              badge={campusSecurityPostsCount > 0 ? campusSecurityPostsCount : undefined}
+            />
+
+            <NavText
+              icon={<HiOutlineChartBar className="size-6 stroke-[1.5px]" />}
               label="Analytics"
               to="/admin/analytics"
               isOpen={isOpen}
@@ -319,6 +342,20 @@ export default function AdminSideNav({
                   textClassName="font-manrope"
                   badge={
                     turnoverPostsCount > 0 ? turnoverPostsCount : undefined
+                  }
+                />
+
+                <NavText
+                  icon={<HiOutlineChartBar className="size-6 stroke-[1.5px]" />}
+                  label="Campus Security"
+                  to="/admin/campus-security"
+                  isOpen={isOpen}
+                  onClick={onMobNavClose}
+                  className="hover:bg-gray-50 rounded pl-4 justify-start"
+                  iconClassName="text-black"
+                  textClassName="font-manrope"
+                  badge={
+                    campusSecurityPostsCount > 0 ? campusSecurityPostsCount : undefined
                   }
                 />
 

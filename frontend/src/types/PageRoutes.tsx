@@ -10,6 +10,7 @@ import FlaggedPostsPage from "../routes/admin-routes/FlaggedPostsPage";
 import AdminAnalyticsPage from "../routes/admin-routes/AdminAnalyticsPage";
 import UnclaimedPostsPage from "../routes/admin-routes/UnclaimedPostsPage";
 import TurnoverManagementPage from "../routes/admin-routes/TurnoverManagementPage";
+import CampusSecurityManagementPage from "../routes/admin-routes/CampusSecurityManagementPage";
 import ConversationCleanupAdmin from "../components/ConversationCleanupAdmin";
 
 import Login from "../routes/user-routes/Login";
@@ -262,6 +263,14 @@ function AppRoutesWithAuth() {
             element={
               <PageWrapper title="Turnover Management">
                 <TurnoverManagementPage />
+              </PageWrapper>
+            }
+          />
+          <Route
+            path="campus-security"
+            element={
+              <PageWrapper title="Campus Security Management">
+                <CampusSecurityManagementPage />
               </PageWrapper>
             }
           />
