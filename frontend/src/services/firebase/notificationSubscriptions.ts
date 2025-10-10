@@ -30,9 +30,24 @@ export class NotificationSubscriptionService {
         return NotificationSubscriptionService.instance;
     }
 
-    // Create a new subscription for a user
+    // Create a new subscription
     async createSubscription(data: CreateSubscriptionData): Promise<void> {
         try {
+            // Import auth to check authentication status
+            const { auth } = await import('./config');
+
+            // Check if user is authenticated
+            if (!auth.currentUser) {
+                console.log('🔐 User not authenticated, skipping subscription creation');
+                return;
+            }
+
+            // Verify the current user matches the requested userId for security
+            if (auth.currentUser.uid !== data.userId) {
+                console.warn('🔒 Security check failed: Current user does not match requested userId');
+                return;
+            }
+
             const subscriptionData: NotificationSubscription = {
                 userId: data.userId,
                 preferences: {
@@ -51,9 +66,24 @@ export class NotificationSubscriptionService {
         }
     }
 
-    // Get subscription for a specific user
+    // Get subscription by user ID
     async getSubscription(userId: string): Promise<NotificationSubscription | null> {
         try {
+            // Import auth to check authentication status
+            const { auth } = await import('./config');
+
+            // Check if user is authenticated - return null if not logged in
+            if (!auth.currentUser) {
+                console.log('🔐 User not authenticated, skipping notification subscription check');
+                return null;
+            }
+
+            // Verify the current user matches the requested userId for security
+            if (auth.currentUser.uid !== userId) {
+                console.warn('🔒 Security check failed: Current user does not match requested userId');
+                return null;
+            }
+
             const docRef = doc(db, this.collectionName, userId);
             const docSnap = await getDoc(docRef);
 

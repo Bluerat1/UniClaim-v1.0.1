@@ -43,11 +43,9 @@ export type { UserData } from '../services/firebase/types';
 export type { Post } from '../types/Post';
 
 // Import ListenerManager for centralized listener management
-import { listenerManager } from './ListenerManager';
 export { listenerManager } from './ListenerManager';
 
 // Import Cloudinary service and utility functions
-import { cloudinaryService, extractMessageImages, deleteMessageImages } from './cloudinary';
 export { cloudinaryService, extractMessageImages, deleteMessageImages } from './cloudinary';
 
 // Legacy exports for backward compatibility

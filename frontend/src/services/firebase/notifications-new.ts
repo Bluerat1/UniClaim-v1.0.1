@@ -1,7 +1,7 @@
 // Notification service for web app using Firebase Cloud Messaging
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { db } from './config';
-import { doc, setDoc, getDoc, updateDoc, collection, addDoc, serverTimestamp, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, serverTimestamp, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 
 // Notification types
 export interface NotificationData {

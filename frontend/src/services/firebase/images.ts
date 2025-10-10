@@ -12,7 +12,7 @@ import { db } from './config';
 import { cloudinaryService } from '../../utils/cloudinary';
 
 // Helper function to extract Cloudinary public ID from URL
-function extractCloudinaryPublicId(url: string): string | null {
+export function extractCloudinaryPublicId(url: string): string | null {
     try {
         // Handle different Cloudinary URL formats
         if (url.includes('res.cloudinary.com')) {

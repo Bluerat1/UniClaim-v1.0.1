@@ -1,4 +1,3 @@
-import React from "react";
 import { FiX, FiInfo } from "react-icons/fi";
 
 interface FoundActionModalProps {

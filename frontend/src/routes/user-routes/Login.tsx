@@ -10,7 +10,6 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState({ email: "", password: "", general: "" });
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [checkingAdminStatus, setCheckingAdminStatus] = useState(true);
 
   const { login, loading, user, isAuthenticated } = useAuth();
@@ -22,7 +21,6 @@ export default function Login() {
       if (user && isAuthenticated) {
         try {
           const isAdmin = await authService.isAdmin(user.uid);
-          setIsAdminLoggedIn(isAdmin);
           
           // If user is admin, redirect them to admin login page
           if (isAdmin) {
@@ -32,12 +30,10 @@ export default function Login() {
           }
         } catch (error) {
           console.error("Error checking admin status:", error);
-          setIsAdminLoggedIn(false);
         }
       } else {
-        setIsAdminLoggedIn(false);
+        setCheckingAdminStatus(false);
       }
-      setCheckingAdminStatus(false);
     };
 
     checkAdminStatus();

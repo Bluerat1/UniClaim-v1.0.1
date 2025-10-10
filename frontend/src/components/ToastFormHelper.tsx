@@ -42,7 +42,6 @@ const useToastFormHelper = () => {
     
     if (hasAnyError) {
       // Show individual toasts for missing fields
-      let hasError = false;
 
       // Show individual toasts for missing fields
       if (hasReportTypeError) {
@@ -52,7 +51,6 @@ const useToastFormHelper = () => {
           "Please select whether the item is lost or found.",
           5000
         );
-        hasError = true;
       }
 
       if (hasTitleError) {
@@ -62,7 +60,6 @@ const useToastFormHelper = () => {
           "Please enter the title of your post.",
           5000
         );
-        hasError = true;
       }
 
       if (hasCategoryError) {
@@ -72,7 +69,6 @@ const useToastFormHelper = () => {
           "Choose the category of the item.",
           5000
         );
-        hasError = true;
       }
 
       if (hasDescriptionError) {
@@ -82,7 +78,6 @@ const useToastFormHelper = () => {
           "Please enter a description for the item.",
           5000
         );
-        hasError = true;
       }
 
       if (hasDateTimeError) {
@@ -92,7 +87,6 @@ const useToastFormHelper = () => {
           "Please select when the item was lost or found.",
           5000
         );
-        hasError = true;
       }
 
       if (hasImageError) {
@@ -102,7 +96,6 @@ const useToastFormHelper = () => {
           "Upload at least one image of the item.",
           5000
         );
-        hasError = true;
       }
 
       if (hasLocationError) {
@@ -112,7 +105,6 @@ const useToastFormHelper = () => {
           "Select the last seen location of the item.",
           5000
         );
-        hasError = true;
       }
 
       if (hasCoordinatesError) {
@@ -122,7 +114,6 @@ const useToastFormHelper = () => {
           "Please pin a location on the map.",
           5000
         );
-        hasError = true;
       }
 
       return true; // Return true to indicate validation failed

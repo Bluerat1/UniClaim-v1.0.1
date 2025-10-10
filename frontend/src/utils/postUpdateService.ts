@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { doc, updateDoc, collection, query, where, getDocs, writeBatch, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
 
 export const postUpdateService = {
     /**

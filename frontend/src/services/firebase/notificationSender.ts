@@ -4,6 +4,7 @@ import { collection, serverTimestamp, doc, writeBatch, getDoc, addDoc } from 'fi
 import { notificationSubscriptionService } from './notificationSubscriptions';
 import { authService } from './auth';
 import { adminNotificationService } from './adminNotifications';
+import { userService } from './users';
 export interface PostNotificationData {
     type: 'new_post' | 'claim_request' | 'claim_response' | 'handover_response';
     title: string;
@@ -293,7 +294,7 @@ export class NotificationSender {
         }
     }
 
-    // Send message notification to conversation participants
+    // Send message notification to conversation participants (and admins if conversation involves admins or requires oversight)
     async sendMessageNotification(conversationId: string, messageData: {
         senderId: string;
         senderName: string;
@@ -314,13 +315,29 @@ export class NotificationSender {
 
             const conversationData = conversationDoc.data();
             const participantIds = Object.keys(conversationData.participants || {});
-
-            // Get other participants (exclude the sender)
             const recipientIds = participantIds.filter(id => id !== messageData.senderId);
 
             if (recipientIds.length === 0) {
                 console.log('⚠️ No recipients found for message notification');
                 return;
+            }
+
+            // Check if any conversation participant is an admin (for admin notification filtering)
+            let shouldSendAdminNotification = false;
+            try {
+                // Check if any conversation participant is an admin
+                for (const participantId of participantIds) {
+                    const participantUser = await userService.getUserById(participantId);
+                    if (participantUser && (participantUser.role === 'admin' || participantUser.role === 'campus_security')) {
+                        shouldSendAdminNotification = true;
+                        console.log('👮 Admin participant detected, sending admin notification');
+                        break;
+                    }
+                }
+            } catch (error) {
+                console.warn('Failed to check admin participation:', error);
+                // Default to not sending admin notification if check fails
+                shouldSendAdminNotification = false;
             }
 
             // Create notification data
@@ -344,22 +361,24 @@ export class NotificationSender {
                 }
             });
 
-            // Send admin notifications
-            await this.sendAdminNotifications({
-                type: 'admin_message',
-                title: `New Message in Conversation`,
-                body: `${messageData.senderName} sent a message in "${postTitle}"`,
-                data: {
-                    conversationId: conversationId,
-                    postTitle: postTitle,
-                    senderId: messageData.senderId,
-                    senderName: messageData.senderName,
-                    messageText: messageData.text,
-                    timestamp: new Date().toISOString()
-                }
-            });
+            // Send admin notifications only if conversation involves admins or requires oversight
+            if (shouldSendAdminNotification) {
+                await this.sendAdminNotifications({
+                    type: 'admin_message',
+                    title: `New Message in Conversation`,
+                    body: `${messageData.senderName} sent a message in "${postTitle}"`,
+                    data: {
+                        conversationId: conversationId,
+                        postTitle: postTitle,
+                        senderId: messageData.senderId,
+                        senderName: messageData.senderName,
+                        messageText: messageData.text,
+                        timestamp: new Date().toISOString()
+                    }
+                });
+            }
 
-            console.log(`✅ Message notification sent to ${recipientIds.length} participants and admins`);
+            console.log(`✅ Message notification sent to ${recipientIds.length} participants${shouldSendAdminNotification ? ' and admins' : ''}`);
         } catch (error) {
             console.error('❌ Failed to send message notification:', error);
             throw error;
