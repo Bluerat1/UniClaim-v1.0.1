@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../utils/firebase";
 import type { User } from "../../types/User";
+import ProfilePicture from "../../components/ProfilePicture";
 
 interface AdminUserManagementProps {}
 
@@ -296,20 +297,13 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                       <tr key={user.uid} className="hover:bg-brand/8">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                              {user.profilePicture ? (
-                                <img
-                                  src={user.profilePicture}
-                                  alt="Profile"
-                                  className="h-10 w-10 rounded-full object-cover"
-                                />
-                              ) : (
-                                <span className="text-gray-600 font-medium">
-                                  {user.firstName?.charAt(0) || "U"}
-                                </span>
-                              )}
-                            </div>
-                            <div className="ml-4">
+                            <ProfilePicture
+                              src={user.profilePicture}
+                              alt={`${user.firstName} ${user.lastName}`}
+                              size="md"
+                              className="mr-4"
+                            />
+                            <div>
                               <div className="text-sm font-medium text-gray-900">
                                 {user.firstName} {user.lastName}
                               </div>
@@ -679,23 +673,11 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                 <div className="space-y-6">
                   {/* Profile Section */}
                   <div className="flex items-center space-x-4">
-                    <div className="h-20 w-20 rounded-full bg-gray-300 flex items-center justify-center">
-                      {selectedUser.profilePicture ||
-                      selectedUser.profileImageUrl ? (
-                        <img
-                          src={
-                            selectedUser.profilePicture ||
-                            selectedUser.profileImageUrl
-                          }
-                          alt="Profile"
-                          className="h-20 w-20 rounded-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-gray-600 text-2xl font-medium">
-                          {selectedUser.firstName?.charAt(0) || "U"}
-                        </span>
-                      )}
-                    </div>
+                    <ProfilePicture
+                      src={selectedUser.profilePicture || selectedUser.profileImageUrl}
+                      alt={`${selectedUser.firstName} ${selectedUser.lastName}`}
+                      size="3xl"
+                    />
                     <div>
                       <h4 className="text-xl font-semibold text-gray-900">
                         {selectedUser.firstName} {selectedUser.lastName}
