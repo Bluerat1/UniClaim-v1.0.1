@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/((?!api|_next/static|_next/image|favicon.ico|robots.txt|manifest.json).*)",
-      "destination": "/dist/index.html"
+      "destination": "/index.html"
     }
   ]
 }

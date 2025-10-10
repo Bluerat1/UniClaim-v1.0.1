@@ -36,6 +36,7 @@ import MessagesPage from "@/routes/user-routes/MessagesPage";
 import AdminRoute from "../components/AdminRoute";
 import EmailVerificationRoute from "../components/EmailVerificationRoute";
 import { ToastProvider } from "@/context/ToastContext";
+import { AuthProvider } from "@/context/AuthContext";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { AdminNotificationProvider } from "@/context/AdminNotificationContext";
 import PageWrapper from "@/components/PageWrapper";
@@ -284,11 +285,13 @@ function AppRoutesWithAuth() {
 
 export default function PageRoutes() {
   return (
-    <ToastProvider>
-      <BrowserRouter>
-        <ScrollToTop />
-        <AppRoutesWithAuth />
-      </BrowserRouter>
-    </ToastProvider>
+    <AuthProvider>
+      <ToastProvider>
+        <BrowserRouter>
+          <ScrollToTop />
+          <AppRoutesWithAuth />
+        </BrowserRouter>
+      </ToastProvider>
+    </AuthProvider>
   );
 }
