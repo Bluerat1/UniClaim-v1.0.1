@@ -399,10 +399,10 @@ export const postService = {
     getActivePosts(callback: (posts: Post[]) => void) {
         const now = new Date();
 
-        // Create query for active posts only
+        // Create query for active posts only (excluding movedToUnclaimed posts for regular users)
         const q = query(
             collection(db, 'posts'),
-            where('movedToUnclaimed', '==', false), // Only posts not moved to unclaimed
+            where('movedToUnclaimed', '==', false), // Only posts not moved to unclaimed for regular users
             orderBy('createdAt', 'desc') // Sort by createdAt in descending order (newest first) for better pagination
             // Note: We can't use where('expiryDate', '>', now) in the same query with movedToUnclaimed
             // due to Firestore limitations, so we'll filter expiryDate in the callback
@@ -417,7 +417,8 @@ export const postService = {
 
             // Filter out expired, resolved, and soft-deleted posts on the client side (this is fast since we're only processing ~20-50 posts)
             const activePosts = posts.filter(post => {
-                if (post.movedToUnclaimed) return false;
+                // Note: movedToUnclaimed posts are already filtered out by the database query above
+                // but we're keeping this check for safety
 
                 // Exclude resolved, completed, and unclaimed posts from active sections
                 if (post.status === 'resolved' || post.status === 'completed' || post.status === 'unclaimed') return false;
@@ -482,10 +483,10 @@ export const postService = {
     getAllPostsForAdmin(callback: (posts: Post[]) => void) {
         const now = new Date();
 
-        // Create query for all posts (no filtering at database level)
+        // Create query for all posts (no filtering at database level for movedToUnclaimed)
         const q = query(
-            collection(db, 'posts'),
-            where('movedToUnclaimed', '==', false) // Only posts not moved to unclaimed
+            collection(db, 'posts')
+            // Removed the movedToUnclaimed filter to allow these posts through for admin visibility
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -497,12 +498,13 @@ export const postService = {
 
             // Filter out expired posts and resolved/completed posts on the client side
             // BUT include items with turnoverStatus: "declared" for admin use
+            // Also include movedToUnclaimed posts for admin visibility in unclaimed section
             const adminPosts = posts.filter(post => {
-                if (post.movedToUnclaimed) return false;
+                // Don't filter out movedToUnclaimed posts - let frontend handle display logic
 
                 // Exclude resolved, completed, and any other final status posts from active sections
                 // These should only appear in the resolved posts section
-                if (post.status === 'resolved' || post.status === 'completed' || post.status === 'unclaimed') {
+                if (post.status === 'resolved' || post.status === 'completed') {
                     return false;
                 }
 
@@ -513,8 +515,8 @@ export const postService = {
                     return true; // Include these posts for admin visibility
                 }
 
-                // Check if post has expired
-                if (post.expiryDate) {
+                // Check if post has expired (but allow movedToUnclaimed posts through for admin visibility)
+                if (post.expiryDate && !post.movedToUnclaimed) {
                     let expiryDate: Date;
 
                     // Handle Firebase Timestamp
@@ -526,7 +528,7 @@ export const postService = {
                         expiryDate = new Date(post.expiryDate);
                     }
 
-                    // Return false if post has expired
+                    // Return false if post has expired (but allow movedToUnclaimed posts through)
                     if (expiryDate < now) return false;
                 }
 
