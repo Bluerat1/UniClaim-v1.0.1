@@ -1,22 +1,20 @@
 // Notification service for web app using Firebase Cloud Messaging
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { db } from './config';
-import { 
-  doc, 
-  setDoc, 
-  getDoc, 
-  updateDoc, 
-  collection, 
-  addDoc, 
-  serverTimestamp, 
-  query, 
-  where, 
-  getDocs, 
-  orderBy, 
-  limit, 
-  deleteDoc, 
-  onSnapshot, 
-  writeBatch 
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  collection,
+  addDoc,
+  serverTimestamp,
+  query,
+  where,
+  getDocs,
+  orderBy,
+  limit,
+  deleteDoc,
+  onSnapshot,
+  writeBatch
 } from 'firebase/firestore';
 import { SoundUtils } from '../../utils/soundUtils';
 import { notificationSubscriptionService } from './notificationSubscriptions';
@@ -55,8 +53,6 @@ export interface NotificationPreferences {
 
 export class NotificationService {
   private static instance: NotificationService;
-  private messaging: any = null;
-  private fcmToken: string | null = null;
 
   static getInstance(): NotificationService {
     if (!NotificationService.instance) {

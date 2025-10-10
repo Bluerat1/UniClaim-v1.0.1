@@ -1246,7 +1246,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 onHandoverResponse={handleHandoverResponse}
                 onClaimResponse={handleClaimResponse}
                 onConfirmIdPhotoSuccess={handleConfirmIdPhotoSuccess}
-                onClearConversation={onClearConversation}
                 onMessageSeen={() => handleMessageSeen(message.id)}
               />
             ))}

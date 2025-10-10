@@ -32,7 +32,6 @@ export default function AdminHeader({
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotif, setShowNotif] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [isLoadingPost, setIsLoadingPost] = useState(false);
 
   const toggleProfileMenu = () => setShowProfileMenu((prev) => !prev);
   const toggleNotif = () => setShowNotif((prev) => !prev);
@@ -58,7 +57,6 @@ export default function AdminHeader({
                     (notification.data && (notification.data.postId || notification.data.id));
 
       if (postId) {
-        setIsLoadingPost(true);
         try {
           const post = await postService.getPostById(postId);
           if (post) {
@@ -89,13 +87,10 @@ export default function AdminHeader({
             draggable: true,
             progress: undefined,
           });
-        } finally {
-          setIsLoadingPost(false);
         }
       }
     } catch (error) {
       console.error('Error handling notification click:', error);
-      setIsLoadingPost(false);
     }
   };
 

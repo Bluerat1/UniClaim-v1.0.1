@@ -8,7 +8,6 @@ import {
 import { HiOutlineEnvelope } from "react-icons/hi2";
 import { FiSend } from "react-icons/fi";
 import NavText from "./NavText";
-import { TbMessage2 } from "react-icons/tb";
 import { IoIosInformationCircleOutline } from "react-icons/io";
 import Logo from "../assets/uniclaim_logo.png";
 import clsx from "clsx";

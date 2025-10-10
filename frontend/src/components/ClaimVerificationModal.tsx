@@ -1,9 +1,6 @@
 import React, { useState } from "react";
 import { useToast } from "../context/ToastContext";
 
-// Define valid toast types
-type ToastType = 'success' | 'error' | 'info' | 'warning';
-
 interface ClaimVerificationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -36,7 +33,6 @@ const ClaimVerificationModal: React.FC<ClaimVerificationModalProps> = ({
   const [evidencePhotoPreviews, setEvidencePhotoPreviews] = useState<string[]>(
     []
   );
-  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
 
   // Function to clear all form entries
   const clearForm = () => {
@@ -69,8 +65,8 @@ const ClaimVerificationModal: React.FC<ClaimVerificationModalProps> = ({
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         showToast(
-          "File size must be less than 5MB. Please choose a smaller image.",
-          'error'
+          'error',
+          "File size must be less than 5MB. Please choose a smaller image."
         );
         return;
       }

@@ -285,6 +285,7 @@ export interface Conversation {
   participants: {
     [userId: string]: {
       uid: string;
+      firstName: string;
       lastName: string;
       profilePicture?: string;
       profileImageUrl?: string;

@@ -13,12 +13,11 @@ import {
     where,
     getDocs,
     getDoc,
-    writeBatch,
-    serverTimestamp
+    writeBatch
 } from 'firebase/firestore';
 
 // Import Firebase instances and services
-import { auth, db } from './config';
+import { db } from './config';
 import { cloudinaryService } from '../../utils/cloudinary';
 import { imageService } from './images';
 import { notificationService } from './notifications';

@@ -4,8 +4,6 @@ import { FiChevronDown } from "react-icons/fi";
 import { USTP_LOCATIONS, CATEGORIES_WITH_COLORS } from "@/constants";
 
 interface FiltersProps {
-  selectedCategory: string;
-  setSelectedCategory: (val: string) => void;
   description: string;
   setDescription: (val: string) => void;
   location: string;
@@ -17,8 +15,6 @@ interface FiltersProps {
 }
 
 const Filters: React.FC<FiltersProps> = ({
-  selectedCategory,
-  setSelectedCategory,
   description,
   setDescription,
   location,
@@ -30,8 +26,7 @@ const Filters: React.FC<FiltersProps> = ({
 }) => {
   // ✅ Handler for instant category filtering
   const handleCategoryClick = (categoryLabel: string) => {
-    // Update both search form category and instant filter
-    setSelectedCategory(categoryLabel);
+    // Update instant filter only
     setSelectedCategoryFilter(categoryLabel);
   };
 
@@ -56,7 +51,6 @@ const Filters: React.FC<FiltersProps> = ({
                   active={selectedCategoryFilter === category.label}
                   onClick={() => handleCategoryClick(category.label)}
                   onClear={() => {
-                    setSelectedCategory("All");
                     setSelectedCategoryFilter("All");
                   }}
                 />

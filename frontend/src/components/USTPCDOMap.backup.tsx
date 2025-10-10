@@ -563,4 +563,6 @@ const USTPLocationPicker = ({ locationError = false, coordinates, setCoordinates
   );
 };
 
+};
+
 export default USTPLocationPicker;

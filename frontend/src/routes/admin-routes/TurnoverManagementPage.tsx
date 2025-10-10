@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useMemo } from "react";
 import type { Post } from "@/types/Post";
 
 // components
@@ -132,7 +132,6 @@ export default function TurnoverManagementPage() {
               onStatusChange={undefined}
               onActivateTicket={undefined}
               onRevertResolution={undefined}
-              onUnflagPost={undefined}
               onHidePost={undefined}
               onUnhidePost={undefined}
             />

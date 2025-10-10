@@ -88,7 +88,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
   }, [messages, conversation]);
 
   // Handle scroll events to track position and show/hide scroll-to-bottom button
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+  const handleScroll = (_e: React.UIEvent<HTMLDivElement>) => {
     if (!messagesContainerRef.current) return;
     
     const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
@@ -279,13 +279,13 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
     if (!participant) return "Unknown User";
     
     // If we have both first and last name, combine them
-    if (participant.firstName && participant.lastName) {
-      return `${participant.firstName} ${participant.lastName}`.trim();
+    if ((participant as any).firstName && participant.lastName) {
+      return `${(participant as any).firstName} ${participant.lastName}`.trim();
     }
     
     // If we have just first name
-    if (participant.firstName) {
-      return participant.firstName;
+    if ((participant as any).firstName) {
+      return (participant as any).firstName;
     }
     
     // If we have just last name
@@ -450,7 +450,6 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
                     showSenderName={false}
                     conversationId={conversation.id}
                     currentUserId={userData?.uid || ""}
-                    onClearConversation={onClearConversation}
                     onClaimResponse={handleClaimResponse}
                   />
 

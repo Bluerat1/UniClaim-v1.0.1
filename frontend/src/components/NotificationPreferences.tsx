@@ -1,5 +1,5 @@
 // Notification preferences component for web app
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { notificationService } from "../services/firebase/notifications";
 
@@ -23,12 +23,10 @@ interface NotificationPreferences {
 import {
   HiBell,
   HiClock,
-  HiLocationMarker,
   HiTag,
   HiVolumeUp,
   HiVolumeOff,
 } from "react-icons/hi";
-import { FiX } from "react-icons/fi";
 import { SoundUtils } from "../utils/soundUtils";
 import { ITEM_CATEGORIES } from "../constants/categories";
 

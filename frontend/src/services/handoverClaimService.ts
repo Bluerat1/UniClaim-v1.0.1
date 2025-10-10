@@ -4,9 +4,6 @@
 
 import { cloudinaryService } from '../utils/cloudinary';
 import { messageService } from './firebase/messages';
-import { notificationSender } from './firebase/notificationSender';
-import { db } from '../utils/firebase';
-import { doc, getDoc, query, collection, where, getDocs, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 // Types
 export interface HandoverClaimCallbacks {

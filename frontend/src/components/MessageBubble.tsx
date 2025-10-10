@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import type { Message } from "@/types/Post";
 import { useMessage } from "@/context/MessageContext";
-import ImageModal from "./ImageModal";
 import handoverClaimService, {
   type HandoverClaimCallbacks,
 } from "../services/handoverClaimService";
@@ -9,9 +8,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { AiOutlineDelete } from "react-icons/ai";
 import { EyeIcon } from "@heroicons/react/24/outline";
-
-// Define valid toast types
-type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 interface MessageBubbleProps {
   message: Message;
@@ -29,7 +25,6 @@ interface MessageBubbleProps {
     status: "accepted" | "rejected"
   ) => void;
   onConfirmIdPhotoSuccess?: (_messageId: string) => void;
-  onClearConversation?: () => void;
   onMessageSeen?: () => void; // Callback when message is seen
 }
 
@@ -42,7 +37,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   postOwnerId,
   onHandoverResponse,
   onClaimResponse,
-  onClearConversation,
   onMessageSeen,
 }) => {
   const { deleteMessage } = useMessage();
@@ -53,11 +47,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [isUploadingIdPhoto, setIsUploadingIdPhoto] = useState(false);
   const [showIdPhotoPreview, setShowIdPhotoPreview] = useState(false);
   const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
-  const [showImageModal, setShowImageModal] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<{
-    url: string;
-    altText: string;
-  } | null>(null);
   const messageRef = useRef<HTMLDivElement>(null);
   const [hasBeenSeen, setHasBeenSeen] = useState(false);
   const { userData } = useAuth();
@@ -113,8 +102,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     if (message.handoverData?.status === "pending_confirmation" || message.handoverData?.ownerIdPhoto) {
       console.log("🔄 Rejecting handover after ID photo confirmation");
       try {
-        const { rejectHandoverAfterConfirmation } = await import("../services/handoverClaimService");
-        await rejectHandoverAfterConfirmation(conversationId, message.id, currentUserId);
+        await handoverClaimService.updateHandoverResponse(
+          conversationId,
+          message.id,
+          'rejected',
+          currentUserId
+        );
         onHandoverResponse(message.id, "rejected");
       } catch (error: any) {
         console.error("Failed to reject handover after confirmation:", error);
@@ -124,19 +117,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     }
 
     // For rejection, use the consolidated service
-    const callbacks: HandoverClaimCallbacks = {
-      onHandoverResponse,
-      onError: (error) => {
-        alert(error);
-      },
-    };
-
     await handoverClaimService.handleHandoverResponse(
       conversationId,
       message.id,
       status,
-      currentUserId,
-      callbacks
+      currentUserId
     );
   };
 
@@ -160,7 +145,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         }
         // Don't close the modal yet, wait for the success callback
       },
-      onSuccess: (_message: any) => {
+      onSuccess: (_message: string) => {
         // Close the modal and reset the photo
         setShowIdPhotoModal(false);
         setSelectedIdPhoto(null);
@@ -233,17 +218,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const handleConfirmIdPhoto = async () => {
-    const callbacks: HandoverClaimCallbacks = {
-      onSuccess: (message) => alert(message),
-      onError: (error) => alert(error),
-      onClearConversation,
-    };
-
     await handoverClaimService.handleConfirmIdPhoto(
       conversationId,
       message.id,
-      currentUserId,
-      callbacks
+      currentUserId
     );
   };
 
@@ -268,8 +246,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     if (message.claimData?.status === "pending_confirmation" || message.claimData?.ownerIdPhoto) {
       console.log("🔄 Rejecting claim after ID photo confirmation");
       try {
-        const { rejectClaimAfterConfirmation } = await import("../services/handoverClaimService");
-        await rejectClaimAfterConfirmation(conversationId, message.id, currentUserId);
+        await handoverClaimService.updateClaimResponse(
+          conversationId,
+          message.id,
+          'rejected',
+          currentUserId
+        );
         onClaimResponse(message.id, "rejected");
       } catch (error: any) {
         console.error("Failed to reject claim after confirmation:", error);
@@ -279,17 +261,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     }
 
     // For rejection, use the consolidated service
-    const callbacks: HandoverClaimCallbacks = {
-      onClaimResponse,
-      onError: (error) => alert(error),
-    };
-
     await handoverClaimService.handleClaimResponse(
       conversationId,
       message.id,
       status,
-      currentUserId,
-      callbacks
+      currentUserId
     );
   };
 
@@ -300,14 +276,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     const msgId = message.id;
 
     const callbacks: HandoverClaimCallbacks = {
-      onHandoverResponse: (messageId, status) => {
+      onHandoverResponse: (_messageId: string, _status: 'accepted' | 'rejected') => {
         // Handle handover response after ID photo upload
-        if (onHandoverResponse) {
-          onHandoverResponse(messageId, status);
-        }
-      },
-      onClaimResponse,
-      onSuccess: (_message) => {
         setShowIdPhotoModal(false);
         setSelectedIdPhoto(null);
         setPreviewPhotoUrl(null);
@@ -355,23 +325,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const handleConfirmClaimIdPhoto = async () => {
-    const callbacks: HandoverClaimCallbacks = {
-      onClaimResponse,
-      onSuccess: (message) => {
-        // Close conversation immediately, then show success toast
-        onClearConversation?.();
-        showToast('success', message);
-      },
-      onError: (error) => {
-        showToast('error', error);
-      },
-    };
-
     await handoverClaimService.handleConfirmClaimIdPhoto(
       conversationId,
       message.id,
-      currentUserId,
-      callbacks
+      currentUserId
     );
   };
 
@@ -389,10 +346,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     }
   };
 
-  // Handle image click to open in modal
-  const handleImageClick = (imageUrl: string, altText: string) => {
-    setSelectedImage({ url: imageUrl, altText });
-    setShowImageModal(true);
+  // Handle image click to open in new tab
+  const handleImageClick = (imageUrl: string) => {
+    window.open(imageUrl, '_blank');
   };
 
   const renderHandoverRequest = () => {
@@ -429,7 +385,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 alt="Finder ID Photo"
                 className="w-24 h-16 rounded object-cover cursor-pointer hover:opacity-90 transition-opacity group"
                 onClick={() =>
-                  handleImageClick(handoverData.idPhotoUrl!, "Finder ID Photo")
+                  handleImageClick(handoverData.idPhotoUrl!)
                 }
                 title="Click to view full size"
               />
@@ -477,8 +433,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       onClick={() => {
                         try {
                           handleImageClick(
-                            handoverData.ownerIdPhoto!,
-                            "Owner ID Photo"
+                            handoverData.ownerIdPhoto!
                           );
                         } catch (clickError) {
                           console.error(
@@ -531,7 +486,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       alt={`Item Photo ${index + 1}`}
                       className="w-full h-32 rounded object-cover cursor-pointer hover:opacity-90 transition-opacity group"
                       onClick={() =>
-                        handleImageClick(photo.url, `Item Photo ${index + 1}`)
+                        handleImageClick(photo.url)
                       }
                       title="Click to view full size"
                     />
@@ -676,7 +631,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 alt="Claimer ID Photo"
                 className="w-24 h-16 rounded object-cover cursor-pointer hover:opacity-90 transition-opacity group"
                 onClick={() =>
-                  handleImageClick(claimData.idPhotoUrl!, "Claimer ID Photo")
+                  handleImageClick(claimData.idPhotoUrl!)
                 }
                 title="Click to view full size"
               />
@@ -716,7 +671,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 alt="Owner ID Photo"
                 className="w-24 h-16 rounded object-cover cursor-pointer hover:opacity-90 transition-opacity group"
                 onClick={() =>
-                  handleImageClick(claimData.ownerIdPhoto!, "Owner ID Photo")
+                  handleImageClick(claimData.ownerIdPhoto!)
                 }
                 title="Click to view full size"
               />
@@ -749,8 +704,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       className="w-full h-32 rounded object-cover cursor-pointer hover:opacity-90 transition-opacity group"
                       onClick={() =>
                         handleImageClick(
-                          photo.url,
-                          `Evidence Photo ${index + 1}`
+                          photo.url
                         )
                       }
                       title="Click to view full size"
@@ -789,8 +743,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       className="w-full h-32 rounded object-cover cursor-pointer hover:opacity-90 transition-opacity group"
                       onClick={() =>
                         handleImageClick(
-                          photo.url,
-                          `Verification Photo ${index + 1}`
+                          photo.url
                         )
                       }
                       title="Click to view full size"
@@ -1055,19 +1008,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       await handoverClaimService.handleConfirmClaimIdPhoto(
                         conversationId,
                         message.id,
-                        currentUserId,
-                        {
-                          onSuccess: (message) => {
-                            showToast('success', message);
-                            setShowIdPhotoModal(false);
-                            if (onClearConversation) onClearConversation();
-                          },
-                          onError: (error) => {
-                            showToast('error', error);
-                            setShowIdPhotoModal(false);
-                          },
-                          onClearConversation,
-                        }
+                        currentUserId
                       );
                     } catch (error) {
                       console.error("Error confirming claim:", error);

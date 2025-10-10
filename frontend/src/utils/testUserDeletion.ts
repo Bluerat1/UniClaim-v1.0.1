@@ -1,10 +1,11 @@
 // Test utility for validating user deletion functionality
 // This file should be used for testing purposes only and removed in production
 
-import { userDeletionService } from '../services/firebase/userDeletion';
-import { authService } from '../services/firebase/auth';
-import { db } from '../services/firebase/config';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+// Removed unused imports - these will be added back when real tests are implemented
+// import { userDeletionService } from '../services/firebase/userDeletion';
+// import { authService } from '../services/firebase/auth';
+// import { db } from '../services/firebase/config';
+// import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 
 interface TestResult {
     testName: string;
@@ -44,7 +45,7 @@ export class UserDeletionTester {
 
             // This would create a test user - in a real test, you'd use a test email
             const testEmail = `test-deletion-${Date.now()}@example.com`;
-            const testPassword = 'TestPassword123!';
+            // const testPassword = 'TestPassword123!'; // Removed unused variable
 
             // Note: In a real test environment, you would actually create the user
             // For now, we'll just verify the test setup

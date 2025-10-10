@@ -9,8 +9,6 @@ import {
     query,
     where,
     getDocs,
-    orderBy,
-    limit,
     serverTimestamp,
     onSnapshot
 } from 'firebase/firestore';
@@ -61,7 +59,7 @@ export class NotificationSubscriptionService {
 
             if (docSnap.exists()) {
                 return {
-                    id: docSnap.id,
+                    userId: docSnap.id,
                     ...docSnap.data()
                 } as NotificationSubscription;
             }
@@ -109,7 +107,7 @@ export class NotificationSubscriptionService {
 
             const snapshot = await getDocs(q);
             return snapshot.docs.map(doc => ({
-                id: doc.id,
+                userId: doc.id,
                 ...doc.data()
             } as NotificationSubscription));
         } catch (error) {
@@ -129,7 +127,7 @@ export class NotificationSubscriptionService {
 
             const snapshot = await getDocs(q);
             return snapshot.docs.map(doc => ({
-                id: doc.id,
+                userId: doc.id,
                 ...doc.data()
             } as NotificationSubscription));
         } catch (error) {
@@ -150,7 +148,7 @@ export class NotificationSubscriptionService {
 
             const snapshot = await getDocs(q);
             return snapshot.docs.map(doc => ({
-                id: doc.id,
+                userId: doc.id,
                 ...doc.data()
             } as NotificationSubscription));
         } catch (error) {
@@ -170,7 +168,7 @@ export class NotificationSubscriptionService {
 
             const snapshot = await getDocs(q);
             return snapshot.docs.map(doc => ({
-                id: doc.id,
+                userId: doc.id,
                 ...doc.data()
             } as NotificationSubscription));
         } catch (error) {
@@ -194,7 +192,7 @@ export class NotificationSubscriptionService {
 
             const snapshot = await getDocs(q);
             return snapshot.docs.map(doc => ({
-                id: doc.id,
+                userId: doc.id,
                 ...doc.data()
             } as NotificationSubscription));
         } catch (error) {
@@ -219,7 +217,7 @@ export class NotificationSubscriptionService {
 
             const snapshot = await getDocs(q);
             const allCategoryUsers = snapshot.docs.map(doc => ({
-                id: doc.id,
+                userId: doc.id,
                 ...doc.data()
             } as NotificationSubscription));
 
@@ -252,7 +250,7 @@ export class NotificationSubscriptionService {
 
             const snapshot = await getDocs(q);
             const allLocationUsers = snapshot.docs.map(doc => ({
-                id: doc.id,
+                userId: doc.id,
                 ...doc.data()
             } as NotificationSubscription));
 
@@ -388,7 +386,7 @@ export class NotificationSubscriptionService {
                 (doc) => {
                     if (doc.exists()) {
                         onUpdate({
-                            id: doc.id,
+                            userId: doc.id,
                             ...doc.data()
                         } as NotificationSubscription);
                     } else {

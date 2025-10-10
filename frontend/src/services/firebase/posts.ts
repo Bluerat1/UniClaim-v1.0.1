@@ -80,10 +80,9 @@ function extractCloudinaryPublicId(url: string): string | null {
 // Import notification service for notification cleanup
 import { notificationService } from './notifications';
 
-// Import admin notification service for admin alerts
 import { adminNotificationService } from './adminNotifications';
-
-// Post service functions
+import { cacheInvalidation, cacheKeys, userCache, postCache } from '../../utils/advancedCache';
+import { notificationSender } from './notificationSender';
 export const postService = {
     // Create a new post
     async createPost(postData: Omit<Post, 'id' | 'createdAt' | 'creatorId'>, creatorId: string): Promise<string> {

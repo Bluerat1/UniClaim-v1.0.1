@@ -103,7 +103,7 @@ export default function LocationMap({
   }, [coordinates.lat, coordinates.lng, location]);
 
   return (
-    <div className="relative w-full h-full flex flex-col rounded-lg overflow-hidden border border-gray-200 shadow-sm" style={{ height }}>
+    <div className={`relative w-full h-full flex flex-col rounded-lg overflow-hidden border border-gray-200 shadow-sm ${className}`} style={{ height }}>
       {/* Location name at the top */}
       <div className="flex-none bg-white px-4 py-2 border-b border-gray-200">
         <div className="flex items-center gap-2">

@@ -197,9 +197,6 @@ export default function HomePage() {
   );
   const hasMorePosts = postsToDisplay.length > totalPostsToShow;
 
-  // Calculate the start index for the oldest posts
-  const startIndex = Math.max(0, postsToDisplay.length - totalPostsToShow);
-
   // Function to load more posts when scrolling
   const handleLoadMore = useCallback(() => {
     if (hasMorePosts && !isLoading) {
@@ -223,7 +220,6 @@ export default function HomePage() {
               setRawResults(null);
               setLastDescriptionKeyword("");
               setSearchQuery("");
-              setSelectedCategoryFilter("All"); // ✅ Reset category filter when clearing
               setCurrentPage(1); // Reset pagination when clearing search
               setIsLoading(false); // Reset loading state
             }}

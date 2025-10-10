@@ -44,7 +44,7 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
         (conversation) =>
           conversation.postTitle?.toLowerCase().includes(query) ||
           Object.values(conversation.participants || {}).some((participant) =>
-            (participant.firstName?.toLowerCase().includes(query) ||
+            ((participant as any).firstName?.toLowerCase().includes(query) ||
              participant.lastName?.toLowerCase().includes(query))
           ) ||
           conversation.lastMessage?.text?.toLowerCase().includes(query)
@@ -154,13 +154,13 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
         if (!participant) return "Unknown User";
 
         // If we have both first and last name, combine them
-        if (participant.firstName && participant.lastName) {
-          return `${participant.firstName} ${participant.lastName}`.trim();
+        if ((participant as any).firstName && participant.lastName) {
+          return `${(participant as any).firstName} ${participant.lastName}`.trim();
         }
 
         // If we have just first name
-        if (participant.firstName) {
-          return participant.firstName;
+        if ((participant as any).firstName) {
+          return (participant as any).firstName;
         }
 
         // If we have just last name
@@ -189,13 +189,13 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     if (!participant) return "Unknown User";
 
     // If we have both first and last name, combine them
-    if (participant.firstName && participant.lastName) {
-      return `${participant.firstName} ${participant.lastName}`.trim();
+    if ((participant as any).firstName && participant.lastName) {
+      return `${(participant as any).firstName} ${participant.lastName}`.trim();
     }
 
     // If we have just first name
-    if (participant.firstName) {
-      return participant.firstName;
+    if ((participant as any).firstName) {
+      return (participant as any).firstName;
     }
 
     // If we have just last name

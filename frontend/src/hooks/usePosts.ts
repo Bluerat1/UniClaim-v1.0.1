@@ -355,7 +355,7 @@ export const useUserPosts = (userEmail: string) => {
 };
 
 // Custom hook for user's posts with setPosts functionality
-export const useUserPostsWithSet = (userEmail: string, includeDeleted: boolean = false) => {
+export const useUserPostsWithSet = (userEmail: string) => {
     const [posts, setPosts] = useState<Post[]>([]);
     const [deletedPosts, setDeletedPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);

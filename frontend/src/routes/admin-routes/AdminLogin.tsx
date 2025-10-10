@@ -4,7 +4,6 @@ import PasswordInput from "../../../src/components/InputFieldwEyeComp";
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { authService } from "../../../src/utils/firebase";
-import { useAuth } from "../../../src/context/AuthContext";
 
 export default function AdminLogin() {
   const [adminEmail, setAdminEmail] = useState("");
@@ -15,7 +14,6 @@ export default function AdminLogin() {
     adminGeneral: "",
   });
   const [isLoading, setIsLoading] = useState(false);
-  const { user } = useAuth();
   const navigate = useNavigate();
 
   //height vh fit

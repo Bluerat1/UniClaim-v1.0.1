@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import type { Post } from "@/types/Post";
 
 // components
@@ -30,7 +29,6 @@ export default function AdminHomePage() {
   const { posts: resolvedPosts = [], loading: resolvedLoading, error: resolvedError } = useResolvedPosts();
   const { showToast } = useToast();
   const { userData } = useAuth();
-  const navigate = useNavigate();
   
   // Refs for tracking if this is the initial load
   const initialLoad = useRef(true);
@@ -60,21 +58,6 @@ export default function AdminHomePage() {
   // Edit modal state
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [isUpdatingPost, setIsUpdatingPost] = useState(false);
-
-  // Admin statistics state
-  const [adminStats, setAdminStats] = useState({
-    totalActions: 0,
-    actionsToday: 0,
-    actionsThisWeek: 0,
-    actionsByType: {
-      delete: 0,
-      statusChange: 0,
-      activate: 0,
-      revert: 0
-    },
-    recentActivity: []
-  });
-  const [statsLoading, setStatsLoading] = useState(false);
 
   // e modify rani siya sa backend django
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -195,17 +178,6 @@ export default function AdminHomePage() {
       setDeletingPostId(null);
     }
   }, [postToDelete, userData?.email, viewType, showToast, fetchDeletedPosts]);
-  const handleUnflagPost = async (post: Post) => {
-    try {
-      const { postService } = await import('../../services/firebase/posts');
-      await postService.unflagPost(post.id);
-      showToast("success", "Post Unflagged", "Post has been unflagged successfully");
-    } catch (error: any) {
-      console.error('Failed to unflag post:', error);
-      showToast("error", "Unflag Failed", error.message || "Failed to unflag post");
-    }
-  };
-
   const handleHidePost = async (post: Post) => {
     try {
       const { postService } = await import('../../services/firebase/posts');
@@ -546,13 +518,12 @@ export default function AdminHomePage() {
         shouldShow = true; // resolvedPosts already filtered
       } else if (viewType === "turnover") {
         // Show only Found items marked for turnover to OSA that have been confirmed as received
-        shouldShow = post.type === "found" && 
-                    post.turnoverDetails && 
-                    post.turnoverDetails.turnoverAction === "turnover to OSA" &&
-                    post.turnoverDetails.turnoverStatus === "confirmed";
+        shouldShow = post.type === "found" &&
+                    post.turnoverDetails?.turnoverAction === "turnover to OSA" &&
+                    post.turnoverDetails?.turnoverStatus === "confirmed";
       } else if (viewType === "flagged") {
         // Show only flagged posts
-        shouldShow = post.isFlagged === true;
+        shouldShow = Boolean(post.isFlagged);
       } else {
         shouldShow = post.type.toLowerCase() === viewType && post.status !== 'unclaimed' && !post.movedToUnclaimed;
       }
@@ -914,7 +885,6 @@ export default function AdminHomePage() {
                 onActivateTicket={viewType === 'deleted' ? undefined : handleActivateTicket}
                 onRevertResolution={viewType === 'deleted' ? undefined : handleRevertResolution}
                 onConfirmTurnover={viewType === 'deleted' ? undefined : handleConfirmTurnover}
-                onUnflagPost={viewType === 'deleted' ? undefined : handleUnflagPost}
                 onHidePost={viewType === 'deleted' ? undefined : handleHidePost}
                 onUnhidePost={viewType === 'deleted' ? undefined : handleUnhidePost}
                 isDeleting={deletingPostId === post.id}
@@ -1036,7 +1006,13 @@ export default function AdminHomePage() {
           key={editingPost.id}
           post={editingPost}
           onClose={() => setEditingPost(null)}
-          onDelete={handleDeletePost}
+          onDelete={(id: string) => {
+            // Find the post by ID and call handleDeletePost with the full Post object
+            const postToDelete = posts?.find(p => p.id === id) || resolvedPosts?.find(p => p.id === id);
+            if (postToDelete) {
+              handleDeletePost(postToDelete);
+            }
+          }}
           onUpdatePost={handleUpdatePost}
           isDeleting={isUpdatingPost}
           isAdmin={true}

@@ -2,7 +2,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getMessaging, onMessage } from 'firebase/messaging';
+import { getMessaging, onMessage, type Messaging } from 'firebase/messaging';
 
 // Firebase configuration from environment variables
 // Create a .env file in the frontend folder with your Firebase config:
@@ -35,7 +35,7 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 
 // Initialize messaging for push notifications (only in browser, not server)
-let messaging = null;
+let messaging: Messaging | null = null;
 if (typeof window !== 'undefined') {
     try {
         messaging = getMessaging(app);

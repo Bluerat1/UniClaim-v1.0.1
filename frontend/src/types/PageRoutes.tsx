@@ -31,7 +31,6 @@ import AboutUniClaim from "@/routes/user-routes/AboutUniClaim";
 import MessagesPage from "@/routes/user-routes/MessagesPage";
 
 // wrappers
-import ProtectedRoute from "../components/ProtectedRoute";
 import AdminRoute from "../components/AdminRoute";
 import EmailVerificationRoute from "../components/EmailVerificationRoute";
 import { ToastProvider } from "@/context/ToastContext";

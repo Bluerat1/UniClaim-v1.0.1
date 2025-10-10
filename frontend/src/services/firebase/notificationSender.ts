@@ -5,22 +5,22 @@ import { notificationSubscriptionService } from './notificationSubscriptions';
 import { authService } from './auth';
 import { adminNotificationService } from './adminNotifications';
 export interface PostNotificationData {
-    type: 'new_post' | 'claim_request';
+    type: 'new_post' | 'claim_request' | 'claim_response' | 'handover_response';
     title: string;
     body: string;
-    postId: string;
-    postTitle: string;
-    postCategory: string;
-    postLocation: string;
-    postType: 'lost' | 'found';
-    creatorId: string;
-    creatorName: string;
+    postId?: string;
+    postTitle?: string;
+    postCategory?: string;
+    postLocation?: string;
+    postType?: 'lost' | 'found';
+    creatorId?: string;
+    creatorName?: string;
+    data?: any;
     conversationId?: string;
-}
+} // Already there, but making sure
 
 export class NotificationSender {
     private static instance: NotificationSender;
-
     static getInstance(): NotificationSender {
         if (!NotificationSender.instance) {
             NotificationSender.instance = new NotificationSender();
@@ -77,7 +77,7 @@ export class NotificationSender {
     }
 
     // Send notification to a specific user
-    private async sendNotificationToUser(userId: string, notificationData: PostNotificationData): Promise<void> {
+    async sendNotificationToUser(userId: string, notificationData: PostNotificationData): Promise<void> {
         try {
             // In a real implementation, you would:
             // 1. Get the user's FCM token from Firestore

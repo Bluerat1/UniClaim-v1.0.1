@@ -37,7 +37,6 @@ const SearchBar: React.FC<SearchBarProps> = ({
     setSelectedCategory("All");
     setDescription("");
     setLocation("");
-    setSelectedCategoryFilter("All"); // ✅ Clear instant filter too
     onClear();
   };
 
@@ -105,8 +104,6 @@ const SearchBar: React.FC<SearchBarProps> = ({
         }`}
       >
         <Filters
-          selectedCategory={selectedCategory}
-          setSelectedCategory={setSelectedCategory}
           description={description}
           setDescription={setDescription}
           location={location}

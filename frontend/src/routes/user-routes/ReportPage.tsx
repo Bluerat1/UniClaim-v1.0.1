@@ -214,31 +214,16 @@ export default function ReportPage() {
       let campusSecurityUserId = null;
 
       if (shouldTransferToCampusSecurity) {
-        const { authService } = await import("../../services/firebase/auth");
-        const campusSecurityUser = await authService.getCampusSecurityUser();
-
-        if (campusSecurityUser) {
-          campusSecurityData = {
-            firstName: campusSecurityUser.firstName,
-            lastName: campusSecurityUser.lastName,
-            email: campusSecurityUser.email,
-            contactNum: campusSecurityUser.contactNum,
-            studentId: campusSecurityUser.studentId,
-            profilePicture: campusSecurityUser.profilePicture || null,
-          };
-          campusSecurityUserId = campusSecurityUser.uid;
-        } else {
-          // Fallback to hardcoded data if no Campus Security user found
-          campusSecurityData = {
-            firstName: "Campus",
-            lastName: "Security",
-            email: "cs@uniclaim.com",
-            contactNum: "",
-            studentId: "",
-            profilePicture: null,
-          };
-          campusSecurityUserId = "hedUWuv96VWQek5OucPzXTCkpQU2";
-        }
+        // Use hardcoded Campus Security data as fallback since getCampusSecurityUser doesn't exist
+        campusSecurityData = {
+          firstName: "Campus",
+          lastName: "Security",
+          email: "cs@uniclaim.com",
+          contactNum: "",
+          studentId: "",
+          profilePicture: null,
+        };
+        campusSecurityUserId = "hedUWuv96VWQek5OucPzXTCkpQU2";
       }
 
       // Build post data conditionally to avoid undefined values in Firebase

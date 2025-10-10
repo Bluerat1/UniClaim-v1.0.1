@@ -1,4 +1,5 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 
 // 🚀 Error Boundary Component
 // Catches JavaScript errors anywhere in the child component tree
