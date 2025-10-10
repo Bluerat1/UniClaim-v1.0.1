@@ -6,15 +6,14 @@ import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
 import ItemInfoForm from "@/components/ItemInfoForm";
 import FoundActionModal from "@/components/FoundActionModal";
-import SuccessPic from "@/assets/success.png";
-// import { useNavigate } from "react-router-dom";
-import type { Post } from "@/types/Post";
 
 // screens
 import LocationForm from "@/routes/user-routes/LocationReport";
 import ContactDetails from "@/routes/user-routes/ContactDetails";
 import useToastFormHelper from "@/components/ToastFormHelper";
 import { ITEM_CATEGORIES } from "@/constants";
+import type { Post } from "@/types/Post";
+import successPic from "@/assets/success.png";
 
 export default function ReportPage() {
   const { userData, loading } = useAuth();
@@ -601,13 +600,17 @@ export default function ReportPage() {
           setSelectedFoundAction(null); // Reset selected action
         }}
         onActionSelect={handleFoundActionSelect}
+        onResetSelection={() => {
+          setSelectedReport(null); // Reset found item selection
+          setSelectedFoundAction(null); // Reset selected action
+        }}
         // selectedAction={selectedFoundAction}
       />
 
       {showSuccessModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 bg-opacity-40">
           <div className="flex flex-col items-center justify-center text-center bg-white rounded p-5 w-90 max-w-lg">
-            <img src={SuccessPic} alt="success_img" className="size-40" />
+            <img src={successPic} alt="success_img" className="size-40" />
             <h1 className="text-medium text-xl text-[#39B54A] mb-5">
               Successfully added report!
             </h1>

@@ -159,7 +159,7 @@ export default function AdminSideNav({
 
             <NavText
               icon={<HiOutlineCog className="size-6 stroke-[1.5px]" />}
-              label="Unclaimed Posts"
+              label="Unclaimed Items"
               to="/admin/unclaimed-posts"
               isOpen={isOpen}
               className="hover:bg-gray-100"
@@ -285,7 +285,7 @@ export default function AdminSideNav({
 
                 <NavText
                   icon={<HiOutlineCog className="size-6 stroke-[1.5px]" />}
-                  label="Unclaimed Posts"
+                  label="Unclaimed Items"
                   to="/admin/unclaimed-posts"
                   isOpen={isOpen}
                   onClick={onMobNavClose}
