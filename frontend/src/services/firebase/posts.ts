@@ -1003,6 +1003,9 @@ export const postService = {
                 // Change turnover action from Campus Security to OSA
                 updateData['turnoverDetails.turnoverAction'] = 'turnover to OSA';
 
+                // Update foundAction to reflect OSA turnover
+                updateData.foundAction = 'turnover to OSA';
+
                 // Update created date to now so it appears at top of homepage
                 updateData.createdAt = serverTimestamp();
                 updateData.updatedAt = serverTimestamp();

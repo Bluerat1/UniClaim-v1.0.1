@@ -428,7 +428,7 @@ export default function AdminPostModal({
                       ? "The finder will keep this item and return it themselves"
                       : post.foundAction === "turnover to OSA"
                       ? "This item will be turned over to the OSA office"
-                      : "This item will be turned over to Campus Security"}
+                      : "This item was turned over to Campus Security"}
                   </p>
                 </div>
               </>
