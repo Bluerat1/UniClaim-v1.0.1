@@ -258,25 +258,25 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-20 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
                     User
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
                     Email
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
                     Joined
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
                     Actions
                   </th>
                 </tr>
               </thead>
             </table>
-            <div className="max-h-150 overflow-y-auto">
+            <div className="max-h-145 overflow-y-auto border-t border-gray-200">
               <table className="min-w-full divide-y divide-gray-200">
                 <tbody className="bg-white">
                   {users.length === 0 ? (
@@ -295,7 +295,7 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                   ) : (
                     users.map((user) => (
                       <tr key={user.uid} className="hover:bg-brand/8">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap w-1/5">
                           <div className="flex items-center">
                             <ProfilePicture
                               src={user.profilePicture}
@@ -313,10 +313,10 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 w-1/5">
                           {user.email}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-7 py-4 whitespace-nowrap w-1/6">
                           <span
                             className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                               user.status === "deactivated"
@@ -329,7 +329,7 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                               : "Active"}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 w-1/6">
                           {user.createdAt
                             ? user.createdAt.toDate
                               ? new Date(
@@ -338,7 +338,7 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                               : new Date(user.createdAt).toLocaleDateString()
                             : "N/A"}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <td className="px-0 py-4 whitespace-nowrap text-sm font-medium w-1/5">
                           <button
                             onClick={() => handleViewUser(user)}
                             className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors text-sm font-medium mr-2"

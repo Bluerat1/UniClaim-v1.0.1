@@ -26,6 +26,7 @@ interface AdminPostCardProps {
   hideDeleteButton?: boolean;
   isDeleting?: boolean;
   showUnclaimedMessage?: boolean;
+  showCampusSecurityButtons?: boolean;
 }
 
 import { formatDateTime } from "@/utils/dateUtils";
@@ -75,6 +76,7 @@ function AdminPostCard({
   onConfirmTurnover,
   onConfirmCampusSecurityCollection,
   showUnclaimedMessage = true,
+  showCampusSecurityButtons = false,
 }: AdminPostCardProps) {
   const previewUrl = useMemo(() => {
     if (post.images && post.images.length > 0) {
@@ -429,8 +431,8 @@ function AdminPostCard({
                 </div>
               )}
 
-              {/* Campus Security Collection Buttons - Show for ALL campus security turnover posts */}
-              {post.turnoverDetails.turnoverAction === "turnover to Campus Security" && (
+              {/* Campus Security Collection Buttons - Show only when explicitly enabled */}
+              {showCampusSecurityButtons && post.turnoverDetails.turnoverAction === "turnover to Campus Security" && (
                 <div className="mt-3 flex gap-2">
                   <button
                     onClick={(e) => {
