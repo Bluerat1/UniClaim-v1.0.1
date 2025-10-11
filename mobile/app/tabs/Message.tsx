@@ -224,10 +224,11 @@ const ConversationItem = ({
 
 export default function Message() {
   const navigation = useNavigation<MessageNavigationProp>();
-  const { conversations, loading, refreshConversations } = useMessage();
+  const { conversations, loading, refreshConversations, markConversationAsRead } = useMessage();
+  const { userData } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
-  const handleConversationPress = (conversation: Conversation) => {
+  const handleConversationPress = async (conversation: Conversation) => {
     console.log("🔍 DEBUG: Navigating to Chat with conversation data:", {
       conversationId: conversation.id,
       postTitle: conversation.postTitle,
@@ -238,6 +239,11 @@ export default function Message() {
       foundAction: conversation.foundAction,
       fullConversation: conversation,
     });
+
+    // Mark conversation as read before navigating
+    if (userData?.uid) {
+      await markConversationAsRead(conversation.id, userData.uid);
+    }
 
     navigation.navigate("Chat", {
       conversationId: conversation.id,
