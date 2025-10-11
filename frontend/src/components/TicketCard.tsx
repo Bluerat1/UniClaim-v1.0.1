@@ -50,7 +50,7 @@ const TicketCard = ({ post, onClick }: PostCardProps) => {
         <div className="mb-2">
           <span className="font-semibold text-lg">{post.title}</span>
         </div>
-        <div className="flex gap-3 mb-2">
+        <div className="flex flex-col gap-3 mb-2">
           <p className="text-xs text-gray-500">
             Last seen location: {post.location}
           </p>

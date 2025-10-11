@@ -35,7 +35,9 @@ interface AdminPostCardProps {
 import { formatDateTime } from "@/utils/dateUtils";
 
 // Format function for post creation time
-const formatPostTime = (date: Date | string | { seconds: number; nanoseconds: number }) => {
+const formatPostTime = (
+  date: Date | string | { seconds: number; nanoseconds: number }
+) => {
   return formatDateTime(date);
 };
 
@@ -126,7 +128,7 @@ function AdminPostCard({
 
   return (
     <div
-      className={`bg-white rounded shadow/2 cursor-pointer overflow-hidden hover:shadow-md/5 transition relative ${
+      className={`bg-white rounded shadow/2 overflow-hidden hover:shadow-md/5 transition relative ${
         isSelected
           ? "border-brand ring-2 ring-brand/20 shadow-brand/10"
           : post.isFlagged
@@ -144,7 +146,7 @@ function AdminPostCard({
               e.stopPropagation();
               onSelectionChange(post, e.target.checked);
             }}
-            className="w-6 h-6 text-brand border-gray-300 rounded focus:ring-brand"
+            className="size-5 text-brand border-gray-300 rounded focus:ring-brand"
           />
         </div>
       )}
@@ -153,7 +155,7 @@ function AdminPostCard({
         <img
           src={previewUrl}
           alt="post"
-          className="w-full h-85 object-cover lg:h-70"
+          className="w-full h-85 object-cover cursor-pointer lg:h-70"
           onClick={onClick}
         />
       ) : (
@@ -187,18 +189,19 @@ function AdminPostCard({
 
           {/* Admin Controls */}
           <div className="flex gap-2">
-            {(post.status === "resolved" || post.status === "completed") && onRevertResolution && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRevertResolution(post);
-                }}
-                className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition"
-                title="Revert Resolution - Change back to pending"
-              >
-                Revert
-              </button>
-            )}
+            {(post.status === "resolved" || post.status === "completed") &&
+              onRevertResolution && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRevertResolution(post);
+                  }}
+                  className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition"
+                  title="Revert Resolution - Change back to pending"
+                >
+                  Revert
+                </button>
+              )}
             {/* Show activate button for any post that can be reactivated */}
             {(post.status === "unclaimed" || post.movedToUnclaimed) &&
               onActivateTicket && (
@@ -207,7 +210,7 @@ function AdminPostCard({
                     e.stopPropagation();
                     onActivateTicket(post);
                   }}
-                  className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
+                  className="px-3 py-2 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
                   title="Activate - Move back to active status"
                 >
                   Activate
@@ -375,7 +378,11 @@ function AdminPostCard({
               e.stopPropagation();
               setIsTurnoverMinimized(!isTurnoverMinimized);
             }}
-            title={isTurnoverMinimized ? "Click to expand turnover details" : "Click to minimize turnover details"}
+            title={
+              isTurnoverMinimized
+                ? "Click to expand turnover details"
+                : "Click to minimize turnover details"
+            }
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -491,31 +498,35 @@ function AdminPostCard({
                 </div>
               )}
 
-              {/* Campus Security Collection Buttons - Show only when explicitly enabled */}
-              {!isTurnoverMinimized &&
-                showCampusSecurityButtons &&
-                post.turnoverDetails.turnoverAction === "turnover to Campus Security" && (
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onConfirmCampusSecurityCollection?.(post, "collected");
-                      }}
-                      className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
-                    >
-                      ✓ Item Collected
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onConfirmCampusSecurityCollection?.(post, "not_available");
-                      }}
-                      className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
-                    >
-                      ✗ Not Available
-                    </button>
-                  </div>
-                )}
+            {/* Campus Security Collection Buttons - Show only when explicitly enabled */}
+            {!isTurnoverMinimized &&
+              showCampusSecurityButtons &&
+              post.turnoverDetails.turnoverAction ===
+                "turnover to Campus Security" && (
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onConfirmCampusSecurityCollection?.(post, "collected");
+                    }}
+                    className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
+                  >
+                    ✓ Item Collected
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onConfirmCampusSecurityCollection?.(
+                        post,
+                        "not_available"
+                      );
+                    }}
+                    className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+                  >
+                    ✗ Not Available
+                  </button>
+                </div>
+              )}
           </div>
         )}
         {post.status === "pending" &&
@@ -541,22 +552,23 @@ function AdminPostCard({
           )}
 
         {/* Show activation status for posts that can be activated */}
-        {(post.status === "unclaimed" || post.movedToUnclaimed) && showUnclaimedMessage && (
-          <div className="mb-3 p-2 bg-orange-50 border border-orange-200 rounded">
-            <div className="text-xs text-orange-800 font-medium mb-1">
-              {post.movedToUnclaimed
-                ? "Expired & Unclaimed"
-                : "Marked as Unclaimed"}
+        {(post.status === "unclaimed" || post.movedToUnclaimed) &&
+          showUnclaimedMessage && (
+            <div className="mb-3 p-2 bg-orange-50 border border-orange-200 rounded">
+              <div className="text-xs text-orange-800 font-medium mb-1">
+                {post.movedToUnclaimed
+                  ? "Expired & Unclaimed"
+                  : "Marked as Unclaimed"}
+              </div>
+              <div className="text-xs text-orange-600">
+                {post.movedToUnclaimed
+                  ? "This post expired and was automatically moved to unclaimed. Click Activate to restore it."
+                  : "This post was manually marked as unclaimed. Click Activate to restore it."}
+              </div>
             </div>
-            <div className="text-xs text-orange-600">
-              {post.movedToUnclaimed
-                ? "This post expired and was automatically moved to unclaimed. Click Activate to restore it."
-                : "This post was manually marked as unclaimed. Click Activate to restore it."}
-            </div>
-          </div>
-        )}
+          )}
 
-        <div className="text-sm lg:text-xs flex gap-2">
+        <div className="text-sm lg:text-xs flex flex-col gap-2">
           {post.location && (
             <p className="font-medium text-black">
               <span className="font-medium">Last seen at </span>
@@ -577,7 +589,6 @@ function AdminPostCard({
           }}
           onClick={onClick}
         />
-
 
         {/* Restore and Permanently Delete buttons for deleted posts */}
         {onRestore && onPermanentDelete && (
