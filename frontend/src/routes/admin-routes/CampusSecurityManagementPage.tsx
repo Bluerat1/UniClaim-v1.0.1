@@ -173,6 +173,7 @@ export default function CampusSecurityManagementPage() {
               onHidePost={undefined}
               onUnhidePost={undefined}
               onConfirmTurnover={undefined} // Hide OSA turnover option
+              showUnclaimedMessage={false}
             />
           ))
         )}

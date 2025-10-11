@@ -897,6 +897,7 @@ export default function AdminHomePage() {
                 // Add restore and permanent delete actions for deleted posts
                 onRestore={viewType === 'deleted' ? handleRestorePost : undefined}
                 onPermanentDelete={viewType === 'deleted' ? handlePermanentDeletePost : undefined}
+                showUnclaimedMessage={false}
               />
             ))
         )}

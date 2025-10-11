@@ -1,7 +1,6 @@
 // src/routes/user-routes/LocationReport.tsx
 import USTPCDOMapLoc from "@/components/USTPCDOMap";
 import { detectLocationFromCoordinates } from "@/utils/locationDetection";
-import { useState } from "react";
 
 interface LocationProps {
   selectedLocation: string | null;
@@ -9,7 +8,6 @@ interface LocationProps {
   locationError?: boolean;
   coordinates: { lat: number; lng: number } | null;
   setCoordinates: (val: { lat: number; lng: number } | null) => void;
-  onDetectedLocationChange?: (location: string | null) => void;
 }
 
 const LocationReport = ({
@@ -18,16 +16,7 @@ const LocationReport = ({
   locationError = false,
   coordinates,
   setCoordinates,
-  onDetectedLocationChange,
 }: LocationProps) => {
-  const [detectedLocation, setDetectedLocation] = useState<string | null>(null);
-
-  const handleDetectedLocationChange = (location: string | null) => {
-    setDetectedLocation(location);
-    if (onDetectedLocationChange) {
-      onDetectedLocationChange(location);
-    }
-  };
   // Handle coordinate changes and auto-detect location
   const handleCoordinatesChange = (
     newCoordinates: { lat: number; lng: number } | null
@@ -93,7 +82,6 @@ const LocationReport = ({
           locationError={locationError}
           coordinates={coordinates}
           setCoordinatesExternal={handleCoordinatesChange}
-          onDetectedLocationChange={handleDetectedLocationChange}
         />
       </div>
 

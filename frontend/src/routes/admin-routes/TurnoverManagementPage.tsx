@@ -165,6 +165,7 @@ export default function TurnoverManagementPage() {
               onRevertResolution={undefined}
               onHidePost={undefined}
               onUnhidePost={undefined}
+              showUnclaimedMessage={false}
             />
           ))
         )}

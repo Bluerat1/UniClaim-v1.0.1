@@ -23,14 +23,12 @@ interface Props {
   setCoordinatesExternal?: (
     coords: { lat: number; lng: number } | null
   ) => void;
-  onDetectedLocationChange?: (location: string | null) => void;
 }
 
 const USTPLocationPicker: React.FC<Props> = ({
   locationError = false,
   coordinates,
   setCoordinatesExternal,
-  onDetectedLocationChange,
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const [mapInstance, setMapInstance] = useState<Map | null>(null);

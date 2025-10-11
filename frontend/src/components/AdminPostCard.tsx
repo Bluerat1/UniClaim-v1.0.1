@@ -25,6 +25,7 @@ interface AdminPostCardProps {
   onPermanentDelete?: (post: Post) => void;
   hideDeleteButton?: boolean;
   isDeleting?: boolean;
+  showUnclaimedMessage?: boolean;
 }
 
 import { formatDateTime } from "@/utils/dateUtils";
@@ -73,6 +74,7 @@ function AdminPostCard({
   isDeleting = false,
   onConfirmTurnover,
   onConfirmCampusSecurityCollection,
+  showUnclaimedMessage = true,
 }: AdminPostCardProps) {
   const previewUrl = useMemo(() => {
     if (post.images && post.images.length > 0) {
@@ -475,7 +477,7 @@ function AdminPostCard({
           )}
 
         {/* Show activation status for posts that can be activated */}
-        {(post.status === "unclaimed" || post.movedToUnclaimed) && (
+        {(post.status === "unclaimed" || post.movedToUnclaimed) && showUnclaimedMessage && (
           <div className="mb-3 p-2 bg-orange-50 border border-orange-200 rounded">
             <div className="text-xs text-orange-800 font-medium mb-1">
               {post.movedToUnclaimed
