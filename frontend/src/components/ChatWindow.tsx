@@ -62,7 +62,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             <p className="text-sm font-medium text-gray-500">Created</p>
             <p>
               {conversation?.createdAt
-                ? new Date(conversation.createdAt).toLocaleString()
+                ? (() => {
+                    try {
+                      const date = conversation.createdAt instanceof Date
+                        ? conversation.createdAt
+                        : conversation.createdAt.toDate
+                        ? conversation.createdAt.toDate()
+                        : new Date(conversation.createdAt);
+                      return date.toLocaleString();
+                    } catch (error) {
+                      console.error("Error formatting created date:", error);
+                      return "Invalid Date";
+                    }
+                  })()
                 : "N/A"}
             </p>
           </div>
