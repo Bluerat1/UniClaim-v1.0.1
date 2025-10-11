@@ -42,10 +42,16 @@ export default function Home() {
   const postsToDisplay = getPostsToDisplay();
 
   const filteredPosts = postsToDisplay.filter((post) => {
-    // ✅ Add data validation to prevent crashes
+    // Add data validation to prevent crashes
     if (!post || !post.title || !post.description || !post.category || !post.location) {
       return false;
     }
+    
+    // Filter out unclaimed posts
+    if (post.status === "unclaimed") return false;
+    
+    // Filter out completed posts
+    if (post.status === "completed") return false;
     
     // Filter out any posts that might have been missed by the service
     // This is just an extra safety check
@@ -77,13 +83,13 @@ export default function Home() {
       : true;
 
     const locationMatch = locationSearch
-      ? post.location === locationSearch
+      ? post.location.toLowerCase().includes(locationSearch.toLowerCase().trim())
       : true;
 
-    // For active posts, make sure they're not resolved
+    // For active posts, make sure they're not resolved or completed
     // For resolved view, we don't need to check status as resolvedPosts already contains only resolved posts
-    const typeMatch = activeButton === "resolved" || 
-                     (post.status !== "resolved" && 
+    const typeMatch = activeButton === "resolved" ||
+                     ((post.status !== "resolved" && post.status !== "completed") &&
                       (activeButton === "all" || post.type === activeButton));
 
     return typeMatch && titleMatch && categoryMatch && locationMatch && descriptionMatch;

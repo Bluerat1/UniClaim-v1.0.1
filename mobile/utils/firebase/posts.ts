@@ -43,12 +43,12 @@ export const postService = {
             const posts = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
-            }));
+            })) as any[];
 
             // Filter out expired posts and resolved posts on the client side
             const activePosts = posts.filter(post => {
                 if (post.movedToUnclaimed) return false;
-                if (post.status === 'resolved') return false;
+                if (post.status === 'resolved' || post.status === 'completed') return false;
                 if (post.isHidden === true) return false;
 
                 // Filter out items with turnoverStatus: "declared" for OSA turnover
@@ -133,16 +133,25 @@ export const postService = {
     getResolvedPosts(callback: (posts: any[]) => void) {
         const q = query(
             collection(db, 'posts'),
-            where('status', '==', 'resolved'),
-            orderBy('createdAt', 'desc')
+            where('status', 'in', ['resolved', 'completed'])
+            // Removed orderBy to match frontend behavior and avoid composite index requirement
         );
 
         return onSnapshot(q, (snapshot) => {
             const posts = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
-            }));
-            callback(posts);
+            })) as any[];
+
+            // Sort posts by updatedAt in JavaScript instead (most recent resolution first)
+            // This matches the frontend behavior exactly
+            const sortedPosts = posts.sort((a, b) => {
+                const dateA = a.updatedAt instanceof Date ? a.updatedAt : new Date(a.updatedAt || a.createdAt);
+                const dateB = b.updatedAt instanceof Date ? b.updatedAt : new Date(b.updatedAt || b.createdAt);
+                return dateB.getTime() - dateA.getTime(); // Most recent first
+            });
+
+            callback(sortedPosts);
         });
     },
 
