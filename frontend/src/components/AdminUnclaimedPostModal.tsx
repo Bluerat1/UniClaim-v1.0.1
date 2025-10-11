@@ -33,7 +33,9 @@ export default function AdminUnclaimedPostModal({
   const [isActivating, setIsActivating] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
-  const [imageLoadingError, setImageLoadingError] = useState<string | null>(null);
+  const [imageLoadingError, setImageLoadingError] = useState<string | null>(
+    null
+  );
   const inactivityIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastInteractionTimeRef = useRef<number>(Date.now());
 
@@ -59,7 +61,8 @@ export default function AdminUnclaimedPostModal({
   useEffect(() => {
     const checkInactivity = () => {
       const now = Date.now();
-      const secondsSinceLastClick = (now - lastInteractionTimeRef.current) / 1000;
+      const secondsSinceLastClick =
+        (now - lastInteractionTimeRef.current) / 1000;
       if (secondsSinceLastClick >= 2) {
         setShowOverlay(true);
       }
@@ -99,38 +102,62 @@ export default function AdminUnclaimedPostModal({
   };
 
   const handleActivatePost = async () => {
-    if (!window.confirm('Are you sure you want to activate this post? This will move it back to active status with a new 30-day period.')) {
+    if (
+      !window.confirm(
+        "Are you sure you want to activate this post? This will move it back to active status with a new 30-day period."
+      )
+    ) {
       return;
     }
 
     try {
       setIsActivating(true);
       await postService.activateTicket(post.id);
-      showToast('success', 'Post Activated', `"${post.title}" has been activated and moved back to active status.`);
+      showToast(
+        "success",
+        "Post Activated",
+        `"${post.title}" has been activated and moved back to active status.`
+      );
       onPostActivate?.(post.id);
       onClose();
     } catch (error) {
-      console.error('Error activating post:', error);
-      showToast('error', 'Error', 'Failed to activate the post. Please try again.');
+      console.error("Error activating post:", error);
+      showToast(
+        "error",
+        "Error",
+        "Failed to activate the post. Please try again."
+      );
     } finally {
       setIsActivating(false);
     }
   };
 
   const handleDeletePost = async () => {
-    if (!window.confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this post? This action cannot be undone."
+      )
+    ) {
       return;
     }
 
     try {
       setIsDeleting(true);
       await postService.deletePost(post.id);
-      showToast('success', 'Post deleted', 'The post has been successfully deleted.');
+      showToast(
+        "success",
+        "Post deleted",
+        "The post has been successfully deleted."
+      );
       onPostDelete?.(post.id);
       onClose();
     } catch (error) {
-      console.error('Error deleting post:', error);
-      showToast('error', 'Error', 'Failed to delete the post. Please try again.');
+      console.error("Error deleting post:", error);
+      showToast(
+        "error",
+        "Error",
+        "Failed to delete the post. Please try again."
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -138,7 +165,7 @@ export default function AdminUnclaimedPostModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-white rounded p-4 shadow w-[25rem] sm:w-[26rem] md:w-[32rem] lg:w-[42rem] xl:w-[60rem] max-w-full max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
+      <div className="bg-white rounded pt-3 pl-3 pb-3 pr-2 shadow w-[30rem] sm:w-[35rem] md:w-[40rem] lg:w-[45rem] xl:w-[60rem] max-w-full max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <ProfilePicture
@@ -154,7 +181,7 @@ export default function AdminUnclaimedPostModal({
                   : "Anonymous"}
               </p>
               <p className="text-xs text-gray-500">
-                {post.creatorId || 'Unknown User ID'}
+                {post.creatorId || "Unknown User ID"}
               </p>
             </div>
           </div>
@@ -278,7 +305,9 @@ export default function AdminUnclaimedPostModal({
         {imageLoadingError && (
           <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
             <div className="flex items-center justify-between">
-              <span className="text-red-600 text-sm">⚠️ {imageLoadingError}</span>
+              <span className="text-red-600 text-sm">
+                ⚠️ {imageLoadingError}
+              </span>
               <button
                 onClick={() => {
                   setImageLoadingError(null);
@@ -365,7 +394,8 @@ export default function AdminUnclaimedPostModal({
                 <p className="text-[13px] mt-3 mb-2">Pinned Coordinates</p>
                 <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2">
                   <p className="text-[13px] text-gray-600">
-                    {post.coordinates.lat.toFixed(5)}, {post.coordinates.lng.toFixed(5)}
+                    {post.coordinates.lat.toFixed(5)},{" "}
+                    {post.coordinates.lng.toFixed(5)}
                   </p>
                 </div>
               </>
@@ -401,17 +431,29 @@ export default function AdminUnclaimedPostModal({
 
         {/* Unclaimed Status Information */}
         <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-md">
-          <h3 className="font-semibold text-orange-800 mb-2">Unclaimed Status</h3>
+          <h3 className="font-semibold text-orange-800 mb-2">
+            Unclaimed Status
+          </h3>
           <div className="text-sm text-orange-700 space-y-1">
             {post.movedToUnclaimed ? (
               <>
-                <p>This post has expired and was automatically moved to unclaimed status after 30 days.</p>
-                <p className="font-medium">Activating this post will restore it with a new 30-day period.</p>
+                <p>
+                  This post has expired and was automatically moved to unclaimed
+                  status after 30 days.
+                </p>
+                <p className="font-medium">
+                  Activating this post will restore it with a new 30-day period.
+                </p>
               </>
             ) : (
               <>
-                <p>This post was manually marked as unclaimed by an administrator.</p>
-                <p className="font-medium">Activating this post will restore it to active status.</p>
+                <p>
+                  This post was manually marked as unclaimed by an
+                  administrator.
+                </p>
+                <p className="font-medium">
+                  Activating this post will restore it to active status.
+                </p>
               </>
             )}
           </div>
@@ -421,7 +463,7 @@ export default function AdminUnclaimedPostModal({
         <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-md">
           <h3 className="font-semibold text-gray-800 mb-2">Admin Notes</h3>
           <p className="text-sm text-gray-600">
-            {post.description || 'No admin notes available.'}
+            {post.description || "No admin notes available."}
           </p>
         </div>
       </div>
