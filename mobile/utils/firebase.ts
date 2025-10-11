@@ -7,6 +7,7 @@ export { auth, db, app } from './firebase/config';
 export { authService, userService, UserData } from './firebase/auth';
 export { messageService } from './firebase/messages';
 export { postService } from './firebase/posts';
+export { getFirebaseErrorMessage } from './firebase/utils';
 export type { UserCredential } from 'firebase/auth';
 
 // Note: All service implementations have been moved to separate modular files

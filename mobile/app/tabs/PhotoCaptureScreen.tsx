@@ -9,24 +9,17 @@ import {
   Image,
   Dimensions,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import PageLayout from '../../layout/PageLayout';
 import { useAuth } from '../../context/AuthContext';
 import { useMessage } from '../../context/MessageContext';
+import type { RootStackParamList } from '../../types/type';
 
-interface PhotoCaptureScreenProps {
-  route: {
-    params: {
-      conversationId: string;
-      postId: string;
-      postTitle: string;
-      postOwnerId: string;
-      claimReason: string;
-    };
-  };
-}
+type PhotoCaptureScreenRouteProp = RouteProp<RootStackParamList, 'PhotoCaptureScreen'>;
+type PhotoCaptureScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface PhotoData {
   uri: string;
@@ -37,8 +30,8 @@ interface PhotoData {
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function PhotoCaptureScreen() {
-  const navigation = useNavigation();
-  const route = useRoute<PhotoCaptureScreenProps['route']>();
+  const navigation = useNavigation<PhotoCaptureScreenNavigationProp>();
+  const route = useRoute<PhotoCaptureScreenRouteProp>();
   const { conversationId, postId, postTitle, postOwnerId, claimReason } = route.params;
   const { user, userData } = useAuth();
   const { sendClaimRequest } = useMessage();
@@ -228,13 +221,13 @@ export default function PhotoCaptureScreen() {
             text: 'OK',
             onPress: () => {
               // Navigate back to chat screen
-              navigation.navigate('Chat' as never, {
+              navigation.navigate('Chat', {
                 conversationId,
                 postId,
                 postTitle,
                 postOwnerId,
                 postOwnerUserData: {}, // Will be fetched in Chat component if needed
-              } as never);
+              });
             },
           },
         ]

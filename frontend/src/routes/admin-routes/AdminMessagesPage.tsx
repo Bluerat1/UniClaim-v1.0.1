@@ -14,9 +14,9 @@ const AdminMessagesPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [isGoingBack, setIsGoingBack] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterType, setFilterType] = useState<
-    "all" | "unread" | "claim"
-  >("all");
+  const [filterType, setFilterType] = useState<"all" | "unread" | "claim">(
+    "all"
+  );
 
   // Use a ref to track the current conversation ID being loaded to prevent race conditions
   const loadingConversationIdRef = useRef<string | null>(null);
@@ -32,7 +32,10 @@ const AdminMessagesPage: React.FC = () => {
       }
 
       // Check if we already have the correct conversation loaded
-      if (selectedConversation && selectedConversation.id === conversationParam) {
+      if (
+        selectedConversation &&
+        selectedConversation.id === conversationParam
+      ) {
         return;
       }
 
@@ -40,11 +43,13 @@ const AdminMessagesPage: React.FC = () => {
       loadingConversationIdRef.current = conversationParam;
       const loadConversation = async () => {
         try {
-          const conversationDoc = await getDoc(doc(db, 'conversations', conversationParam));
+          const conversationDoc = await getDoc(
+            doc(db, "conversations", conversationParam)
+          );
           if (conversationDoc.exists()) {
             const conversationData = {
               id: conversationDoc.id,
-              ...conversationDoc.data()
+              ...conversationDoc.data(),
             } as Conversation;
             setSelectedConversation(conversationData);
           } else {
@@ -72,7 +77,7 @@ const AdminMessagesPage: React.FC = () => {
       setSelectedConversation(conversation);
       // Update URL with conversation parameter
       const newSearchParams = new URLSearchParams();
-      newSearchParams.set('conversation', conversation.id);
+      newSearchParams.set("conversation", conversation.id);
       setSearchParams(newSearchParams);
     }
   };
@@ -123,71 +128,71 @@ const AdminMessagesPage: React.FC = () => {
         <div className="flex h-[calc(100vh-115px)] sm:h-[calc(100vh-135px)] md:h-[calc(100vh-145px)] lg:h-[calc(100vh-155px)] xl:h-[calc(100vh-158px)] overflow-hidden">
           {/* Conversation List - Left Side */}
           <div className="w-full lg:max-w-sm border-r border-gray-200 bg-white flex flex-col">
-              {/* Header */}
-              <div className="p-7 border-gray-200 bg-navyblue flex-shrink-0">
-                <h2 className="text-lg text-yellow-500 font-semibold">
-                  All Conversations
-                </h2>
-                <p className="text-sm text-white">
-                  Admin oversight of user communications
-                </p>
+            {/* Header */}
+            <div className="p-7 border-gray-200 bg-navyblue flex-shrink-0">
+              <h2 className="text-lg text-yellow-500 font-semibold">
+                All Conversations
+              </h2>
+              <p className="text-sm text-white">
+                Admin oversight of user communications
+              </p>
 
-                {/* Search and Filter Controls */}
-                <div className="mt-4 space-y-3">
-                  {/* Search Input */}
-                  <input
-                    type="text"
-                    placeholder="Search conversations..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-3 py-2 mb-3 text-sm border border-gray-300 bg-white rounded-md focus:outline-none focus:ring-1 focus:ring-navyblue focus:border-transparent"
-                  />
+              {/* Search and Filter Controls */}
+              <div className="mt-4 space-y-3">
+                {/* Search Input */}
+                <input
+                  type="text"
+                  placeholder="Search conversations..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-3 py-2 mb-3 text-sm border border-gray-300 bg-white rounded-md focus:outline-none focus:ring-1 focus:ring-navyblue focus:border-transparent"
+                />
 
-                  {/* Filter Buttons */}
-                  <div className="flex flex-row gap-1">
-                    <button
-                      onClick={() => setFilterType("all")}
-                      className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                        filterType === "all"
-                          ? "bg-yellow-500 text-navyblue"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      All
-                    </button>
-                    <button
-                      onClick={() => setFilterType("unread")}
-                      className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                        filterType === "unread"
-                          ? "bg-red-100 text-red-800"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      Unread
-                    </button>
-                    <button
-                      onClick={() => setFilterType("claim")}
-                      className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                        filterType === "claim"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      Claim
-                    </button>
-                  </div>
+                {/* Filter Buttons */}
+                <div className="flex flex-row gap-1">
+                  <button
+                    onClick={() => setFilterType("all")}
+                    className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                      filterType === "all"
+                        ? "bg-yellow-500 text-navyblue"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    onClick={() => setFilterType("unread")}
+                    className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                      filterType === "unread"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    Unread
+                  </button>
+                  <button
+                    onClick={() => setFilterType("claim")}
+                    className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                      filterType === "claim"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    Claim
+                  </button>
                 </div>
               </div>
+            </div>
 
-              {/* Scrollable Conversation List */}
-              <div className="flex-1 pl-3 overflow-y-auto">
-                <AdminConversationList
-                  onSelectConversation={handleSelectConversation}
-                  selectedConversationId={selectedConversation?.id}
-                  searchQuery={searchQuery}
-                  filterType={filterType}
-                />
-              </div>
+            {/* Scrollable Conversation List */}
+            <div className="flex-1 pl-3 overflow-y-auto">
+              <AdminConversationList
+                onSelectConversation={handleSelectConversation}
+                selectedConversationId={selectedConversation?.id}
+                searchQuery={searchQuery}
+                filterType={filterType}
+              />
+            </div>
           </div>
 
           {/* Chat Window - Right Side - Visible on lg and up */}
@@ -195,7 +200,7 @@ const AdminMessagesPage: React.FC = () => {
             {selectedConversation ? (
               <AdminChatWindow
                 conversation={selectedConversation}
-                onClearConversation={handleBackToConversations}
+                // onClearConversation={handleBackToConversations}
               />
             ) : (
               <div className="flex items-center justify-center flex-1 bg-gray-50">
@@ -258,10 +263,10 @@ const AdminMessagesPage: React.FC = () => {
             <div className="flex-1 overflow-hidden">
               <AdminChatWindow
                 conversation={selectedConversation}
-                onClearConversation={() => {
-                  setSelectedConversation(null);
-                  setSearchParams({});
-                }}
+                // onClearConversation={() => {
+                //   setSelectedConversation(null);
+                //   setSearchParams({});
+                // }}
               />
             </div>
           </div>

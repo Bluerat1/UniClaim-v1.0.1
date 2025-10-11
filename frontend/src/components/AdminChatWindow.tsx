@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useMessage } from "../context/MessageContext";
-import type { Conversation, Message } from "@/types/Post";
+import type { Conversation, Message } from "../types/Post";
 import MessageBubble from "./MessageBubble";
 import { useAuth } from "../context/AuthContext";
 import ProfilePicture from "./ProfilePicture";
-import { messageService } from "../utils/firebase";
 import { useToast } from "../context/ToastContext";
 import NoChat from "../assets/no_chat.png";
 import { db } from "../utils/firebase";
@@ -15,26 +14,17 @@ type ToastType = "success" | "error" | "info" | "warning";
 
 interface AdminChatWindowProps {
   conversation: Conversation | null;
-  onClearConversation?: () => void;
 }
 
-const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
-  conversation,
-  onClearConversation,
-}) => {
+const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [isSending, setIsSending] = useState(false);
-  // Removed unused state
-  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(
-    null
-  );
-
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const lastMessageCount = useRef(0);
+  const [newMessage, setNewMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const { sendMessage, getConversationMessages, markConversationAsRead } =
     useMessage();
   const { userData } = useAuth();
@@ -184,27 +174,6 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
       showToast("Failed to send message", "error");
     } finally {
       setIsSending(false);
-    }
-  };
-
-  const handleDeleteMessage = async (messageId: string) => {
-    if (!conversation || !userData) return;
-
-    setDeletingMessageId(messageId);
-    try {
-      await messageService.deleteMessage(
-        conversation.id,
-        messageId,
-        userData.uid
-      );
-      showToast("Message deleted successfully", "success");
-
-      setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
-    } catch (error) {
-      console.error("Error deleting message:", error);
-      showToast("Failed to delete message", "error");
-    } finally {
-      setDeletingMessageId(null);
     }
   };
 
@@ -372,6 +341,8 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
             <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
               Admin View
             </span>
+            {/* Hidden close button as requested */}
+            {/*
             {onClearConversation && (
               <button
                 onClick={onClearConversation}
@@ -393,6 +364,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
                 </svg>
               </button>
             )}
+            */}
           </div>
         </div>
       </div>
@@ -462,7 +434,8 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
                     onClaimResponse={handleClaimResponse}
                   />
 
-                  {/* Admin Delete Button */}
+                  {/* Hidden admin delete button as requested */}
+                  {/*
                   <button
                     onClick={() => handleDeleteMessage(message.id)}
                     disabled={deletingMessageId === message.id}
@@ -487,6 +460,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
                       </svg>
                     )}
                   </button>
+                  */}
                 </div>
               </div>
             </div>

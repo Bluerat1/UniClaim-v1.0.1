@@ -27,11 +27,13 @@ import ScreenWrapper from "../components/ScreenWrapper";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const withScreenWrapper = (Component: React.ComponentType) => () => (
-  <ScreenWrapper statusBarStyle="dark-content" statusBarBg="#fff">
-    <Component />
-  </ScreenWrapper>
-);
+const withScreenWrapper = <P extends object>(Component: React.ComponentType<P>) => {
+  return (props: P) => (
+    <ScreenWrapper statusBarStyle="dark-content" statusBarBg="#fff">
+      <Component {...props} />
+    </ScreenWrapper>
+  );
+};
 
 interface NavigationProps {
   hasSeenOnBoarding: boolean;
@@ -79,7 +81,7 @@ export default function Navigation({
         initialRouteName="Index"
         screenOptions={{ headerShown: false, animation: "fade" }}
       >
-        <Stack.Screen name="Index" component={withScreenWrapper(Index)} />
+        <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
         <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
         <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
         <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
@@ -94,7 +96,7 @@ export default function Navigation({
         initialRouteName="Index"
         screenOptions={{ headerShown: false, animation: "fade" }}
       >
-        <Stack.Screen name="Index" component={withScreenWrapper(Index)} />
+        <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
         <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
         <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
         <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />

@@ -48,32 +48,17 @@ const ConversationItem = ({
   const getOtherParticipantName = () => {
     if (!userData) return "Unknown User";
 
-    // Try new structure first (participants with user data)
+    // Use new structure (participants with user data)
     const otherParticipants = Object.entries(conversation.participants || {})
       .filter(([uid]) => uid !== userData.uid) // Exclude current user
-      .map(([, participant]) =>
-        `${participant.firstName} ${participant.lastName}`.trim()
-      )
+      .map(([, participant]) => {
+        const p = participant as { firstName: string; lastName: string; };
+        return `${p.firstName} ${p.lastName}`.trim();
+      })
       .filter((name) => name.length > 0);
 
     if (otherParticipants.length > 0) {
       return otherParticipants.join(", ");
-    }
-
-    // Fallback to old structure (participantData)
-    if (conversation.participantData) {
-      const otherParticipantData = Object.entries(
-        conversation.participantData || {}
-      )
-        .filter(([uid]) => uid !== userData.uid)
-        .map(([, participant]) =>
-          `${participant.firstName} ${participant.lastName}`.trim()
-        )
-        .filter((name) => name.length > 0);
-
-      if (otherParticipantData.length > 0) {
-        return otherParticipantData.join(", ");
-      }
     }
 
     return "Unknown User";
@@ -83,27 +68,14 @@ const ConversationItem = ({
   const getOtherParticipantProfilePicture = () => {
     if (!userData) return null;
 
-    // Try new structure first (participants with user data)
+    // Use new structure (participants with user data)
     const otherParticipant = Object.entries(
       conversation.participants || {}
     ).find(([uid]) => uid !== userData.uid);
 
-    if (otherParticipant && otherParticipant[1].profilePicture) {
-      return otherParticipant[1].profilePicture;
-    }
-
-    // Fallback to old structure (participantData)
-    if (conversation.participantData) {
-      const otherParticipantData = Object.entries(
-        conversation.participantData || {}
-      ).find(([uid]) => uid !== userData.uid);
-
-      if (otherParticipantData) {
-        return (
-          otherParticipantData[1].profilePicture ||
-          otherParticipantData[1].profileImageUrl
-        );
-      }
+    if (otherParticipant) {
+      const p = otherParticipant[1] as { profilePicture?: string; profileImageUrl?: string; };
+      return p.profilePicture || p.profileImageUrl || null;
     }
 
     return null;
@@ -120,26 +92,14 @@ const ConversationItem = ({
 
     // Find the sender in participants (new structure)
     const sender = Object.entries(conversation.participants || {}).find(
-      ([uid]) => uid === conversation.lastMessage.senderId
+      ([uid]) => uid === conversation.lastMessage?.senderId
     );
 
     if (sender) {
-      const firstName = sender[1].firstName || "";
-      const lastName = sender[1].lastName || "";
+      const p = sender[1] as { firstName: string; lastName: string; };
+      const firstName = p.firstName || "";
+      const lastName = p.lastName || "";
       return `${firstName} ${lastName}`.trim() || "Unknown User";
-    }
-
-    // Fallback to old structure (participantData)
-    if (conversation.participantData) {
-      const senderData = Object.entries(
-        conversation.participantData || {}
-      ).find(([uid]) => uid === conversation.lastMessage.senderId);
-
-      if (senderData) {
-        const firstName = senderData[1].firstName || "";
-        const lastName = senderData[1].lastName || "";
-        return `${firstName} ${lastName}`.trim() || "Unknown User";
-      }
     }
 
     return "Unknown User";

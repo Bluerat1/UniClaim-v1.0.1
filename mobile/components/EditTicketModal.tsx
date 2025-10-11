@@ -47,7 +47,7 @@ export default function EditTicketModal({
     post.images.map((img) => {
       if (typeof img === "string") return img;
       if (img instanceof File) return img.name; // Handle File objects
-      return img.toString(); // Fallback for other types
+      return String(img); // Fallback for other types
     })
   );
   const [newImageFiles, setNewImageFiles] = useState<string[]>([]);
@@ -89,7 +89,7 @@ export default function EditTicketModal({
       post.images.map((img) => {
         if (typeof img === "string") return img;
         if (img instanceof File) return img.name; // Handle File objects
-        return img.toString(); // Fallback for other types
+        return String(img); // Fallback for other types
       })
     );
     setNewImageFiles([]);
@@ -171,7 +171,7 @@ export default function EditTicketModal({
       post.images.map((img) => {
         if (typeof img === "string") return img;
         if (img instanceof File) return img.name; // Handle File objects
-        return img.toString(); // Fallback for other types
+        return String(img); // Fallback for other types
       })
     );
     setNewImageFiles([]);
@@ -212,8 +212,11 @@ export default function EditTicketModal({
           [
             { text: "Cancel", style: "cancel" },
             {
-              text: "Settings",
-              onPress: () => ImagePicker.openSettingsAsync(),
+              text: "OK",
+              onPress: () => {
+                // User needs to manually go to settings
+                // openSettingsAsync is not available in this version
+              },
             },
           ]
         );
