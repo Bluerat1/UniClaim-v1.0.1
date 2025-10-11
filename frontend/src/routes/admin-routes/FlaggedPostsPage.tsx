@@ -4,8 +4,8 @@ import { useToast } from "../../context/ToastContext";
 import type { Post } from "../../types/Post";
 import PageWrapper from "../../components/PageWrapper";
 import NavHeader from "../../components/NavHeadComp";
-import { IoEyeOffOutline, IoEyeOutline } from "react-icons/io5";
-import { FaRegTrashAlt } from "react-icons/fa";
+import AdminPostCard from "../../components/AdminPostCard";
+import AdminPostModal from "../../components/AdminPostModal";
 
 export default function FlaggedPostsPage() {
   const [flaggedPosts, setFlaggedPosts] = useState<Post[]>([]);
@@ -28,6 +28,10 @@ export default function FlaggedPostsPage() {
     type: "approve" | "hide" | "unhide" | "delete";
     count: number;
   } | null>(null);
+
+  // Post modal state
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [showPostModal, setShowPostModal] = useState(false);
 
   // Load flagged posts on component mount
   useEffect(() => {
@@ -132,18 +136,6 @@ export default function FlaggedPostsPage() {
   };
 
   // Bulk action handlers
-  const handleSelectPost = (postId: string) => {
-    setSelectedPosts((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(postId)) {
-        newSet.delete(postId);
-      } else {
-        newSet.add(postId);
-      }
-      return newSet;
-    });
-  };
-
   const handleSelectAll = () => {
     if (selectedPosts.size === flaggedPosts.length) {
       setSelectedPosts(new Set());
@@ -228,25 +220,6 @@ export default function FlaggedPostsPage() {
   const handleCancelBulkAction = () => {
     setShowBulkConfirmModal(false);
     setBulkAction(null);
-  };
-
-  const formatDate = (date: any) => {
-    if (!date) return "Unknown";
-
-    // Handle Firestore Timestamp objects
-    if (date && typeof date === "object" && "seconds" in date) {
-      // Convert Firestore Timestamp to JavaScript Date
-      date = new Date(date.seconds * 1000 + date.nanoseconds / 1000000);
-    }
-
-    const d = date instanceof Date ? date : new Date(date);
-
-    // Check if date is valid
-    if (isNaN(d.getTime())) {
-      return "Invalid Date";
-    }
-
-    return d.toLocaleDateString() + " " + d.toLocaleTimeString();
   };
 
   if (loading) {
@@ -389,234 +362,29 @@ export default function FlaggedPostsPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {flaggedPosts.map((post) => (
-                <div
+                <AdminPostCard
                   key={post.id}
-                  className={`bg-white border rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 ${
-                    selectedPosts.has(post.id)
-                      ? "border-brand ring-2 ring-brand/20 shadow-brand/10"
-                      : "border-gray-200"
-                  }`}
-                >
-                  {/* Card Header */}
-                  <div className="p-4 border-b border-gray-100">
-                    <div className="flex items-start justify-between mb-3">
-                      <label className="flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedPosts.has(post.id)}
-                          onChange={() => handleSelectPost(post.id)}
-                          className="w-4 h-4 text-brand border-gray-300 rounded focus:ring-brand"
-                        />
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            post.type === "lost"
-                              ? "bg-blue-100 text-blue-800"
-                              : "bg-green-100 text-green-800"
-                          }`}
-                        >
-                          {post.type === "lost" ? "Lost" : "Found"}
-                        </span>
-                        <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
-                          {post.category}
-                        </span>
-                        {post.isHidden ? (
-                          <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium flex items-center gap-1">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-3 w-3"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"
-                                clipRule="evenodd"
-                              />
-                              <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
-                            </svg>
-                            Hidden
-                          </span>
-                        ) : post.isFlagged ? (
-                          <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium flex items-center gap-1">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-3 w-3"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            Flagged
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <h3
-                      className="text-lg font-semibold text-gray-900 mb-2 overflow-hidden"
-                      style={{
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                      }}
-                    >
-                      {post.title}
-                    </h3>
-                    <p
-                      className="text-gray-600 text-sm mb-3 overflow-hidden"
-                      style={{
-                        display: "-webkit-box",
-                        WebkitLineClamp: 3,
-                        WebkitBoxOrient: "vertical",
-                      }}
-                    >
-                      {post.description}
-                    </p>
-
-                    <div className="flex items-center text-sm text-gray-500">
-                      <svg
-                        className="w-4 h-4 mr-1"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                      </svg>
-                      <span className="truncate">{post.location}</span>
-                    </div>
-                  </div>
-
-                  {/* Card Body */}
-                  <div className="p-4">
-                    {/* Flag Information */}
-                    <div className="bg-red-50 border border-red-200 rounded-sm p-3 mb-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-red-600 font-medium text-sm">
-                          🚩 Flagged Content
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-700 space-y-1">
-                        <p>
-                          <strong>Reason:</strong> {post.flagReason}
-                        </p>
-                        <p>
-                          <strong>Flagged by:</strong> {post.user?.firstName}{" "}
-                          {post.user?.lastName}
-                        </p>
-                        <p>
-                          <strong>Flagged at:</strong>{" "}
-                          {formatDate(post.flaggedAt)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Post Images */}
-                    {post.images && post.images.length > 0 && (
-                      <div className="mb-4">
-                        <h4 className="text-xs font-medium text-gray-700 mb-2">
-                          Images:
-                        </h4>
-                        <div className="flex gap-2 overflow-x-auto">
-                          {post.images.slice(0, 2).map((image, index) => (
-                            <img
-                              key={index}
-                              src={
-                                typeof image === "string"
-                                  ? image
-                                  : URL.createObjectURL(image)
-                              }
-                              alt={`Post image ${index + 1}`}
-                              className="size-30 object-cover rounded-md border border-gray-200 flex-shrink-0"
-                            />
-                          ))}
-                          {post.images.length > 2 && (
-                            <div className="w-16 h-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-xs text-gray-500 flex-shrink-0">
-                              +{post.images.length - 2}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Card Footer - Action Buttons */}
-                  <div className="p-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
-                    <div className="flex flex-col gap-2">
-                      <button
-                        onClick={() => handleActionClick("approve", post)}
-                        disabled={actionLoading === post.id}
-                        className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
-                      >
-                        {actionLoading === post.id
-                          ? "Processing..."
-                          : "✓ Approve & Unflag"}
-                      </button>
-
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() =>
-                            handleActionClick(
-                              post.isHidden ? "unhide" : "hide",
-                              post
-                            )
-                          }
-                          disabled={actionLoading === post.id}
-                          className={`flex-1 px-3 py-2 text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors ${
-                            post.isHidden
-                              ? "bg-green-600 hover:bg-green-700"
-                              : "bg-yellow-600 hover:bg-yellow-700"
-                          }`}
-                        >
-                          {actionLoading === post.id ? (
-                            "Processing..."
-                          ) : post.isHidden ? (
-                            <>
-                              <IoEyeOutline className="size-4 inline-block mr-1" />{" "}
-                              Unhide
-                            </>
-                          ) : (
-                            <>
-                              <IoEyeOffOutline className=" size-4 inline-block mr-1" />{" "}
-                              Hide
-                            </>
-                          )}
-                        </button>
-
-                        <button
-                          onClick={() => handleActionClick("delete", post)}
-                          disabled={actionLoading === post.id}
-                          className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
-                        >
-                          {actionLoading === post.id ? (
-                            "Processing..."
-                          ) : (
-                            <>
-                              <FaRegTrashAlt className="size-4 inline-block mr-1 text-white" />{" "}
-                              Delete
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                  post={post}
+                  onClick={() => {
+                    setSelectedPost(post);
+                    setShowPostModal(true);
+                  }}
+                  highlightText=""
+                  onDelete={() => handleActionClick("delete", post)}
+                  onHidePost={() => handleActionClick("hide", post)}
+                  onUnhidePost={() => handleActionClick("unhide", post)}
+                  onApprove={() => handleActionClick("approve", post)}
+                  isSelected={selectedPosts.has(post.id)}
+                  onSelectionChange={(post, selected) => {
+                    const newSet = new Set(selectedPosts);
+                    if (selected) {
+                      newSet.add(post.id);
+                    } else {
+                      newSet.delete(post.id);
+                    }
+                    setSelectedPosts(newSet);
+                  }}
+                />
               ))}
             </div>
           )}
@@ -625,7 +393,7 @@ export default function FlaggedPostsPage() {
 
       {/* Confirmation Modal */}
       {showConfirmModal && confirmAction && (
-        <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50">
+        <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-[60]">
           <div className="relative top-8 mx-auto p-3 w-11/12 md:w-3/4 lg:w-1/2 rounded-md bg-white">
             <div className="py-2 px-3">
               {/* Modal Header */}
@@ -741,7 +509,7 @@ export default function FlaggedPostsPage() {
 
       {/* Bulk Confirmation Modal */}
       {showBulkConfirmModal && bulkAction && (
-        <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50">
+        <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-[60]">
           <div className="relative top-8 mx-auto p-3 w-11/12 md:w-3/4 lg:w-1/2 rounded-md bg-white">
             <div className="py-2 px-3">
               {/* Modal Header */}
@@ -829,6 +597,37 @@ export default function FlaggedPostsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Admin Post Modal */}
+      {showPostModal && selectedPost && (
+        <AdminPostModal
+          post={selectedPost}
+          onClose={() => {
+            setShowPostModal(false);
+            setSelectedPost(null);
+          }}
+          onPostUpdate={(updatedPost) => {
+            setFlaggedPosts((prev) =>
+              prev.map((p) => (p.id === updatedPost.id ? updatedPost : p))
+            );
+          }}
+          onConfirmTurnover={(_post, status) => {
+            // Handle turnover confirmation - this would update the post status
+            showToast("success", "Turnover Confirmed", `Post turnover has been ${status === "confirmed" ? "confirmed" : "marked as not received"}`);
+            // You might want to refresh the post data or update the post status here
+          }}
+          onConfirmCampusSecurityCollection={(_post, status) => {
+            // Handle campus security collection confirmation
+            showToast("success", "Collection Confirmed", `Item has been ${status === "collected" ? "collected" : "marked as not available"}`);
+            // You might want to refresh the post data or update the post status here
+          }}
+          onApprove={() => handleActionClick("approve", selectedPost)}
+          onHide={() => handleActionClick("hide", selectedPost)}
+          onUnhide={() => handleActionClick("unhide", selectedPost)}
+          onDelete={() => handleActionClick("delete", selectedPost)}
+          showDeleteButton={true}
+        />
       )}
     </PageWrapper>
   );

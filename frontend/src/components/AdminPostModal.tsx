@@ -12,7 +12,6 @@ interface AdminPostModalProps {
   post: Post;
   onClose: () => void;
   onPostUpdate?: (updatedPost: Post) => void;
-  onPostDelete?: (postId: string) => void;
   onConfirmTurnover?: (
     post: Post,
     status: "confirmed" | "not_received"
@@ -21,10 +20,30 @@ interface AdminPostModalProps {
     post: Post,
     status: "collected" | "not_available"
   ) => void;
+  onApprove?: (post: Post) => void;
+  onHide?: (post: Post) => void;
+  onUnhide?: (post: Post) => void;
+  onDelete?: (post: Post) => void; // Uses confirmation modal system
+  showDeleteButton?: boolean; // Controls whether delete button is visible
 }
 
-function formatDateTime(datetime: string | Date) {
-  const date = typeof datetime === "string" ? new Date(datetime) : datetime;
+function formatDateTime(datetime: string | Date | { seconds: number; nanoseconds: number }) {
+  let date: Date;
+
+  if (datetime && typeof datetime === "object" && "seconds" in datetime) {
+    // Handle Firestore Timestamp objects
+    date = new Date(datetime.seconds * 1000 + datetime.nanoseconds / 1000000);
+  } else if (typeof datetime === "string") {
+    date = new Date(datetime);
+  } else {
+    date = datetime as Date;
+  }
+
+  // Check if date is valid
+  if (isNaN(date.getTime())) {
+    return "Invalid Date";
+  }
+
   return date.toLocaleString("en-PH", {
     dateStyle: "long",
     timeStyle: "short",
@@ -35,15 +54,18 @@ export default function AdminPostModal({
   post,
   onClose,
   onPostUpdate,
-  onPostDelete,
   onConfirmTurnover,
   onConfirmCampusSecurityCollection,
+  onApprove,
+  onHide,
+  onUnhide,
+  onDelete,
+  showDeleteButton = false,
 }: AdminPostModalProps) {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
@@ -110,25 +132,6 @@ export default function AdminPostModal({
     setHasUserInteracted(true);
     lastInteractionTimeRef.current = Date.now();
     setCurrentIndex((prev) => (prev + 1) % imageUrls.length);
-  };
-
-  const handleDeletePost = async () => {
-    if (!window.confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      setIsDeleting(true);
-      await postService.deletePost(post.id);
-      showToast('success', 'Post deleted', 'The post has been successfully deleted.');
-      onPostDelete?.(post.id);
-      onClose();
-    } catch (error) {
-      console.error('Error deleting post:', error);
-      showToast('error', 'Error', 'Failed to delete the post. Please try again.');
-    } finally {
-      setIsDeleting(false);
-    }
   };
 
   const handleToggleStatus = async () => {
@@ -225,6 +228,49 @@ export default function AdminPostModal({
               </>
             )}
 
+            {/* Admin Action Buttons - Top Right */}
+            <div className="flex items-center gap-2">
+              {showDeleteButton && onDelete && (
+                <button
+                  onClick={() => onDelete(post)}
+                  className="px-2 py-1 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition"
+                  title="Delete Post"
+                >
+                  Delete
+                </button>
+              )}
+
+              {post.isFlagged && onApprove && (
+                <button
+                  onClick={() => onApprove(post)}
+                  className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1"
+                  title="Approve Post"
+                >
+                  ✓
+                </button>
+              )}
+
+              {post.isFlagged && !post.isHidden && onHide && (
+                <button
+                  onClick={() => onHide(post)}
+                  className="px-3 py-1 text-sm bg-yellow-600 text-white rounded hover:bg-yellow-700 flex items-center gap-1"
+                  title="Hide Post"
+                >
+                  👁️
+                </button>
+              )}
+
+              {post.isFlagged && post.isHidden && onUnhide && (
+                <button
+                  onClick={() => onUnhide(post)}
+                  className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1"
+                  title="Unhide Post"
+                >
+                  👁️
+                </button>
+              )}
+            </div>
+
             <button
               onClick={onClose}
               className="p-1 hover:bg-gray-100 rounded-full"
@@ -248,7 +294,7 @@ export default function AdminPostModal({
                 post.status === 'resolved'
                   ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
                   : 'bg-green-100 text-green-800 hover:bg-green-200'
-              }`}
+              } hidden`}
             >
               {isUpdatingStatus ? (
                 <span className="animate-spin">⟳</span>
@@ -260,16 +306,9 @@ export default function AdminPostModal({
             </button>
           )}
 
-          <button
-            onClick={handleDeletePost}
-            disabled={isDeleting}
-            className="px-3 py-1 text-sm bg-red-100 text-red-800 rounded hover:bg-red-200 flex items-center gap-1 hidden"
-          >
-            {isDeleting ? 'Deleting...' : 'Delete Post'}
-          </button>
-
+          {/* Hidden flagged indicator */}
           {post.isFlagged && (
-            <span className="px-3 py-1 text-sm bg-red-100 text-red-800 rounded flex items-center gap-1">
+            <span className="px-3 py-1 text-sm bg-red-100 text-red-800 rounded flex items-center gap-1 hidden">
               ⚠️ Flagged
             </span>
           )}

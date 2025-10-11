@@ -1,4 +1,4 @@
-import { useEffect, useMemo, memo } from "react";
+import { useEffect, useMemo, memo, useState } from "react";
 import type { Post } from "@/types/Post";
 import ProfilePicture from "./ProfilePicture";
 
@@ -23,10 +23,13 @@ interface AdminPostCardProps {
   onUnhidePost?: (post: Post) => void;
   onRestore?: (post: Post) => void;
   onPermanentDelete?: (post: Post) => void;
+  onApprove?: (post: Post) => void; // Added for flagged posts approve action
   hideDeleteButton?: boolean;
   isDeleting?: boolean;
   showUnclaimedMessage?: boolean;
   showCampusSecurityButtons?: boolean;
+  isSelected?: boolean; // Added for selection styling
+  onSelectionChange?: (post: Post, selected: boolean) => void; // Added for selection functionality
 }
 
 import { formatDateTime } from "@/utils/dateUtils";
@@ -71,13 +74,17 @@ function AdminPostCard({
   onUnhidePost,
   onRestore,
   onPermanentDelete,
+  onApprove, // Added for flagged posts approve action
   hideDeleteButton = false,
   isDeleting = false,
   onConfirmTurnover,
   onConfirmCampusSecurityCollection,
   showUnclaimedMessage = true,
   showCampusSecurityButtons = false,
+  isSelected = false, // Added for selection styling
+  onSelectionChange, // Added for selection functionality
 }: AdminPostCardProps) {
+  const [isTurnoverMinimized, setIsTurnoverMinimized] = useState(true);
   const previewUrl = useMemo(() => {
     if (post.images && post.images.length > 0) {
       const firstImage = post.images[0];
@@ -120,9 +127,28 @@ function AdminPostCard({
   return (
     <div
       className={`bg-white rounded shadow/2 cursor-pointer overflow-hidden hover:shadow-md/5 transition relative ${
-        post.isFlagged ? "ring-2 ring-red-500 border-red-500" : ""
+        isSelected
+          ? "border-brand ring-2 ring-brand/20 shadow-brand/10"
+          : post.isFlagged
+          ? "ring-2 ring-red-500 border-red-500"
+          : ""
       }`}
     >
+      {/* Selection Checkbox - Top Left */}
+      {onSelectionChange && (
+        <div className="absolute top-2 left-2 z-10">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={(e) => {
+              e.stopPropagation();
+              onSelectionChange(post, e.target.checked);
+            }}
+            className="w-6 h-6 text-brand border-gray-300 rounded focus:ring-brand"
+          />
+        </div>
+      )}
+
       {previewUrl ? (
         <img
           src={previewUrl}
@@ -199,6 +225,20 @@ function AdminPostCard({
                 title="Edit Post - Modify title, description, or images"
               >
                 Edit
+              </button>
+            )}
+
+            {/* Approve button - for flagged posts */}
+            {onApprove && post.isFlagged && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onApprove(post);
+                }}
+                className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
+                title="Approve Post - Remove flag and make visible"
+              >
+                Approve
               </button>
             )}
 
@@ -329,85 +369,105 @@ function AdminPostCard({
 
         {/* Turnover Information for Admin */}
         {post.turnoverDetails && (
-          <div className="bg-blue-50 p-2 rounded mb-3 border border-blue-200">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-blue-600 text-sm">🔄</span>
-              <h4 className="text-xs font-semibold text-blue-800">
-                Turnover Details
-              </h4>
-            </div>
-            <div className="text-xs text-blue-700 space-y-1">
+          <div
+            className="bg-blue-50 p-2 rounded mb-3 border border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsTurnoverMinimized(!isTurnoverMinimized);
+            }}
+            title={isTurnoverMinimized ? "Click to expand turnover details" : "Click to minimize turnover details"}
+          >
+            <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <span className="font-medium">Original Finder:</span>
-                <ProfilePicture
-                  src={post.turnoverDetails.originalFinder.profilePicture}
-                  alt={`${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`}
-                  size="xs"
-                  className="border-blue-300"
-                />
-                <span>
-                  {post.turnoverDetails.originalFinder.firstName}{" "}
-                  {post.turnoverDetails.originalFinder.lastName}
-                </span>
+                <span className="text-blue-600 text-sm">🔄</span>
+                <h4 className="text-xs font-semibold text-blue-800">
+                  Turnover Details
+                </h4>
               </div>
-              <p>
-                <span className="font-medium">Student ID:</span>{" "}
-                {post.turnoverDetails.originalFinder.studentId || "N/A"}
-              </p>
-              <p>
-                <span className="font-medium">Email:</span>{" "}
-                {post.turnoverDetails.originalFinder.email}
-              </p>
-              <p>
-                <span className="font-medium">Contact:</span>{" "}
-                {post.turnoverDetails.originalFinder.contactNum || "N/A"}
-              </p>
-              <p>
-                <span className="font-medium">Turned over to:</span>{" "}
-                {post.turnoverDetails.turnoverAction === "turnover to OSA"
-                  ? "OSA"
-                  : "Campus Security"}
-              </p>
-              <p>
-                <span className="font-medium">Status:</span>{" "}
-                <span
-                  className={`px-2 py-1 rounded text-xs font-medium ${
-                    post.turnoverDetails.turnoverStatus === "declared"
-                      ? "bg-yellow-100 text-yellow-800"
-                      : post.turnoverDetails.turnoverStatus === "confirmed"
-                      ? "bg-green-100 text-green-800"
-                      : post.turnoverDetails.turnoverStatus === "transferred"
-                      ? "bg-blue-100 text-blue-800"
-                      : "bg-red-100 text-red-800"
-                  }`}
-                >
-                  {post.turnoverDetails.turnoverStatus === "declared"
-                    ? "Awaiting Confirmation"
-                    : post.turnoverDetails.turnoverStatus === "confirmed"
-                    ? "Confirmed Received"
-                    : post.turnoverDetails.turnoverStatus === "transferred"
-                    ? "Transferred"
-                    : "Not Received"}
-                </span>
-              </p>
-              {post.turnoverDetails.confirmedAt && (
-                <p>
-                  <span className="font-medium">Confirmed:</span>{" "}
-                  {new Date(
-                    post.turnoverDetails.confirmedAt.seconds * 1000
-                  ).toLocaleDateString()}
-                </p>
-              )}
-              {post.turnoverDetails.confirmationNotes && (
-                <p>
-                  <span className="font-medium">Notes:</span>{" "}
-                  {post.turnoverDetails.confirmationNotes}
-                </p>
-              )}
+              <span className="text-blue-600 text-xs">
+                {isTurnoverMinimized ? "▼" : "▲"}
+              </span>
             </div>
+            {!isTurnoverMinimized && (
+              <div className="text-xs text-blue-700 space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Original Finder:</span>
+                  <ProfilePicture
+                    src={post.turnoverDetails.originalFinder.profilePicture}
+                    alt={`${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`}
+                    size="xs"
+                    className="border-blue-300"
+                  />
+                  <span>
+                    {post.turnoverDetails.originalFinder.firstName}{" "}
+                    {post.turnoverDetails.originalFinder.lastName}
+                  </span>
+                </div>
+                <p>
+                  <span className="font-medium">Student ID:</span>{" "}
+                  {post.turnoverDetails.originalFinder.studentId || "N/A"}
+                </p>
+                <p>
+                  <span className="font-medium">Email:</span>{" "}
+                  {post.turnoverDetails.originalFinder.email}
+                </p>
+                <p>
+                  <span className="font-medium">Contact:</span>{" "}
+                  {post.turnoverDetails.originalFinder.contactNum || "N/A"}
+                </p>
+                <p>
+                  <span className="font-medium">Turned over to:</span>{" "}
+                  {post.turnoverDetails.turnoverAction === "turnover to OSA"
+                    ? "OSA"
+                    : "Campus Security"}
+                </p>
+                <p>
+                  <span className="font-medium">Status:</span>{" "}
+                  <span
+                    className={`px-2 py-1 rounded text-xs font-medium ${
+                      post.turnoverDetails.turnoverStatus === "declared"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : post.turnoverDetails.turnoverStatus === "confirmed"
+                        ? "bg-green-100 text-green-800"
+                        : post.turnoverDetails.turnoverStatus === "transferred"
+                        ? "bg-blue-100 text-blue-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {post.turnoverDetails.turnoverStatus === "declared"
+                      ? "Awaiting Confirmation"
+                      : post.turnoverDetails.turnoverStatus === "confirmed"
+                      ? "Confirmed Received"
+                      : post.turnoverDetails.turnoverStatus === "transferred"
+                      ? "Transferred"
+                      : "Not Received"}
+                  </span>
+                </p>
+                {post.turnoverDetails.confirmedAt && (
+                  <p>
+                    <span className="font-medium">Confirmed:</span>{" "}
+                    {new Date(
+                      post.turnoverDetails.confirmedAt.seconds * 1000
+                    ).toLocaleDateString()}
+                  </p>
+                )}
+                {post.turnoverDetails.confirmationNotes && (
+                  <p>
+                    <span className="font-medium">Notes:</span>{" "}
+                    {post.turnoverDetails.confirmationNotes}
+                  </p>
+                )}
+              </div>
+            )}
+            {isTurnoverMinimized && (
+              <div className="text-xs text-blue-600 italic">
+                Click to view turnover details
+              </div>
+            )}
 
             {/* Turnover Confirmation Buttons - Only for OSA items awaiting confirmation */}
-            {post.turnoverDetails.turnoverStatus === "declared" &&
+            {!isTurnoverMinimized &&
+              post.turnoverDetails.turnoverStatus === "declared" &&
               post.turnoverDetails.turnoverAction === "turnover to OSA" && (
                 <div className="mt-3 flex gap-2">
                   <button
@@ -432,28 +492,30 @@ function AdminPostCard({
               )}
 
               {/* Campus Security Collection Buttons - Show only when explicitly enabled */}
-              {showCampusSecurityButtons && post.turnoverDetails.turnoverAction === "turnover to Campus Security" && (
-                <div className="mt-3 flex gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onConfirmCampusSecurityCollection?.(post, "collected");
-                    }}
-                    className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
-                  >
-                    ✓ Item Collected
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onConfirmCampusSecurityCollection?.(post, "not_available");
-                    }}
-                    className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
-                  >
-                    ✗ Not Available
-                  </button>
-                </div>
-              )}
+              {!isTurnoverMinimized &&
+                showCampusSecurityButtons &&
+                post.turnoverDetails.turnoverAction === "turnover to Campus Security" && (
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onConfirmCampusSecurityCollection?.(post, "collected");
+                      }}
+                      className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
+                    >
+                      ✓ Item Collected
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onConfirmCampusSecurityCollection?.(post, "not_available");
+                      }}
+                      className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+                    >
+                      ✗ Not Available
+                    </button>
+                  </div>
+                )}
           </div>
         )}
         {post.status === "pending" &&

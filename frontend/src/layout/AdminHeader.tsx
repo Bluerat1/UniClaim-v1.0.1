@@ -387,12 +387,7 @@ export default function AdminHeader({
               // Update the post in the notifications if needed
               setSelectedPost(updatedPost);
             }}
-            onPostDelete={(deletedPostId) => {
-              // Close the modal if the post was deleted
-              if (selectedPost?.id === deletedPostId) {
-                setSelectedPost(null);
-              }
-            }}
+            showDeleteButton={false}
           />
         )}
       </div>
