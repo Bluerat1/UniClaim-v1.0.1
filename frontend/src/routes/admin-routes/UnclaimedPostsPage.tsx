@@ -6,6 +6,7 @@ import type { Post } from "../../types/Post";
 import PageWrapper from "../../components/PageWrapper";
 import NavHeader from "../../components/NavHeadComp";
 import AdminPostCard from "../../components/AdminPostCard";
+import AdminUnclaimedPostModal from "../../components/AdminUnclaimedPostModal";
 import SearchBar from "../../components/SearchBar";
 import { useAuth } from "../../context/AuthContext";
 
@@ -30,6 +31,10 @@ export default function UnclaimedPostsPage() {
 
   // State for activation
   const [activatingPostId, setActivatingPostId] = useState<string | null>(null);
+
+  // State for modal
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Filter posts to show only unclaimed ones
   const unclaimedPosts = useMemo(() => {
@@ -124,17 +129,44 @@ export default function UnclaimedPostsPage() {
     }
   };
 
-  // Handle post deletion
-  const handleDeletePost = async (post: Post) => {
-    if (confirm(`Are you sure you want to delete "${post.title}"?`)) {
-      try {
-        await postService.deletePost(post.id, false, userData?.email || 'admin');
-        showToast("success", "Post Deleted", "Post has been moved to Recently Deleted");
-        window.location.reload();
-      } catch (error: any) {
-        console.error('Failed to delete post:', error);
-        showToast("error", "Delete Failed", error.message || 'Failed to delete post');
-      }
+  // Handle modal open
+  const handleOpenModal = (post: Post) => {
+    setSelectedPost(post);
+    setIsModalOpen(true);
+  };
+
+  // Handle modal close
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedPost(null);
+  };
+
+  // Handle post activation from modal
+  const handleModalActivatePost = async (postId: string) => {
+    try {
+      setActivatingPostId(postId);
+      await postService.activateTicket(postId);
+      showToast("success", "Post Activated", "Post has been activated and moved back to active status.");
+      handleCloseModal();
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Failed to activate post from modal:', error);
+      showToast("error", "Activation Failed", error.message || 'Failed to activate post');
+    } finally {
+      setActivatingPostId(null);
+    }
+  };
+
+  // Handle post deletion from modal
+  const handleModalDeletePost = async (postId: string) => {
+    try {
+      await postService.deletePost(postId, false, userData?.email || 'admin');
+      showToast("success", "Post Deleted", "Post has been moved to Recently Deleted");
+      handleCloseModal();
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Failed to delete post from modal:', error);
+      showToast("error", "Delete Failed", error.message || 'Failed to delete post');
     }
   };
 
@@ -227,10 +259,10 @@ export default function UnclaimedPostsPage() {
                 <AdminPostCard
                   key={post.id}
                   post={post}
-                  onClick={() => {}} // No modal for now, can be added later
+                  onClick={() => handleOpenModal(post)}
                   highlightText={lastDescriptionKeyword}
                   onActivateTicket={handleActivatePost}
-                  onDelete={handleDeletePost}
+                  onDelete={(post) => handleModalDeletePost(post.id)}
                   isDeleting={activatingPostId === post.id}
                 />
               ))}
@@ -238,6 +270,16 @@ export default function UnclaimedPostsPage() {
           )}
         </div>
       </div>
+
+      {/* Unclaimed Post Modal */}
+      {isModalOpen && selectedPost && (
+        <AdminUnclaimedPostModal
+          post={selectedPost}
+          onClose={handleCloseModal}
+          onPostActivate={handleModalActivatePost}
+          onPostDelete={handleModalDeletePost}
+        />
+      )}
     </PageWrapper>
   );
 }
