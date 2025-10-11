@@ -453,6 +453,19 @@ const TicketCard = ({
     }
   };
 
+  const getCategoryBadgeStyle = (category: string) => {
+    switch (category.toLowerCase()) {
+      case "student essentials":
+        return "bg-yellow-100 text-yellow-700";
+      case "gadgets":
+        return "bg-blue-100 text-blue-700";
+      case "personal belongings":
+        return "bg-purple-100 text-purple-700";
+      default:
+        return "bg-blue-100 text-blue-700";
+    }
+  };
+
   const formatDate = (date: any) => {
     if (!date) return "Unknown date";
     try {
@@ -523,19 +536,37 @@ const TicketCard = ({
 
       {/* Content Section */}
       <View className="p-4">
-        {/* Title and Status */}
+        {/* Title, Status and Category */}
         <View className="flex-row items-start justify-between gap-3 mb-3">
           <Text className="flex-1 font-manrope-semibold text-lg text-gray-800 leading-tight">
             {post.title}
           </Text>
-          <View
-            className={`px-2 py-1 rounded ${getStatusColor(post.status || "pending")}`}
-          >
+          <View className="flex-row items-center gap-2">
             <Text
-              className={`text-xs font-manrope-semibold capitalize ${getStatusTextColor(post.status || "pending")}`}
+              className={`px-3 py-1 rounded-sm text-xs font-manrope-medium ${
+                post.type === "found"
+                  ? "bg-green-100 text-green-700"
+                  : "bg-red-100 text-red-700"
+              }`}
             >
-              {post.status || "pending"}
+              {post.type === "lost" ? "Lost" : "Keep"}
             </Text>
+            <Text
+              className={`px-3 py-1 rounded-sm text-xs font-manrope-medium ${
+                getCategoryBadgeStyle(post.category)
+              }`}
+            >
+              {post.category}
+            </Text>
+            <View
+              className={`px-2 py-1 rounded ${getStatusColor(post.status || "pending")}`}
+            >
+              <Text
+                className={`text-xs font-manrope-semibold capitalize ${getStatusTextColor(post.status || "pending")}`}
+              >
+                {post.status || "pending"}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -546,17 +577,10 @@ const TicketCard = ({
             : post.description}
         </Text>
 
-        {/* Date and Type */}
-        <View className="flex-row justify-between items-center mb-3">
+        {/* Date */}
+        <View className="mb-3">
           <Text className="text-xs text-gray-500 font-manrope">
             {formatDate(post.createdAt)}
-          </Text>
-          <Text
-            className={`text-xs font-manrope-medium capitalize ${
-              post.type === "found" ? "text-blue-700" : "text-orange-700"
-            }`}
-          >
-            {post.type}
           </Text>
         </View>
 

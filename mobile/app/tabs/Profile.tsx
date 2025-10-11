@@ -724,18 +724,18 @@ export default function Profile() {
           {/* profile-details-info */}
           <View className="flex-col gap-4 mt-1">
             {renderField(
-              "user",
+              "person-outline",
               "First Name",
               profile.firstName,
               "firstName",
-              AntDesign
+              Ionicons
             )}
             {renderField(
-              "user",
+              "person-outline",
               "Last Name",
               profile.lastName,
               "lastName",
-              AntDesign
+              Ionicons
             )}
             {renderField(
               "mail-outline",
@@ -746,11 +746,11 @@ export default function Profile() {
               true // Email is read-only
             )}
             {renderField(
-              "contacts",
+              "call-outline",
               "Contact Number",
               profile.contactNumber,
               "contactNumber",
-              AntDesign
+              Ionicons
             )}
             {renderField(
               "idcard",
