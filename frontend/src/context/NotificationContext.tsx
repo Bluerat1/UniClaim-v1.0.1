@@ -49,13 +49,78 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!isAuthenticated || !userData?.uid || !userData?.emailVerified) return;
 
-    // Set up periodic refresh every 30 seconds
-    const interval = setInterval(() => {
-      loadNotifications();
-    }, 30000);
+    console.log('🔄 Setting up real-time notification listener for user:', userData.uid);
 
-    return () => clearInterval(interval);
+    const unsubscribe = notificationService.setupRealtimeListener(
+      userData.uid,
+      (newNotifications) => {
+        console.log('📬 Real-time notification update:', newNotifications.length, 'notifications');
+
+        // Update notifications state
+        setNotifications(newNotifications);
+
+        // Calculate unread count
+        const unread = newNotifications.filter(n => !n.read).length;
+        setUnreadCount(unread);
+
+        // Show browser notifications for new notifications (if permission granted)
+        const previousCount = notifications.length;
+        const newCount = newNotifications.length;
+
+        if (newCount > previousCount) {
+          const newNotifs = newNotifications.slice(0, newCount - previousCount);
+          console.log('🔔 New notifications detected:', newNotifs.length);
+
+          newNotifs.forEach(async (notification) => {
+            try {
+              // Check if user has notifications enabled for this type
+              const preferences = await notificationService.getNotificationPreferences(userData.uid);
+              if (shouldShowBrowserNotification(notification.type, preferences)) {
+                await notificationService.showNotification(
+                  notification.title,
+                  notification.body,
+                  {
+                    ...notification.data,
+                    userId: userData.uid,
+                    type: notification.type
+                  }
+                );
+                console.log('✅ Browser notification shown for:', notification.title);
+              }
+            } catch (error) {
+              console.error('❌ Error showing browser notification:', error);
+            }
+          });
+        }
+      },
+      (error) => {
+        console.error('❌ Real-time notification listener error:', error);
+      }
+    );
+
+    return unsubscribe;
   }, [isAuthenticated, userData?.uid, userData?.emailVerified]);
+
+  // Helper function to check if browser notification should be shown for notification type
+  const shouldShowBrowserNotification = (notificationType: string, preferences: any): boolean => {
+    switch (notificationType) {
+      case 'status_change':
+        return preferences.claimUpdates || preferences.adminAlerts;
+      case 'new_post':
+        return preferences.newPosts;
+      case 'message':
+        return preferences.messages;
+      case 'claim_request':
+      case 'claim_response':
+        return preferences.claimResponses || preferences.claimUpdates;
+      case 'handover_response':
+        return preferences.handoverResponses || preferences.claimUpdates;
+      case 'admin_alert':
+        return preferences.adminAlerts;
+      default:
+        return true; // Show by default for unknown types
+    }
+  };
 
   const loadNotifications = async () => {
     if (!userData?.uid) return;

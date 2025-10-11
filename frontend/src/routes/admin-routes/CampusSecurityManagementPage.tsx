@@ -21,6 +21,7 @@ export default function CampusSecurityManagementPage() {
   // State for campus security collection confirmation modal
   const [showCollectionModal, setShowCollectionModal] = useState(false);
   const [postToConfirm, setPostToConfirm] = useState<Post | null>(null);
+  const [allowedActions, setAllowedActions] = useState<("collected" | "not_available")[]>(["collected", "not_available"]);
 
   // Handle opening AdminPostModal
   const handlePostClick = (post: Post) => {
@@ -35,7 +36,7 @@ export default function CampusSecurityManagementPage() {
   // Handle campus security collection confirmation
   const handleConfirmCollection = (
     post: Post,
-    _status: "collected" | "not_available"
+    status: "collected" | "not_available"
   ) => {
     // Simply proceed with the collection process - no validation checks
     console.log(`🔄 Processing collection for post ${post.id}:`, {
@@ -45,6 +46,7 @@ export default function CampusSecurityManagementPage() {
     });
 
     setPostToConfirm(post);
+    setAllowedActions([status]); // Only allow the selected action
     setShowCollectionModal(true);
   };
 
@@ -214,9 +216,11 @@ export default function CampusSecurityManagementPage() {
         onClose={() => {
           setShowCollectionModal(false);
           setPostToConfirm(null);
+          setAllowedActions(["collected", "not_available"]); // Reset to default
         }}
         onConfirm={handleCollectionConfirmation}
         post={postToConfirm}
+        allowedActions={allowedActions}
       />
     </div>
   );

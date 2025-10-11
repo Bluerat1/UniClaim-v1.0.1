@@ -15,15 +15,17 @@ import { useToast } from "@/context/ToastContext";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useAuth } from "@/context/AuthContext";
 
-function fuzzyMatch(text: string, query: string): boolean {
-  const cleanedText = text.toLowerCase();
-  const queryWords = query.toLowerCase().split(/\W+/).filter(Boolean);
-
-  // Make sure every keyword appears in the text
-  return queryWords.every((word) => cleanedText.includes(word));
-}
+import { notificationSender } from '../../services/firebase/notificationSender';
 
 export default function AdminHomePage() {
+  function fuzzyMatch(text: string, query: string): boolean {
+    const cleanedText = text.toLowerCase();
+    const queryWords = query.toLowerCase().split(/\W+/).filter(Boolean);
+
+    // Make sure every keyword appears in the text
+    return queryWords.every((word) => cleanedText.includes(word));
+  }
+
   // ✅ Use the custom hooks for real-time posts (admin version includes turnover items)
   const { posts = [], loading, error } = useAdminPosts();
   const { posts: resolvedPosts = [], loading: resolvedLoading, error: resolvedError } = useResolvedPosts();
@@ -271,10 +273,37 @@ export default function AdminHomePage() {
 
   const handleStatusChange = async (post: Post, status: string) => {
     try {
+      // Store the old status before updating
+      const oldStatus = post.status;
+
       // Import and use the postService to update the status
       const { postService } = await import('../../utils/firebase');
       await postService.updatePostStatus(post.id, status as 'pending' | 'resolved' | 'unclaimed');
-      
+
+      // Send notification to the post creator if status changed and we have creator info
+      if (oldStatus !== status && post.creatorId) {
+        try {
+          await notificationSender.sendStatusChangeNotification({
+            postId: post.id,
+            postTitle: post.title,
+            postType: post.type as 'lost' | 'found',
+            creatorId: post.creatorId,
+            creatorName: post.user.firstName && post.user.lastName
+              ? `${post.user.firstName} ${post.user.lastName}`
+              : post.user.email?.split('@')[0] || 'User',
+            oldStatus: oldStatus || 'unknown',
+            newStatus: status,
+            adminName: userData?.firstName && userData?.lastName
+              ? `${userData.firstName} ${userData.lastName}`
+              : userData?.email?.split('@')[0] || 'Admin'
+          });
+          console.log('✅ Status change notification sent to user');
+        } catch (notificationError) {
+          console.warn('⚠️ Failed to send status change notification:', notificationError);
+          // Don't throw - notification failures shouldn't break main functionality
+        }
+      }
+
       showToast("success", "Status Updated", `Post status changed to ${status}`);
     } catch (error: any) {
       console.error('Failed to change post status:', error);

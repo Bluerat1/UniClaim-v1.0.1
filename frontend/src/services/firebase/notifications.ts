@@ -23,7 +23,7 @@ import { notificationSubscriptionService } from './notificationSubscriptions';
 export interface NotificationData {
   id: string;
   userId: string;
-  type: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted' | 'claim_response' | 'handover_response';
+  type: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted' | 'claim_response' | 'handover_response' | 'status_change';
   title: string;
   body: string;
   data?: any;
@@ -397,7 +397,7 @@ export class NotificationService {
   // Create a new notification
   async createNotification(notificationData: {
     userId: string;
-    type: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted' | 'claim_response' | 'handover_response';
+    type: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted' | 'claim_response' | 'handover_response' | 'status_change';
     title: string;
     body: string;
     data?: any;

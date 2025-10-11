@@ -248,9 +248,6 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
           <h2 className="text-lg font-medium">
             Regular Users ({users.length})
           </h2>
-          <p className="text-sm text-zinc-500 mt-1">
-            Admin users are excluded from this view
-          </p>
         </div>
 
         <div className="overflow-x-auto">

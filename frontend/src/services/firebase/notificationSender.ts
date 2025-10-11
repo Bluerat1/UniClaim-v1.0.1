@@ -1,12 +1,13 @@
 // Service for sending notifications to users when posts are created
 import { db } from './config';
-import { collection, serverTimestamp, doc, writeBatch, getDoc, addDoc } from 'firebase/firestore';
+import { collection, serverTimestamp, doc, writeBatch, getDoc } from 'firebase/firestore';
 import { notificationSubscriptionService } from './notificationSubscriptions';
 import { authService } from './auth';
+import { notificationService } from './notifications';
 import { adminNotificationService } from './adminNotifications';
 import { userService } from './users';
 export interface PostNotificationData {
-    type: 'new_post' | 'claim_request' | 'claim_response' | 'handover_response';
+    type: 'new_post' | 'claim_request' | 'claim_response' | 'handover_response' | 'status_change';
     title: string;
     body: string;
     postId?: string;
@@ -27,6 +28,45 @@ export class NotificationSender {
             NotificationSender.instance = new NotificationSender();
         }
         return NotificationSender.instance;
+    }
+
+    // Send notification for status changes
+    async sendStatusChangeNotification(postData: {
+        postId: string;
+        postTitle: string;
+        postType: 'lost' | 'found';
+        creatorId: string;
+        creatorName: string;
+        oldStatus: string;
+        newStatus: string;
+        adminName?: string;
+    }): Promise<void> {
+        try {
+            console.log('🚀 Sending status change notification for post:', postData.postTitle);
+
+            // Send notification to the post creator
+            await this.sendNotificationToUser(postData.creatorId, {
+                type: 'status_change',
+                title: `Post Status Updated`,
+                body: `Your ${postData.postType} post "${postData.postTitle}" status changed from ${postData.oldStatus} to ${postData.newStatus}${postData.adminName ? ` by ${postData.adminName}` : ''}`,
+                postId: postData.postId,
+                postTitle: postData.postTitle,
+                postType: postData.postType,
+                creatorId: postData.creatorId,
+                creatorName: postData.creatorName,
+                data: {
+                    oldStatus: postData.oldStatus,
+                    newStatus: postData.newStatus,
+                    adminName: postData.adminName,
+                    timestamp: new Date().toISOString()
+                }
+            });
+
+            console.log('✅ Status change notification sent successfully');
+        } catch (error) {
+            console.error('❌ Failed to send status change notification:', error);
+            throw error;
+        }
     }
 
     // Send notification for claim requests
@@ -92,17 +132,20 @@ export class NotificationSender {
             // Note: This requires proper Firestore security rules to allow cross-user writes
             // For now, we'll make this non-blocking to avoid breaking the main flow
             try {
-                const notificationRef = collection(db, 'users', userId, 'notifications');
-                await addDoc(notificationRef, {
-                    ...notificationData,
-                    read: false,
-                    createdAt: serverTimestamp()
+                await notificationService.createNotification({
+                    userId: userId,
+                    type: notificationData.type as any,
+                    title: notificationData.title,
+                    body: notificationData.body,
+                    data: notificationData.data,
+                    postId: notificationData.postId,
+                    conversationId: notificationData.conversationId
                 });
 
-                console.log(`✅ Notification saved for user ${userId}`);
+                console.log(`✅ Notification created for user ${userId}`);
             } catch (notificationError) {
                 // Make notification saving non-blocking - don't throw error
-                console.warn(`⚠️ Failed to save notification for user ${userId}:`, notificationError);
+                console.warn(`⚠️ Failed to create notification for user ${userId}:`, notificationError);
                 // Don't throw - this shouldn't break the main claim acceptance flow
             }
         } catch (error) {
@@ -505,7 +548,6 @@ export class NotificationSender {
 
             // Use Firestore batch for better performance
             const batch = writeBatch(db);
-            const notificationsRef = collection(db, 'notifications');
 
             notifications.forEach((notification, index) => {
                 try {
@@ -515,32 +557,19 @@ export class NotificationSender {
                         return;
                     }
 
-                    // Sanitize notification data for Firestore
-                    const sanitizedNotification = {
-                        userId: String(notification.userId), // Ensure string type
-                        type: String(notification.type), // Ensure string type
-                        title: String(notification.title), // Ensure string type
-                        body: String(notification.body || ''), // Ensure string type with fallback
-                        data: notification.data || {},
-                        read: Boolean(false), // Ensure boolean type
-                        createdAt: serverTimestamp(),
-                        ...(notificationData.data?.postId && { postId: String(notificationData.data.postId) }),
-                        ...(notificationData.data?.conversationId && { conversationId: String(notificationData.data.conversationId) })
-                    };
-
-                    // Additional validation for Firestore field name requirements
-                    const invalidFields = Object.keys(sanitizedNotification).filter(key => {
-                        // Firestore doesn't allow field names starting with numbers or containing special chars except underscore
-                        return /^\d/.test(key) || /[^a-zA-Z0-9_]/.test(key);
+                    // Use the notification service to create notifications (this will trigger real-time listeners)
+                    notificationService.createNotification({
+                        userId: notification.userId,
+                        type: notification.type as any,
+                        title: notification.title,
+                        body: notification.body || '',
+                        data: notification.data,
+                        postId: notificationData.data?.postId,
+                        conversationId: notificationData.data?.conversationId
+                    }).catch(error => {
+                        console.error(`❌ Failed to create notification ${index + 1}:`, error);
                     });
 
-                    if (invalidFields.length > 0) {
-                        console.error(`❌ Invalid field names detected: ${invalidFields.join(', ')}`);
-                        return;
-                    }
-
-                    const docRef = doc(notificationsRef);
-                    batch.set(docRef, sanitizedNotification);
                     console.log(`📨 Added notification ${index + 1} to batch for user ${notification.userId}`);
                 } catch (error) {
                     console.error(`❌ Failed to add notification ${index + 1} to batch:`, error, notification);

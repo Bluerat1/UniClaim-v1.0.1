@@ -5,6 +5,7 @@ interface AdminCampusSecurityTurnoverModalProps {
   onClose: () => void;
   onConfirm: (status: "collected" | "not_available", notes?: string) => void;
   post?: any;
+  allowedActions?: ("collected" | "not_available")[];
 }
 
 export default function AdminCampusSecurityTurnoverModal({
@@ -12,6 +13,7 @@ export default function AdminCampusSecurityTurnoverModal({
   onClose,
   onConfirm,
   post,
+  allowedActions = ["collected", "not_available"],
 }: AdminCampusSecurityTurnoverModalProps) {
   if (!isOpen) return null;
 
@@ -68,20 +70,24 @@ export default function AdminCampusSecurityTurnoverModal({
 
         {/* Action Buttons */}
         <div className="flex gap-3 mb-4">
-          <button
-            onClick={() => handleConfirm("not_available")}
-            className="flex-1 px-4 py-3 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2"
-          >
-            <FiXCircle className="text-lg" />
-            Item Not Available
-          </button>
-          <button
-            onClick={() => handleConfirm("collected")}
-            className="flex-1 px-4 py-3 text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2"
-          >
-            <FiCheckCircle className="text-lg" />
-            Item Collected
-          </button>
+          {allowedActions.includes("not_available") && (
+            <button
+              onClick={() => handleConfirm("not_available")}
+              className="flex-1 px-4 py-3 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2"
+            >
+              <FiXCircle className="text-lg" />
+              Item Not Available
+            </button>
+          )}
+          {allowedActions.includes("collected") && (
+            <button
+              onClick={() => handleConfirm("collected")}
+              className="flex-1 px-4 py-3 text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2"
+            >
+              <FiCheckCircle className="text-lg" />
+              Item Collected
+            </button>
+          )}
         </div>
 
         {/* Additional Info */}
