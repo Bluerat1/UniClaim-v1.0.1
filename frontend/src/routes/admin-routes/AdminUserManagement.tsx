@@ -654,19 +654,13 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
         {/* User Detail Modal */}
         {showUserModal && selectedUser && (
           <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div className="relative top-30 mx-auto p-5 w-11/12 md:w-3/4 lg:w-1/2 rounded-md bg-white">
               <div className="mt-3">
                 {/* Modal Header */}
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-2xl font-bold text-gray-900">
+                  <h3 className="text-xl font-manrope font-semibold text-gray-900">
                     User Details
                   </h3>
-                  <button
-                    onClick={handleCloseUserModal}
-                    className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
-                  >
-                    ×
-                  </button>
                 </div>
 
                 {/* User Information */}
@@ -674,7 +668,10 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                   {/* Profile Section */}
                   <div className="flex items-center space-x-4">
                     <ProfilePicture
-                      src={selectedUser.profilePicture || selectedUser.profileImageUrl}
+                      src={
+                        selectedUser.profilePicture ||
+                        selectedUser.profileImageUrl
+                      }
                       alt={`${selectedUser.firstName} ${selectedUser.lastName}`}
                       size="3xl"
                     />
@@ -768,10 +765,10 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex justify-end space-x-3 pt-4 border-t">
+                  <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
                     <button
                       onClick={handleCloseUserModal}
-                      className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
+                      className="px-4 py-2 text-gray-700 bg-gray-200 rounded-sm hover:bg-gray-300 transition-colors"
                     >
                       Close
                     </button>
@@ -791,7 +788,7 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                           handleCloseUserModal();
                           handleBanUser(selectedUser);
                         }}
-                        className="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+                        className="px-4 py-2 text-white bg-red-600 rounded-sm hover:bg-red-700 transition-colors"
                       >
                         Deactivate User
                       </button>

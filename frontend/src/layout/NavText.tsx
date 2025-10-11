@@ -45,7 +45,9 @@ export default function NavText({
       )}
     >
       {/* 👇 Icon color changes when active */}
-      <span className={clsx(iconClassName, isActive && "text-brand", "relative")}>
+      <span
+        className={clsx(iconClassName, isActive && "text-brand", "relative")}
+      >
         {icon}
         {/* Badge for showing count - positioned on icon when collapsed */}
         {!isOpen && badge !== undefined && badge > 0 && (
@@ -69,7 +71,7 @@ export default function NavText({
 
       {/* Badge for showing count - when expanded */}
       {isOpen && badge !== undefined && badge > 0 && (
-        <span className="ml-2 bg-red-500 text-white text-xs font-semibold rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]">
+        <span className="absolute -right-2 -top-1 ml-2 bg-red-500 text-white text-xs font-semibold rounded-full h-5 w-5 flex items-center justify-center">
           {badge > 99 ? "99+" : badge}
         </span>
       )}

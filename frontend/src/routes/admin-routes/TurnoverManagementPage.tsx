@@ -19,20 +19,28 @@ export default function TurnoverManagementPage() {
   // State for turnover confirmation modal
   const [showTurnoverModal, setShowTurnoverModal] = useState(false);
   const [postToConfirm, setPostToConfirm] = useState<Post | null>(null);
-  const [confirmationType, setConfirmationType] = useState<"confirmed" | "not_received" | null>(null);
+  const [confirmationType, setConfirmationType] = useState<
+    "confirmed" | "not_received" | null
+  >(null);
 
   // Handle turnover confirmation
-  const handleConfirmTurnover = (post: Post, status: "confirmed" | "not_received") => {
+  const handleConfirmTurnover = (
+    post: Post,
+    status: "confirmed" | "not_received"
+  ) => {
     setPostToConfirm(post);
     setConfirmationType(status);
     setShowTurnoverModal(true);
   };
 
-  const handleTurnoverConfirmation = async (status: "confirmed" | "not_received", notes?: string) => {
+  const handleTurnoverConfirmation = async (
+    status: "confirmed" | "not_received",
+    notes?: string
+  ) => {
     if (!postToConfirm) return;
 
     try {
-      const { postService } = await import('../../services/firebase/posts');
+      const { postService } = await import("../../services/firebase/posts");
       // Get current admin user ID from auth context
       const currentUserId = userData?.uid;
 
@@ -40,7 +48,9 @@ export default function TurnoverManagementPage() {
         throw new Error("Admin user ID not found. Please log in again.");
       }
 
-      console.log(`🔑 Using admin user ID for turnover confirmation: ${currentUserId}`);
+      console.log(
+        `🔑 Using admin user ID for turnover confirmation: ${currentUserId}`
+      );
 
       if (status === "not_received") {
         // Total deletion when OSA marks item as not received
@@ -48,22 +58,35 @@ export default function TurnoverManagementPage() {
 
         const statusMessage = `Item "${postToConfirm.title}" has been completely deleted from the system as it was not received by OSA.`;
         showToast("success", "Item Deleted", statusMessage);
-        console.log('Item completely deleted:', postToConfirm.title, 'Reason: Not received by OSA');
-
+        console.log(
+          "Item completely deleted:",
+          postToConfirm.title,
+          "Reason: Not received by OSA"
+        );
       } else {
         // Normal status update for confirmed items
-        await postService.updateTurnoverStatus(postToConfirm.id, status, currentUserId, notes);
+        await postService.updateTurnoverStatus(
+          postToConfirm.id,
+          status,
+          currentUserId,
+          notes
+        );
 
         const statusMessage = `Item receipt confirmed for "${postToConfirm.title}"`;
         showToast("success", "Turnover Status Updated", statusMessage);
-        console.log('Turnover status updated successfully:', postToConfirm.title, 'Status:', status);
+        console.log(
+          "Turnover status updated successfully:",
+          postToConfirm.title,
+          "Status:",
+          status
+        );
       }
-
     } catch (error: any) {
-      console.error('Failed to process turnover confirmation:', error);
-      const errorMessage = status === "not_received"
-        ? 'Failed to delete item from system'
-        : 'Failed to update turnover status';
+      console.error("Failed to process turnover confirmation:", error);
+      const errorMessage =
+        status === "not_received"
+          ? "Failed to delete item from system"
+          : "Failed to update turnover status";
       showToast("error", "Operation Failed", error.message || errorMessage);
     } finally {
       setShowTurnoverModal(false);
@@ -76,23 +99,31 @@ export default function TurnoverManagementPage() {
   const turnoverPosts = useMemo(() => {
     return posts.filter((post) => {
       // Show only Found items marked for turnover to OSA that need confirmation
-      return post.type === "found" &&
-             post.turnoverDetails &&
-             post.turnoverDetails.turnoverAction === "turnover to OSA" &&
-             post.turnoverDetails.turnoverStatus === "declared";
+      return (
+        post.type === "found" &&
+        post.turnoverDetails &&
+        post.turnoverDetails.turnoverAction === "turnover to OSA" &&
+        post.turnoverDetails.turnoverStatus === "declared"
+      );
     });
   }, [posts]);
 
   return (
     <div className="min-h-screen bg-gray-100 mb-13 font-manrope transition-colors duration-300">
-      <MobileNavText title="Turnover Management" description="Manage turnover to OSA posts" />
+      <MobileNavText
+        title="Turnover Management"
+        description="Manage turnover to OSA posts"
+      />
 
       {/* Header Section */}
       <div className="pt-4 px-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Turnover Management</h1>
-          <p className="text-gray-600">
-            Manage found items that need to be turned over to OSA (Office of Student Affairs)
+        <div className="mb-6 hidden lg:block">
+          <h1 className="text-lg font-bold text-gray-800 mb-2">
+            Turnover Management
+          </h1>
+          <p className="text-gray-600 text-sm">
+            Manage found items that need to be turned over to OSA (Office of
+            Student Affairs)
           </p>
         </div>
       </div>

@@ -4,6 +4,8 @@ import { useToast } from "../../context/ToastContext";
 import type { Post } from "../../types/Post";
 import PageWrapper from "../../components/PageWrapper";
 import NavHeader from "../../components/NavHeadComp";
+import { IoEyeOffOutline, IoEyeOutline } from "react-icons/io5";
+import { FaRegTrashAlt } from "react-icons/fa";
 
 export default function FlaggedPostsPage() {
   const [flaggedPosts, setFlaggedPosts] = useState<Post[]>([]);
@@ -232,7 +234,7 @@ export default function FlaggedPostsPage() {
     if (!date) return "Unknown";
 
     // Handle Firestore Timestamp objects
-    if (date && typeof date === 'object' && 'seconds' in date) {
+    if (date && typeof date === "object" && "seconds" in date) {
       // Convert Firestore Timestamp to JavaScript Date
       date = new Date(date.seconds * 1000 + date.nanoseconds / 1000000);
     }
@@ -504,7 +506,7 @@ export default function FlaggedPostsPage() {
                   {/* Card Body */}
                   <div className="p-4">
                     {/* Flag Information */}
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                    <div className="bg-red-50 border border-red-200 rounded-sm p-3 mb-4">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-red-600 font-medium text-sm">
                           🚩 Flagged Content
@@ -541,7 +543,7 @@ export default function FlaggedPostsPage() {
                                   : URL.createObjectURL(image)
                               }
                               alt={`Post image ${index + 1}`}
-                              className="w-16 h-16 object-cover rounded-lg border border-gray-200 flex-shrink-0"
+                              className="size-30 object-cover rounded-md border border-gray-200 flex-shrink-0"
                             />
                           ))}
                           {post.images.length > 2 && (
@@ -582,11 +584,19 @@ export default function FlaggedPostsPage() {
                               : "bg-yellow-600 hover:bg-yellow-700"
                           }`}
                         >
-                          {actionLoading === post.id
-                            ? "Processing..."
-                            : post.isHidden
-                            ? "👁️ Unhide"
-                            : "👁️ Hide"}
+                          {actionLoading === post.id ? (
+                            "Processing..."
+                          ) : post.isHidden ? (
+                            <>
+                              <IoEyeOutline className="size-4 inline-block mr-1" />{" "}
+                              Unhide
+                            </>
+                          ) : (
+                            <>
+                              <IoEyeOffOutline className=" size-4 inline-block mr-1" />{" "}
+                              Hide
+                            </>
+                          )}
                         </button>
 
                         <button
@@ -594,9 +604,14 @@ export default function FlaggedPostsPage() {
                           disabled={actionLoading === post.id}
                           className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
                         >
-                          {actionLoading === post.id
-                            ? "Processing..."
-                            : "🗑️ Delete"}
+                          {actionLoading === post.id ? (
+                            "Processing..."
+                          ) : (
+                            <>
+                              <FaRegTrashAlt className="size-4 inline-block mr-1 text-white" />{" "}
+                              Delete
+                            </>
+                          )}
                         </button>
                       </div>
                     </div>
