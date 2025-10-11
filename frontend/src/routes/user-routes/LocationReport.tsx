@@ -1,6 +1,7 @@
 // src/routes/user-routes/LocationReport.tsx
 import USTPCDOMapLoc from "@/components/USTPCDOMap";
 import { detectLocationFromCoordinates } from "@/utils/locationDetection";
+import { useState } from "react";
 
 interface LocationProps {
   selectedLocation: string | null;
@@ -8,6 +9,7 @@ interface LocationProps {
   locationError?: boolean;
   coordinates: { lat: number; lng: number } | null;
   setCoordinates: (val: { lat: number; lng: number } | null) => void;
+  onDetectedLocationChange?: (location: string | null) => void;
 }
 
 const LocationReport = ({
@@ -16,7 +18,16 @@ const LocationReport = ({
   locationError = false,
   coordinates,
   setCoordinates,
+  onDetectedLocationChange,
 }: LocationProps) => {
+  const [detectedLocation, setDetectedLocation] = useState<string | null>(null);
+
+  const handleDetectedLocationChange = (location: string | null) => {
+    setDetectedLocation(location);
+    if (onDetectedLocationChange) {
+      onDetectedLocationChange(location);
+    }
+  };
   // Handle coordinate changes and auto-detect location
   const handleCoordinatesChange = (
     newCoordinates: { lat: number; lng: number } | null
@@ -30,8 +41,11 @@ const LocationReport = ({
       if (detectionResult.location && detectionResult.confidence >= 80) {
         // High confidence detection - set the location
         setSelectedLocation(detectionResult.location);
+      } else if (detectionResult.alternatives?.length > 0) {
+        // Low confidence but has alternatives - set to nearest
+        setSelectedLocation("Near " + detectionResult.alternatives[0].location);
       } else {
-        // Low confidence or no detection - clear location
+        // No detection - clear location
         setSelectedLocation(null);
       }
     } else {
@@ -68,7 +82,7 @@ const LocationReport = ({
           <div className="flex items-center">
             <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
             <span className="text-red-800 font-medium">
-              Please pin a location within a building area on the map
+              Please pin a location on the map. If no building is detected, it will show the nearest building.
             </span>
           </div>
         </div>
@@ -79,6 +93,7 @@ const LocationReport = ({
           locationError={locationError}
           coordinates={coordinates}
           setCoordinatesExternal={handleCoordinatesChange}
+          onDetectedLocationChange={handleDetectedLocationChange}
         />
       </div>
 
@@ -90,11 +105,10 @@ const LocationReport = ({
             <p className="mb-1 font-medium">How to use:</p>
             <ul className="list-disc list-inside space-y-1 text-xs">
               <li>Click on the map to pin a location</li>
-              <li>Make sure to pin within a building or campus area</li>
-              <li>The system will automatically detect the location name</li>
+              <li>The system will automatically detect the building or nearest building</li>
+              <li>If pinned outside a building, it will show "Near [nearest building]"</li>
               <li>
-                If no location is detected, try pinning more precisely within a
-                building
+                Submit to save the location
               </li>
             </ul>
           </div>

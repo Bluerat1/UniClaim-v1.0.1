@@ -23,12 +23,14 @@ interface Props {
   setCoordinatesExternal?: (
     coords: { lat: number; lng: number } | null
   ) => void;
+  onDetectedLocationChange?: (location: string | null) => void;
 }
 
 const USTPLocationPicker: React.FC<Props> = ({
   locationError = false,
   coordinates,
   setCoordinatesExternal,
+  onDetectedLocationChange,
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const [mapInstance, setMapInstance] = useState<Map | null>(null);
@@ -404,7 +406,13 @@ const USTPLocationPicker: React.FC<Props> = ({
       console.log('Detection result:', detectionResult);
       
       // Update the detected location state
-      setDetectedLocation(detectionResult.location);
+      if (detectionResult.location) {
+        setDetectedLocation(detectionResult.location);
+      } else if (detectionResult.alternatives?.length > 0) {
+        setDetectedLocation("Near " + detectionResult.alternatives[0].location);
+      } else {
+        setDetectedLocation(null);
+      }
 
       // Find the closest building for the buffer visualization
       let buildingToHighlight = null;
@@ -440,24 +448,20 @@ const USTPLocationPicker: React.FC<Props> = ({
           `${detectionResult.location} detected`,
           3000
         );
+      } else if (detectionResult.alternatives?.length > 0) {
+        showToast(
+          "info",
+          "Nearest Location",
+          `Pinned near ${detectionResult.alternatives[0].location}`,
+          3000
+        );
       } else {
-        // If no direct match but we have alternatives, show the closest match
-        const closestMatch = detectionResult.alternatives[0];
-        if (closestMatch) {
-          showToast(
-            "warning",
-            "Approximate Location",
-            `Closest match: ${closestMatch.location} (${Math.round(closestMatch.confidence)}% confidence)`,
-            4000
-          );
-        } else {
-          showToast(
-            "error",
-            "No Location Detected",
-            "Please pin within a campus building or area. Make sure you're within the campus boundaries.",
-            4000
-          );
-        }
+        showToast(
+          "info",
+          "Location Pinned",
+          `Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)} pinned successfully. No nearby buildings detected.`,
+          3000
+        );
       }
     });
 
@@ -477,7 +481,13 @@ const USTPLocationPicker: React.FC<Props> = ({
 
       // Detect location from new coordinates
       const detectionResult = detectLocationFromCoordinates({ lat, lng });
-      setDetectedLocation(detectionResult.location);
+      if (detectionResult.location) {
+        setDetectedLocation(detectionResult.location);
+      } else if (detectionResult.alternatives?.length > 0) {
+        setDetectedLocation("Near " + detectionResult.alternatives[0].location);
+      } else {
+        setDetectedLocation(null);
+      }
       
       const updated = { lat: +lat.toFixed(6), lng: +lng.toFixed(6) };
       setCoordinatesExternal?.(updated);
@@ -526,12 +536,26 @@ const USTPLocationPicker: React.FC<Props> = ({
       return;
     }
 
-    setConfirmedCoordinates(coordinates); // ✅ Save submitted location
+    // If location not detected yet, run detection on submit
+    if (!detectedLocation) {
+      const detectionResult = detectLocationFromCoordinates(coordinates);
+      if (detectionResult.location) {
+        setDetectedLocation(detectionResult.location);
+      } else if (detectionResult.alternatives?.length > 0) {
+        setDetectedLocation("Near " + detectionResult.alternatives[0].location);
+      }
+    }
+
+    // Trigger parent's detection update by calling setCoordinatesExternal
+    // This ensures selectedLocation is set in the parent component
+    setCoordinatesExternal?.(coordinates);
+
+    setConfirmedCoordinates(coordinates);
 
     showToast(
       "success",
       "Location Saved",
-      "The pinned location has been saved successfully.",
+      `Location saved: ${detectedLocation || 'Coordinates'}`,
       5000
     );
 

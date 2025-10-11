@@ -14,6 +14,7 @@ import useToastFormHelper from "@/components/ToastFormHelper";
 import { ITEM_CATEGORIES } from "@/constants";
 import type { Post } from "@/types/Post";
 import successPic from "@/assets/success.png";
+import { detectLocationFromCoordinates } from "@/utils/locationDetection";
 
 export default function ReportPage() {
   const { userData, loading } = useAuth();
@@ -161,6 +162,16 @@ export default function ReportPage() {
     setSubmitProgress("Validating form...");
     setWasSubmitted(true);
 
+    // If location not detected yet, run detection on submit
+    if (!selectedLocation && coordinates) {
+      const detectionResult = detectLocationFromCoordinates(coordinates);
+      if (detectionResult.location) {
+        setSelectedLocation(detectionResult.location);
+      } else if (detectionResult.alternatives?.length > 0) {
+        setSelectedLocation("Near " + detectionResult.alternatives[0].location);
+      }
+    }
+
     const errors = {
       hasReportTypeError: !selectedReport,
       hasTitleError: !title.trim(),
@@ -168,7 +179,7 @@ export default function ReportPage() {
       hasDescriptionError: !description.trim(),
       hasDateTimeError: !selectedDateTime.trim(),
       hasImageError: selectedFiles.length === 0,
-      hasLocationError: !selectedLocation,
+      hasLocationError: !selectedLocation && !coordinates,
       hasCoordinatesError: !coordinates,
     };
 
@@ -225,12 +236,23 @@ export default function ReportPage() {
         campusSecurityUserId = "hedUWuv96VWQek5OucPzXTCkpQU2";
       }
 
+      // Ensure location is set if coordinates are available
+      let finalLocation = selectedLocation;
+      if (!finalLocation && coordinates) {
+        const detectionResult = detectLocationFromCoordinates(coordinates);
+        if (detectionResult.location) {
+          finalLocation = detectionResult.location;
+        } else if (detectionResult.alternatives?.length > 0) {
+          finalLocation = "Near " + detectionResult.alternatives[0].location;
+        }
+      }
+
       // Build post data conditionally to avoid undefined values in Firebase
       const createdPost: Omit<Post, "id" | "createdAt"> = {
         title: title.trim(),
         description: description.trim(),
         category: activeCategory,
-        location: selectedLocation || "",
+        location: finalLocation || "",
         type: selectedReport,
         images: selectedFiles,
         dateTime: selectedDateTime,
