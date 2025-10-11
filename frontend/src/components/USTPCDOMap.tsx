@@ -403,7 +403,7 @@ const USTPLocationPicker: React.FC<Props> = ({
 
       // Detect location from coordinates first
       const detectionResult = detectLocationFromCoordinates({ lat, lng });
-      console.log('Detection result:', detectionResult);
+      // Removed verbose logging for detection result
       
       // Update the detected location state
       if (detectionResult.location) {

@@ -72,11 +72,11 @@ export function detectLocationFromCoordinates(
     coordinates: { lat: number; lng: number }
 ): LocationDetectionResult {
     const point: [number, number] = [coordinates.lng, coordinates.lat];
-    console.log(`Detecting location for point: [${point[0]}, ${point[1]}]`);
+    // Removed verbose logging for point detection
 
     // Check if point is within campus
     if (!isWithinCampus(point)) {
-        console.log('Point is outside campus boundaries, finding closest building...');
+        // Removed verbose logging for outside campus
         // Instead of returning nothing, find the closest building
         let minDistance = Infinity;
         let closestBuilding = null;
@@ -129,9 +129,8 @@ export function detectLocationFromCoordinates(
     for (const building of USTP_BUILDING_POLYGONS) {
         let confidence = 0;
 
-        // Check if point is inside building polygon
+        // Check if point is inside building polygon (removed verbose logging)
         const isInside = isPointInPolygon(point, building.coordinates);
-        console.log(`Checking ${building.name}: isInside=${isInside}`);
         
         if (isInside) {
             confidence = 95; // High confidence for points inside building
@@ -142,13 +141,13 @@ export function detectLocationFromCoordinates(
                 confidence: confidence
             });
             
-            console.log(`Found match: ${building.name} with confidence ${confidence}%`);
+            // Removed verbose logging for match found
         }
     }
 
     // If no exact matches found, find the closest building
     if (results.length === 0) {
-        console.log('No exact matches found, finding closest building...');
+        // Removed verbose logging for no matches
         let minDistance = Infinity;
         let closestBuilding = null;
         
@@ -183,7 +182,7 @@ export function detectLocationFromCoordinates(
                 confidence: Math.round(confidence)
             });
             
-            console.log(`Closest building: ${closestBuilding.name} (${Math.round(confidence)}% confidence) - Set as Near`);
+            // Removed verbose logging for closest building
         }
     }
 
@@ -200,7 +199,7 @@ export function detectLocationFromCoordinates(
         alternatives
     };
     
-    console.log('Final detection result:', result);
+        // Removed verbose logging for final result
     return result;
 }
 
