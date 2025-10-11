@@ -129,23 +129,31 @@ export default function Report() {
         type: reportType,
         images: images,
         dateTime: selectedDate!.toISOString(),
-        user: shouldTransferToCampusSecurity
+        user: shouldTransferToCampusSecurity && campusSecurityData
           ? campusSecurityData
-          : {
+          : userData ? {
               firstName: userData.firstName,
               lastName: userData.lastName,
               email: userData.email,
               contactNum: userData.contactNum,
               studentId: userData.studentId,
-              profilePicture: userData.profilePicture || null, // Ensure it's never undefined
-              role: userData.role || "user", // Include user role
+              profilePicture: userData.profilePicture || null, // Convert undefined to null
+              role: userData.role || "user", // Include user role with default
+            } : {
+              firstName: "",
+              lastName: "",
+              email: "",
+              contactNum: "",
+              studentId: "",
+              profilePicture: null,
+              role: "user"
             },
         creatorId: shouldTransferToCampusSecurity
-          ? campusSecurityUserId
-          : user.uid, // Transfer ownership if needed
+          ? campusSecurityUserId || ""
+          : user?.uid || "", // Transfer ownership if needed
         postedById: shouldTransferToCampusSecurity
-          ? campusSecurityUserId
-          : user.uid, // Use Firebase user ID for messaging
+          ? campusSecurityUserId || ""
+          : user?.uid || "", // Use Firebase user ID for messaging
         status: "pending",
       };
 
@@ -172,12 +180,12 @@ export default function Report() {
         postData.turnoverDetails = {
           originalFinder: {
             uid: user.uid,
-            firstName: userData.firstName,
-            lastName: userData.lastName,
-            email: userData.email,
-            contactNum: userData.contactNum,
-            studentId: userData.studentId,
-            profilePicture: userData.profilePicture || null,
+            firstName: userData?.firstName || "",
+            lastName: userData?.lastName || "",
+            email: userData?.email || "",
+            contactNum: userData?.contactNum || "",
+            studentId: userData?.studentId || "",
+            profilePicture: userData?.profilePicture || null,
           },
           turnoverAction: foundAction,
           turnoverDecisionAt: new Date(), // Will be converted to Firebase timestamp

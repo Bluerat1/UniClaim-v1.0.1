@@ -86,10 +86,10 @@ export default function Home() {
       ? post.location.toLowerCase().includes(locationSearch.toLowerCase().trim())
       : true;
 
-    // For active posts, make sure they're not resolved or completed
+    // For active posts, make sure they're not resolved
     // For resolved view, we don't need to check status as resolvedPosts already contains only resolved posts
     const typeMatch = activeButton === "resolved" ||
-                     ((post.status !== "resolved" && post.status !== "completed") &&
+                     ((post.status !== "resolved") &&
                       (activeButton === "all" || post.type === activeButton));
 
     return typeMatch && titleMatch && categoryMatch && locationMatch && descriptionMatch;

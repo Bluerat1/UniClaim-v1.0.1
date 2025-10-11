@@ -34,7 +34,7 @@ export interface UserData {
     profilePicture?: string;
     profileImageUrl?: string;
     role?: 'user' | 'admin' | 'campus_security';
-    status?: 'active' | 'deactivated';
+    status?: 'active' | 'deactivated' | 'banned';
     banInfo?: any;
     emailVerified?: boolean; // Email verification status
     createdAt: any;

@@ -134,10 +134,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const banUnsubscribe = onSnapshot(userDocRef,
               (docSnapshot) => {
                 if (docSnapshot.exists()) {
-                  const userData = docSnapshot.data() as UserData;
+                  const userData = docSnapshot.data() as UserData & { status?: 'active' | 'deactivated' | 'banned' };
 
                   // Check if user just got deactivated (with backward compatibility)
-                  if ((userData.status === 'deactivated' || userData.status === 'banned') || userData.status === 'banned') {
+                  if (userData.status === 'deactivated' || userData.status === 'banned') {
                     console.log('User banned detected in real-time (mobile)');
 
                     // IMMEDIATELY stop listening to prevent permission errors
@@ -385,7 +385,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const handleImmediateBanLogout = async (bannedUserData: UserData) => {
+  const handleImmediateBanLogout = async (bannedUserData: UserData & { status?: 'active' | 'deactivated' | 'banned' }) => {
     try {
       console.log('Immediate logout due to ban detected (mobile)');
 

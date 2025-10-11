@@ -432,7 +432,7 @@ export const quickSignatureTest = async () => {
 
     try {
         const testParams = 'public_id=posts/test&timestamp=1755491466';
-        const signature = await generateHMACSHA1Signature(testParams, CLOUDINARY_API_SECRET);
+        const signature = await generateSignature(testParams + CLOUDINARY_API_SECRET);
 
         return true;
     } catch (error: any) {
@@ -476,7 +476,7 @@ export const debugSignatureGeneration = async (publicId: string = 'posts/test_im
 
     for (const testCase of testCases) {
         try {
-            const signature = await generateHMACSHA1Signature(testCase.params, CLOUDINARY_API_SECRET);
+            const signature = await generateSignature(testCase.params + CLOUDINARY_API_SECRET);
         } catch (error: any) {
             // Silent test
         }

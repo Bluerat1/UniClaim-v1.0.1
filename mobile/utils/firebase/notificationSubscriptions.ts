@@ -87,7 +87,7 @@ export class NotificationSubscriptionService {
     }
 
     // Get subscription for a specific user
-    async getSubscription(userId: string): Promise<NotificationSubscription | null> {
+    async getSubscription(userId: string): Promise<NotificationSubscription & { id: string } | null> {
         try {
             const docRef = doc(db, this.collectionName, userId);
             const docSnap = await getDoc(docRef);
@@ -95,8 +95,8 @@ export class NotificationSubscriptionService {
             if (docSnap.exists()) {
                 return {
                     id: docSnap.id,
-                    ...docSnap.data()
-                } as NotificationSubscription;
+                    ...(docSnap.data() as Omit<NotificationSubscription, 'id'>)
+                } as NotificationSubscription & { id: string };
             }
 
             return null;
@@ -162,7 +162,7 @@ export class NotificationSubscriptionService {
     }
 
     // Get users interested in new posts for a specific category
-    async getUsersInterestedInCategory(category: string): Promise<NotificationSubscription[]> {
+    async getUsersInterestedInCategory(category: string): Promise<(NotificationSubscription & { id: string })[]> {
         try {
             const q = query(
                 collection(db, this.collectionName),
@@ -174,8 +174,8 @@ export class NotificationSubscriptionService {
             const snapshot = await getDocs(q);
             return snapshot.docs.map(doc => ({
                 id: doc.id,
-                ...doc.data()
-            } as NotificationSubscription));
+                ...(doc.data() as Omit<NotificationSubscription, 'id'>)
+            } as NotificationSubscription & { id: string }));
         } catch (error) {
             console.error('❌ Error getting users interested in category:', error);
             throw error;
@@ -183,7 +183,7 @@ export class NotificationSubscriptionService {
     }
 
     // Get users interested in new posts (all categories)
-    async getUsersInterestedInNewPosts(): Promise<NotificationSubscription[]> {
+    async getUsersInterestedInNewPosts(): Promise<(NotificationSubscription & { id: string })[]> {
         try {
             // First, get all active users who have newPosts enabled
             const q = query(
@@ -195,8 +195,8 @@ export class NotificationSubscriptionService {
             const snapshot = await getDocs(q);
             const users = snapshot.docs.map(doc => ({
                 id: doc.id,
-                ...doc.data()
-            } as NotificationSubscription));
+                ...(doc.data() as Omit<NotificationSubscription, 'id'>)
+            } as NotificationSubscription & { id: string }));
 
             // Also include all campus_security users who might not have a subscription yet
             const usersRef = collection(db, 'users');
@@ -226,7 +226,7 @@ export class NotificationSubscriptionService {
                 }
             }
             
-            return combined;
+            return combined as (NotificationSubscription & { id: string })[];
         } catch (error) {
             console.error('❌ Error getting users interested in new posts:', error);
             throw error;
@@ -234,7 +234,7 @@ export class NotificationSubscriptionService {
     }
 
     // Get users interested in specific location
-    async getUsersInterestedInLocation(location: string): Promise<NotificationSubscription[]> {
+    async getUsersInterestedInLocation(location: string): Promise<(NotificationSubscription & { id: string })[]> {
         try {
             const q = query(
                 collection(db, this.collectionName),
@@ -246,8 +246,8 @@ export class NotificationSubscriptionService {
             const snapshot = await getDocs(q);
             return snapshot.docs.map(doc => ({
                 id: doc.id,
-                ...doc.data()
-            } as NotificationSubscription));
+                ...(doc.data() as Omit<NotificationSubscription, 'id'>)
+            } as NotificationSubscription & { id: string }));
         } catch (error) {
             console.error('❌ Error getting users interested in location:', error);
             throw error;
@@ -255,7 +255,7 @@ export class NotificationSubscriptionService {
     }
 
     // Get users for admin alerts
-    async getUsersForAdminAlerts(): Promise<NotificationSubscription[]> {
+    async getUsersForAdminAlerts(): Promise<(NotificationSubscription & { id: string })[]> {
         try {
             const q = query(
                 collection(db, this.collectionName),
@@ -266,8 +266,8 @@ export class NotificationSubscriptionService {
             const snapshot = await getDocs(q);
             return snapshot.docs.map(doc => ({
                 id: doc.id,
-                ...doc.data()
-            } as NotificationSubscription));
+                ...(doc.data() as Omit<NotificationSubscription, 'id'>)
+            } as NotificationSubscription & { id: string }));
         } catch (error) {
             console.error('❌ Error getting users for admin alerts:', error);
             throw error;
@@ -277,7 +277,7 @@ export class NotificationSubscriptionService {
     // COMPOUND QUERIES - More efficient filtering with multiple criteria
 
     // Get users interested in specific category AND location
-    async getUsersInterestedInCategoryAndLocation(category: string, location: string): Promise<NotificationSubscription[]> {
+    async getUsersInterestedInCategoryAndLocation(category: string, location: string): Promise<(NotificationSubscription & { id: string })[]> {
         try {
             const q = query(
                 collection(db, this.collectionName),
@@ -290,8 +290,8 @@ export class NotificationSubscriptionService {
             const snapshot = await getDocs(q);
             return snapshot.docs.map(doc => ({
                 id: doc.id,
-                ...doc.data()
-            } as NotificationSubscription));
+                ...(doc.data() as Omit<NotificationSubscription, 'id'>)
+            } as NotificationSubscription & { id: string }));
         } catch (error) {
             console.error('❌ Error getting users interested in category and location:', error);
             throw error;
@@ -299,7 +299,7 @@ export class NotificationSubscriptionService {
     }
 
     // Get users interested in specific category (with fallback for users interested in all categories)
-    async getUsersInterestedInCategoryWithFallback(category: string): Promise<NotificationSubscription[]> {
+    async getUsersInterestedInCategoryWithFallback(category: string): Promise<(NotificationSubscription & { id: string })[]> {
         try {
             // First, get users specifically interested in this category
             const categorySpecificUsers = await this.getUsersInterestedInCategory(category);
@@ -315,8 +315,8 @@ export class NotificationSubscriptionService {
             const snapshot = await getDocs(q);
             const allCategoryUsers = snapshot.docs.map(doc => ({
                 id: doc.id,
-                ...doc.data()
-            } as NotificationSubscription));
+                ...(doc.data() as Omit<NotificationSubscription, 'id'>)
+            } as NotificationSubscription & { id: string }));
 
             // Combine and deduplicate
             const allUsers = [...categorySpecificUsers, ...allCategoryUsers];
@@ -332,7 +332,7 @@ export class NotificationSubscriptionService {
     }
 
     // Get users interested in specific location (with fallback for users interested in all locations)
-    async getUsersInterestedInLocationWithFallback(location: string): Promise<NotificationSubscription[]> {
+    async getUsersInterestedInLocationWithFallback(location: string): Promise<(NotificationSubscription & { id: string })[]> {
         try {
             // First, get users specifically interested in this location
             const locationSpecificUsers = await this.getUsersInterestedInLocation(location);
@@ -348,8 +348,8 @@ export class NotificationSubscriptionService {
             const snapshot = await getDocs(q);
             const allLocationUsers = snapshot.docs.map(doc => ({
                 id: doc.id,
-                ...doc.data()
-            } as NotificationSubscription));
+                ...(doc.data() as Omit<NotificationSubscription, 'id'>)
+            } as NotificationSubscription & { id: string }));
 
             // Combine and deduplicate
             const allUsers = [...locationSpecificUsers, ...allLocationUsers];
@@ -369,7 +369,7 @@ export class NotificationSubscriptionService {
         category: string;
         location: string;
         type: 'lost' | 'found';
-    }): Promise<NotificationSubscription[]> {
+    }): Promise<(NotificationSubscription & { id: string })[]> {
         try {
             // Start with users interested in this category (with fallback)
             let interestedUsers = await this.getUsersInterestedInCategoryWithFallback(postData.category);
@@ -503,7 +503,7 @@ export class NotificationSubscriptionService {
     // Set up real-time listener for subscription changes
     setupSubscriptionListener(
         userId: string,
-        onUpdate: (subscription: NotificationSubscription | null) => void,
+        onUpdate: (subscription: NotificationSubscription & { id: string } | null) => void,
         onError: (error: any) => void
     ): () => void {
         try {
@@ -514,8 +514,8 @@ export class NotificationSubscriptionService {
                     if (doc.exists()) {
                         onUpdate({
                             id: doc.id,
-                            ...doc.data()
-                        } as NotificationSubscription);
+                            ...(doc.data() as Omit<NotificationSubscription, 'id'>)
+                        } as NotificationSubscription & { id: string });
                     } else {
                         onUpdate(null);
                     }

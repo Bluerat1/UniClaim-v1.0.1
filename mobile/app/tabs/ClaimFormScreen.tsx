@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import PageLayout from '../../layout/PageLayout';
 import { useAuth } from '../../context/AuthContext';
@@ -19,7 +20,7 @@ import type { RootStackParamList } from '../../types/type';
 type ClaimFormScreenRouteProp = RouteProp<RootStackParamList, 'ClaimFormScreen'>;
 
 export default function ClaimFormScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<ClaimFormScreenRouteProp>();
   const { user, userData } = useAuth();
   
@@ -68,7 +69,7 @@ export default function ClaimFormScreen() {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Navigate to photo capture screen
-      navigation.navigate('PhotoCaptureScreen' as keyof RootStackParamList, {
+      navigation.navigate('PhotoCaptureScreen', {
         conversationId,
         postId,
         postTitle,
