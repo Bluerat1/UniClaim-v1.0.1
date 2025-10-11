@@ -417,7 +417,7 @@ function AdminPostCard({
                     }}
                     className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
                   >
-                    ✓ Confirm Receipt
+                    ✓ Confirm Received
                   </button>
                   <button
                     onClick={(e) => {
@@ -516,8 +516,6 @@ function AdminPostCard({
           onClick={onClick}
         />
 
-        {/* Post ID for admin reference */}
-        <div className="mt-2 text-xs text-gray-400">Post ID: {post.id}</div>
 
         {/* Restore and Permanently Delete buttons for deleted posts */}
         {onRestore && onPermanentDelete && (

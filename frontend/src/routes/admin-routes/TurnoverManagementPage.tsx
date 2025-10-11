@@ -3,6 +3,7 @@ import type { Post } from "@/types/Post";
 
 // components
 import AdminPostCard from "@/components/AdminPostCard";
+import AdminPostModal from "@/components/AdminPostModal";
 import TurnoverConfirmationModal from "@/components/TurnoverConfirmationModal";
 import MobileNavText from "@/components/NavHeadComp";
 
@@ -16,12 +17,28 @@ export default function TurnoverManagementPage() {
   const { showToast } = useToast();
   const { userData } = useAuth();
 
+  // State for admin post modal
+  const [showAdminPostModal, setShowAdminPostModal] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+
   // State for turnover confirmation modal
   const [showTurnoverModal, setShowTurnoverModal] = useState(false);
   const [postToConfirm, setPostToConfirm] = useState<Post | null>(null);
   const [confirmationType, setConfirmationType] = useState<
     "confirmed" | "not_received" | null
   >(null);
+
+  // Handle opening admin post modal
+  const handleOpenAdminPostModal = (post: Post) => {
+    setSelectedPost(post);
+    setShowAdminPostModal(true);
+  };
+
+  // Handle closing admin post modal
+  const handleCloseAdminPostModal = () => {
+    setShowAdminPostModal(false);
+    setSelectedPost(null);
+  };
 
   // Handle turnover confirmation
   const handleConfirmTurnover = (
@@ -153,7 +170,7 @@ export default function TurnoverManagementPage() {
             <AdminPostCard
               key={post.id}
               post={post}
-              onClick={() => {}} // No-op for turnover management
+              onClick={() => handleOpenAdminPostModal(post)}
               onConfirmTurnover={handleConfirmTurnover}
               highlightText=""
               hideDeleteButton={true}
@@ -183,6 +200,15 @@ export default function TurnoverManagementPage() {
         post={postToConfirm}
         confirmationType={confirmationType}
       />
+
+      {/* Admin Post Modal */}
+      {showAdminPostModal && selectedPost && (
+        <AdminPostModal
+          post={selectedPost}
+          onClose={handleCloseAdminPostModal}
+          onConfirmTurnover={handleConfirmTurnover}
+        />
+      )}
     </div>
   );
 }

@@ -3,10 +3,9 @@ import type { Post } from "@/types/Post";
 
 // components
 import AdminPostCard from "@/components/AdminPostCard";
+import AdminPostModal from "@/components/AdminPostModal";
 import AdminCampusSecurityTurnoverModal from "@/components/AdminCampusSecurityTurnoverModal";
 import MobileNavText from "@/components/NavHeadComp";
-
-// hooks
 import { useAdminPosts } from "@/hooks/usePosts";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
@@ -16,9 +15,22 @@ export default function CampusSecurityManagementPage() {
   const { showToast } = useToast();
   const { userData } = useAuth();
 
+  // State for AdminPostModal
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+
   // State for campus security collection confirmation modal
   const [showCollectionModal, setShowCollectionModal] = useState(false);
   const [postToConfirm, setPostToConfirm] = useState<Post | null>(null);
+
+  // Handle opening AdminPostModal
+  const handlePostClick = (post: Post) => {
+    setSelectedPost(post);
+  };
+
+  // Handle closing AdminPostModal
+  const handleCloseModal = () => {
+    setSelectedPost(null);
+  };
 
   // Handle campus security collection confirmation
   const handleConfirmCollection = (
@@ -160,7 +172,7 @@ export default function CampusSecurityManagementPage() {
             <AdminPostCard
               key={post.id}
               post={post}
-              onClick={() => {}} // No-op for campus security management
+              onClick={() => handlePostClick(post)}
               onConfirmCampusSecurityCollection={handleConfirmCollection}
               highlightText=""
               hideDeleteButton={true}
@@ -179,6 +191,22 @@ export default function CampusSecurityManagementPage() {
           ))
         )}
       </div>
+
+      {/* AdminPostModal */}
+      {selectedPost && (
+        <AdminPostModal
+          post={selectedPost}
+          onClose={handleCloseModal}
+          onConfirmTurnover={(post, status) => {
+            if (status === "confirmed") {
+              handleConfirmCollection(post, "collected");
+            } else if (status === "not_received") {
+              handleConfirmCollection(post, "not_available");
+            }
+          }}
+          onConfirmCampusSecurityCollection={handleConfirmCollection}
+        />
+      )}
 
       {/* Campus Security Collection Confirmation Modal */}
       <AdminCampusSecurityTurnoverModal

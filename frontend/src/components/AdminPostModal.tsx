@@ -13,6 +13,14 @@ interface AdminPostModalProps {
   onClose: () => void;
   onPostUpdate?: (updatedPost: Post) => void;
   onPostDelete?: (postId: string) => void;
+  onConfirmTurnover?: (
+    post: Post,
+    status: "confirmed" | "not_received"
+  ) => void;
+  onConfirmCampusSecurityCollection?: (
+    post: Post,
+    status: "collected" | "not_available"
+  ) => void;
 }
 
 function formatDateTime(datetime: string | Date) {
@@ -28,6 +36,8 @@ export default function AdminPostModal({
   onClose,
   onPostUpdate,
   onPostDelete,
+  onConfirmTurnover,
+  onConfirmCampusSecurityCollection,
 }: AdminPostModalProps) {
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -155,7 +165,7 @@ export default function AdminPostModal({
             />
             <div className="flex flex-col">
               <p className="text-xs text-gray-500">Posted by:</p>
-              <button 
+              <button
                 onClick={handleViewUser}
                 className="text-sm text-left hover:underline hover:text-blue-600 transition-colors"
                 title="View user details"
@@ -170,7 +180,52 @@ export default function AdminPostModal({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button 
+            {post.turnoverDetails &&
+             post.turnoverDetails.turnoverStatus === "declared" &&
+             post.turnoverDetails.turnoverAction === "turnover to OSA" && (
+              <>
+                <button
+                  onClick={() => {
+                    onConfirmTurnover?.(post, "confirmed");
+                  }}
+                  className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors flex items-center gap-1"
+                >
+                  ✓ Confirm Received
+                </button>
+                <button
+                  onClick={() => {
+                    onConfirmTurnover?.(post, "not_received");
+                  }}
+                  className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors flex items-center gap-1"
+                >
+                  ✗ Not Received
+                </button>
+              </>
+            )}
+
+            {post.turnoverDetails &&
+             post.turnoverDetails.turnoverAction === "turnover to Campus Security" && (
+              <>
+                <button
+                  onClick={() => {
+                    onConfirmCampusSecurityCollection?.(post, "collected");
+                  }}
+                  className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors flex items-center gap-1"
+                >
+                  ✓ Item Collected
+                </button>
+                <button
+                  onClick={() => {
+                    onConfirmCampusSecurityCollection?.(post, "not_available");
+                  }}
+                  className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors flex items-center gap-1"
+                >
+                  ✗ Not Available
+                </button>
+              </>
+            )}
+
+            <button
               onClick={onClose}
               className="p-1 hover:bg-gray-100 rounded-full"
               aria-label="Close modal"
@@ -182,28 +237,33 @@ export default function AdminPostModal({
 
         {/* Admin Actions */}
         <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            onClick={handleToggleStatus}
-            disabled={isUpdatingStatus}
-            className={`px-3 py-1 text-sm rounded flex items-center gap-1 ${
-              post.status === 'resolved' 
-                ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' 
-                : 'bg-green-100 text-green-800 hover:bg-green-200'
-            }`}
-          >
-            {isUpdatingStatus ? (
-              <span className="animate-spin">⟳</span>
-            ) : post.status === 'resolved' ? (
-              'Mark as Pending'
-            ) : (
-              'Mark as Resolved'
-            )}
-          </button>
-          
+          {/* Show regular status button for non-turnover items or turnover items that don't need confirmation */}
+          {!((post.turnoverDetails?.turnoverStatus === "declared" &&
+              post.turnoverDetails.turnoverAction === "turnover to OSA") ||
+             post.turnoverDetails?.turnoverAction === "turnover to Campus Security") && (
+            <button
+              onClick={handleToggleStatus}
+              disabled={isUpdatingStatus}
+              className={`px-3 py-1 text-sm rounded flex items-center gap-1 ${
+                post.status === 'resolved'
+                  ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                  : 'bg-green-100 text-green-800 hover:bg-green-200'
+              }`}
+            >
+              {isUpdatingStatus ? (
+                <span className="animate-spin">⟳</span>
+              ) : post.status === 'resolved' ? (
+                'Mark as Pending'
+              ) : (
+                'Mark as Resolved'
+              )}
+            </button>
+          )}
+
           <button
             onClick={handleDeletePost}
             disabled={isDeleting}
-            className="px-3 py-1 text-sm bg-red-100 text-red-800 rounded hover:bg-red-200 flex items-center gap-1"
+            className="px-3 py-1 text-sm bg-red-100 text-red-800 rounded hover:bg-red-200 flex items-center gap-1 hidden"
           >
             {isDeleting ? 'Deleting...' : 'Delete Post'}
           </button>
