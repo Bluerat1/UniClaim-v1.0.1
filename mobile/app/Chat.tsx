@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   FlatList,
@@ -177,7 +177,8 @@ export default function Chat() {
   const isLoadingRef = useRef(false);
 
   // Track if confirmation is in progress to prevent duplicate calls
-  const [isConfirmationInProgress, setIsConfirmationInProgress] = useState(false);
+  const [isConfirmationInProgress, setIsConfirmationInProgress] =
+    useState(false);
 
   // Get the other participant's profile picture (exclude current user)
   const getOtherParticipantProfilePicture = () => {
@@ -1008,7 +1009,9 @@ export default function Chat() {
           </View>
 
           {/* Input Area with bottom spacing */}
-          <View className={`bg-white px-4 pt-2 ${isKeyboardVisible ? 'pb-4' : 'pb-16'}`}>
+          <View
+            className={`bg-white px-4 pt-2 ${isKeyboardVisible ? "pb-[1rem]" : "pb-0"}`}
+          >
             <View className="flex-row items-center gap-3">
               <View className="flex-1">
                 <TextInput
