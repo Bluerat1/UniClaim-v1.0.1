@@ -1,7 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { JSX } from "react";
 import { useEffect, useState, useRef } from "react";
-import { Keyboard, Text, TouchableOpacity, View, StyleSheet } from "react-native";
+import {
+  Keyboard,
+  Text,
+  TouchableOpacity,
+  View,
+  StyleSheet,
+} from "react-native";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -28,24 +34,24 @@ type TabConfig = {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: "white",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: "#6B7280",
   },
   mainContent: {
     flex: 1,
   },
   tabBar: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     paddingTop: 15,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: -6 },
     shadowOpacity: 0.32,
     shadowRadius: 6,
@@ -53,46 +59,46 @@ const styles = StyleSheet.create({
   },
   tabBarContent: {
     height: 50,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
     marginHorizontal: 16,
     marginBottom: 20,
   },
   tabButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'column',
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "column",
     gap: 4,
   },
   iconContainer: {
-    position: 'relative',
+    position: "relative",
   },
   badge: {
-    position: 'absolute',
+    position: "absolute",
     top: -8,
     right: -8,
-    backgroundColor: '#EF4444',
+    backgroundColor: "#EF4444",
     borderRadius: 9,
     minWidth: 18,
     height: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   badgeText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   tabLabel: {
     fontSize: 9,
     marginTop: 2,
   },
   activeTabLabel: {
-    color: '#0A193A',
+    color: "#0A193A",
   },
   inactiveTabLabel: {
-    color: '#000000',
+    color: "#000000",
   },
 });
 
@@ -233,10 +239,7 @@ export default function CustomTabs() {
   // Don't render content until tab state is loaded
   if (!isInitialized) {
     return (
-      <SafeAreaView
-        style={styles.container}
-        edges={["top", "left", "right"]}
-      >
+      <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
@@ -255,7 +258,7 @@ export default function CustomTabs() {
           style={[
             styles.tabBar,
             {
-              paddingBottom: Math.max(insets.bottom, 12),
+              paddingBottom: Math.max(insets.bottom, 1),
             },
           ]}
         >
@@ -294,7 +297,9 @@ export default function CustomTabs() {
                     style={[
                       styles.tabLabel,
                       isAddTab ? { marginTop: 4 } : { marginTop: 8 },
-                      isActive ? styles.activeTabLabel : styles.inactiveTabLabel,
+                      isActive
+                        ? styles.activeTabLabel
+                        : styles.inactiveTabLabel,
                     ]}
                   >
                     {tab.label}
