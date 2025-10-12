@@ -4,7 +4,8 @@
 
 // Import all services from the new modular structure
 export { auth, db, app } from './firebase/config';
-export { authService, userService, UserData } from './firebase/auth';
+export { authService, userService } from './firebase/auth';
+export type { UserData } from './firebase/auth';
 export { messageService } from './firebase/messages';
 export { postService } from './firebase/posts';
 export { getFirebaseErrorMessage } from './firebase/utils';

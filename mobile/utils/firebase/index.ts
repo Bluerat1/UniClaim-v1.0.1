@@ -5,7 +5,8 @@
 export { auth, db, app } from './config';
 
 // Authentication and user management services
-export { authService, userService, UserData } from './auth';
+export { authService, userService } from './auth';
+export type { UserData } from './auth';
 
 // Messaging and chat services
 export { messageService } from './messages';

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, Text, Alert, ActivityIndicator } from 'react-native';
+import { TouchableOpacity, Text, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import { postService } from '../utils/firebase/posts';
 import { useAuth } from '../context/AuthContext';
 import FlagModal from './FlagModal';
@@ -11,7 +11,42 @@ interface FlagButtonProps {
   flaggedBy?: string;
   onFlagSuccess?: () => void;
   className?: string;
-}
+};
+
+const styles = StyleSheet.create({
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  flaggedButton: {
+    backgroundColor: '#F3F4F6',
+  },
+  unflaggedButton: {
+    backgroundColor: '#FEF2F2',
+  },
+  loadingText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#DC2626',
+  },
+  flagIcon: {
+    fontSize: 12,
+  },
+  flaggedText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  unflaggedText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#DC2626',
+  },
+});
 
 export default function FlagButton({ 
   postId, 
@@ -61,31 +96,23 @@ export default function FlagButton({
       <TouchableOpacity
         onPress={handleFlagClick}
         disabled={isAlreadyFlaggedByUser || isLoading}
-        className={`
-          flex-row items-center gap-1 px-2 py-1 rounded
-          ${isAlreadyFlaggedByUser 
-            ? 'bg-gray-100' 
-            : 'bg-red-50'
-          }
-          ${className}
-        `}
-        style={{
-          opacity: isAlreadyFlaggedByUser || isLoading ? 0.6 : 1
-        }}
+        style={[
+          styles.button,
+          isAlreadyFlaggedByUser ? styles.flaggedButton : styles.unflaggedButton,
+          { opacity: isAlreadyFlaggedByUser || isLoading ? 0.6 : 1 }
+        ]}
       >
         {isLoading ? (
           <>
             <ActivityIndicator size="small" color="#DC2626" />
-            <Text className="text-xs font-manrope-medium text-red-600">
+            <Text style={styles.loadingText}>
               Flagging...
             </Text>
           </>
         ) : (
           <>
-            <Text className="text-xs">🚩</Text>
-            <Text className={`text-xs font-manrope-medium ${
-              isAlreadyFlaggedByUser ? 'text-gray-500' : 'text-red-600'
-            }`}>
+            <Text style={styles.flagIcon}>🚩</Text>
+            <Text style={isAlreadyFlaggedByUser ? styles.flaggedText : styles.unflaggedText}>
               {isAlreadyFlaggedByUser ? 'Flagged' : 'Flag'}
             </Text>
           </>

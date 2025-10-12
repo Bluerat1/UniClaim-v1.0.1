@@ -11,6 +11,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { Post } from "@/types/type";
@@ -25,7 +26,177 @@ interface EditTicketModalProps {
   onClose: () => void;
   onSave: (updatedPost: Post) => void;
   isSaving?: boolean;
-}
+};
+
+const styles = StyleSheet.create({
+  keyboardAvoidingView: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    backgroundColor: 'white',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  saveButton: {
+    backgroundColor: '#EAB308',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#E5E7EB',
+  },
+  saveButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  formContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  formSection: {
+    marginBottom: 16,
+  },
+  sectionLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  textInputPlaceholder: {
+    color: '#9CA3AF',
+  },
+  textArea: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#1F2937',
+    textAlignVertical: 'top',
+    minHeight: 96,
+  },
+  imageSection: {
+    marginBottom: 16,
+  },
+  imageSectionTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  imageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  imageContainer: {
+    position: 'relative',
+  },
+  image: {
+    width: 80,
+    height: 80,
+    borderRadius: 6,
+  },
+  deleteButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addImageButton: {
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    borderStyle: 'dashed',
+    borderRadius: 6,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addImageText: {
+    color: '#6B7280',
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 8,
+  },
+  statusSection: {
+    marginBottom: 16,
+  },
+  statusContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  statusResolved: {
+    backgroundColor: '#DCFCE7',
+  },
+  statusPending: {
+    backgroundColor: '#FEF3C7',
+  },
+  statusTextResolved: {
+    color: '#15803D',
+    fontSize: 14,
+    fontWeight: '500',
+    textTransform: 'capitalize',
+  },
+  statusTextPending: {
+    color: '#92400E',
+    fontSize: 14,
+    fontWeight: '500',
+    textTransform: 'capitalize',
+  },
+  cleanupContainer: {
+    marginBottom: 16,
+    padding: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  cleanupSuccess: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#10B981',
+  },
+  cleanupWarning: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#F59E0B',
+  },
+  cleanupText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  cleanupSuccessText: {
+    color: '#059669',
+  },
+  cleanupWarningText: {
+    color: '#D97706',
+  },
+});
 
 export default function EditTicketModal({
   post,
@@ -292,55 +463,58 @@ export default function EditTicketModal({
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1 bg-white"
+        style={styles.keyboardAvoidingView}
       >
         {/* Header */}
-        <View className="flex-row items-center justify-between p-4 border-b border-gray-200 bg-white">
+        <View style={styles.header}>
           <TouchableOpacity onPress={handleCancel}>
             <Ionicons name="close" size={24} color="#374151" />
           </TouchableOpacity>
-          <Text className="text-lg font-manrope-semibold text-gray-800">
+          <Text style={styles.headerTitle}>
             Edit Ticket
           </Text>
           <TouchableOpacity
             onPress={handleSave}
             disabled={isSaving}
-            className="bg-yellow-500 px-4 py-2 rounded-md"
+            style={[
+              styles.saveButton,
+              isSaving && styles.saveButtonDisabled
+            ]}
           >
             {isSaving ? (
               <ActivityIndicator size="small" color="white" />
             ) : (
-              <Text className="text-white font-manrope-medium">Save</Text>
+              <Text style={styles.saveButtonText}>Save</Text>
             )}
           </TouchableOpacity>
         </View>
 
-        <ScrollView className="flex-1 p-4">
+        <ScrollView style={styles.formContainer}>
           {/* Title Input */}
-          <View className="mb-4">
-            <Text className="text-sm font-manrope-medium text-gray-700 mb-2">
+          <View style={styles.formSection}>
+            <Text style={styles.sectionLabel}>
               Title *
             </Text>
             <TextInput
-              className="border border-gray-300 rounded-md px-3 py-3 text-gray-800 font-manrope"
+              style={styles.textInput}
               value={editedTitle}
               onChangeText={setEditedTitle}
               placeholder="Enter ticket title"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={styles.textInputPlaceholder.color}
             />
           </View>
 
           {/* Description Input */}
-          <View className="mb-4">
-            <Text className="text-sm font-manrope-medium text-gray-700 mb-2">
+          <View style={styles.formSection}>
+            <Text style={styles.sectionLabel}>
               Description *
             </Text>
             <TextInput
-              className="border border-gray-300 rounded-md px-3 py-3 text-gray-800 font-manrope"
+              style={styles.textArea}
               value={editedDescription}
               onChangeText={setEditedDescription}
               placeholder="Enter description"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={styles.textInputPlaceholder.color}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
@@ -348,8 +522,8 @@ export default function EditTicketModal({
           </View>
 
           {/* Location Selection */}
-          <View className="mb-4">
-            <Text className="text-sm font-manrope-medium text-gray-700 mb-2">
+          <View style={styles.formSection}>
+            <Text style={styles.sectionLabel}>
               Location *
             </Text>
             <CustomDropdownWithSearch
@@ -362,23 +536,23 @@ export default function EditTicketModal({
           </View>
 
           {/* Images Section */}
-          <View className="mb-4">
-            <Text className="text-sm font-manrope-medium text-gray-700 mb-2">
+          <View style={styles.imageSection}>
+            <Text style={styles.imageSectionTitle}>
               Images ({editedImages.length}/3)
             </Text>
 
             {/* Current Images */}
-            <View className="flex-row flex-wrap gap-2 mb-3">
+            <View style={styles.imageGrid}>
               {editedImages.map((image, index) => (
-                <View key={index} className="relative">
+                <View key={index} style={styles.imageContainer}>
                   <Image
                     source={{ uri: image }}
-                    className="w-20 h-20 rounded-md"
+                    style={styles.image}
                     resizeMode="cover"
                   />
                   <TouchableOpacity
                     onPress={() => handleDeleteImage(index)}
-                    className="absolute -top-2 -right-2 bg-red-500 rounded-full w-6 h-6 items-center justify-center"
+                    style={styles.deleteButton}
                   >
                     <Ionicons name="close" size={16} color="white" />
                   </TouchableOpacity>
@@ -390,10 +564,10 @@ export default function EditTicketModal({
             {editedImages.length < 3 && (
               <TouchableOpacity
                 onPress={handleAddImage}
-                className="border-2 border-dashed border-gray-300 rounded-md p-4 items-center justify-center"
+                style={styles.addImageButton}
               >
                 <Ionicons name="add" size={24} color="#9CA3AF" />
-                <Text className="text-gray-500 font-manrope-medium mt-2">
+                <Text style={styles.addImageText}>
                   Add Image
                 </Text>
               </TouchableOpacity>
@@ -401,15 +575,20 @@ export default function EditTicketModal({
           </View>
 
           {/* Current Status Display */}
-          <View className="mb-4">
-            <Text className="text-sm font-manrope-medium text-gray-700 mb-2">
+          <View style={styles.statusSection}>
+            <Text style={styles.sectionLabel}>
               Current Status
             </Text>
             <View
-              className={`px-3 py-2 rounded-md ${getStatusColor(post.status || "pending")}`}
+              style={[
+                styles.statusContainer,
+                post.status === "resolved" ? styles.statusResolved : styles.statusPending
+              ]}
             >
               <Text
-                className={`text-sm font-manrope-medium capitalize ${getStatusTextColor(post.status || "pending")}`}
+                style={
+                  post.status === "resolved" ? styles.statusTextResolved : styles.statusTextPending
+                }
               >
                 {post.status || "pending"}
               </Text>
@@ -418,10 +597,10 @@ export default function EditTicketModal({
 
           {/* Image Cleanup Status */}
           {cleanupStatus.isCleaning && (
-            <View className="mb-4 p-3 bg-blue-50 rounded-md border border-blue-200">
-              <View className="flex-row items-center">
-                <ActivityIndicator size="small" color="#3B82F6" />
-                <Text className="text-blue-700 font-manrope-medium ml-2">
+            <View style={[styles.cleanupContainer, styles.cleanupSuccess]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#10B981" />
+                <Text style={[styles.cleanupText, styles.cleanupSuccessText]}>
                   Cleaning up removed images...
                 </Text>
               </View>
@@ -429,8 +608,8 @@ export default function EditTicketModal({
           )}
 
           {cleanupStatus.deleted.length > 0 && (
-            <View className="mb-4 p-3 bg-green-50 rounded-md border border-green-200">
-              <Text className="text-green-700 font-manrope-medium">
+            <View style={[styles.cleanupContainer, styles.cleanupSuccess]}>
+              <Text style={[styles.cleanupText, styles.cleanupSuccessText]}>
                 ✅ Successfully cleaned up {cleanupStatus.deleted.length}{" "}
                 removed image(s) from storage
               </Text>
@@ -438,8 +617,8 @@ export default function EditTicketModal({
           )}
 
           {cleanupStatus.failed.length > 0 && (
-            <View className="mb-4 p-3 bg-yellow-50 rounded-md border border-yellow-200">
-              <Text className="text-yellow-700 font-manrope-medium">
+            <View style={[styles.cleanupContainer, styles.cleanupWarning]}>
+              <Text style={[styles.cleanupText, styles.cleanupWarningText]}>
                 ⚠️ Failed to clean up {cleanupStatus.failed.length} image(s)
                 from storage (will be cleaned up later)
               </Text>

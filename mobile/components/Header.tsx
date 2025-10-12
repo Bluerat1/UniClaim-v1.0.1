@@ -1,4 +1,4 @@
-import { Bell, X, Settings } from "lucide-react-native";
+import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
   Animated,
@@ -98,7 +98,7 @@ export default function Header() {
 
         {/* Right: Bell Icon */}
         <TouchableOpacity onPress={openPanel} className="relative">
-          <Bell className="text-blue-900" size={26} />
+          <Feather name="bell" className="text-blue-900" size={26} />
           {unreadCount > 0 && (
             <View className="absolute -top-1 -right-1 bg-red-500 rounded-full h-5 w-5 items-center justify-center">
               <Text className="text-white text-xs font-bold">
@@ -147,10 +147,10 @@ export default function Header() {
                     onPress={() => setShowPreferences(true)}
                     className="p-1"
                   >
-                    <Settings size={20} color="#6B7280" />
+                    <Feather name="settings" size={20} color="#6B7280" />
                   </TouchableOpacity>
                   <TouchableOpacity onPress={closePanel}>
-                    <X size={24} color="black" />
+                    <Feather name="x" size={24} color="black" />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -204,7 +204,7 @@ export default function Header() {
                               }}
                               className="p-1"
                             >
-                              <X size={16} color="#9CA3AF" />
+                              <Feather name="x" size={16} color="#9CA3AF" />
                             </TouchableOpacity>
                           </View>
                         </View>

@@ -1,15 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { auth, authService, UserData, db } from '../utils/firebase';
+import { onAuthStateChanged, User, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth, authService, UserData, db } from '../utils/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { credentialStorage } from '../utils/credentialStorage';
 import { notificationService } from '../utils/firebase/notifications';
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: FirebaseUser | null;
+  user: User | null;
   userData: UserData | null;
   loading: boolean;
   isBanned: boolean;
@@ -25,7 +24,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -85,7 +84,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let hasAttemptedAutoLogin = false;
     
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
       if (firebaseUser) {
         setUser(firebaseUser);
         setIsAuthenticated(true);
@@ -132,7 +131,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (firebaseUser && firebaseUser.uid) {
             const userDocRef = doc(db, 'users', firebaseUser.uid);
             const banUnsubscribe = onSnapshot(userDocRef,
-              (docSnapshot) => {
+              (docSnapshot: any) => {
                 if (docSnapshot.exists()) {
                   const userData = docSnapshot.data() as UserData & { status?: 'active' | 'deactivated' | 'banned' };
 
@@ -162,7 +161,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   }
                 }
               },
-              (error) => {
+              (error: any) => {
                 // Error handler - if listener fails, clean up gracefully
                 const isPermissionError = error?.code === 'permission-denied' ||
                   error?.message?.includes('Missing or insufficient permissions');

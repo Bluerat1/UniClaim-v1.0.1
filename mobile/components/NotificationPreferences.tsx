@@ -11,7 +11,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { notificationService } from "../utils/firebase/notifications";
 import { NotificationPreferences } from "../types/Notification";
-import { Bell, BellOff, Clock, MapPin, Tag, X } from "lucide-react-native";
+import { Feather } from "@expo/vector-icons";
 import { ITEM_CATEGORIES } from "../constants/categories";
 
 interface NotificationPreferencesComponentProps {
@@ -118,7 +118,7 @@ export default function NotificationPreferencesModal({
             Notification Preferences
           </Text>
           <TouchableOpacity onPress={onClose}>
-            <X size={24} color="#6B7280" />
+            <Feather name="x" size={24} color="#6B7280" />
           </TouchableOpacity>
         </View>
         <View className="flex-1 items-center justify-center">
@@ -133,13 +133,13 @@ export default function NotificationPreferencesModal({
       {/* Header */}
       <View className="flex-row items-center justify-between p-4 border-b border-gray-200">
         <View className="flex-row items-center gap-3">
-          <Bell size={20} color="#eab308" className="mr-2" />
+          <Feather name="bell" size={20} color="#eab308" />
           <Text className="text-xl font-manrope-bold text-gray-900">
             Notification Preferences
           </Text>
         </View>
         <TouchableOpacity onPress={onClose}>
-          <X size={24} color="#6B7280" />
+          <Feather name="x" size={24} color="#6B7280" />
         </TouchableOpacity>
       </View>
 
@@ -159,7 +159,7 @@ export default function NotificationPreferencesModal({
           <View className="">
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center gap-2">
-                <Bell size={20} color="#10B981" className="mr-3" />
+                <Feather name="bell" size={20} color="#10B981" />
                 <Text className="text-gray-700 font-inter ">New Posts</Text>
               </View>
               <Switch
@@ -172,7 +172,7 @@ export default function NotificationPreferencesModal({
 
             <View className="flex-row items-center justify-between py-3">
               <View className="flex-row items-center gap-2">
-                <Bell size={20} color="#3B82F6" className="mr-3" />
+                <Feather name="bell" size={20} color="#3B82F6" />
                 <Text className="text-gray-700 font-inter ">Messages</Text>
               </View>
               <Switch
@@ -185,7 +185,7 @@ export default function NotificationPreferencesModal({
 
             <View className="flex-row items-center justify-between py-3">
               <View className="flex-row items-center gap-2">
-                <Bell size={20} color="#F59E0B" className="mr-3" />
+                <Feather name="bell" size={20} color="#F59E0B" />
                 <Text className="text-gray-700 font-inter ">Claim Updates</Text>
               </View>
               <Switch
@@ -198,7 +198,7 @@ export default function NotificationPreferencesModal({
 
             <View className="flex-row items-center justify-between py-3">
               <View className="flex-row items-center gap-2">
-                <Bell size={20} color="#EF4444" className="mr-3" />
+                <Feather name="bell" size={20} color="#EF4444" />
                 <Text className="text-gray-700 font-inter ">Admin Alerts</Text>
               </View>
               <Switch
@@ -214,7 +214,7 @@ export default function NotificationPreferencesModal({
         {/* Category Filter */}
         <View className="mb-6">
           <View className="flex-row items-center mb-3 gap-3">
-            <Tag size={20} color="#8B5CF6" className="mr-2" />
+            <Feather name="tag" size={20} color="#8B5CF6" />
             <Text className="text-lg font-manrope-bold text-gray-900">
               Category Filter
             </Text>
@@ -252,7 +252,7 @@ export default function NotificationPreferencesModal({
         {/* Quiet Hours */}
         <View className="mb-6">
           <View className="flex-row items-center gap-3">
-            <Clock size={20} color="#6366F1" className="mr-2" />
+            <Feather name="clock" size={20} color="#6366F1" />
             <Text className="text-lg font-manrope-bold text-gray-900">
               Quiet Hours
             </Text>

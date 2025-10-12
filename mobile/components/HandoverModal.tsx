@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  StyleSheet,
 } from "react-native";
 import ImagePicker from "./ImagePicker";
 import { cloudinaryService } from "../utils/cloudinary";
@@ -22,7 +23,168 @@ interface HandoverModalProps {
   }) => void;
   isLoading?: boolean;
   postTitle: string;
-}
+};
+
+const styles = StyleSheet.create({
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2000,
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    margin: 20,
+    width: '90%',
+    maxWidth: 500,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#3B82F6',
+    backgroundColor: '#EFF6FF',
+    padding: 12,
+    borderRadius: 6,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  formSection: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  required: {
+    color: '#EF4444',
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    textAlignVertical: 'top',
+  },
+  successText: {
+    color: '#10B981',
+    fontSize: 14,
+    flex: 1,
+  },
+  removeButton: {
+    padding: 4,
+  },
+  removeButtonText: {
+    color: '#EF4444',
+    fontSize: 14,
+  },
+  uploadArea: {
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    padding: 20,
+    alignItems: 'center',
+    backgroundColor: 'white',
+  },
+  uploadIcon: {
+    marginBottom: 12,
+  },
+  uploadText: {
+    color: '#6B7280',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  uploadSubtext: {
+    color: '#9CA3AF',
+    fontSize: 12,
+  },
+  itemPhotoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    padding: 8,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 6,
+  },
+  itemPhotoText: {
+    color: '#10B981',
+    fontSize: 14,
+    flex: 1,
+  },
+  addButton: {
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    backgroundColor: 'white',
+  },
+  addButtonText: {
+    color: '#6B7280',
+    fontSize: 14,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  addButtonSubtext: {
+    color: '#9CA3AF',
+    fontSize: 12,
+  },
+  submitButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  submitButtonEnabled: {
+    backgroundColor: '#10B981',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
+  submitButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  cancelButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#DC2626',
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  buttonContainer: {
+    flexDirection: 'column',
+    gap: 12,
+    marginTop: 20,
+  },
+  loadingText: {
+    color: 'white',
+  },
+});
 
 export default function HandoverModal({
   visible,
@@ -118,24 +280,24 @@ export default function HandoverModal({
   if (!visible) return null;
 
   return (
-    <View className="absolute inset-0 bg-black/50 justify-center items-center z-[2000]">
-      <View className="bg-white rounded-xl p-5 m-5 w-[90%] max-w-[500px]">
+    <View style={styles.modalOverlay}>
+      <View style={styles.modalContainer}>
         <ScrollView showsVerticalScrollIndicator={false}>
-          <Text className="text-lg font-manrope-bold mb-2 text-center">
+          <Text style={styles.title}>
             Handover Request
           </Text>
 
-          <Text className="text-sm font-inter text-blue-500 bg-blue-50 p-3 rounded-md mb-5 text-center">
+          <Text style={styles.subtitle}>
             Requesting to handover: {postTitle}
           </Text>
 
           {/* Handover Reason */}
-          <View className="mb-5">
-            <Text className="text-base font-manrope-semibold mb-2">
-              Reason for Handover <Text className="text-red-500">*</Text>
+          <View style={styles.formSection}>
+            <Text style={styles.sectionTitle}>
+              Reason for Handover <Text style={styles.required}>*</Text>
             </Text>
             <TextInput
-              className="border font-inter text-base border-gray-300 rounded-lg p-3 text-top"
+              style={styles.textInput}
               placeholder="State why do you want to hand over this item..."
               value={handoverReason}
               onChangeText={setHandoverReason}
@@ -145,34 +307,34 @@ export default function HandoverModal({
           </View>
 
           {/* ID Photo Selection */}
-          <View className="mb-5">
-            <Text className="text-base font-manrope-semibold mb-2">
-              ID Photo for Verification <Text className="text-red-500">*</Text>
+          <View style={styles.formSection}>
+            <Text style={styles.sectionTitle}>
+              ID Photo for Verification <Text style={styles.required}>*</Text>
             </Text>
             {idPhotoUri ? (
-              <View className="flex-row items-center mb-2">
-                <Text className="text-green-500 text-sm flex-1">
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <Text style={styles.successText}>
                   ✓ ID photo selected
                 </Text>
                 <TouchableOpacity
                   onPress={() => setIdPhotoUri("")}
-                  className="p-1"
+                  style={styles.removeButton}
                 >
-                  <Text className="text-red-500 text-sm">Remove</Text>
+                  <Text style={styles.removeButtonText}>Remove</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <TouchableOpacity
                 onPress={() => setShowIdPhotoPicker(true)}
-                className="border-2 border-gray-300 border-dashed rounded-lg p-5 items-center bg-white"
+                style={styles.uploadArea}
               >
-                <View className="flex items-center justify-center gap-3">
+                <View style={{ alignItems: 'center', justifyContent: 'center', gap: 12 }}>
                   <Ionicons name="camera-outline" size={30} color="gray" />
-                  <Text className="text-gray-500 text-sm mb-1">
+                  <Text style={styles.uploadText}>
                     Tap to select ID photo
                   </Text>
                 </View>
-                <Text className="text-gray-400 text-xs">
+                <Text style={styles.uploadSubtext}>
                   Required for verification
                 </Text>
               </TouchableOpacity>
@@ -180,11 +342,11 @@ export default function HandoverModal({
           </View>
 
           {/* Item Photos Selection */}
-          <View className="mb-5">
-            <Text className="text-base font-manrope-semibold mb-2">
-              Item Photos <Text className="text-red-500">*</Text>
+          <View style={styles.formSection}>
+            <Text style={styles.sectionTitle}>
+              Item Photos <Text style={styles.required}>*</Text>
             </Text>
-            <Text className="text-gray-500 text-sm font-inter mb-2">
+            <Text style={[styles.uploadSubtext, { marginBottom: 8 }]}>
               Select photos of the item (up to 3 photos)
             </Text>
 
@@ -192,16 +354,16 @@ export default function HandoverModal({
             {itemPhotoUris.map((uri, index) => (
               <View
                 key={index}
-                className="flex-row items-center mb-2 p-2 bg-gray-50 rounded-md"
+                style={styles.itemPhotoContainer}
               >
-                <Text className="text-green-500 text-sm flex-1">
+                <Text style={styles.itemPhotoText}>
                   ✓ Photo {index + 1} selected
                 </Text>
                 <TouchableOpacity
                   onPress={() => removeItemPhoto(index)}
-                  className="p-1"
+                  style={styles.removeButton}
                 >
-                  <Text className="text-red-500 text-sm">Remove</Text>
+                  <Text style={styles.removeButtonText}>Remove</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -210,19 +372,19 @@ export default function HandoverModal({
             {itemPhotoUris.length < 3 && (
               <TouchableOpacity
                 onPress={() => setShowItemPhotoPicker(true)}
-                className="border-2 border-gray-300 border-dashed rounded-lg p-4 items-center bg-white"
+                style={styles.addButton}
               >
                 <Ionicons name="camera-outline" size={30} color="gray" />
-                <Text className="text-gray-500 text-sm mb-1">
+                <Text style={styles.addButtonText}>
                   Add Item Photo ({itemPhotoUris.length}/3)
                 </Text>
-                <Text className="text-gray-400 text-xs">Tap to select</Text>
+                <Text style={styles.addButtonSubtext}>Tap to select</Text>
               </TouchableOpacity>
             )}
           </View>
 
           {/* Action Buttons */}
-          <View className="flex-col gap-3 justify-around mt-5">
+          <View style={styles.buttonContainer}>
             <TouchableOpacity
               onPress={handleSubmit}
               disabled={
@@ -232,17 +394,18 @@ export default function HandoverModal({
                 !idPhotoUri ||
                 itemPhotoUris.length === 0
               }
-              className={`px-5 py-3 rounded-lg ${
-                isLoading ||
+              style={[
+                styles.submitButton,
+                (isLoading ||
                 isHandoverSubmitting ||
                 !handoverReason.trim() ||
                 !idPhotoUri ||
-                itemPhotoUris.length === 0
-                  ? "bg-gray-400"
-                  : "bg-green-500"
-              }`}
+                itemPhotoUris.length === 0)
+                  ? styles.submitButtonDisabled
+                  : styles.submitButtonEnabled,
+              ]}
             >
-              <Text className="text-white font-manrope-medium text-center">
+              <Text style={styles.submitButtonText}>
                 {isLoading || isHandoverSubmitting
                   ? "Uploading & Sending..."
                   : "Send Request"}
@@ -250,9 +413,9 @@ export default function HandoverModal({
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleClose}
-              className="px-5 py-3 rounded-lg bg-red-50"
+              style={styles.cancelButton}
             >
-              <Text className="text-red-500 font-manrope-medium text-center">
+              <Text style={styles.cancelButtonText}>
                 Cancel
               </Text>
             </TouchableOpacity>
