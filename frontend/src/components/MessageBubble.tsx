@@ -4,6 +4,7 @@ import { useMessage } from "@/context/MessageContext";
 import handoverClaimService, {
   type HandoverClaimCallbacks,
 } from "../services/handoverClaimService";
+import { messageService } from "../services/firebase/messages";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { AiOutlineDelete } from "react-icons/ai";
@@ -246,7 +247,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     if (message.claimData?.status === "pending_confirmation" || message.claimData?.ownerIdPhoto) {
       console.log("🔄 Rejecting claim after ID photo confirmation");
       try {
-        await handoverClaimService.updateClaimResponse(
+        await messageService.updateClaimResponse(
           conversationId,
           message.id,
           'rejected',

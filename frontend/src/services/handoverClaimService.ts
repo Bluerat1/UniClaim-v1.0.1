@@ -39,25 +39,6 @@ export const updateHandoverResponse = async (
     }
 };
 
-export const updateClaimResponse = async (
-    conversationId: string,
-    messageId: string,
-    status: 'accepted' | 'rejected',
-    responderId: string,
-    idPhotoUrl?: string
-): Promise<void> => {
-    try {
-        console.log('🔄 Updating claim response:', { conversationId, messageId, status, responderId, idPhotoUrl });
-
-        // Update the claim response in the database (photo deletion is handled in messageService)
-        await messageService.updateClaimResponse(conversationId, messageId, status, responderId, idPhotoUrl);
-        console.log('✅ Claim response updated successfully');
-    } catch (error: any) {
-        console.error('❌ Failed to update claim response:', error);
-        throw new Error(error.message || 'Failed to update claim response');
-    }
-};
-
 export const confirmHandoverIdPhoto = async (
     conversationId: string,
     messageId: string,
@@ -125,7 +106,6 @@ export const validateClaimRequest = (message: any): boolean => {
 export const handoverClaimService = {
   // Service functions
   updateHandoverResponse,
-  updateClaimResponse,
   confirmHandoverIdPhoto,
   confirmClaimIdPhoto,
 
@@ -136,7 +116,19 @@ export const handoverClaimService = {
 
   // Handler functions - simplified wrappers
   handleHandoverResponse: updateHandoverResponse,
-  handleClaimResponse: updateClaimResponse,
+  handleClaimResponse: async (
+    conversationId: string,
+    messageId: string,
+    status: 'accepted' | 'rejected',
+    currentUserId: string,
+    idPhotoUrl?: string
+  ): Promise<void> => {
+    try {
+      await messageService.updateClaimResponse(conversationId, messageId, status, currentUserId, idPhotoUrl);
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to handle claim response');
+    }
+  },
   handleIdPhotoUpload: async (
     photoFile: File,
     conversationId: string,
@@ -168,7 +160,7 @@ export const handoverClaimService = {
     try {
       const uploadResult = await uploadIdPhoto(photoFile, 'claim');
       if (uploadResult.success) {
-        await updateClaimResponse(conversationId, messageId, 'accepted', currentUserId, uploadResult.url);
+        await messageService.updateClaimResponse(conversationId, messageId, 'accepted', currentUserId, uploadResult.url);
         callbacks.onClaimResponse?.(messageId, 'accepted');
         callbacks.onSuccess?.('ID photo uploaded successfully!');
       } else {
