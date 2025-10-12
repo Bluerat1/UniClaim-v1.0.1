@@ -339,6 +339,8 @@ export class NotificationService {
                     if (!preferences.messages) return false;
                     break;
                 case 'claim_update':
+                case 'claim_response':
+                case 'handover_response':
                     if (!preferences.claimUpdates) return false;
                     break;
                 case 'admin_alert':

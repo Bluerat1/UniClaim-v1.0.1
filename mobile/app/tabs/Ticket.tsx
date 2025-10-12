@@ -18,6 +18,12 @@ import { useUserPostsWithSet } from "@/hooks/usePosts";
 import type { Post } from "@/types/type";
 import { auth } from "@/utils/firebase";
 import { postService } from "@/utils/firebase";
+import { messageService } from "@/utils/firebase";
+import { db } from "@/utils/firebase/config";
+import { collection, query, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { handoverClaimService } from "@/utils/handoverClaimService";
+import { notificationSender } from "@/utils/firebase/notificationSender";
+import { deleteMessageImages, extractMessageImages } from "@/utils/cloudinary";
 import EditTicketModal from "@/components/EditTicketModal";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -181,10 +187,240 @@ export default function Ticket() {
     [posts]
   );
 
+  // Helper function to find all conversations for a post
+  const findConversationsForPost = async (postId: string): Promise<any[]> => {
+    try {
+      const conversations = await messageService.getCurrentConversations(userData?.uid || '');
+      return conversations.filter(conv => conv.postId === postId);
+    } catch (error) {
+      console.error('Error finding conversations for post:', error);
+      return [];
+    }
+  };
+
+  // Helper function to find pending handover/claim requests in conversations
+  const findPendingRequests = async (postId: string): Promise<any[]> => {
+    try {
+      const conversations = await findConversationsForPost(postId);
+      const pendingRequests: any[] = [];
+
+      for (const conversation of conversations) {
+        try {
+          // Use direct Firestore query instead of real-time listener to get ALL messages
+          const { collection, query, orderBy, getDocs } = await import('firebase/firestore');
+          const { db } = await import('@/utils/firebase/config');
+
+          const messagesQuery = query(
+            collection(db, `conversations/${conversation.id}/messages`),
+            orderBy('timestamp', 'asc')
+          );
+          const messagesSnapshot = await getDocs(messagesQuery);
+
+          const messages = messagesSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as any[];
+
+          // Find pending handover or claim requests
+          for (const message of messages) {
+            if (message.messageType === 'handover_request' && message.handoverData?.status === 'pending') {
+              pendingRequests.push({
+                type: 'handover',
+                conversationId: conversation.id,
+                messageId: message.id,
+                messageData: message
+              });
+            } else if (message.messageType === 'claim_request' && message.claimData?.status === 'pending') {
+              pendingRequests.push({
+                type: 'claim',
+                conversationId: conversation.id,
+                messageId: message.id,
+                messageData: message
+              });
+            }
+          }
+        } catch (error) {
+          console.error(`Error getting messages for conversation ${conversation.id}:`, error);
+        }
+      }
+
+      return pendingRequests;
+    } catch (error) {
+      console.error('Error finding pending requests:', error);
+      return [];
+    }
+  };
+
+  // Helper function to auto-reject pending requests and send notifications BEFORE deleting conversations
+  const autoRejectPendingRequestsWithNotifications = async (postId: string): Promise<void> => {
+    try {
+      const pendingRequests = await findPendingRequests(postId);
+
+      // Collect all conversation data and participants BEFORE sending notifications
+      const conversationParticipants: { [conversationId: string]: string[] } = {};
+
+      for (const request of pendingRequests) {
+        if (!conversationParticipants[request.conversationId]) {
+          try {
+            const { doc, getDoc } = await import('firebase/firestore');
+            const { db } = await import('@/utils/firebase/config');
+
+            const conversationRef = doc(db, 'conversations', request.conversationId);
+            const conversationDoc = await getDoc(conversationRef);
+
+            if (conversationDoc.exists()) {
+              const conversationData = conversationDoc.data();
+              const participantIds = Object.keys(conversationData.participants || {});
+              conversationParticipants[request.conversationId] = participantIds;
+            }
+          } catch (error) {
+            console.error(`Error getting conversation data for ${request.conversationId}:`, error);
+          }
+        }
+      }
+
+      // Now send notifications and reject requests
+      for (const request of pendingRequests) {
+        try {
+          const participants = conversationParticipants[request.conversationId] || [];
+
+          if (request.type === 'handover') {
+            await handoverClaimService.updateHandoverResponse(
+              request.conversationId,
+              request.messageId,
+              'rejected',
+              userData?.uid || ''
+            );
+
+            // Send notification to other participants
+            const otherParticipants = participants.filter(id => id !== userData?.uid);
+            if (otherParticipants.length > 0) {
+              await notificationSender.sendNotificationToUsers(otherParticipants, {
+                type: 'handover_response',
+                title: 'Handover Request Rejected',
+                body: `${userData?.firstName || 'Someone'} rejected your handover request.`,
+                data: {
+                  conversationId: request.conversationId,
+                  messageId: request.messageId,
+                  postId: postId,
+                  status: 'rejected'
+                }
+              });
+            }
+
+            console.log(`Auto-rejected handover request: ${request.messageId}`);
+          } else if (request.type === 'claim') {
+            await handoverClaimService.updateClaimResponse(
+              request.conversationId,
+              request.messageId,
+              'rejected',
+              userData?.uid || ''
+            );
+
+            // Send notification to other participants
+            const otherParticipants = participants.filter(id => id !== userData?.uid);
+            if (otherParticipants.length > 0) {
+              await notificationSender.sendNotificationToUsers(otherParticipants, {
+                type: 'claim_response',
+                title: 'Claim Request Rejected',
+                body: `${userData?.firstName || 'Someone'} rejected your claim request.`,
+                data: {
+                  conversationId: request.conversationId,
+                  messageId: request.messageId,
+                  postId: postId,
+                  status: 'rejected'
+                }
+              });
+            }
+
+            console.log(`Auto-rejected claim request: ${request.messageId}`);
+          }
+        } catch (error) {
+          console.error(`Failed to auto-reject ${request.type} request:`, error);
+        }
+      }
+
+      if (pendingRequests.length > 0) {
+        console.log(`Auto-rejected ${pendingRequests.length} pending requests for post ${postId}`);
+      }
+    } catch (error) {
+      console.error('Error auto-rejecting pending requests:', error);
+    }
+  };
+
+  // Helper function to delete all conversation images from Cloudinary
+  const deleteConversationImages = async (postId: string): Promise<void> => {
+    try {
+      const conversations = await findConversationsForPost(postId);
+
+      for (const conversation of conversations) {
+        try {
+          // Get all messages in the conversation
+          const messages = await new Promise<any[]>((resolve) => {
+            messageService.getConversationMessages(conversation.id, (messages) => {
+              resolve(messages);
+            });
+          });
+
+          // Collect all image URLs from messages
+          const allImageUrls: string[] = [];
+          for (const message of messages) {
+            const messageImages = extractMessageImages(message);
+            allImageUrls.push(...messageImages);
+          }
+
+          // Delete images from Cloudinary
+          if (allImageUrls.length > 0) {
+            const result = await deleteMessageImages(allImageUrls);
+            console.log(`Deleted ${result.deleted.length} images for conversation ${conversation.id}`);
+            if (result.failed.length > 0) {
+              console.warn(`Failed to delete ${result.failed.length} images for conversation ${conversation.id}`);
+            }
+          }
+        } catch (error) {
+          console.error(`Error processing images for conversation ${conversation.id}:`, error);
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting conversation images:', error);
+    }
+  };
+
+  // Helper function to delete all conversations for a post
+  const deleteAllConversations = async (postId: string): Promise<void> => {
+    try {
+      const conversations = await findConversationsForPost(postId);
+
+      for (const conversation of conversations) {
+        try {
+          // Get all messages in the conversation using direct Firestore query
+          const messagesQuery = query(collection(db, `conversations/${conversation.id}/messages`));
+          const messagesSnapshot = await getDocs(messagesQuery);
+
+          console.log(`🗑️ Mobile: Deleting ${messagesSnapshot.docs.length} messages from conversation ${conversation.id}`);
+
+          // Delete all messages directly (bypass ownership check for admin deletion)
+          for (const messageDoc of messagesSnapshot.docs) {
+            await deleteDoc(doc(db, `conversations/${conversation.id}/messages`, messageDoc.id));
+          }
+
+          // Then delete the conversation document
+          await deleteDoc(doc(db, 'conversations', conversation.id));
+
+          console.log(`✅ Mobile: Conversation ${conversation.id} deleted for post ${postId}`);
+        } catch (error) {
+          console.error(`Error deleting conversation ${conversation.id}:`, error);
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting conversations:', error);
+    }
+  };
+
   const handleDeletePermanently = useCallback(async (id: string) => {
     Alert.alert(
       "Delete Permanently",
-      "Are you sure you want to permanently delete this ticket? This action cannot be undone.",
+      "Are you sure you want to permanently delete this ticket? This will auto-reject any pending handover or claim requests and delete all associated conversations and images.",
       [
         {
           text: "Cancel",
@@ -196,9 +432,25 @@ export default function Ticket() {
           onPress: async () => {
             try {
               setPermanentlyDeletingPostId(id);
+
+              // Step 1: Auto-reject any pending handover or claim requests and send notifications
+              console.log(`Auto-rejecting pending requests for post ${id}`);
+              await autoRejectPendingRequestsWithNotifications(id);
+
+              // Step 2: Delete all conversation images from Cloudinary
+              console.log(`Deleting conversation images for post ${id}`);
+              await deleteConversationImages(id);
+
+              // Step 3: Delete all conversations for this post
+              console.log(`Deleting conversations for post ${id}`);
+              await deleteAllConversations(id);
+
+              // Step 4: Finally delete the post
+              console.log(`Deleting post ${id}`);
               await postService.deletePost(id);
+
               // The post will be automatically removed from the list by the real-time listener
-              Alert.alert("Success", "Ticket has been permanently deleted.");
+              Alert.alert("Success", "Ticket and all associated data have been permanently deleted.");
             } catch (error) {
               console.error("Error deleting ticket permanently:", error);
               Alert.alert(
@@ -212,7 +464,7 @@ export default function Ticket() {
         },
       ]
     );
-  }, []);
+  }, [userData?.uid]);
 
   // Edit ticket handlers
   const handleEditPost = useCallback((post: Post) => {

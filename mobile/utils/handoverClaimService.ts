@@ -4,6 +4,7 @@
 
 import { cloudinaryService } from './cloudinary';
 import { messageService } from './firebase';
+import { notificationSender } from './firebase/notificationSender';
 import { Alert } from 'react-native';
 
 // Types
@@ -229,6 +230,41 @@ export const updateHandoverResponse = async (
         console.log('🔄 Updating handover response:', { conversationId, messageId, status, responderId, idPhotoUrl });
         await messageService.updateHandoverResponse(conversationId, messageId, status, responderId, idPhotoUrl);
         console.log('✅ Handover response updated successfully');
+
+        // Send notification to other participants
+        try {
+            // Get conversation data to find other participants
+            const { doc, getDoc } = await import('firebase/firestore');
+            const { db } = await import('./firebase/config');
+
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
+
+            if (conversationDoc.exists()) {
+                const conversationData = conversationDoc.data();
+
+                // Get current user data for responder name
+                const { doc: userDoc, getDoc: getUserDoc } = await import('firebase/firestore');
+                const userRef = userDoc(db, 'users', responderId);
+                const userDocData = await getUserDoc(userRef);
+
+                if (userDocData.exists()) {
+                    const userData = userDocData.data();
+                    const responderName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+
+                    await notificationSender.sendResponseNotification(conversationId, {
+                        responderId,
+                        responderName,
+                        responseType: 'handover_response',
+                        status,
+                        postTitle: conversationData.postTitle
+                    });
+                }
+            }
+        } catch (notificationError) {
+            console.warn('⚠️ Failed to send handover response notification:', notificationError);
+            // Don't throw error - notification failures shouldn't break main functionality
+        }
     } catch (error: any) {
         console.error('❌ Failed to update handover response:', error);
         throw new Error(error.message || 'Failed to update handover response');
@@ -246,6 +282,41 @@ export const updateClaimResponse = async (
         console.log('🔄 Updating claim response:', { conversationId, messageId, status, responderId, idPhotoUrl });
         await messageService.updateClaimResponse(conversationId, messageId, status, responderId, idPhotoUrl);
         console.log('✅ Claim response updated successfully');
+
+        // Send notification to other participants
+        try {
+            // Get conversation data to find other participants
+            const { doc, getDoc } = await import('firebase/firestore');
+            const { db } = await import('./firebase/config');
+
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
+
+            if (conversationDoc.exists()) {
+                const conversationData = conversationDoc.data();
+
+                // Get current user data for responder name
+                const { doc: userDoc, getDoc: getUserDoc } = await import('firebase/firestore');
+                const userRef = userDoc(db, 'users', responderId);
+                const userDocData = await getUserDoc(userRef);
+
+                if (userDocData.exists()) {
+                    const userData = userDocData.data();
+                    const responderName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+
+                    await notificationSender.sendResponseNotification(conversationId, {
+                        responderId,
+                        responderName,
+                        responseType: 'claim_response',
+                        status,
+                        postTitle: conversationData.postTitle
+                    });
+                }
+            }
+        } catch (notificationError) {
+            console.warn('⚠️ Failed to send claim response notification:', notificationError);
+            // Don't throw error - notification failures shouldn't break main functionality
+        }
     } catch (error: any) {
         console.error('❌ Failed to update claim response:', error);
         throw new Error(error.message || 'Failed to update claim response');

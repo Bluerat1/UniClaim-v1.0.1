@@ -148,11 +148,69 @@ export class NotificationSender {
         }
     }
 
-    // Note: timeToMinutes method removed - now handled by notificationSubscriptionService
+    // Send response notification for handover/claim requests
+    async sendResponseNotification(conversationId: string, responseData: {
+        responderId: string;
+        responderName: string;
+        responseType: 'handover_response' | 'claim_response';
+        status: 'accepted' | 'rejected';
+        postTitle?: string;
+    }): Promise<void> {
+        try {
+            console.log('🚀 Mobile: Sending response notification for conversation:', conversationId);
 
-    // Send notification to specific users (for admin alerts, etc.)
+            // Get the conversation to find participants
+            const { doc, getDoc } = await import('firebase/firestore');
+            const { db } = await import('./config');
+
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
+
+            if (!conversationDoc.exists()) {
+                console.warn('⚠️ Mobile: Conversation not found for response notification, skipping silently');
+                return;
+            }
+
+            const conversationData = conversationDoc.data();
+            const participantIds = Object.keys(conversationData.participants || {});
+
+            // Get other participants (exclude the responder)
+            const recipientIds = participantIds.filter(id => id !== responseData.responderId);
+
+            if (recipientIds.length === 0) {
+                console.log('⚠️ Mobile: No recipients found for response notification');
+                return;
+            }
+
+            const postTitle = responseData.postTitle || 'Unknown Post';
+            const statusText = responseData.status === 'accepted' ? 'accepted' : 'rejected';
+
+            // Send notifications to all other participants
+            await this.sendNotificationToUsers(recipientIds, {
+                type: responseData.status === 'rejected' ?
+                    (responseData.responseType === 'handover_response' ? 'handover_response' : 'claim_response') :
+                    'message',
+                title: `${responseData.responseType === 'handover_response' ? 'Handover' : 'Claim'} ${statusText}`,
+                body: `${responseData.responderName} ${statusText} the ${responseData.responseType === 'handover_response' ? 'handover' : 'claim'} request for "${postTitle}"`,
+                data: {
+                    conversationId: conversationId,
+                    postTitle: postTitle,
+                    responderId: responseData.responderId,
+                    responderName: responseData.responderName,
+                    responseType: responseData.responseType,
+                    status: responseData.status,
+                    timestamp: new Date().toISOString()
+                }
+            });
+
+            console.log(`✅ Mobile: Response notification sent to ${recipientIds.length} participants`);
+        } catch (error) {
+            console.error('❌ Mobile: Failed to send response notification:', error);
+            // Don't throw error - notification failures shouldn't break main functionality
+        }
+    }
     async sendNotificationToUsers(userIds: string[], notificationData: {
-        type: 'admin_alert' | 'claim_update' | 'message';
+        type: 'admin_alert' | 'claim_update' | 'message' | 'claim_response' | 'handover_response';
         title: string;
         body: string;
         data?: any;

@@ -20,6 +20,7 @@ import {
     serverTimestamp
 } from 'firebase/firestore';
 import { notificationSender } from './notificationSender';
+import { notificationService } from './notifications';
 
 // Message service interface
 interface MessageService {
@@ -545,7 +546,97 @@ export const messageService: MessageService = {
 
                 console.log(`🔍 Mobile: Found ${conversationsSnapshot.docs.length} conversations for post ${postId}`);
 
-                // STEP 1: Collect all image URLs from all conversations, but preserve only confirmed request photos
+                // STEP 1: Send reject notifications to other conversations before deletion
+                // (excluding the conversation that was just confirmed)
+                for (const conversationDoc of conversationsSnapshot.docs) {
+                    const currentConversationId = conversationDoc.id;
+                    const conversationRef = doc(db, 'conversations', currentConversationId);
+                    const conversationDocData = await getDoc(conversationRef);
+
+                    if (!conversationDocData.exists()) continue;
+
+                    const conversationData = conversationDocData.data();
+                    const participantIds = Object.keys(conversationData.participants || {});
+
+                    // Skip the conversation that was just confirmed (it will be deleted anyway)
+                    if (conversationDoc.id === conversationId) continue;
+
+                    // Get user data for the person who confirmed the handover
+                    const confirmerDoc = await getDoc(doc(db, 'users', userId));
+                    const confirmerData = confirmerDoc.exists() ? confirmerDoc.data() : null;
+                    const confirmerName = confirmerData ? `${confirmerData.firstName || ''} ${confirmerData.lastName || ''}`.trim() : 'Someone';
+
+                    // Send reject notifications to all participants in other conversations
+                    for (const participantId of participantIds) {
+                        // Skip the user who confirmed (they shouldn't get a reject notification for their own confirmation)
+                        if (participantId === userId) continue;
+
+                        try {
+                            // Get participant user data for personalized notification
+                            const participantDoc = await getDoc(doc(db, 'users', participantId));
+                            if (!participantDoc.exists()) continue;
+
+                            const participantData = participantDoc.data();
+
+                            // Check if user should receive this notification type
+                            const shouldNotify = await notificationService.shouldSendNotification(participantId, 'handover_response');
+                            if (!shouldNotify) {
+                                console.log(`🚫 Mobile: User ${participantId} has handover_response notifications disabled`);
+                                continue;
+                            }
+
+                            // Send database notification
+                            await notificationSender.sendNotificationToUsers([participantId], {
+                                type: 'handover_response',
+                                title: 'Handover Request Rejected',
+                                body: `${confirmerName} has already completed the handover process for "${conversationData.postTitle || 'this item'}". Your request cannot be processed.`,
+                                data: {
+                                    conversationId: currentConversationId,
+                                    postTitle: conversationData.postTitle || 'Unknown Item',
+                                    postId: postId,
+                                    confirmerId: userId,
+                                    confirmerName: confirmerName,
+                                    rejectionReason: 'another_user_confirmed',
+                                    timestamp: new Date().toISOString()
+                                }
+                            });
+
+                            // Send push notification if user is on mobile
+                            const isMobileUser = participantData.pushToken && participantData.pushToken.length > 0;
+                            if (isMobileUser) {
+                                try {
+                                    await notificationService.sendPushNotification(
+                                        participantId,
+                                        'Handover Request Rejected',
+                                        `${confirmerName} has already completed the handover process for "${conversationData.postTitle || 'this item'}". Your request cannot be processed.`,
+                                        {
+                                            type: 'handover_response',
+                                            conversationId: currentConversationId,
+                                            postTitle: conversationData.postTitle || 'Unknown Item',
+                                            postId: postId,
+                                            confirmerId: userId,
+                                            confirmerName: confirmerName,
+                                            rejectionReason: 'another_user_confirmed',
+                                            timestamp: new Date().toISOString()
+                                        }
+                                    );
+                                    console.log(`📲 Mobile: Sent reject push notification to mobile user ${participantId}`);
+                                } catch (pushError) {
+                                    console.warn(`⚠️ Mobile: Failed to send reject push notification to ${participantId}:`, pushError);
+                                }
+                            } else {
+                                console.log(`💻 Mobile: User ${participantId} appears to be web user, database notification created`);
+                            }
+
+                            console.log(`📢 Mobile: Sent reject notification to user ${participantId} for conversation ${currentConversationId}`);
+                        } catch (notificationError) {
+                            console.warn(`⚠️ Mobile: Failed to send reject notification to user ${participantId}:`, notificationError);
+                            // Continue with other participants even if one fails
+                        }
+                    }
+                }
+
+                // STEP 2: Collect all image URLs from all conversations, but preserve only confirmed request photos
                 const allImageUrls: string[] = [];
                 const confirmedRequestPhotos: string[] = []; // Only photos from the confirmed request should be preserved
 
@@ -589,10 +680,10 @@ export const messageService: MessageService = {
                     }
                 }
 
-                // STEP 2: Filter out only the confirmed request photos from deletion list
+                // STEP 3: Filter out only the confirmed request photos from deletion list
                 const imagesToDelete = allImageUrls.filter(url => !confirmedRequestPhotos.includes(url));
 
-                // STEP 3: Delete all non-confirmed-request images from Cloudinary
+                // STEP 4: Delete all non-confirmed-request images from Cloudinary
                 if (imagesToDelete.length > 0) {
                     console.log(`🗑️ Mobile: Deleting ${imagesToDelete.length} images from Cloudinary (preserving ${confirmedRequestPhotos.length} photos from confirmed request)`);
                     const { deleteMessageImages } = await import('../cloudinary');
@@ -607,7 +698,7 @@ export const messageService: MessageService = {
                     console.log('ℹ️ Mobile: No images to delete (all images are from confirmed request or no images found)');
                 }
 
-                // STEP 4: Delete each conversation and all its messages
+                // STEP 5: Delete each conversation and all its messages
                 for (const conversationDoc of conversationsSnapshot.docs) {
                     const conversationId = conversationDoc.id;
                     const conversationRef = doc(db, 'conversations', conversationId);
@@ -796,7 +887,98 @@ export const messageService: MessageService = {
 
                 console.log(`🔍 Mobile: Found ${conversationsSnapshot.docs.length} conversations for post ${postId}`);
 
-                // STEP 1: Collect all image URLs from all conversations, but preserve only confirmed request photos
+                // STEP 1: Send reject notifications to other conversations before deletion
+                // (excluding the conversation that was just confirmed)
+                for (const conversationDoc of conversationsSnapshot.docs) {
+                    const currentConversationId = conversationDoc.id;
+                    const conversationRef = doc(db, 'conversations', currentConversationId);
+                    const conversationDocData = await getDoc(conversationRef);
+
+                    if (!conversationDocData.exists()) continue;
+
+                    const conversationData = conversationDocData.data();
+                    const participantIds = Object.keys(conversationData.participants || {});
+
+                    // Skip the conversation that was just confirmed (it will be deleted anyway)
+                    if (conversationDoc.id === conversationId) continue;
+
+                    // Get user data for the person who confirmed the claim
+                    const confirmerDoc = await getDoc(doc(db, 'users', userId));
+                    const confirmerData = confirmerDoc.exists() ? confirmerDoc.data() : null;
+                    const confirmerName = confirmerData ? `${confirmerData.firstName || ''} ${confirmerData.lastName || ''}`.trim() : 'Someone';
+
+                    // Send reject notifications to all participants in other conversations
+                    for (const participantId of participantIds) {
+                        // Skip the user who confirmed (they shouldn't get a reject notification for their own confirmation)
+                        if (participantId === userId) continue;
+
+                        try {
+                            // Get participant user data for personalized notification
+                            const participantDoc = await getDoc(doc(db, 'users', participantId));
+                            if (!participantDoc.exists()) continue;
+
+                            const participantData = participantDoc.data();
+
+                            // Check if user should receive this notification type
+                            const shouldNotify = await notificationService.shouldSendNotification(participantId, 'claim_response');
+                            if (!shouldNotify) {
+                                console.log(`🚫 Mobile: User ${participantId} has claim_response notifications disabled`);
+                                continue;
+                            }
+
+                            // Send database notification
+                            await notificationSender.sendNotificationToUsers([participantId], {
+                                type: 'claim_response',
+                                title: 'Claim Request Rejected',
+                                body: `${confirmerName} has already completed the claim process for "${conversationData.postTitle || 'this item'}". Your request cannot be processed.`,
+                                data: {
+                                    conversationId: currentConversationId,
+                                    postTitle: conversationData.postTitle || 'Unknown Item',
+                                    postId: postId,
+                                    confirmerId: userId,
+                                    confirmerName: confirmerName,
+                                    rejectionReason: 'another_user_confirmed',
+                                    timestamp: new Date().toISOString()
+                                }
+                            });
+
+                            // Send push notification if user is on mobile
+                            const isMobileUser = participantData.pushToken && participantData.pushToken.length > 0;
+                            if (isMobileUser) {
+                                try {
+                                    await notificationService.sendPushNotification(
+                                        participantId,
+                                        'Claim Request Rejected',
+                                        `${confirmerName} has already completed the claim process for "${conversationData.postTitle || 'this item'}". Your request cannot be processed.`,
+                                        {
+                                            type: 'claim_response',
+                                            conversationId: currentConversationId,
+                                            postTitle: conversationData.postTitle || 'Unknown Item',
+                                            postId: postId,
+                                            confirmerId: userId,
+                                            confirmerName: confirmerName,
+                                            rejectionReason: 'another_user_confirmed',
+                                            timestamp: new Date().toISOString()
+                                        }
+                                    );
+                                    console.log(`📲 Mobile: Sent reject push notification to mobile user ${participantId}`);
+                                } catch (pushError) {
+                                    console.warn(`⚠️ Mobile: Failed to send reject push notification to ${participantId}:`, pushError);
+                                    // Continue - database notification was already created
+                                }
+                            } else {
+                                console.log(`💻 Mobile: User ${participantId} appears to be web user, database notification created`);
+                            }
+
+                            console.log(`📢 Mobile: Sent reject notification to user ${participantId} for conversation ${currentConversationId}`);
+                        } catch (notificationError) {
+                            console.warn(`⚠️ Mobile: Failed to send reject notification to user ${participantId}:`, notificationError);
+                            // Continue with other participants even if one fails
+                        }
+                    }
+                }
+
+                // STEP 2: Collect all image URLs from all conversations, but preserve only confirmed request photos
                 const allImageUrls: string[] = [];
                 const confirmedRequestPhotos: string[] = []; // Only photos from the confirmed request should be preserved
 
@@ -840,10 +1022,10 @@ export const messageService: MessageService = {
                     }
                 }
 
-                // STEP 2: Filter out only the confirmed request photos from deletion list
+                // STEP 3: Filter out only the confirmed request photos from deletion list
                 const imagesToDelete = allImageUrls.filter(url => !confirmedRequestPhotos.includes(url));
 
-                // STEP 3: Delete all non-confirmed-request images from Cloudinary
+                // STEP 4: Delete all non-confirmed-request images from Cloudinary
                 if (imagesToDelete.length > 0) {
                     console.log(`🗑️ Mobile: Deleting ${imagesToDelete.length} images from Cloudinary (preserving ${confirmedRequestPhotos.length} photos from confirmed request)`);
                     const { deleteMessageImages } = await import('../cloudinary');
@@ -858,7 +1040,7 @@ export const messageService: MessageService = {
                     console.log('ℹ️ Mobile: No images to delete (all images are from confirmed request or no images found)');
                 }
 
-                // STEP 4: Delete each conversation and all its messages
+                // STEP 5: Delete each conversation and all its messages
                 for (const conversationDoc of conversationsSnapshot.docs) {
                     const conversationId = conversationDoc.id;
                     const conversationRef = doc(db, 'conversations', conversationId);
