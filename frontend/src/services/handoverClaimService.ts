@@ -48,6 +48,8 @@ export const updateClaimResponse = async (
 ): Promise<void> => {
     try {
         console.log('🔄 Updating claim response:', { conversationId, messageId, status, responderId, idPhotoUrl });
+
+        // Update the claim response in the database (photo deletion is handled in messageService)
         await messageService.updateClaimResponse(conversationId, messageId, status, responderId, idPhotoUrl);
         console.log('✅ Claim response updated successfully');
     } catch (error: any) {

@@ -624,7 +624,8 @@ export const messageService = {
                     // Collect all image URLs to be deleted
                     const imageUrls = [
                         ...(messageData.handoverData.idPhotoUrl ? [messageData.handoverData.idPhotoUrl] : []),
-                        ...(messageData.handoverData.itemPhotos?.map((p: any) => p.url) || [])
+                        ...(messageData.handoverData.itemPhotos?.map((p: any) => p.url) || []),
+                        ...(messageData.handoverData.ownerIdPhoto ? [messageData.handoverData.ownerIdPhoto] : [])
                     ];
 
                     if (imageUrls.length > 0) {
@@ -1458,7 +1459,127 @@ export const messageService = {
         }
     },
 
-    // Reject claim request after ID photo confirmation (when status is pending_confirmation or accepted with ownerIdPhoto uploaded but not yet confirmed by owner) - NEW FUNCTION ADDED TO FIX PHOTO DELETION ISSUE
+    // Update claim response (regular rejection, not after confirmation)
+    async updateClaimResponse(conversationId: string, messageId: string, status: 'accepted' | 'rejected', responderId: string, idPhotoUrl?: string): Promise<void> {
+        try {
+            console.log('🔄 Firebase: updateClaimResponse called with:', { conversationId, messageId, status, responderId, idPhotoUrl });
+
+            const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
+            const messageDoc = await getDoc(messageRef);
+
+            if (!messageDoc.exists()) {
+                throw new Error('Message not found');
+            }
+
+            const messageData = messageDoc.data();
+            if (messageData.messageType !== 'claim_request') {
+                throw new Error('Message is not a claim request');
+            }
+
+            // If rejecting the claim, delete all associated photos from Cloudinary
+            if (status === 'rejected') {
+                try {
+                    console.log('🗑️ Claim rejected - deleting associated photos...');
+
+                    // Collect all image URLs to be deleted
+                    const imageUrls: string[] = [];
+
+                    // Add original claimer ID photo if exists
+                    if (messageData.claimData?.idPhotoUrl) {
+                        imageUrls.push(messageData.claimData.idPhotoUrl);
+                    }
+
+                    // Add evidence photos if exist
+                    if (messageData.claimData?.evidencePhotos && Array.isArray(messageData.claimData.evidencePhotos)) {
+                        messageData.claimData.evidencePhotos.forEach((photo: any) => {
+                            if (photo.url) {
+                                imageUrls.push(photo.url);
+                            }
+                        });
+                    }
+
+                    // Add legacy verification photos if exist
+                    if (messageData.claimData?.verificationPhotos && Array.isArray(messageData.claimData.verificationPhotos)) {
+                        messageData.claimData.verificationPhotos.forEach((photo: any) => {
+                            if (photo.url) {
+                                imageUrls.push(photo.url);
+                            }
+                        });
+                    }
+
+                    // IMPORTANT: Add owner ID photo if exists (uploaded during claim acceptance)
+                    if (messageData.claimData?.ownerIdPhoto) {
+                        imageUrls.push(messageData.claimData.ownerIdPhoto);
+                        console.log('🗑️ Found owner ID photo to delete:', messageData.claimData.ownerIdPhoto.split('/').pop());
+                    }
+
+                    // Delete all images from Cloudinary
+                    if (imageUrls.length > 0) {
+                        console.log('🗑️ Deleting', imageUrls.length, 'images for rejected claim');
+                        const { deleteMessageImages } = await import('../../utils/cloudinary');
+                        const result = await deleteMessageImages(imageUrls);
+                        console.log(`✅ Cloudinary cleanup result: ${result.deleted.length} deleted, ${result.failed.length} failed`);
+
+                        if (result.failed.length > 0) {
+                            console.warn('⚠️ Some images failed to delete from Cloudinary:', result.failed);
+                        }
+                    } else {
+                        console.log('ℹ️ No images found to delete');
+                    }
+                } catch (photoError) {
+                    console.error('❌ Error deleting claim photos:', photoError);
+                    // Continue with the response update even if photo deletion fails
+                }
+            }
+
+            // Update the claim message with the response and ID photo
+            const updateData: any = {
+                'claimData.status': status,
+                'claimData.respondedAt': serverTimestamp(),
+                'claimData.responderId': responderId
+            };
+
+            // If accepting with ID photo, add the owner photo URL and change status to pending confirmation
+            if (status === 'accepted' && idPhotoUrl) {
+                updateData['claimData.ownerIdPhoto'] = idPhotoUrl;
+                updateData['claimData.status'] = 'pending_confirmation';
+            }
+
+            await updateDoc(messageRef, updateData);
+
+            // Get conversation data for notifications
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
+            const conversationData = conversationDoc.data();
+
+            // Update conversation status
+            await updateDoc(conversationRef, {
+                claimRequestStatus: status === 'accepted' ? 'accepted' : 'rejected',
+                updatedAt: serverTimestamp()
+            });
+
+            // Send response notification to other participants
+            try {
+                if (conversationData) {
+                    await notificationSender.sendResponseNotification(conversationId, {
+                        responderId: responderId,
+                        responderName: conversationData.participants[responderId]?.firstName + ' ' + conversationData.participants[responderId]?.lastName || 'Unknown User',
+                        responseType: 'claim_response',
+                        status: status,
+                        postTitle: conversationData.postTitle
+                    });
+                }
+            } catch (notificationError) {
+                console.warn('⚠️ Failed to send claim response notification:', notificationError);
+                // Don't fail the whole operation if notification fails
+            }
+
+            console.log(`✅ Claim response updated: ${status}`);
+        } catch (error: any) {
+            console.error('❌ Firebase updateClaimResponse failed:', error);
+            throw new Error(error.message || 'Failed to update claim response');
+        }
+    },
     async rejectClaimAfterConfirmation(conversationId: string, messageId: string, rejectBy: string): Promise<void> {
         try {
             console.log('🔄 Firebase: rejectClaimAfterConfirmation called with:', { conversationId, messageId, rejectBy });

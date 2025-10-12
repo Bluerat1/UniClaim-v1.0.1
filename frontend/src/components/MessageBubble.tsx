@@ -295,21 +295,30 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           // Force refresh hint for parent component
         }, 200);
       },
-      onError: (error) => {
-        let errorMessage = error;
-        if (error.includes("Network request failed")) {
-          errorMessage =
-            "Network error. Please check your internet connection and try again.";
-        } else if (error.includes("Cloudinary cloud name not configured")) {
-          errorMessage = "Cloudinary not configured. Please contact support.";
-        } else if (error.includes("Upload preset not configured")) {
-          errorMessage = "Upload configuration error. Please contact support.";
+      onClaimResponse: (_messageId: string, _status: 'accepted' | 'rejected') => {
+        // Handle claim response after ID photo upload
+        if (onClaimResponse) {
+          onClaimResponse(_messageId, _status);
         }
-        alert("Upload Error: " + errorMessage);
-
-        // Reset preview state on error
+        // Don't close the modal yet, wait for the success callback
+      },
+      onSuccess: (_message: string) => {
+        // Close the modal and reset the photo
+        setShowIdPhotoModal(false);
+        setSelectedIdPhoto(null);
         setPreviewPhotoUrl(null);
         setShowIdPhotoPreview(false);
+
+        // Wait for Firebase to fully update before calling parent callback
+        setTimeout(() => {
+          onClaimResponse?.(msgId, "accepted");
+
+          // Additional delay to ensure parent has processed the callback
+          setTimeout(() => {
+            // The parent component will refresh the message data from Firebase
+            // This ensures we get the complete updated message with ownerIdPhoto
+          }, 500);
+        }, 1500); // Longer delay to allow Firebase to fully update
       },
     };
 
@@ -962,8 +971,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       message.senderId !== currentUserId &&
       (userRole === "admin" || userRole === "campus_security");
     return (
-      <div className="fixed inset-0 bg-black/50 flex h-screen items-center justify-center z-[1000]">
-        <div className="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full mx-4 relative z-[1000]">
+      <div className="fixed inset-0 bg-black/50 flex h-screen items-center justify-center z-[1000]" onClick={() => setShowIdPhotoModal(false)}>
+        <div className="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full mx-4 relative z-[1000]" onClick={(e) => e.stopPropagation()}>
           <h3 className="text-lg font-semibold mb-4">
             {isAdminAcceptingClaim
               ? "Confirm ID Photo"

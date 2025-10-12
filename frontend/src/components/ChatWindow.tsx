@@ -757,7 +757,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       console.log("✅ All data validated, sending handover request...");
 
-      // Now send the handover request with verification photos
+      // Send handover request (modal will be closed by onSuccess callback)
       await messageService.sendHandoverRequest(
         conversation.id,
         userData.uid,
@@ -770,8 +770,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         uploadedItemPhotos
       );
 
-      // Close modal and show success message
-      setShowHandoverModal(false);
+      // Show success message
       alert("Handover request sent successfully!");
     } catch (error) {
       console.error("Failed to send handover request:", error);
@@ -1448,6 +1447,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         onSubmit={handleSubmitHandover}
         itemTitle={conversation?.postTitle || ""}
         isLoading={isHandoverSubmitting}
+        onSuccess={() => {
+          setShowHandoverModal(false);
+          console.log("Handover form submitted and modal closed successfully");
+        }}
       />
 
       {/* Info Modal */}
