@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useMessage } from "../context/MessageContext";
-import type { Conversation, Message } from "@/types/Post";
+import type { Conversation, Message } from "../types/Post";
 import MessageBubble from "./MessageBubble";
 import { useAuth } from "../context/AuthContext";
 import ProfilePicture from "./ProfilePicture";
@@ -10,15 +10,13 @@ import { db } from "../utils/firebase";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 
 // Define valid toast types
-type ToastType = 'success' | 'error' | 'info' | 'warning';
+type ToastType = "success" | "error" | "info" | "warning";
 
 interface AdminChatWindowProps {
   conversation: Conversation | null;
 }
 
-const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
-  conversation,
-}) => {
+const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -30,17 +28,19 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
   const { sendMessage, getConversationMessages, markConversationAsRead } =
     useMessage();
   const { userData } = useAuth();
-  const { showToast } = useToast() as { showToast: (message: string, type: ToastType) => void };
+  const { showToast } = useToast() as {
+    showToast: (message: string, type: ToastType) => void;
+  };
 
   // Auto-scroll to bottom when new messages arrive
-  const scrollToBottom = (behavior: 'auto' | 'smooth' = 'auto') => {
+  const scrollToBottom = (behavior: "auto" | "smooth" = "auto") => {
     if (messagesContainerRef.current) {
       // Use requestAnimationFrame to ensure DOM is ready
       requestAnimationFrame(() => {
         if (messagesContainerRef.current) {
           messagesContainerRef.current.scrollTo({
             top: messagesContainerRef.current.scrollHeight,
-            behavior
+            behavior,
           });
           setShowScrollToBottom(false);
         }
@@ -60,7 +60,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
 
     const observer = new MutationObserver(() => {
       // Scroll to bottom when DOM changes (messages added/removed)
-      scrollToBottom('auto');
+      scrollToBottom("auto");
     });
 
     observer.observe(messagesContainerRef.current, {
@@ -75,17 +75,18 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
   useLayoutEffect(() => {
     if (messages.length > 0) {
       // Scroll immediately without delay for better UX
-      scrollToBottom('auto');
+      scrollToBottom("auto");
     }
   }, [messages, conversation]);
 
   // Handle scroll events to track position and show/hide scroll-to-bottom button
   const handleScroll = (_e: React.UIEvent<HTMLDivElement>) => {
     if (!messagesContainerRef.current) return;
-    
-    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+
+    const { scrollTop, scrollHeight, clientHeight } =
+      messagesContainerRef.current;
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
-    
+
     // Only show scroll-to-bottom button if not at bottom and new messages arrive
     if (isAtBottom) {
       setShowScrollToBottom(false);
@@ -126,7 +127,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
     if (messages.length > 0) {
       // Use setTimeout to ensure DOM is fully rendered
       const scrollTimer = setTimeout(() => {
-        scrollToBottom('auto');
+        scrollToBottom("auto");
       }, 10);
 
       return () => clearTimeout(scrollTimer);
@@ -138,7 +139,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
     const textarea = textareaRef.current;
     if (textarea) {
       // Reset height to get the correct scrollHeight
-      textarea.style.height = 'auto';
+      textarea.style.height = "auto";
       // Set the height to scrollHeight with a max of 200px
       textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
     }
@@ -152,10 +153,10 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!conversation || !userData || !newMessage.trim()) return;
-    
+
     // Reset textarea height after sending
     if (textareaRef.current) {
-      textareaRef.current.style.height = '40px';
+      textareaRef.current.style.height = "40px";
     }
 
     setIsSending(true);
@@ -170,7 +171,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
       setNewMessage("");
     } catch (error) {
       console.error("Failed to send message:", error);
-      showToast('Failed to send message', 'error');
+      showToast("Failed to send message", "error");
     } finally {
       setIsSending(false);
     }
@@ -186,7 +187,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
     try {
       // Create a Firestore-compatible timestamp
       const timestamp = new Date();
-      
+
       // Update the message in the UI immediately for better UX
       setMessages((prev) =>
         prev.map((msg) => {
@@ -208,23 +209,23 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
       // Update the message in Firestore
       const messageRef = doc(
         db,
-        'conversations',
+        "conversations",
         conversation.id,
-        'messages',
+        "messages",
         messageId
       );
-      
+
       await updateDoc(messageRef, {
-        'claimData.status': status,
-        'claimData.respondedAt': serverTimestamp(),
-        'claimData.responderId': userData.uid,
+        "claimData.status": status,
+        "claimData.respondedAt": serverTimestamp(),
+        "claimData.responderId": userData.uid,
       });
 
-      showToast(`Claim ${status}`, 'success');
+      showToast(`Claim ${status}`, "success");
     } catch (error) {
       console.error("Error updating claim status:", error);
-      showToast(`Failed to process claim`, 'error');
-      
+      showToast(`Failed to process claim`, "error");
+
       // Revert the optimistic update on error
       setMessages((prev) =>
         prev.map((msg) => {
@@ -244,37 +245,39 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
 
   const getOtherParticipant = (conversation: Conversation) => {
     const participantIds = Object.keys(conversation.participants || {});
-    const otherParticipantId = participantIds.find((id) => id !== userData?.uid);
+    const otherParticipantId = participantIds.find(
+      (id) => id !== userData?.uid
+    );
     return conversation.participants[otherParticipantId || ""] || null;
   };
 
   const getOtherParticipantName = (conversation: Conversation) => {
     const participant = getOtherParticipant(conversation);
-    
+
     if (!participant) return "Unknown User";
-    
+
     // If we have both first and last name, combine them
     if ((participant as any).firstName && participant.lastName) {
       return `${(participant as any).firstName} ${participant.lastName}`.trim();
     }
-    
+
     // If we have just first name
     if ((participant as any).firstName) {
       return (participant as any).firstName;
     }
-    
+
     // If we have just last name
     if (participant.lastName) {
       return participant.lastName;
     }
-    
+
     // If we have a uid but no name, use the ID
     if (participant.uid) {
       return `User ${participant.uid.substring(0, 6)}`;
     }
-    
+
     // Last resort fallback
-    return 'Unknown User';
+    return "Unknown User";
   };
 
   const getOtherParticipantProfilePicture = (conversation: Conversation) => {
@@ -375,7 +378,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
         {/* Scroll to bottom button */}
         {showScrollToBottom && (
           <button
-            onClick={() => scrollToBottom('smooth')}
+            onClick={() => scrollToBottom("smooth")}
             className="sticky left-full bottom-4 ml-2 p-2 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-colors z-10"
             title="Scroll to bottom"
           >
@@ -475,14 +478,14 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
+                if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   handleSendMessage(e);
                 }
               }}
               placeholder="Type a message as admin..."
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none overflow-hidden min-h-[40px] max-h-[200px] transition-all duration-100 ease-in-out"
-              style={{ height: '40px' }}
+              style={{ height: "40px" }}
               rows={1}
               disabled={isSending}
             />
@@ -494,8 +497,17 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({
               {isSending ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
                 </svg>
               )}
             </button>
