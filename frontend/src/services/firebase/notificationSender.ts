@@ -6,7 +6,7 @@ import { authService } from './auth';
 import { adminNotificationService } from './adminNotifications';
 import { userService } from './users';
 export interface PostNotificationData {
-    type: 'new_post' | 'claim_request' | 'claim_response' | 'handover_response' | 'status_change' | 'post_reverted' | 'post_activated' | 'post_deleted' | 'post_restored';
+    type: 'new_post' | 'claim_request' | 'claim_response' | 'handover_response' | 'status_change' | 'post_reverted' | 'post_activated' | 'post_deleted' | 'post_restored' | 'post_hidden' | 'post_unhidden' | 'post_approved';
     title: string;
     body: string;
     postId?: string;
@@ -158,7 +158,7 @@ export class NotificationSender {
                 type: 'post_deleted',
                 title: `Post ${deletionTypeText.charAt(0).toUpperCase() + deletionTypeText.slice(1)}`,
                 body: `Your ${postData.postType} post "${postData.postTitle}" has been ${deletionTypeText} by ${postData.adminName ? postData.adminName : 'an admin'}.`,
-                postId: postData.postId,
+                // Don't include postId to prevent deletion when post is deleted
                 postTitle: postData.postTitle,
                 postType: postData.postType,
                 creatorId: notificationRecipientId,
@@ -168,6 +168,7 @@ export class NotificationSender {
                 data: {
                     adminName: postData.adminName,
                     deletionType: postData.deletionType,
+                    postId: postData.postId, // Include in data for reference if needed
                     timestamp: new Date().toISOString()
                 }
             });
@@ -273,6 +274,150 @@ export class NotificationSender {
             console.log('✅ Post reversion notification sent successfully');
         } catch (error) {
             console.error('❌ Failed to send post reversion notification:', error);
+            throw error;
+        }
+    }
+
+    // Send notification for post hiding (admin action)
+    async sendHideNotification(postData: {
+        postId: string;
+        postTitle: string;
+        postType: 'lost' | 'found';
+        creatorId: string;
+        creatorName: string;
+        adminName?: string;
+    }): Promise<void> {
+        try {
+            console.log('🚀 Sending post hide notification for post:', postData.postTitle);
+
+            // Check if this post has been turned over and use the original finder instead
+            // We need to fetch the post data to check for turnoverDetails
+            const { postService } = await import('./posts');
+            const post = await postService.getPostById(postData.postId);
+
+            if (!post) {
+                throw new Error('Post not found for hide notification');
+            }
+
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || postData.creatorId;
+
+            // Send notification to the post creator (or original finder if post was turned over)
+            await this.sendNotificationToUser(notificationRecipientId, {
+                type: 'post_hidden',
+                title: `Post Hidden`,
+                body: `Your ${postData.postType} post "${postData.postTitle}" has been hidden from public view by ${postData.adminName ? postData.adminName : 'an admin'}. It can be unhidden later if needed.`,
+                postId: postData.postId,
+                postTitle: postData.postTitle,
+                postType: postData.postType,
+                creatorId: notificationRecipientId,
+                creatorName: post.turnoverDetails?.originalFinder ?
+                    `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                    postData.creatorName,
+                data: {
+                    adminName: postData.adminName,
+                    timestamp: new Date().toISOString()
+                }
+            });
+
+            console.log('✅ Post hide notification sent successfully');
+        } catch (error) {
+            console.error('❌ Failed to send post hide notification:', error);
+            throw error;
+        }
+    }
+
+    // Send notification for post unhiding (admin action)
+    async sendUnhideNotification(postData: {
+        postId: string;
+        postTitle: string;
+        postType: 'lost' | 'found';
+        creatorId: string;
+        creatorName: string;
+        adminName?: string;
+    }): Promise<void> {
+        try {
+            console.log('🚀 Sending post unhide notification for post:', postData.postTitle);
+
+            // Check if this post has been turned over and use the original finder instead
+            // We need to fetch the post data to check for turnoverDetails
+            const { postService } = await import('./posts');
+            const post = await postService.getPostById(postData.postId);
+
+            if (!post) {
+                throw new Error('Post not found for unhide notification');
+            }
+
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || postData.creatorId;
+
+            // Send notification to the post creator (or original finder if post was turned over)
+            await this.sendNotificationToUser(notificationRecipientId, {
+                type: 'post_unhidden',
+                title: `Post Unhidden`,
+                body: `Your ${postData.postType} post "${postData.postTitle}" has been unhidden and is now visible to other users again${postData.adminName ? ` by ${postData.adminName}` : ''}.`,
+                postId: postData.postId,
+                postTitle: postData.postTitle,
+                postType: postData.postType,
+                creatorId: notificationRecipientId,
+                creatorName: post.turnoverDetails?.originalFinder ?
+                    `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                    postData.creatorName,
+                data: {
+                    adminName: postData.adminName,
+                    timestamp: new Date().toISOString()
+                }
+            });
+
+            console.log('✅ Post unhide notification sent successfully');
+        } catch (error) {
+            console.error('❌ Failed to send post unhide notification:', error);
+            throw error;
+        }
+    }
+
+    // Send notification for post approval (admin action)
+    async sendApproveNotification(postData: {
+        postId: string;
+        postTitle: string;
+        postType: 'lost' | 'found';
+        creatorId: string;
+        creatorName: string;
+        adminName?: string;
+    }): Promise<void> {
+        try {
+            console.log('🚀 Sending post approval notification for post:', postData.postTitle);
+
+            // Check if this post has been turned over and use the original finder instead
+            // We need to fetch the post data to check for turnoverDetails
+            const { postService } = await import('./posts');
+            const post = await postService.getPostById(postData.postId);
+
+            if (!post) {
+                throw new Error('Post not found for approval notification');
+            }
+
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || postData.creatorId;
+
+            // Send notification to the post creator (or original finder if post was turned over)
+            await this.sendNotificationToUser(notificationRecipientId, {
+                type: 'post_approved',
+                title: `Post Approved`,
+                body: `Your ${postData.postType} post "${postData.postTitle}" has been approved and is now visible to all users${postData.adminName ? ` by ${postData.adminName}` : ''}.`,
+                postId: postData.postId,
+                postTitle: postData.postTitle,
+                postType: postData.postType,
+                creatorId: notificationRecipientId,
+                creatorName: post.turnoverDetails?.originalFinder ?
+                    `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                    postData.creatorName,
+                data: {
+                    adminName: postData.adminName,
+                    timestamp: new Date().toISOString()
+                }
+            });
+
+            console.log('✅ Post approval notification sent successfully');
+        } catch (error) {
+            console.error('❌ Failed to send post approval notification:', error);
             throw error;
         }
     }

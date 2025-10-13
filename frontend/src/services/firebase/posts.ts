@@ -1313,6 +1313,24 @@ export const postService = {
             }
 
             if (hardDelete) {
+                // Send notification to the post creator about permanent deletion BEFORE deleting
+                try {
+                    const adminName = getAuth().currentUser?.displayName || getAuth().currentUser?.email || 'an admin';
+                    await notificationSender.sendDeleteNotification({
+                        postId: postId,
+                        postTitle: postData.title,
+                        postType: postData.type,
+                        creatorId: postData.creatorId,
+                        creatorName: `${postData.user.firstName} ${postData.user.lastName}`,
+                        adminName: adminName,
+                        deletionType: 'permanent'
+                    });
+                    console.log(`📨 Permanent delete notification sent to post creator`);
+                } catch (notificationError) {
+                    console.error('❌ Failed to send permanent delete notification:', notificationError);
+                    // Don't fail the operation if notification fails
+                }
+
                 // Delete all collected images from Cloudinary if any exist
                 if (allImagesToDelete.length > 0) {
                     console.log(`🗑️ Deleting ${allImagesToDelete.length} total images from Cloudinary`);
@@ -1344,6 +1362,24 @@ export const postService = {
                     console.error('Failed to delete notifications for post:', postId, notificationError);
                 }
             } else {
+                // Send notification to the post creator about soft deletion BEFORE moving to deleted collection
+                try {
+                    const adminName = getAuth().currentUser?.displayName || getAuth().currentUser?.email || 'an admin';
+                    await notificationSender.sendDeleteNotification({
+                        postId: postId,
+                        postTitle: postData.title,
+                        postType: postData.type,
+                        creatorId: postData.creatorId,
+                        creatorName: `${postData.user.firstName} ${postData.user.lastName}`,
+                        adminName: adminName,
+                        deletionType: 'soft'
+                    });
+                    console.log(`📨 Soft delete notification sent to post creator`);
+                } catch (notificationError) {
+                    console.error('❌ Failed to send soft delete notification:', notificationError);
+                    // Don't fail the operation if notification fails
+                }
+
                 // Soft delete - move to deleted collection
                 const deletedAt = new Date().toISOString();
                 const deletedByUser = deletedBy || 'system';
@@ -1813,7 +1849,7 @@ export const postService = {
         }
     },
 
-    // Unflag a post (admin only)
+    // Unflag a post (admin only) - also unhides if post is hidden
     async unflagPost(postId: string): Promise<void> {
         try {
             const postRef = doc(db, 'posts', postId);
@@ -1823,16 +1859,62 @@ export const postService = {
                 throw new Error('Post not found');
             }
 
-            // Clear flag information
-            await updateDoc(postRef, {
+            const postData = postDoc.data() as Post;
+
+            // Check if post is currently hidden
+            const isCurrentlyHidden = postData.isHidden === true;
+
+            // Prepare update data - clear flag information
+            const updateData: any = {
                 isFlagged: false,
                 flagReason: null,
                 flaggedBy: null,
                 flaggedAt: null,
                 updatedAt: serverTimestamp()
-            });
+            };
 
-            console.log(`✅ Post ${postId} unflagged`);
+            // If post is hidden, also unhide it when approving
+            if (isCurrentlyHidden) {
+                updateData.isHidden = false;
+                console.log(`✅ Post ${postId} will be unflagged and unhidden`);
+            } else {
+                console.log(`✅ Post ${postId} will be unflagged`);
+            }
+
+            // Clear flag information and unhide if necessary
+            await updateDoc(postRef, updateData);
+
+            // Send notifications based on what actions were performed
+            try {
+                const adminName = getAuth().currentUser?.displayName || getAuth().currentUser?.email || 'an admin';
+
+                // Always send approval notification
+                await notificationSender.sendApproveNotification({
+                    postId: postId,
+                    postTitle: postData.title,
+                    postType: postData.type,
+                    creatorId: postData.creatorId,
+                    creatorName: `${postData.user.firstName} ${postData.user.lastName}`,
+                    adminName: adminName
+                });
+                console.log(`📨 Approval notification sent to post creator`);
+
+                // If post was also unhidden, send unhide notification
+                if (isCurrentlyHidden) {
+                    await notificationSender.sendUnhideNotification({
+                        postId: postId,
+                        postTitle: postData.title,
+                        postType: postData.type,
+                        creatorId: postData.creatorId,
+                        creatorName: `${postData.user.firstName} ${postData.user.lastName}`,
+                        adminName: adminName
+                    });
+                    console.log(`📨 Unhide notification sent to post creator`);
+                }
+            } catch (notificationError) {
+                console.error('❌ Failed to send notification(s):', notificationError);
+                // Don't fail the operation if notification fails
+            }
         } catch (error: any) {
             console.error('❌ Firebase unflagPost failed:', error);
             throw new Error(error.message || 'Failed to unflag post');
@@ -1849,6 +1931,8 @@ export const postService = {
                 throw new Error('Post not found');
             }
 
+            const postData = postDoc.data() as Post;
+
             // Hide the post
             await updateDoc(postRef, {
                 isHidden: true,
@@ -1856,6 +1940,23 @@ export const postService = {
             });
 
             console.log(`✅ Post ${postId} hidden from public view`);
+
+            // Send notification to the post creator
+            try {
+                const adminName = getAuth().currentUser?.displayName || getAuth().currentUser?.email || 'an admin';
+                await notificationSender.sendHideNotification({
+                    postId: postId,
+                    postTitle: postData.title,
+                    postType: postData.type,
+                    creatorId: postData.creatorId,
+                    creatorName: `${postData.user.firstName} ${postData.user.lastName}`,
+                    adminName: adminName
+                });
+                console.log(`📨 Hide notification sent to post creator`);
+            } catch (notificationError) {
+                console.error('❌ Failed to send hide notification:', notificationError);
+                // Don't fail the operation if notification fails
+            }
         } catch (error: any) {
             console.error('❌ Firebase hidePost failed:', error);
             throw new Error(error.message || 'Failed to hide post');
@@ -1872,6 +1973,8 @@ export const postService = {
                 throw new Error('Post not found');
             }
 
+            const postData = postDoc.data() as Post;
+
             // Unhide the post
             await updateDoc(postRef, {
                 isHidden: false,
@@ -1879,6 +1982,23 @@ export const postService = {
             });
 
             console.log(`✅ Post ${postId} unhidden and visible to public`);
+
+            // Send notification to the post creator
+            try {
+                const adminName = getAuth().currentUser?.displayName || getAuth().currentUser?.email || 'an admin';
+                await notificationSender.sendUnhideNotification({
+                    postId: postId,
+                    postTitle: postData.title,
+                    postType: postData.type,
+                    creatorId: postData.creatorId,
+                    creatorName: `${postData.user.firstName} ${postData.user.lastName}`,
+                    adminName: adminName
+                });
+                console.log(`📨 Unhide notification sent to post creator`);
+            } catch (notificationError) {
+                console.error('❌ Failed to send unhide notification:', notificationError);
+                // Don't fail the operation if notification fails
+            }
         } catch (error: any) {
             console.error('❌ Firebase unhidePost failed:', error);
             throw new Error(error.message || 'Failed to unhide post');

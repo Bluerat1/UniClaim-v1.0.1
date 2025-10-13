@@ -91,6 +91,26 @@ export default function HomeHeader({
       return;
     }
 
+    // Handle post_deleted notifications - show toast message
+    if (notification.type === "post_deleted") {
+      console.log("Post deleted notification clicked");
+
+      // Show toast message for deleted post
+      toast.info(`This ${notification.data?.postType || 'lost/found'} post has been deleted by an admin.`, {
+        position: "top-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        toastId: "post-deleted-notification", // Add a unique ID to prevent duplicate toasts
+      });
+
+      toggleNotif(); // Close the notification dropdown
+      return;
+    }
+
     // Handle claim_confirmed notifications - navigate to completed post
     if (
       notification.data?.notificationType === "claim_confirmed" &&
