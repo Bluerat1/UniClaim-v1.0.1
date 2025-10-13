@@ -57,11 +57,50 @@ export function detectLocationFromCoordinates(
 
     // Check if point is within campus
     if (!isWithinCampus(point)) {
-        return {
-            location: null,
-            confidence: 0,
-            alternatives: []
-        };
+        // Find the closest building even if outside campus
+        let minDistance = Infinity;
+        let closestBuilding = null;
+
+        for (const building of USTP_BUILDING_POLYGONS) {
+            if (!building.coordinates || building.coordinates.length === 0) continue;
+
+            // Calculate centroid of the building polygon
+            const center = building.coordinates.reduce(
+                (acc, [x, y]) => [acc[0] + x, acc[1] + y],
+                [0, 0]
+            ).map(sum => sum / building.coordinates.length);
+
+            const distance = Math.sqrt(
+                Math.pow(center[0] - point[0], 2) +
+                Math.pow(center[1] - point[1], 2)
+            );
+
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestBuilding = building;
+            }
+        }
+
+        if (closestBuilding) {
+            // Calculate confidence based on distance (closer = higher confidence, but lower max)
+            const maxDistance = 0.01; // ~1km in degrees
+            const confidence = Math.max(5, 50 * (1 - Math.min(minDistance, maxDistance) / maxDistance));
+
+            return {
+                location: null,
+                confidence: Math.round(confidence),
+                alternatives: [{
+                    location: closestBuilding.name,
+                    confidence: Math.round(confidence)
+                }]
+            };
+        } else {
+            return {
+                location: null,
+                confidence: 0,
+                alternatives: []
+            };
+        }
     }
 
     const results: Array<{ location: string; confidence: number }> = [];
@@ -83,10 +122,48 @@ export function detectLocationFromCoordinates(
         }
     }
 
+    // If no exact matches found, find the closest building
+    if (results.length === 0) {
+        let minDistance = Infinity;
+        let closestBuilding = null;
+
+        for (const building of USTP_BUILDING_POLYGONS) {
+            if (!building.coordinates || building.coordinates.length === 0) continue;
+
+            // Calculate centroid of the building polygon
+            const center = building.coordinates.reduce(
+                (acc, [x, y]) => [acc[0] + x, acc[1] + y],
+                [0, 0]
+            ).map(sum => sum / building.coordinates.length);
+
+            const distance = Math.sqrt(
+                Math.pow(center[0] - point[0], 2) +
+                Math.pow(center[1] - point[1], 2)
+            );
+
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestBuilding = building;
+            }
+        }
+
+        if (closestBuilding) {
+            // Calculate confidence based on distance (closer = higher confidence)
+            const maxDistance = 0.001; // ~100 meters in degrees
+            const confidence = Math.max(10, 80 * (1 - Math.min(minDistance, maxDistance) / maxDistance));
+
+            // For non-building pins, set to "Near [building]"
+            results.push({
+                location: "Near " + closestBuilding.name,
+                confidence: Math.round(confidence)
+            });
+        }
+    }
+
     // Sort by confidence (highest first)
     results.sort((a, b) => b.confidence - a.confidence);
 
-    // Return result with high confidence threshold
+    // Get top result and alternatives
     const primaryResult = results[0];
     const alternatives = results.slice(1, 4); // Top 3 alternatives
 

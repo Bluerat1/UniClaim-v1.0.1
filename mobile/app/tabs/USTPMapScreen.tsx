@@ -21,10 +21,21 @@ export default function USTPMapScreen() {
       longitude: coords.lng
     });
     
+    // Use the primary location if available and has good confidence
+    let detectedLocation = detectionResult.location;
+    
+    // If no primary location but we have alternatives, use the top alternative
+    if (!detectedLocation && detectionResult.alternatives && detectionResult.alternatives.length > 0) {
+      const topAlternative = detectionResult.alternatives[0];
+      if (topAlternative.confidence >= 10) { // Use reasonable confidence threshold
+        detectedLocation = topAlternative.location;
+      }
+    }
+    
     setCoordinatesFromMap({
       latitude: coords.lat,
       longitude: coords.lng,
-      detectedLocation: detectionResult.location
+      detectedLocation: detectedLocation
     });
     navigation.goBack();
   };

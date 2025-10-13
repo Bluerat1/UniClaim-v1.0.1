@@ -26,6 +26,23 @@ For free-form shapes, add more points between corners as needed.
 export interface CampusLocation {
     name: string;
     coordinates: [number, number][]; // [lng, lat] pairs forming a polygon (can be any shape!)
+    center: [number, number]; // [lng, lat] center point of the building
+    bufferRadius: number; // in meters
+}
+
+// Helper function to calculate centroid of polygon coordinates
+function calculateCentroid(coordinates: [number, number][]): [number, number] {
+    if (coordinates.length === 0) return [0, 0];
+
+    let lngSum = 0;
+    let latSum = 0;
+
+    coordinates.forEach(([lng, lat]) => {
+        lngSum += lng;
+        latSum += lat;
+    });
+
+    return [lngSum / coordinates.length, latSum / coordinates.length];
 }
 
 // TODO: Replace these placeholder coordinates with actual USTP CDO campus building locations
@@ -44,6 +61,8 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65701, 8.48566],  // BOTTOM-RIGHT corner
             [124.65658, 8.48549]   // BOTTOM-LEFT corner
         ],
+        center: [124.656695, 8.48581], // Center of the building
+        bufferRadius: 30 // in meters
     },
     {
         name: "Cafeteria",
@@ -54,6 +73,8 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65692, 8.48508], // BOTTOM-RIGHT corner
             [124.65677, 8.48502]  // BOTTOM-LEFT corner
         ],
+        center: [124.656835, 8.48522], // Center of the building
+        bufferRadius: 20 // in meters
     },
     {
         name: "Culinary Arts Building",
@@ -63,6 +84,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65721, 8.48527], // BOTTOM-RIGHT corner
             [124.65711, 8.48526]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65708, 8.48552],
+            [124.65718, 8.48553],
+            [124.65721, 8.48527],
+            [124.65711, 8.48526]
+        ]),
+        bufferRadius: 15 // in meters
     },
     {
         name: "Science Complex Building",
@@ -72,6 +100,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65638, 8.48563], // BOTTOM-RIGHT corner
             [124.65581, 8.48543]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65572, 8.48561],
+            [124.65632, 8.48579],
+            [124.65638, 8.48563],
+            [124.65581, 8.48543]
+        ]),
+        bufferRadius: 40 // in meters
     },
     {
         name: "Old Civil Engineering Building",
@@ -81,6 +116,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65803, 8.48571], // BOTTOM-RIGHT corner
             [124.65724, 8.48562]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65723, 8.48574],
+            [124.65802, 8.48584],
+            [124.65803, 8.48571],
+            [124.65724, 8.48562]
+        ]),
+        bufferRadius: 50 // in meters
     },
     {
         name: "Science Centrum",
@@ -90,6 +132,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65722, 8.48497], // BOTTOM-RIGHT corner
             [124.65713, 8.48496]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65712, 8.48519],
+            [124.65721, 8.48520],
+            [124.65722, 8.48497],
+            [124.65713, 8.48496]
+        ]),
+        bufferRadius: 15 // in meters
     },
     {
         name: "Engineering Complex II",
@@ -105,6 +154,19 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65659, 8.48486],
             [124.65662, 8.48490],
         ],
+        center: calculateCentroid([
+            [124.65668, 8.48493],
+            [124.65670, 8.48490],
+            [124.65695, 8.48498],
+            [124.65696, 8.48494],
+            [124.65693, 8.48482],
+            [124.65668, 8.48476],
+            [124.65661, 8.48478],
+            [124.65659, 8.48482],
+            [124.65659, 8.48486],
+            [124.65662, 8.48490]
+        ]),
+        bufferRadius: 20 // in meters
     },
     {
         name: "Student Lounge",
