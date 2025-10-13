@@ -28,12 +28,12 @@ export default function AdminCampusSecurityTurnoverModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-white w-full max-w-lg rounded-lg p-6 shadow-lg">
+      <div className="bg-white w-full max-w-lg rounded-md p-6 shadow-lg">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <FiShield className="text-xl text-blue-600" />
-            <h2 className="text-xl font-semibold text-gray-800">
+            <FiShield className="text-xl text-yellow-500" />
+            <h2 className="text-lg font-semibold text-gray-800">
               Campus Security Collection Confirmation
             </h2>
           </div>
@@ -47,7 +47,7 @@ export default function AdminCampusSecurityTurnoverModal({
 
         {/* Item Details */}
         {post && (
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+          <div className="mb-6 p-4 bg-gray-100 rounded-md">
             <h3 className="font-semibold text-gray-800 mb-2">Item Details:</h3>
             <p className="text-gray-600">
               <span className="font-medium">Title:</span> {post.title}
@@ -62,8 +62,8 @@ export default function AdminCampusSecurityTurnoverModal({
         )}
 
         {/* Question */}
-        <div className="mb-6">
-          <p className="text-gray-600 text-center text-lg leading-relaxed mb-4">
+        <div className="bg-blue-50 px-2 py-3 text-blue-500 border-blue-300 border rounded-md mb-4">
+          <p className="text-blue-800 text-center text-base leading-relaxed">
             Confirm the status of item collection from Campus Security:
           </p>
         </div>
@@ -91,7 +91,7 @@ export default function AdminCampusSecurityTurnoverModal({
         </div>
 
         {/* Additional Info */}
-        <div className="text-sm text-gray-500 text-center">
+        <div className="text-sm text-blue-800 rounded-md p-3 text-center bg-blue-100">
           <p>
             • If item is collected, ownership will transfer to System
             Administrator
