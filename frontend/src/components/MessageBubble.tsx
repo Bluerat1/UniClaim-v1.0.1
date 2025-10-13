@@ -27,8 +27,8 @@ interface MessageBubbleProps {
     messageId: string,
     status: "accepted" | "rejected"
   ) => void;
-  onConfirmIdPhotoSuccess?: (_messageId: string) => void;
-  onMessageSeen?: () => void; // Callback when message is seen
+  onConfirmIdPhotoSuccess?: (messageId: string) => void;
+  onMessageSeen?: (messageId: string) => void; // Callback when message is seen
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -42,6 +42,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   conversationParticipants = {},
   onHandoverResponse,
   onClaimResponse,
+  onConfirmIdPhotoSuccess,
   onMessageSeen,
 }) => {
   const { deleteMessage } = useMessage();
@@ -97,7 +98,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             setHasBeenSeen(true);
-            onMessageSeen();
+            onMessageSeen(message.id);
             observer.disconnect();
           }
         });
@@ -241,11 +242,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const handleConfirmIdPhoto = async () => {
-    await handoverClaimService.handleConfirmIdPhoto(
-      conversationId,
-      message.id,
-      currentUserId
-    );
+    try {
+      await handoverClaimService.handleConfirmIdPhoto(
+        conversationId,
+        message.id,
+        currentUserId
+      );
+      // Call parent callback after successful confirmation
+      onConfirmIdPhotoSuccess?.(message.id);
+    } catch (error) {
+      console.error("Error confirming ID photo:", error);
+      showToast('error', "Failed to confirm ID photo. Please try again.");
+    }
   };
 
   const handleClaimResponse = async (status: "accepted" | "rejected") => {
@@ -357,11 +365,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const handleConfirmClaimIdPhoto = async () => {
-    await handoverClaimService.handleConfirmClaimIdPhoto(
-      conversationId,
-      message.id,
-      currentUserId
-    );
+    try {
+      await handoverClaimService.handleConfirmClaimIdPhoto(
+        conversationId,
+        message.id,
+        currentUserId
+      );
+      // Call parent callback after successful confirmation
+      onConfirmIdPhotoSuccess?.(message.id);
+    } catch (error) {
+      console.error("Error confirming claim ID photo:", error);
+      showToast('error', "Failed to confirm claim ID photo. Please try again.");
+    }
   };
 
   const handleDeleteMessage = async () => {
