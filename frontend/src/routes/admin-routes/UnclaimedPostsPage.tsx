@@ -365,6 +365,7 @@ export default function UnclaimedPostsPage() {
                   onDelete={(post) => handleModalDeletePost(post.id)}
                   isDeleting={activatingPostId === post.id}
                   showUnclaimedMessage={true}
+                  hideStatusDropdown={true}
                 />
               ))}
             </div>

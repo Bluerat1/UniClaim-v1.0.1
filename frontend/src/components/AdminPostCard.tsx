@@ -30,6 +30,7 @@ interface AdminPostCardProps {
   showCampusSecurityButtons?: boolean;
   isSelected?: boolean; // Added for selection styling
   onSelectionChange?: (post: Post, selected: boolean) => void; // Added for selection functionality
+  hideStatusDropdown?: boolean; // Added to hide status dropdown for unclaimed posts
 }
 
 import { formatDateTime } from "@/utils/dateUtils";
@@ -85,6 +86,7 @@ function AdminPostCard({
   showCampusSecurityButtons = false,
   isSelected = false, // Added for selection styling
   onSelectionChange, // Added for selection functionality
+  hideStatusDropdown = false, // Added to hide status dropdown for unclaimed posts
 }: AdminPostCardProps) {
   const [isTurnoverMinimized, setIsTurnoverMinimized] = useState(true);
   const previewUrl = useMemo(() => {
@@ -532,7 +534,8 @@ function AdminPostCard({
           !(
             post.turnoverDetails &&
             post.turnoverDetails.turnoverStatus === "declared"
-          ) && (
+          ) &&
+          !hideStatusDropdown && (
             <div className="mb-3">
               <label className="text-xs text-gray-600 block mb-1">
                 Status:
