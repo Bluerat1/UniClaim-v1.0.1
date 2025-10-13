@@ -923,19 +923,28 @@ export const messageService = {
             // Update the post status to completed and preserve handover details to the post itself so they can be shown in completed posts section
             const postRef = doc(db, 'posts', postId);
 
+            // Fetch handover person user data from users collection (person who initiated the handover)
+            const handoverPersonId = messageData.senderId;
+            const handoverPersonDoc = await getDoc(doc(db, 'users', handoverPersonId));
+            const handoverPersonData = handoverPersonDoc.exists() ? handoverPersonDoc.data() : null;
+
+            // Fetch owner user data from users collection (person confirming the handover)
+            const ownerDoc = await getDoc(doc(db, 'users', confirmBy));
+            const ownerData = ownerDoc.exists() ? ownerDoc.data() : null;
+
             // Enhanced handover details with essential information for handover person only
             const handoverDetails = {
-                handoverPersonName: conversationData.participants[confirmBy]?.firstName + ' ' + conversationData.participants[confirmBy]?.lastName || 'Unknown User',
-                handoverPersonId: confirmBy,
-                handoverPersonEmail: conversationData.participants[confirmBy]?.email || '',
-                handoverPersonContact: conversationData.participants[confirmBy]?.contactNum || '',
-                handoverPersonStudentId: conversationData.participants[confirmBy]?.studentId || '',
+                handoverPersonName: handoverPersonData ? `${handoverPersonData.firstName || ''} ${handoverPersonData.lastName || ''}`.trim() : 'Unknown User',
+                handoverPersonId: handoverPersonId,
+                handoverPersonEmail: handoverPersonData?.email || '',
+                handoverPersonContact: handoverPersonData?.contactNum || '',
+                handoverPersonStudentId: handoverPersonData?.studentId || '',
                 handoverIdPhoto: messageData.handoverData?.idPhotoUrl || '',
                 ownerIdPhoto: messageData.handoverData?.ownerIdPhoto || '',
                 handoverConfirmedAt: serverTimestamp(),
                 handoverConfirmedBy: confirmBy,
-                ownerName: messageData.senderName || 'Unknown User',
-                ownerId: messageData.senderId || '',
+                ownerName: ownerData ? `${ownerData.firstName || ''} ${ownerData.lastName || ''}`.trim() : 'Unknown User',
+                ownerId: confirmBy,
                 postTitle: conversationData.postTitle || '',
                 postId: postId,
                 handoverReason: messageData.handoverData?.handoverReason || '',
@@ -968,7 +977,12 @@ export const messageService = {
                     ownerIdPhoto: messageData.handoverData?.ownerIdPhoto || '',
                     ownerIdPhotoConfirmed: messageData.handoverData?.ownerIdPhotoConfirmed || false,
                     ownerIdPhotoConfirmedAt: messageData.handoverData?.ownerIdPhotoConfirmedAt || null,
-                    ownerIdPhotoConfirmedBy: messageData.handoverData?.ownerIdPhotoConfirmedBy || ''
+                    ownerIdPhotoConfirmedBy: messageData.handoverData?.ownerIdPhotoConfirmedBy || '',
+
+                    // Add handover person details for preservation
+                    handoverPersonStudentId: handoverPersonData?.studentId || '',
+                    handoverPersonContact: handoverPersonData?.contactNum || '',
+                    handoverPersonEmail: handoverPersonData?.email || ''
                 }
             };
 
@@ -982,10 +996,11 @@ export const messageService = {
             try {
                 await notificationSender.sendResponseNotification(conversationId, {
                     responderId: confirmBy,
-                    responderName: conversationData.participants[confirmBy]?.firstName + ' ' + conversationData.participants[confirmBy]?.lastName || 'Unknown User',
+                    responderName: ownerData ? `${ownerData.firstName || ''} ${ownerData.lastName || ''}`.trim() : 'Unknown User',
                     responseType: 'handover_response',
                     status: 'accepted', // Confirmation is essentially accepting
-                    postTitle: conversationData.postTitle
+                    postTitle: conversationData.postTitle,
+                    ...(postId && { postId }) // Only include postId if defined
                 });
             } catch (notificationError) {
                 console.warn('⚠️ Failed to send handover confirmation notification:', notificationError);
@@ -1080,19 +1095,28 @@ export const messageService = {
             // Update the post status to resolved and preserve claim details to the post itself so they can be shown in resolved posts section
             const postRef = doc(db, 'posts', postId);
 
+            // Fetch claimer user data from users collection
+            const claimerId = messageData.senderId;
+            const claimerDoc = await getDoc(doc(db, 'users', claimerId));
+            const claimerData = claimerDoc.exists() ? claimerDoc.data() : null;
+
+            // Fetch owner user data from users collection (person confirming the claim)
+            const ownerDoc = await getDoc(doc(db, 'users', confirmBy));
+            const ownerData = ownerDoc.exists() ? ownerDoc.data() : null;
+
             // Enhanced claim details with essential information for claimer only
             const claimDetails = {
-                claimerName: conversationData.participants[confirmBy]?.firstName + ' ' + conversationData.participants[confirmBy]?.lastName || 'Unknown User',
-                claimerId: confirmBy,
-                claimerEmail: conversationData.participants[confirmBy]?.email || '',
-                claimerContact: conversationData.participants[confirmBy]?.contactNum || '',
-                claimerStudentId: conversationData.participants[confirmBy]?.studentId || '',
+                claimerName: claimerData ? `${claimerData.firstName || ''} ${claimerData.lastName || ''}`.trim() : 'Unknown User',
+                claimerId: claimerId,
+                claimerEmail: claimerData?.email || '',
+                claimerContact: claimerData?.contactNum || '',
+                claimerStudentId: claimerData?.studentId || '',
                 claimerIdPhoto: messageData.claimData?.idPhotoUrl || '',
                 ownerIdPhoto: messageData.claimData?.ownerIdPhoto || '',
                 claimConfirmedAt: serverTimestamp(),
                 claimConfirmedBy: confirmBy,
-                ownerName: messageData.senderName || 'Unknown User',
-                ownerId: messageData.senderId || '',
+                ownerName: ownerData ? `${ownerData.firstName || ''} ${ownerData.lastName || ''}`.trim() : 'Unknown User',
+                ownerId: confirmBy,
                 postTitle: conversationData.postTitle || '',
                 postId: postId,
                 claimReason: messageData.claimData?.claimReason || '',
@@ -1125,7 +1149,12 @@ export const messageService = {
                     ownerIdPhoto: messageData.claimData?.ownerIdPhoto || '',
                     ownerIdPhotoConfirmed: messageData.claimData?.ownerIdPhotoConfirmed || false,
                     ownerIdPhotoConfirmedAt: messageData.claimData?.ownerIdPhotoConfirmedAt || null,
-                    ownerIdPhotoConfirmedBy: messageData.claimData?.ownerIdPhotoConfirmedBy || ''
+                    ownerIdPhotoConfirmedBy: messageData.claimData?.ownerIdPhotoConfirmedBy || '',
+
+                    // Add claimer details for preservation
+                    claimerStudentId: claimerData?.studentId || '',
+                    claimerContact: claimerData?.contactNum || '',
+                    claimerEmail: claimerData?.email || ''
                 }
             };
 
@@ -1139,10 +1168,11 @@ export const messageService = {
             try {
                 await notificationSender.sendResponseNotification(conversationId, {
                     responderId: confirmBy,
-                    responderName: conversationData.participants[confirmBy]?.firstName + ' ' + conversationData.participants[confirmBy]?.lastName || 'Unknown User',
+                    responderName: ownerData ? `${ownerData.firstName || ''} ${ownerData.lastName || ''}`.trim() : 'Unknown User',
                     responseType: 'claim_response',
                     status: 'accepted', // Confirmation is essentially accepting
-                    postTitle: conversationData.postTitle
+                    postTitle: conversationData.postTitle,
+                    ...(postId && { postId }) // Only include postId if defined
                 });
             } catch (notificationError) {
                 console.warn('⚠️ Failed to send claim confirmation notification:', notificationError);

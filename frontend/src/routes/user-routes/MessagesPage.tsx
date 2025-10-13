@@ -5,11 +5,13 @@ import ConversationList from "../../components/ConversationList";
 import ChatWindow from "../../components/ChatWindow";
 import PageWrapper from "../../components/PageWrapper";
 import NavHeader from "../../components/NavHeadComp";
+import { useMessage } from "../../context/MessageContext";
 
 const MessagesPage: React.FC = () => {
   const [selectedConversation, setSelectedConversation] =
     useState<Conversation | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const { conversations, refreshConversations } = useMessage();
 
   // Handle initial page load with conversation in URL
   useEffect(() => {
@@ -32,12 +34,30 @@ const MessagesPage: React.FC = () => {
     }
   }, [selectedConversation]);
 
+  // Refresh selected conversation when conversations list is updated
+  useEffect(() => {
+    if (selectedConversation && conversations.length > 0) {
+      const updatedConversation = conversations.find(conv => conv.id === selectedConversation.id);
+      if (updatedConversation && JSON.stringify(updatedConversation) !== JSON.stringify(selectedConversation)) {
+        console.log("Updating selected conversation with fresh data");
+        setSelectedConversation(updatedConversation);
+      }
+    }
+  }, [conversations, selectedConversation]);
+
   const handleSelectConversation = useCallback(
     (conversation: Conversation | null) => {
       setSelectedConversation(conversation);
     },
     []
   );
+
+  const handleRefreshConversation = useCallback(async () => {
+    if (selectedConversation) {
+      await refreshConversations();
+      // The useEffect above will handle updating the selectedConversation
+    }
+  }, [selectedConversation, refreshConversations]);
 
   const handleBackToConversations = () => {
     console.log("Back button clicked, clearing conversation...");
@@ -91,6 +111,7 @@ const MessagesPage: React.FC = () => {
                   setSelectedConversation(null);
                   setSearchParams({});
                 }}
+                onRefreshConversation={handleRefreshConversation}
               />
             </div>
 
@@ -132,6 +153,7 @@ const MessagesPage: React.FC = () => {
                       setSelectedConversation(null);
                       setSearchParams({});
                     }}
+                    onRefreshConversation={handleRefreshConversation}
                   />
                 </div>
               </div>

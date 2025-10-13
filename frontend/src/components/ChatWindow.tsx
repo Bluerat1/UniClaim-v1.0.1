@@ -22,11 +22,13 @@ import { InformationCircleIcon } from "@heroicons/react/24/outline";
 interface ChatWindowProps {
   conversation: Conversation | null;
   onClearConversation?: () => void; // New prop to clear selected conversation
+  onRefreshConversation?: () => Promise<void>; // New prop to refresh conversation data
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
   conversation,
   onClearConversation,
+  onRefreshConversation,
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -1007,32 +1009,40 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
 
-  const getOtherParticipantName = (conversation: Conversation) => {
-    if (!userData) return "Unknown User";
+  const getPostCreatorName = (conversation: Conversation) => {
+    if (!conversation.postCreatorId) {
+      console.log("❌ No postCreatorId in conversation");
+      return "Unknown User";
+    }
 
-    const otherParticipants = Object.entries(conversation.participants)
-      .filter(([uid]) => uid !== userData.uid) // Exclude current user
-      .map(([, participant]) =>
-        `${participant.firstName} ${participant.lastName}`.trim()
-      )
-      .filter((name) => name.length > 0);
+    if (!conversation.participants[conversation.postCreatorId]) {
+      console.log("❌ No participant data for postCreatorId:", conversation.postCreatorId);
+      return "Unknown User";
+    }
 
-    return otherParticipants.length > 0
-      ? otherParticipants.join(", ")
-      : "Unknown User";
+    const creator = conversation.participants[conversation.postCreatorId];
+    console.log("🔍 Post creator participant data:", creator);
+
+    const firstName = creator.firstName || "";
+    const lastName = creator.lastName || "";
+
+    if (!firstName && !lastName) {
+      console.log("❌ Empty firstName and lastName for admin:", conversation.postCreatorId);
+      return "Unknown User";
+    }
+
+    const fullName = `${firstName} ${lastName}`.trim();
+    console.log("✅ Post creator name:", fullName);
+    return fullName || "Unknown User";
   };
 
-  const getOtherParticipantProfilePicture = (conversation: Conversation) => {
-    if (!userData) return null;
+  const getPostCreatorProfilePicture = (conversation: Conversation) => {
+    if (!conversation.postCreatorId || !conversation.participants[conversation.postCreatorId]) {
+      return null;
+    }
 
-    const otherParticipant = Object.entries(conversation.participants).find(
-      ([uid]) => uid !== userData.uid
-    );
-
-    return otherParticipant
-      ? otherParticipant[1].profilePicture ||
-          otherParticipant[1].profileImageUrl
-      : null;
+    const creator = conversation.participants[conversation.postCreatorId];
+    return creator.profilePicture || creator.profileImageUrl || null;
   };
 
   // Check if handover button should be shown (memoized)
@@ -1094,16 +1104,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
     if (isAdminPost) {
       console.log("Admin post detected, ignoring foundAction");
-      const isCurrentUserPostCreator =
-        conversation.postCreatorId === userData.uid;
-
-      if (isCurrentUserPostCreator) {
-        console.log("Current user is the post creator, hiding claim button");
-        return false;
-      }
-
+      // For admin posts, don't hide the button just because current user is the post creator
+      // The admin who confirmed the handover/claim should still be able to see the claim button
       console.log("Showing claim button for admin post");
-
       return true;
     }
 
@@ -1139,17 +1142,40 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   }
 
   const handleConfirmIdPhotoSuccess = (messageId: string): void => {
-    // The ID photo confirmation was successful - close the chat window
+    // The ID photo confirmation was successful - refresh conversation data first, then close the chat window
     console.log(
-      `ID photo confirmed for message: ${messageId} - closing chat window`
+      `ID photo confirmed for message: ${messageId} - refreshing conversation data before closing`
     );
 
-    // Clear the conversation to close the chat window
-    if (onClearConversation) {
-      onClearConversation();
+    // Refresh conversation data using the callback from parent
+    if (onRefreshConversation) {
+      onRefreshConversation().then(() => {
+        console.log("✅ ChatWindow: Conversation refreshed after ID photo confirmation");
+
+        // Small delay to ensure data is fully loaded, then clear conversation
+        setTimeout(() => {
+          if (onClearConversation) {
+            onClearConversation();
+          } else {
+            navigate("/messages");
+          }
+        }, 300);
+      }).catch((error: any) => {
+        console.error("❌ ChatWindow: Failed to refresh conversation:", error);
+        // Fallback: just clear immediately if refresh fails
+        if (onClearConversation) {
+          onClearConversation();
+        } else {
+          navigate("/messages");
+        }
+      });
     } else {
-      // Fallback: navigate to messages page if no clear function provided
-      navigate("/messages");
+      // If no refresh callback, just clear immediately
+      if (onClearConversation) {
+        onClearConversation();
+      } else {
+        navigate("/messages");
+      }
     }
   };
 
@@ -1176,12 +1202,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             </div>
             <div className="flex items-center gap-3 mt-1">
               <ProfilePicture
-                src={getOtherParticipantProfilePicture(conversation)}
-                alt="participant profile"
+                src={getPostCreatorProfilePicture(conversation)}
+                alt="post creator profile"
                 className="size-8"
               />
               <p className="text-sm text-gray-500">
-                {getOtherParticipantName(conversation)}
+                {getPostCreatorName(conversation)}
+                {conversation.isAdminPost && " (Admin)"}
               </p>
             </div>
           </div>

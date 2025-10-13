@@ -23,7 +23,7 @@ import { notificationSubscriptionService } from './notificationSubscriptions';
 export interface NotificationData {
   id: string;
   userId: string;
-  type: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted' | 'claim_response' | 'handover_response' | 'status_change';
+  type: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted' | 'claim_response' | 'handover_response' | 'status_change' | 'post_activated' | 'post_reverted' | 'post_deleted' | 'post_restored';
   title: string;
   body: string;
   data?: any;
@@ -224,22 +224,26 @@ export class NotificationService {
   // Get user's notification preferences
   async getNotificationPreferences(userId: string): Promise<NotificationPreferences> {
     try {
+      // Security check: ensure the requested userId matches the current authenticated user
+      const { auth } = await import('./config');
+      if (!auth.currentUser || auth.currentUser.uid !== userId) {
+        console.warn('🔒 Security check failed: Current user does not match requested userId in getNotificationPreferences');
+        return this.getDefaultPreferences();
+      }
+
+      // Get user data from users collection
       const userDoc = await getDoc(doc(db, 'users', userId));
       if (userDoc.exists()) {
         const userData = userDoc.data();
 
-        // Check if user's email is verified before proceeding
-        if (!userData.emailVerified) {
-          console.log('📧 User email not verified, skipping notification preferences');
-          return this.getDefaultPreferences();
-        }
-
         const preferences = userData.notificationPreferences || this.getDefaultPreferences();
 
-        // Ensure user has a subscription record (background operation)
-        this.ensureUserHasSubscription(userId).catch(error => {
-          console.error('Background subscription check failed:', error);
-        });
+        // Ensure user has a subscription record (background operation) - only for current user
+        if (auth.currentUser && auth.currentUser.uid === userId) {
+          this.ensureUserHasSubscription(userId).catch(error => {
+            console.error('Background subscription check failed:', error);
+          });
+        }
 
         return preferences;
       }
@@ -253,6 +257,13 @@ export class NotificationService {
   // Update user's notification preferences
   async updateNotificationPreferences(userId: string, preferences: NotificationPreferences): Promise<void> {
     try {
+      // Security check: ensure the requested userId matches the current authenticated user
+      const { auth } = await import('./config');
+      if (!auth.currentUser || auth.currentUser.uid !== userId) {
+        console.warn('🔒 Security check failed: Current user does not match requested userId in updateNotificationPreferences');
+        throw new Error('Unauthorized: Cannot update preferences for another user');
+      }
+
       // Update the user's notification preferences in the users collection
       await updateDoc(doc(db, 'users', userId), {
         notificationPreferences: preferences
@@ -294,6 +305,13 @@ export class NotificationService {
   // Ensure user has a subscription record (for existing users)
   async ensureUserHasSubscription(userId: string): Promise<void> {
     try {
+      // Security check: ensure the requested userId matches the current authenticated user
+      const { auth } = await import('./config');
+      if (!auth.currentUser || auth.currentUser.uid !== userId) {
+        console.warn('🔒 Security check failed: Current user does not match requested userId in ensureUserHasSubscription');
+        return;
+      }
+
       // First check if user's email is verified
       const userDoc = await getDoc(doc(db, 'users', userId));
       if (!userDoc.exists() || !userDoc.data().emailVerified) {
@@ -305,8 +323,9 @@ export class NotificationService {
       const existingSubscription = await notificationSubscriptionService.getSubscription(userId);
 
       if (!existingSubscription) {
-        // Get user's current preferences
-        const userPreferences = await this.getNotificationPreferences(userId);
+        // Get user's current preferences directly from user document instead of calling getNotificationPreferences
+        const userData = userDoc.data();
+        const userPreferences = userData.notificationPreferences || this.getDefaultPreferences();
 
         // Create subscription with current preferences
         const subscriptionPreferences = this.convertToSubscriptionPreferences(userPreferences);
@@ -375,6 +394,13 @@ export class NotificationService {
   // Delete all notifications for a user
   async deleteAllNotifications(userId: string): Promise<void> {
     try {
+      // Security check: ensure the requested userId matches the current authenticated user
+      const { auth } = await import('./config');
+      if (!auth.currentUser || auth.currentUser.uid !== userId) {
+        console.warn('🔒 Security check failed: Current user does not match requested userId in deleteAllNotifications');
+        throw new Error('Unauthorized: Cannot delete notifications for another user');
+      }
+
       const notificationsRef = collection(db, 'notifications');
       const q = query(
         notificationsRef,
@@ -397,7 +423,7 @@ export class NotificationService {
   // Create a new notification
   async createNotification(notificationData: {
     userId: string;
-    type: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted' | 'claim_response' | 'handover_response' | 'status_change';
+    type: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted' | 'claim_response' | 'handover_response' | 'status_change' | 'post_activated' | 'post_reverted' | 'post_deleted' | 'post_restored';
     title: string;
     body: string;
     data?: any;
@@ -454,6 +480,21 @@ export class NotificationService {
   ): () => void {
     if (!userId) {
       console.warn('setupRealtimeListener: userId is required');
+      return () => { };
+    }
+
+    // Security check: ensure the requested userId matches the current authenticated user
+    try {
+      import('./config').then(({ auth }) => {
+        if (!auth.currentUser || auth.currentUser.uid !== userId) {
+          console.warn('🔒 Security check failed: Current user does not match requested userId in setupRealtimeListener');
+          onError(new Error('Unauthorized: Cannot set up listener for another user'));
+          return () => { };
+        }
+      });
+    } catch (error) {
+      console.error('Error checking authentication in setupRealtimeListener:', error);
+      onError(error);
       return () => { };
     }
 

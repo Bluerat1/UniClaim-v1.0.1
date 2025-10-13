@@ -876,7 +876,11 @@ export const postService = {
 
             // Get the post data before updating to get the original creator
             const postDoc = await getDoc(doc(db, 'posts', postId));
+            const postData = postDoc.data();
             const originalCreatorId = postDoc.data()?.creatorId;
+
+            // Check if this post has been turned over and use the original finder instead
+            const notificationRecipientId = postData?.turnoverDetails?.originalFinder?.uid || originalCreatorId;
 
             // Update the document
             await updateDoc(doc(db, 'posts', postId), updateData);
@@ -887,7 +891,7 @@ export const postService = {
                 console.log(`✅ User field updated to OSA admin data`);
 
                 // Send notification to the original creator
-                if (originalCreatorId && originalCreatorId !== confirmedBy) {
+                if (notificationRecipientId && notificationRecipientId !== confirmedBy) {
                     try {
                         const adminDoc = await getDoc(doc(db, 'users', confirmedBy));
                         const adminData = adminDoc.data();
@@ -898,7 +902,7 @@ export const postService = {
                         const notificationTitle = 'Item Received';
                         const notificationBody = `Your item "${postDoc.data()?.title || 'item'}" has been received by ${adminName}.`;
                         const notificationData = {
-                            userId: originalCreatorId,
+                            userId: notificationRecipientId,
                             type: 'claim_update',
                             postId: postId,
                             action: 'item_received',
@@ -910,7 +914,7 @@ export const postService = {
 
                         // Also create a notification record in the database
                         await notificationService.createNotification({
-                            userId: originalCreatorId,
+                            userId: notificationRecipientId,
                             type: 'claim_update',
                             title: notificationTitle,
                             body: notificationBody,
@@ -918,7 +922,7 @@ export const postService = {
                             postId: postId
                         });
 
-                        console.log(`📬 Sent receipt confirmation notification to user ${originalCreatorId}`);
+                        console.log(`📬 Sent receipt confirmation notification to user ${notificationRecipientId}`);
                     } catch (notifError) {
                         console.error('Failed to send receipt confirmation notification:', notifError);
                         // Don't fail the whole operation if notification fails
@@ -948,7 +952,11 @@ export const postService = {
 
             // Get the post data before updating to get the original creator
             const postDoc = await getDoc(doc(db, 'posts', postId));
+            const postData = postDoc.data();
             const originalCreatorId = postDoc.data()?.creatorId;
+
+            // Check if this post has been turned over and use the original finder instead
+            const notificationRecipientId = postData?.turnoverDetails?.originalFinder?.uid || originalCreatorId;
 
             // When admin confirms collection, change the creator to the admin
             if (status === 'collected') {
@@ -1010,13 +1018,90 @@ export const postService = {
                 updateData.createdAt = serverTimestamp();
                 updateData.updatedAt = serverTimestamp();
 
-                console.log(`🔄 Preparing ownership transfer:`, {
-                    fromCreatorId: originalCreatorId,
-                    toCreatorId: confirmedBy,
-                    adminData: adminData,
-                    turnoverActionChange: 'Campus Security → OSA',
-                    createdAtUpdate: 'Set to current time for homepage ordering'
-                });
+                // Update conversations with the new post creator
+                try {
+                    console.log(`🔄 Starting conversation update for post ${postId} with status ${status}`);
+                    // Find all conversations for this post
+                    const conversationsQuery = query(
+                        collection(db, 'conversations'),
+                        where('postId', '==', postId)
+                    );
+
+                    const conversationsSnapshot = await getDocs(conversationsQuery);
+                    console.log(`🔍 Found ${conversationsSnapshot.docs.length} conversations for post ${postId}`);
+
+                    if (!conversationsSnapshot.empty) {
+                        console.log(`🔄 Updating ${conversationsSnapshot.docs.length} conversations with new post creator`);
+
+                        // Update each conversation's postCreatorId
+                        const updatePromises = conversationsSnapshot.docs.map(async (convDoc) => {
+                            const conversationRef = convDoc.ref;
+                            const conversationData = convDoc.data();
+
+                            console.log(`🔍 Processing conversation ${convDoc.id}`);
+                            console.log(`  - Current postCreatorId: ${conversationData.postCreatorId}`);
+                            console.log(`  - Current participants keys:`, Object.keys(conversationData.participants || {}));
+
+                            // Get admin user data to add to participants
+                            console.log(`🔍 Fetching admin data for user ID: ${confirmedBy}`);
+                            const adminDoc = await getDoc(doc(db, 'users', confirmedBy));
+                            const adminUserData = adminDoc.data();
+
+                            let adminParticipantData;
+                            if (adminDoc.exists() && adminUserData) {
+                                console.log(`✅ Admin document exists for ${confirmedBy}`);
+                                console.log(`🔍 Admin user data keys:`, Object.keys(adminUserData));
+                                console.log(`🔍 Admin user data:`, adminUserData);
+
+                                adminParticipantData = {
+                                    firstName: adminUserData.firstName || "System",
+                                    lastName: adminUserData.lastName || "Administrator",
+                                    email: adminUserData.email || "admin@uniclaim.com",
+                                    profilePicture: adminUserData.profilePicture || adminUserData.profileImageUrl || DEFAULT_PROFILE_PICTURE,
+                                    profileImageUrl: adminUserData.profilePicture || adminUserData.profileImageUrl || DEFAULT_PROFILE_PICTURE,
+                                    role: "admin"
+                                };
+                                console.log(`✅ Created admin participant data:`, adminParticipantData);
+                            } else {
+                                console.warn(`⚠️ Admin user document not found for ${confirmedBy} (exists: ${adminDoc.exists()}, hasData: ${!!adminUserData})`);
+                                // Fallback if admin data not found
+                                adminParticipantData = {
+                                    firstName: "System",
+                                    lastName: "Administrator",
+                                    email: "admin@uniclaim.com",
+                                    profilePicture: DEFAULT_PROFILE_PICTURE,
+                                    profileImageUrl: DEFAULT_PROFILE_PICTURE,
+                                    role: "admin"
+                                };
+                            }
+
+                            // Update conversation with new post creator and admin participant data
+                            const participants = conversationData.participants || {};
+                            participants[confirmedBy] = adminParticipantData;
+
+                            console.log(`🔄 Updating conversation ${convDoc.id}:`);
+                            console.log(`  - postCreatorId: ${confirmedBy}`);
+                            console.log(`  - isAdminPost: true`);
+                            console.log(`  - participants[${confirmedBy}]:`, adminParticipantData);
+
+                            await updateDoc(conversationRef, {
+                                postCreatorId: confirmedBy,
+                                isAdminPost: true,
+                                participants: participants,
+                                updatedAt: serverTimestamp()
+                            });
+
+                            console.log(`✅ Updated conversation ${convDoc.id} with new post creator: ${confirmedBy} and admin participant data`);
+                        });
+
+                        await Promise.all(updatePromises);
+                    } else {
+                        console.log(`ℹ️ No conversations found for post ${postId}`);
+                    }
+                } catch (conversationError) {
+                    console.error('❌ Failed to update conversations with new post creator:', conversationError);
+                    // Don't fail the whole operation if conversation update fails
+                }
             }
 
             // Update the document
@@ -1047,7 +1132,7 @@ export const postService = {
                 });
 
                 // Send notification to the original creator (campus security)
-                if (originalCreatorId && originalCreatorId !== confirmedBy) {
+                if (notificationRecipientId && notificationRecipientId !== confirmedBy) {
                     try {
                         const adminDoc = await getDoc(doc(db, 'users', confirmedBy));
                         const adminUserData = adminDoc.data();
@@ -1058,7 +1143,7 @@ export const postService = {
                         const notificationTitle = 'Item Collected';
                         const notificationBody = `Your item "${postDoc.data()?.title || 'item'}" has been collected from Campus Security by ${adminName}.`;
                         const notificationData = {
-                            userId: originalCreatorId,
+                            userId: notificationRecipientId,
                             type: 'claim_update',
                             postId: postId,
                             action: 'item_collected',
@@ -1070,7 +1155,7 @@ export const postService = {
 
                         // Also create a notification record in the database
                         await notificationService.createNotification({
-                            userId: originalCreatorId,
+                            userId: notificationRecipientId,
                             type: 'claim_update',
                             title: notificationTitle,
                             body: notificationBody,
@@ -1078,7 +1163,7 @@ export const postService = {
                             postId: postId
                         });
 
-                        console.log(`📬 Sent collection confirmation notification to user ${originalCreatorId}`);
+                        console.log(`📬 Sent collection confirmation notification to user ${notificationRecipientId}`);
                     } catch (notifError) {
                         console.error('Failed to send collection confirmation notification:', notifError);
                         // Don't fail the whole operation if notification fails
@@ -1728,7 +1813,7 @@ export const postService = {
         }
     },
 
-    // Unflag a post (admin only)
+    // Unflag a post (admin only) - also unhides if post is hidden
     async unflagPost(postId: string): Promise<void> {
         try {
             const postRef = doc(db, 'posts', postId);
@@ -1738,16 +1823,62 @@ export const postService = {
                 throw new Error('Post not found');
             }
 
-            // Clear flag information
-            await updateDoc(postRef, {
+            const postData = postDoc.data() as Post;
+
+            // Check if post is currently hidden
+            const isCurrentlyHidden = postData.isHidden === true;
+
+            // Prepare update data - clear flag information
+            const updateData: any = {
                 isFlagged: false,
                 flagReason: null,
                 flaggedBy: null,
                 flaggedAt: null,
                 updatedAt: serverTimestamp()
-            });
+            };
 
-            console.log(`✅ Post ${postId} unflagged`);
+            // If post is hidden, also unhide it when approving
+            if (isCurrentlyHidden) {
+                updateData.isHidden = false;
+                console.log(`✅ Post ${postId} will be unflagged and unhidden`);
+            } else {
+                console.log(`✅ Post ${postId} will be unflagged`);
+            }
+
+            // Clear flag information and unhide if necessary
+            await updateDoc(postRef, updateData);
+
+            // Send notifications based on what actions were performed
+            try {
+                const adminName = getAuth().currentUser?.displayName || getAuth().currentUser?.email || 'an admin';
+
+                // Always send approval notification
+                await notificationSender.sendApproveNotification({
+                    postId: postId,
+                    postTitle: postData.title,
+                    postType: postData.type,
+                    creatorId: postData.creatorId,
+                    creatorName: `${postData.user.firstName} ${postData.user.lastName}`,
+                    adminName: adminName
+                });
+                console.log(`📨 Approval notification sent to post creator`);
+
+                // If post was also unhidden, send unhide notification
+                if (isCurrentlyHidden) {
+                    await notificationSender.sendUnhideNotification({
+                        postId: postId,
+                        postTitle: postData.title,
+                        postType: postData.type,
+                        creatorId: postData.creatorId,
+                        creatorName: `${postData.user.firstName} ${postData.user.lastName}`,
+                        adminName: adminName
+                    });
+                    console.log(`📨 Unhide notification sent to post creator`);
+                }
+            } catch (notificationError) {
+                console.error('❌ Failed to send notification(s):', notificationError);
+                // Don't fail the operation if notification fails
+            }
         } catch (error: any) {
             console.error('❌ Firebase unflagPost failed:', error);
             throw new Error(error.message || 'Failed to unflag post');
@@ -1764,6 +1895,8 @@ export const postService = {
                 throw new Error('Post not found');
             }
 
+            const postData = postDoc.data() as Post;
+
             // Hide the post
             await updateDoc(postRef, {
                 isHidden: true,
@@ -1771,6 +1904,23 @@ export const postService = {
             });
 
             console.log(`✅ Post ${postId} hidden from public view`);
+
+            // Send notification to the post creator
+            try {
+                const adminName = getAuth().currentUser?.displayName || getAuth().currentUser?.email || 'an admin';
+                await notificationSender.sendHideNotification({
+                    postId: postId,
+                    postTitle: postData.title,
+                    postType: postData.type,
+                    creatorId: postData.creatorId,
+                    creatorName: `${postData.user.firstName} ${postData.user.lastName}`,
+                    adminName: adminName
+                });
+                console.log(`📨 Hide notification sent to post creator`);
+            } catch (notificationError) {
+                console.error('❌ Failed to send hide notification:', notificationError);
+                // Don't fail the operation if notification fails
+            }
         } catch (error: any) {
             console.error('❌ Firebase hidePost failed:', error);
             throw new Error(error.message || 'Failed to hide post');
@@ -1787,6 +1937,8 @@ export const postService = {
                 throw new Error('Post not found');
             }
 
+            const postData = postDoc.data() as Post;
+
             // Unhide the post
             await updateDoc(postRef, {
                 isHidden: false,
@@ -1794,6 +1946,23 @@ export const postService = {
             });
 
             console.log(`✅ Post ${postId} unhidden and visible to public`);
+
+            // Send notification to the post creator
+            try {
+                const adminName = getAuth().currentUser?.displayName || getAuth().currentUser?.email || 'an admin';
+                await notificationSender.sendUnhideNotification({
+                    postId: postId,
+                    postTitle: postData.title,
+                    postType: postData.type,
+                    creatorId: postData.creatorId,
+                    creatorName: `${postData.user.firstName} ${postData.user.lastName}`,
+                    adminName: adminName
+                });
+                console.log(`📨 Unhide notification sent to post creator`);
+            } catch (notificationError) {
+                console.error('❌ Failed to send unhide notification:', notificationError);
+                // Don't fail the operation if notification fails
+            }
         } catch (error: any) {
             console.error('❌ Firebase unhidePost failed:', error);
             throw new Error(error.message || 'Failed to unhide post');

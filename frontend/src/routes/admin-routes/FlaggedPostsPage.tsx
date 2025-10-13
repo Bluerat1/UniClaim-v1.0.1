@@ -103,10 +103,10 @@ export default function FlaggedPostsPage() {
           );
           break;
         case "delete":
-          await postService.deletePost(postId);
+          await postService.deletePost(postId, true); // Hard delete instead of soft delete
           // Only remove from list if the post is actually deleted
           setFlaggedPosts((prev) => prev.filter((p) => p.id !== postId));
-          showToast("success", "Success", "Post deleted successfully");
+          showToast("success", "Success", "Post permanently deleted successfully");
           break;
       }
     } catch (err: any) {
@@ -179,7 +179,7 @@ export default function FlaggedPostsPage() {
               await postService.unhidePost(postId);
               break;
             case "delete":
-              await postService.deletePost(postId);
+              await postService.deletePost(postId, true); // Hard delete instead of soft delete
               break;
           }
           successCount++;
@@ -199,13 +199,13 @@ export default function FlaggedPostsPage() {
         showToast(
           "success",
           "Success",
-          `Successfully processed ${successCount} posts`
+          `Successfully permanently deleted ${successCount} posts`
         );
       } else {
         showToast(
           "warning",
           "Warning",
-          `Processed ${successCount} posts successfully, ${errorCount} failed`
+          `Permanently deleted ${successCount} posts successfully, ${errorCount} failed`
         );
       }
     } catch (err: any) {

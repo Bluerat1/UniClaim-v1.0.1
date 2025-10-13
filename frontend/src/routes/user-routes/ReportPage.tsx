@@ -360,6 +360,43 @@ export default function ReportPage() {
               : "transferred", // Different statuses for different workflows
           // Note: turnoverReason is optional and not included if undefined
         };
+
+        // Send notification to original founder that their item has been turned over
+        try {
+          const notificationTitle = 'Item Turned Over';
+          const turnoverTarget = selectedFoundAction === "turnover to OSA" ? "OSA" : "Campus Security";
+          const notificationBody = `Your found item "${title}" has been turned over to ${turnoverTarget}. You will be notified when ${turnoverTarget} confirms receipt.`;
+
+          // Import notification service here to avoid circular dependency
+          const { notificationService } = await import("../../services/firebase/notifications");
+
+          // Show the notification immediately
+          await notificationService.showNotification(notificationTitle, notificationBody, {
+            type: 'status_change',
+            postId: 'pending', // We'll get the real ID after creation
+            action: 'item_turned_over',
+            turnoverAction: selectedFoundAction
+          });
+
+          // Also create a notification record in the database (will be updated with real post ID)
+          await notificationService.createNotification({
+            userId: userData.uid,
+            type: 'status_change',
+            title: notificationTitle,
+            body: notificationBody,
+            data: {
+              action: 'item_turned_over',
+              turnoverAction: selectedFoundAction,
+              postTitle: title,
+              timestamp: new Date().toISOString()
+            }
+          });
+
+          console.log(`📬 Sent turnover notification to user ${userData.uid}`);
+        } catch (notificationError) {
+          console.error('Failed to send turnover notification:', notificationError);
+          // Don't fail the whole operation if notification fails
+        }
       }
 
       // Only add optional fields if they have valid values

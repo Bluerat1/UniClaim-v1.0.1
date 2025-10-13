@@ -183,6 +183,7 @@ export default function TurnoverManagementPage() {
               onHidePost={undefined}
               onUnhidePost={undefined}
               showUnclaimedMessage={false}
+              hideStatusDropdown={true}
             />
           ))
         )}

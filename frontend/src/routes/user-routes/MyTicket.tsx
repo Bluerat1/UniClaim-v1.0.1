@@ -139,7 +139,7 @@ export default function MyTicket() {
       setPermanentlyDeletingPostId(id);
 
       // Permanently delete the post
-      await postService.deletePost(id);
+      await postService.deletePost(id, true);
 
       // Update local state after successful permanent deletion
       setPosts((prevPosts: Post[]) =>

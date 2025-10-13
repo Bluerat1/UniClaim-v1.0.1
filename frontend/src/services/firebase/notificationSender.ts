@@ -3,11 +3,10 @@ import { db } from './config';
 import { collection, serverTimestamp, doc, writeBatch, getDoc } from 'firebase/firestore';
 import { notificationSubscriptionService } from './notificationSubscriptions';
 import { authService } from './auth';
-import { notificationService } from './notifications';
 import { adminNotificationService } from './adminNotifications';
 import { userService } from './users';
 export interface PostNotificationData {
-    type: 'new_post' | 'claim_request' | 'claim_response' | 'handover_response' | 'status_change';
+    type: 'new_post' | 'claim_request' | 'claim_response' | 'handover_response' | 'status_change' | 'post_reverted' | 'post_activated' | 'post_deleted' | 'post_restored' | 'post_hidden' | 'post_unhidden' | 'post_approved';
     title: string;
     body: string;
     postId?: string;
@@ -44,16 +43,29 @@ export class NotificationSender {
         try {
             console.log('🚀 Sending status change notification for post:', postData.postTitle);
 
-            // Send notification to the post creator
-            await this.sendNotificationToUser(postData.creatorId, {
+            // Check if this post has been turned over and use the original finder instead
+            // We need to fetch the post data to check for turnoverDetails
+            const { postService } = await import('./posts');
+            const post = await postService.getPostById(postData.postId);
+
+            if (!post) {
+                throw new Error('Post not found for status change notification');
+            }
+
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || postData.creatorId;
+
+            // Send notification to the post creator (or original finder if post was turned over)
+            await this.sendNotificationToUser(notificationRecipientId, {
                 type: 'status_change',
                 title: `Post Status Updated`,
                 body: `Your ${postData.postType} post "${postData.postTitle}" status changed from ${postData.oldStatus} to ${postData.newStatus}${postData.adminName ? ` by ${postData.adminName}` : ''}`,
                 postId: postData.postId,
                 postTitle: postData.postTitle,
                 postType: postData.postType,
-                creatorId: postData.creatorId,
-                creatorName: postData.creatorName,
+                creatorId: notificationRecipientId,
+                creatorName: post.turnoverDetails?.originalFinder ?
+                    `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                    postData.creatorName,
                 data: {
                     oldStatus: postData.oldStatus,
                     newStatus: postData.newStatus,
@@ -68,8 +80,347 @@ export class NotificationSender {
             throw error;
         }
     }
+    async sendActivateNotification(postData: {
+        postId: string;
+        postTitle: string;
+        postType: 'lost' | 'found';
+        creatorId: string;
+        creatorName: string;
+        adminName?: string;
+    }): Promise<void> {
+        try {
+            console.log('🚀 Sending post activation notification for post:', postData.postTitle);
 
-    // Send notification for claim requests
+            // Check if this post has been turned over and use the original finder instead
+            // We need to fetch the post data to check for turnoverDetails
+            const { postService } = await import('./posts');
+            const post = await postService.getPostById(postData.postId);
+
+            if (!post) {
+                throw new Error('Post not found for activation notification');
+            }
+
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || postData.creatorId;
+
+            // Send notification to the post creator (or original finder if post was turned over)
+            await this.sendNotificationToUser(notificationRecipientId, {
+                type: 'post_activated',
+                title: `Post Activated`,
+                body: `Your ${postData.postType} post "${postData.postTitle}" has been activated by ${postData.adminName ? postData.adminName : 'an admin'} and is now visible to other users.`,
+                postId: postData.postId,
+                postTitle: postData.postTitle,
+                postType: postData.postType,
+                creatorId: notificationRecipientId,
+                creatorName: post.turnoverDetails?.originalFinder ?
+                    `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                    postData.creatorName,
+                data: {
+                    adminName: postData.adminName,
+                    timestamp: new Date().toISOString()
+                }
+            });
+
+            console.log('✅ Post activation notification sent successfully');
+        } catch (error) {
+            console.error('❌ Failed to send post activation notification:', error);
+            throw error;
+        }
+    }
+
+    // Send notification for post deletion (admin action)
+    async sendDeleteNotification(postData: {
+        postId: string;
+        postTitle: string;
+        postType: 'lost' | 'found';
+        creatorId: string;
+        creatorName: string;
+        adminName?: string;
+        deletionType?: 'soft' | 'permanent';
+    }): Promise<void> {
+        try {
+            console.log('🚀 Sending post deletion notification for post:', postData.postTitle);
+
+            const deletionTypeText = postData.deletionType === 'permanent' ? 'permanently deleted' : 'moved to Recently Deleted';
+
+            // Check if this post has been turned over and use the original finder instead
+            // We need to fetch the post data to check for turnoverDetails
+            const { postService } = await import('./posts');
+            const post = await postService.getPostById(postData.postId);
+
+            if (!post) {
+                throw new Error('Post not found for deletion notification');
+            }
+
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || postData.creatorId;
+
+            // Send notification to the post creator (or original finder if post was turned over)
+            await this.sendNotificationToUser(notificationRecipientId, {
+                type: 'post_deleted',
+                title: `Post ${deletionTypeText.charAt(0).toUpperCase() + deletionTypeText.slice(1)}`,
+                body: `Your ${postData.postType} post "${postData.postTitle}" has been ${deletionTypeText} by ${postData.adminName ? postData.adminName : 'an admin'}.`,
+                // Don't include postId to prevent deletion when post is deleted
+                postTitle: postData.postTitle,
+                postType: postData.postType,
+                creatorId: notificationRecipientId,
+                creatorName: post.turnoverDetails?.originalFinder ?
+                    `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                    postData.creatorName,
+                data: {
+                    adminName: postData.adminName,
+                    deletionType: postData.deletionType,
+                    postId: postData.postId, // Include in data for reference if needed
+                    timestamp: new Date().toISOString()
+                }
+            });
+
+            console.log('✅ Post deletion notification sent successfully');
+        } catch (error) {
+            console.error('❌ Failed to send post deletion notification:', error);
+            throw error;
+        }
+    }
+
+    // Send notification for post restoration (admin action)
+    async sendRestoreNotification(postData: {
+        postId: string;
+        postTitle: string;
+        postType: 'lost' | 'found';
+        creatorId: string;
+        creatorName: string;
+        adminName?: string;
+    }): Promise<void> {
+        try {
+            console.log('🚀 Sending post restoration notification for post:', postData.postTitle);
+
+            // Check if this post has been turned over and use the original finder instead
+            // We need to fetch the post data to check for turnoverDetails
+            const { postService } = await import('./posts');
+            const post = await postService.getPostById(postData.postId);
+
+            if (!post) {
+                throw new Error('Post not found for restoration notification');
+            }
+
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || postData.creatorId;
+
+            // Send notification to the post creator (or original finder if post was turned over)
+            await this.sendNotificationToUser(notificationRecipientId, {
+                type: 'post_restored',
+                title: `Post Restored`,
+                body: `Your ${postData.postType} post "${postData.postTitle}" has been restored by ${postData.adminName ? postData.adminName : 'an admin'} and is now pending review.`,
+                postId: postData.postId,
+                postTitle: postData.postTitle,
+                postType: postData.postType,
+                creatorId: notificationRecipientId,
+                creatorName: post.turnoverDetails?.originalFinder ?
+                    `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                    postData.creatorName,
+                data: {
+                    adminName: postData.adminName,
+                    timestamp: new Date().toISOString()
+                }
+            });
+
+            console.log('✅ Post restoration notification sent successfully');
+        } catch (error) {
+            console.error('❌ Failed to send post restoration notification:', error);
+            throw error;
+        }
+    }
+
+    // Send notification for post reversion (admin action)
+    async sendRevertNotification(postData: {
+        postId: string;
+        postTitle: string;
+        postType: 'lost' | 'found';
+        creatorId: string;
+        creatorName: string;
+        adminName?: string;
+        revertReason?: string;
+    }): Promise<void> {
+        try {
+            console.log('🚀 Sending post reversion notification for post:', postData.postTitle);
+
+            // Check if this post has been turned over and use the original finder instead
+            // We need to fetch the post data to check for turnoverDetails
+            const { postService } = await import('./posts');
+            const post = await postService.getPostById(postData.postId);
+
+            if (!post) {
+                throw new Error('Post not found for reversion notification');
+            }
+
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || postData.creatorId;
+
+            // Send notification to the post creator (or original finder if post was turned over)
+            await this.sendNotificationToUser(notificationRecipientId, {
+                type: 'post_reverted',
+                title: `Post Reverted`,
+                body: `Your ${postData.postType} post "${postData.postTitle}" has been reverted to pending status by ${postData.adminName ? postData.adminName : 'an admin'}${postData.revertReason ? ` for the following reason: ${postData.revertReason}` : ''}.`,
+                postId: postData.postId,
+                postTitle: postData.postTitle,
+                postType: postData.postType,
+                creatorId: notificationRecipientId,
+                creatorName: post.turnoverDetails?.originalFinder ?
+                    `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                    postData.creatorName,
+                data: {
+                    adminName: postData.adminName,
+                    revertReason: postData.revertReason,
+                    timestamp: new Date().toISOString()
+                }
+            });
+
+            console.log('✅ Post reversion notification sent successfully');
+        } catch (error) {
+            console.error('❌ Failed to send post reversion notification:', error);
+            throw error;
+        }
+    }
+
+    // Send notification for post hiding (admin action)
+    async sendHideNotification(postData: {
+        postId: string;
+        postTitle: string;
+        postType: 'lost' | 'found';
+        creatorId: string;
+        creatorName: string;
+        adminName?: string;
+    }): Promise<void> {
+        try {
+            console.log('🚀 Sending post hide notification for post:', postData.postTitle);
+
+            // Check if this post has been turned over and use the original finder instead
+            // We need to fetch the post data to check for turnoverDetails
+            const { postService } = await import('./posts');
+            const post = await postService.getPostById(postData.postId);
+
+            if (!post) {
+                throw new Error('Post not found for hide notification');
+            }
+
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || postData.creatorId;
+
+            // Send notification to the post creator (or original finder if post was turned over)
+            await this.sendNotificationToUser(notificationRecipientId, {
+                type: 'post_hidden',
+                title: `Post Hidden`,
+                body: `Your ${postData.postType} post "${postData.postTitle}" has been hidden from public view by ${postData.adminName ? postData.adminName : 'an admin'}. It can be unhidden later if needed.`,
+                postId: postData.postId,
+                postTitle: postData.postTitle,
+                postType: postData.postType,
+                creatorId: notificationRecipientId,
+                creatorName: post.turnoverDetails?.originalFinder ?
+                    `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                    postData.creatorName,
+                data: {
+                    adminName: postData.adminName,
+                    timestamp: new Date().toISOString()
+                }
+            });
+
+            console.log('✅ Post hide notification sent successfully');
+        } catch (error) {
+            console.error('❌ Failed to send post hide notification:', error);
+            throw error;
+        }
+    }
+
+    // Send notification for post unhiding (admin action)
+    async sendUnhideNotification(postData: {
+        postId: string;
+        postTitle: string;
+        postType: 'lost' | 'found';
+        creatorId: string;
+        creatorName: string;
+        adminName?: string;
+    }): Promise<void> {
+        try {
+            console.log('🚀 Sending post unhide notification for post:', postData.postTitle);
+
+            // Check if this post has been turned over and use the original finder instead
+            // We need to fetch the post data to check for turnoverDetails
+            const { postService } = await import('./posts');
+            const post = await postService.getPostById(postData.postId);
+
+            if (!post) {
+                throw new Error('Post not found for unhide notification');
+            }
+
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || postData.creatorId;
+
+            // Send notification to the post creator (or original finder if post was turned over)
+            await this.sendNotificationToUser(notificationRecipientId, {
+                type: 'post_unhidden',
+                title: `Post Unhidden`,
+                body: `Your ${postData.postType} post "${postData.postTitle}" has been unhidden and is now visible to other users again${postData.adminName ? ` by ${postData.adminName}` : ''}.`,
+                postId: postData.postId,
+                postTitle: postData.postTitle,
+                postType: postData.postType,
+                creatorId: notificationRecipientId,
+                creatorName: post.turnoverDetails?.originalFinder ?
+                    `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                    postData.creatorName,
+                data: {
+                    adminName: postData.adminName,
+                    timestamp: new Date().toISOString()
+                }
+            });
+
+            console.log('✅ Post unhide notification sent successfully');
+        } catch (error) {
+            console.error('❌ Failed to send post unhide notification:', error);
+            throw error;
+        }
+    }
+
+    // Send notification for post approval (admin action)
+    async sendApproveNotification(postData: {
+        postId: string;
+        postTitle: string;
+        postType: 'lost' | 'found';
+        creatorId: string;
+        creatorName: string;
+        adminName?: string;
+    }): Promise<void> {
+        try {
+            console.log('🚀 Sending post approval notification for post:', postData.postTitle);
+
+            // Check if this post has been turned over and use the original finder instead
+            // We need to fetch the post data to check for turnoverDetails
+            const { postService } = await import('./posts');
+            const post = await postService.getPostById(postData.postId);
+
+            if (!post) {
+                throw new Error('Post not found for approval notification');
+            }
+
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || postData.creatorId;
+
+            // Send notification to the post creator (or original finder if post was turned over)
+            await this.sendNotificationToUser(notificationRecipientId, {
+                type: 'post_approved',
+                title: `Post Approved`,
+                body: `Your ${postData.postType} post "${postData.postTitle}" has been approved and is now visible to all users${postData.adminName ? ` by ${postData.adminName}` : ''}.`,
+                postId: postData.postId,
+                postTitle: postData.postTitle,
+                postType: postData.postType,
+                creatorId: notificationRecipientId,
+                creatorName: post.turnoverDetails?.originalFinder ?
+                    `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                    postData.creatorName,
+                data: {
+                    adminName: postData.adminName,
+                    timestamp: new Date().toISOString()
+                }
+            });
+
+            console.log('✅ Post approval notification sent successfully');
+        } catch (error) {
+            console.error('❌ Failed to send post approval notification:', error);
+            throw error;
+        }
+    }
     async sendClaimRequestNotification(conversationId: string, claimData: {
         postId: string;
         postTitle: string;
@@ -128,26 +479,35 @@ export class NotificationSender {
             // For now, we'll just log it
             console.log(`📨 Sending notification to user ${userId}:`, notificationData);
 
-            // Save notification to user's notifications collection
-            // Note: This requires proper Firestore security rules to allow cross-user writes
-            // For now, we'll make this non-blocking to avoid breaking the main flow
-            try {
-                await notificationService.createNotification({
-                    userId: userId,
-                    type: notificationData.type as any,
-                    title: notificationData.title,
-                    body: notificationData.body,
-                    data: notificationData.data,
-                    postId: notificationData.postId,
-                    conversationId: notificationData.conversationId
-                });
+            // Use the same batch mechanism as sendNotificationToUsers for consistency
+            // This ensures real-time listeners are properly triggered
+            const notifications = [{
+                userId,
+                type: notificationData.type,
+                title: notificationData.title,
+                body: notificationData.body,
+                data: notificationData.data,
+                read: false,
+                createdAt: serverTimestamp(),
+                ...(notificationData.postId && { postId: notificationData.postId }),
+                ...(notificationData.conversationId && { conversationId: notificationData.conversationId })
+            }];
 
-                console.log(`✅ Notification created for user ${userId}`);
-            } catch (notificationError) {
-                // Make notification saving non-blocking - don't throw error
-                console.warn(`⚠️ Failed to create notification for user ${userId}:`, notificationError);
-                // Don't throw - this shouldn't break the main claim acceptance flow
-            }
+            // Use Firestore batch for better performance and atomicity
+            const batch = writeBatch(db);
+            const notificationsRef = collection(db, 'notifications');
+
+            notifications.forEach((notification) => {
+                try {
+                    const docRef = doc(notificationsRef); // Auto-generated ID
+                    batch.set(docRef, notification);
+                } catch (error) {
+                    console.error(`❌ Failed to add notification to batch:`, error, notification);
+                }
+            });
+
+            await batch.commit();
+            console.log(`✅ Notification created for user ${userId} using batch write`);
         } catch (error) {
             console.error(`❌ Failed to send notification to user ${userId}:`, error);
             // Don't throw error - notification failures shouldn't break main functionality
@@ -262,77 +622,43 @@ export class NotificationSender {
             return `Someone found a ${category.toLowerCase()} at ${location}. Is it yours?`;
         }
     }
-    // Send response notification for handover/claim requests
+    // Send response notification for handover/claim requests (user-only)
     async sendResponseNotification(conversationId: string, responseData: {
         responderId: string;
         responderName: string;
         responseType: 'handover_response' | 'claim_response';
         status: 'accepted' | 'rejected';
         postTitle?: string;
+        postId?: string;
     }): Promise<void> {
         try {
-            console.log('🚀 Sending response notification for conversation:', conversationId);
-
-            // Get the conversation to find participants
-            const conversationRef = doc(db, 'conversations', conversationId);
-            const conversationDoc = await getDoc(conversationRef);
-
-            if (!conversationDoc.exists()) {
-                console.warn('⚠️ Conversation not found for response notification, skipping silently');
-                return;
-            }
-
-            const conversationData = conversationDoc.data();
-            const participantIds = Object.keys(conversationData.participants || {});
-
-            // Get other participants (exclude the responder)
-            const recipientIds = participantIds.filter(id => id !== responseData.responderId);
-
-            if (recipientIds.length === 0) {
-                console.log('⚠️ No recipients found for response notification');
-                return;
-            }
+            console.log('🚀 Sending user-only response notification for conversation:', conversationId);
 
             const postTitle = responseData.postTitle || 'Unknown Post';
             const statusText = responseData.status === 'accepted' ? 'accepted' : 'rejected';
 
-            // Send notifications to all other participants
-            await this.sendNotificationToUsers(recipientIds, {
-                type: responseData.status === 'rejected' ?
-                    (responseData.responseType === 'handover_response' ? 'handover_response' : 'claim_response') :
-                    'message',
+            // Send notification only to the responder
+            await this.sendNotificationToUsers([responseData.responderId], {
+                type: responseData.responseType,
                 title: `${responseData.responseType === 'handover_response' ? 'Handover' : 'Claim'} ${statusText}`,
                 body: `${responseData.responderName} ${statusText} the ${responseData.responseType === 'handover_response' ? 'handover' : 'claim'} request for "${postTitle}"`,
                 data: {
                     conversationId: conversationId,
                     postTitle: postTitle,
+                    postId: responseData.postId,
                     responderId: responseData.responderId,
                     responderName: responseData.responderName,
                     responseType: responseData.responseType,
                     status: responseData.status,
                     timestamp: new Date().toISOString()
-                }
+                },
+                postId: responseData.postId,
+                conversationId: conversationId
             });
 
-            // Send admin notifications
-            await this.sendAdminNotifications({
-                type: responseData.responseType === 'handover_response' ? 'admin_handover' : 'admin_claim',
-                title: `${responseData.responseType === 'handover_response' ? 'Handover' : 'Claim'} ${statusText}`,
-                body: `${responseData.responderName} ${statusText} a ${responseData.responseType === 'handover_response' ? 'handover' : 'claim'} request for "${postTitle}"`,
-                data: {
-                    conversationId: conversationId,
-                    postTitle: postTitle,
-                    responderId: responseData.responderId,
-                    responderName: responseData.responderName,
-                    responseType: responseData.responseType,
-                    status: responseData.status,
-                    timestamp: new Date().toISOString()
-                }
-            });
-
-            console.log(`✅ Response notification sent to ${recipientIds.length} participants and admins`);
+            console.log(`✅ User-only response notification sent to ${responseData.responderId}`);
         } catch (error) {
-            console.error('❌ Failed to send response notification:', error);
+            console.error('❌ Failed to send user-only response notification:', error);
             throw error;
         }
     }
@@ -481,6 +807,8 @@ export class NotificationSender {
         title: string;
         body: string;
         data?: any;
+        postId?: string;
+        conversationId?: string;
     }): Promise<void> {
         try {
             // Filter users based on their notification preferences for claim/handover responses
@@ -529,9 +857,15 @@ export class NotificationSender {
             const notifications = filteredUserIds.map(userId => {
                 const notification = {
                     userId,
-                    ...notificationData,
+                    type: notificationData.type,
+                    title: notificationData.title,
+                    body: notificationData.body,
+                    data: notificationData.data,
                     read: false,
-                    createdAt: serverTimestamp()
+                    createdAt: serverTimestamp(),
+                    // Only add optional fields if they exist
+                    ...(notificationData.postId && { postId: notificationData.postId }),
+                    ...(notificationData.conversationId && { conversationId: notificationData.conversationId })
                 };
 
                 // Debug: Log the notification data to check for issues
@@ -557,18 +891,9 @@ export class NotificationSender {
                         return;
                     }
 
-                    // Use the notification service to create notifications (this will trigger real-time listeners)
-                    notificationService.createNotification({
-                        userId: notification.userId,
-                        type: notification.type as any,
-                        title: notification.title,
-                        body: notification.body || '',
-                        data: notification.data,
-                        postId: notificationData.data?.postId,
-                        conversationId: notificationData.data?.conversationId
-                    }).catch(error => {
-                        console.error(`❌ Failed to create notification ${index + 1}:`, error);
-                    });
+                    const notificationsRef = collection(db, 'notifications');
+                    const docRef = doc(notificationsRef); // Auto-generated ID
+                    batch.set(docRef, notification);
 
                     console.log(`📨 Added notification ${index + 1} to batch for user ${notification.userId}`);
                 } catch (error) {
@@ -589,7 +914,12 @@ export class NotificationSender {
             if (process.env.NODE_ENV === 'development' && (notificationData.type === 'message' || notificationData.type === 'claim_response' || notificationData.type === 'handover_response')) {
                 console.log('🧪 Development mode: Testing notification click...');
                 setTimeout(() => {
-                    const testUrl = `/messages?conversation=${notificationData.data?.conversationId}`;
+                    let testUrl;
+                    if (notificationData.data?.postId) {
+                        testUrl = `/post/${notificationData.data.postId}`;
+                    } else {
+                        testUrl = `/messages?conversation=${notificationData.data?.conversationId}`;
+                    }
                     console.log('🧪 Would navigate to:', testUrl);
                     // Uncomment the next line to test navigation
                     // window.open(testUrl, '_blank');

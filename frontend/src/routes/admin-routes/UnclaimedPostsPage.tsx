@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useAdminPosts } from "../../hooks/usePosts";
 import { useToast } from "../../context/ToastContext";
 import { postService } from "../../services/firebase/posts";
+import { notificationSender } from "../../services/firebase/notificationSender";
 import type { Post } from "../../types/Post";
 import PageWrapper from "../../components/PageWrapper";
 import NavHeader from "../../components/NavHeadComp";
@@ -112,14 +113,41 @@ export default function UnclaimedPostsPage() {
         setActivatingPostId(post.id);
         await postService.activateTicket(post.id);
 
+        // Send notification to the post creator
+        if (post.creatorId) {
+          try {
+            await notificationSender.sendActivateNotification({
+              postId: post.id,
+              postTitle: post.title,
+              postType: post.type as "lost" | "found",
+              creatorId: post.creatorId,
+              creatorName:
+                post.user.firstName && post.user.lastName
+                  ? `${post.user.firstName} ${post.user.lastName}`
+                  : post.user.email?.split("@")[0] || "User",
+              adminName:
+                userData?.firstName && userData?.lastName
+                  ? `${userData.firstName} ${userData.lastName}`
+                  : userData?.email?.split("@")[0] || "Admin",
+            });
+            console.log("✅ Activate notification sent to user");
+          } catch (notificationError) {
+            console.warn(
+              "⚠️ Failed to send activate notification:",
+              notificationError
+            );
+            // Don't throw - notification failures shouldn't break main functionality
+          }
+        }
+
         const statusMessage = post.movedToUnclaimed
           ? `"${post.title}" has been activated from expired status and moved back to active status.`
           : `"${post.title}" has been activated and moved back to active status.`;
 
         showToast("success", "Post Activated", statusMessage);
 
-        // Refresh the posts list
-        window.location.reload();
+        // Update local state to remove the activated post from unclaimed list
+        setRawResults(prev => prev ? prev.filter(p => p.id !== post.id) : null);
       } catch (error: any) {
         console.error('Failed to activate post:', error);
         showToast("error", "Activation Failed", error.message || 'Failed to activate post');
@@ -145,10 +173,46 @@ export default function UnclaimedPostsPage() {
   const handleModalActivatePost = async (postId: string) => {
     try {
       setActivatingPostId(postId);
+
+      // Find the post object to get creator information for notifications
+      const post = filteredPosts.find(p => p.id === postId);
+      if (!post) {
+        throw new Error('Post not found');
+      }
+
       await postService.activateTicket(postId);
+
+      // Send notification to the post creator
+      if (post.creatorId) {
+        try {
+          await notificationSender.sendActivateNotification({
+            postId: post.id,
+            postTitle: post.title,
+            postType: post.type as "lost" | "found",
+            creatorId: post.creatorId,
+            creatorName:
+              post.user.firstName && post.user.lastName
+                ? `${post.user.firstName} ${post.user.lastName}`
+                : post.user.email?.split("@")[0] || "User",
+            adminName:
+              userData?.firstName && userData?.lastName
+                ? `${userData.firstName} ${userData.lastName}`
+                : userData?.email?.split("@")[0] || "Admin",
+          });
+          console.log("✅ Activate notification sent to user");
+        } catch (notificationError) {
+          console.warn(
+            "⚠️ Failed to send activate notification:",
+            notificationError
+          );
+          // Don't throw - notification failures shouldn't break main functionality
+        }
+      }
+
       showToast("success", "Post Activated", "Post has been activated and moved back to active status.");
       handleCloseModal();
-      window.location.reload();
+      // Update local state to remove the activated post from unclaimed list
+      setRawResults(prev => prev ? prev.filter(p => p.id !== postId) : null);
     } catch (error: any) {
       console.error('Failed to activate post from modal:', error);
       showToast("error", "Activation Failed", error.message || 'Failed to activate post');
@@ -160,10 +224,46 @@ export default function UnclaimedPostsPage() {
   // Handle post deletion from modal
   const handleModalDeletePost = async (postId: string) => {
     try {
+      // Find the post object to get creator information for notifications
+      const post = filteredPosts.find(p => p.id === postId);
+      if (!post) {
+        throw new Error('Post not found');
+      }
+
       await postService.deletePost(postId, false, userData?.email || 'admin');
+
+      // Send notification to the post creator
+      if (post.creatorId) {
+        try {
+          await notificationSender.sendDeleteNotification({
+            postId: post.id,
+            postTitle: post.title,
+            postType: post.type as "lost" | "found",
+            creatorId: post.creatorId,
+            creatorName:
+              post.user.firstName && post.user.lastName
+                ? `${post.user.firstName} ${post.user.lastName}`
+                : post.user.email?.split("@")[0] || "User",
+            adminName:
+              userData?.firstName && userData?.lastName
+                ? `${userData.firstName} ${userData.lastName}`
+                : userData?.email?.split("@")[0] || "Admin",
+            deletionType: 'soft',
+          });
+          console.log("✅ Delete notification sent to user");
+        } catch (notificationError) {
+          console.warn(
+            "⚠️ Failed to send delete notification:",
+            notificationError
+          );
+          // Don't throw - notification failures shouldn't break main functionality
+        }
+      }
+
       showToast("success", "Post Deleted", "Post has been moved to Recently Deleted");
       handleCloseModal();
-      window.location.reload();
+      // Update local state to remove the deleted post from unclaimed list
+      setRawResults(prev => prev ? prev.filter(p => p.id !== postId) : null);
     } catch (error: any) {
       console.error('Failed to delete post from modal:', error);
       showToast("error", "Delete Failed", error.message || 'Failed to delete post');
@@ -265,6 +365,7 @@ export default function UnclaimedPostsPage() {
                   onDelete={(post) => handleModalDeletePost(post.id)}
                   isDeleting={activatingPostId === post.id}
                   showUnclaimedMessage={true}
+                  hideStatusDropdown={true}
                 />
               ))}
             </div>
