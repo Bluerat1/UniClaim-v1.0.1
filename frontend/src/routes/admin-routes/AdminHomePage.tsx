@@ -115,6 +115,34 @@ export default function AdminHomePage() {
       setShowDeleteModal(false);
       setPostToDelete(null);
 
+      // Send notification to the post creator
+      if (postToDelete.creatorId) {
+        try {
+          await notificationSender.sendDeleteNotification({
+            postId: postToDelete.id,
+            postTitle: postToDelete.title,
+            postType: postToDelete.type as "lost" | "found",
+            creatorId: postToDelete.creatorId,
+            creatorName:
+              postToDelete.user.firstName && postToDelete.user.lastName
+                ? `${postToDelete.user.firstName} ${postToDelete.user.lastName}`
+                : postToDelete.user.email?.split("@")[0] || "User",
+            adminName:
+              userData?.firstName && userData?.lastName
+                ? `${userData.firstName} ${userData.lastName}`
+                : userData?.email?.split("@")[0] || "Admin",
+            deletionType: 'soft',
+          });
+          console.log("✅ Delete notification sent to user");
+        } catch (notificationError) {
+          console.warn(
+            "⚠️ Failed to send delete notification:",
+            notificationError
+          );
+          // Don't throw - notification failures shouldn't break main functionality
+        }
+      }
+
       // Refresh the posts list
       if (viewType === "deleted") {
         fetchDeletedPosts();
@@ -184,6 +212,34 @@ export default function AdminHomePage() {
       setShowDeleteModal(false);
       setPostToDelete(null);
 
+      // Send notification to the post creator
+      if (postToDelete.creatorId) {
+        try {
+          await notificationSender.sendDeleteNotification({
+            postId: postToDelete.id,
+            postTitle: postToDelete.title,
+            postType: postToDelete.type as "lost" | "found",
+            creatorId: postToDelete.creatorId,
+            creatorName:
+              postToDelete.user.firstName && postToDelete.user.lastName
+                ? `${postToDelete.user.firstName} ${postToDelete.user.lastName}`
+                : postToDelete.user.email?.split("@")[0] || "User",
+            adminName:
+              userData?.firstName && userData?.lastName
+                ? `${userData.firstName} ${userData.lastName}`
+                : userData?.email?.split("@")[0] || "Admin",
+            deletionType: 'permanent',
+          });
+          console.log("✅ Permanent delete notification sent to user");
+        } catch (notificationError) {
+          console.warn(
+            "⚠️ Failed to send permanent delete notification:",
+            notificationError
+          );
+          // Don't throw - notification failures shouldn't break main functionality
+        }
+      }
+
       // Refresh the deleted posts list if we're in the deleted view
       if (viewType === "deleted") {
         fetchDeletedPosts();
@@ -222,6 +278,34 @@ export default function AdminHomePage() {
       showToast("success", "Post Deleted", "Post has been permanently deleted");
       setShowDeleteModal(false);
       setPostToDelete(null);
+
+      // Send notification to the post creator
+      if (postToDelete.creatorId) {
+        try {
+          await notificationSender.sendDeleteNotification({
+            postId: postToDelete.id,
+            postTitle: postToDelete.title,
+            postType: postToDelete.type as "lost" | "found",
+            creatorId: postToDelete.creatorId,
+            creatorName:
+              postToDelete.user.firstName && postToDelete.user.lastName
+                ? `${postToDelete.user.firstName} ${postToDelete.user.lastName}`
+                : postToDelete.user.email?.split("@")[0] || "User",
+            adminName:
+              userData?.firstName && userData?.lastName
+                ? `${userData.firstName} ${userData.lastName}`
+                : userData?.email?.split("@")[0] || "Admin",
+            deletionType: 'permanent',
+          });
+          console.log("✅ Permanent delete notification sent to user");
+        } catch (notificationError) {
+          console.warn(
+            "⚠️ Failed to send permanent delete notification:",
+            notificationError
+          );
+          // Don't throw - notification failures shouldn't break main functionality
+        }
+      }
 
       // Refresh the deleted posts list if we're in the deleted view
       if (viewType === "deleted") {
@@ -425,6 +509,33 @@ export default function AdminHomePage() {
         const { postService } = await import("../../utils/firebase");
         await postService.activateTicket(post.id);
 
+        // Send notification to the post creator
+        if (post.creatorId) {
+          try {
+            await notificationSender.sendActivateNotification({
+              postId: post.id,
+              postTitle: post.title,
+              postType: post.type as "lost" | "found",
+              creatorId: post.creatorId,
+              creatorName:
+                post.user.firstName && post.user.lastName
+                  ? `${post.user.firstName} ${post.user.lastName}`
+                  : post.user.email?.split("@")[0] || "User",
+              adminName:
+                userData?.firstName && userData?.lastName
+                  ? `${userData.firstName} ${userData.lastName}`
+                  : userData?.email?.split("@")[0] || "Admin",
+            });
+            console.log("✅ Activate notification sent to user");
+          } catch (notificationError) {
+            console.warn(
+              "⚠️ Failed to send activate notification:",
+              notificationError
+            );
+            // Don't throw - notification failures shouldn't break main functionality
+          }
+        }
+
         const statusMessage = post.movedToUnclaimed
           ? `"${post.title}" has been activated from expired status and moved back to active status.`
           : `"${post.title}" has been activated and moved back to active status.`;
@@ -475,6 +586,34 @@ export default function AdminHomePage() {
 
         // Then update the post status to pending
         await postService.updatePostStatus(post.id, "pending");
+
+        // Send notification to the post creator
+        if (post.creatorId) {
+          try {
+            await notificationSender.sendRevertNotification({
+              postId: post.id,
+              postTitle: post.title,
+              postType: post.type as "lost" | "found",
+              creatorId: post.creatorId,
+              creatorName:
+                post.user.firstName && post.user.lastName
+                  ? `${post.user.firstName} ${post.user.lastName}`
+                  : post.user.email?.split("@")[0] || "User",
+              adminName:
+                userData?.firstName && userData?.lastName
+                  ? `${userData.firstName} ${userData.lastName}`
+                  : userData?.email?.split("@")[0] || "Admin",
+              revertReason: reason,
+            });
+            console.log("✅ Revert notification sent to user");
+          } catch (notificationError) {
+            console.warn(
+              "⚠️ Failed to send revert notification:",
+              notificationError
+            );
+            // Don't throw - notification failures shouldn't break main functionality
+          }
+        }
 
         // Show success message with cleanup details
         let successMessage = `"${post.title}" has been reverted back to pending status.`;
@@ -761,6 +900,33 @@ export default function AdminHomePage() {
           "Post Restored",
           `"${post.title}" has been restored and is now pending review.`
         );
+
+        // Send notification to the post creator
+        if (post.creatorId) {
+          try {
+            await notificationSender.sendRestoreNotification({
+              postId: post.id,
+              postTitle: post.title,
+              postType: post.type as "lost" | "found",
+              creatorId: post.creatorId,
+              creatorName:
+                post.user.firstName && post.user.lastName
+                  ? `${post.user.firstName} ${post.user.lastName}`
+                  : post.user.email?.split("@")[0] || "User",
+              adminName:
+                userData?.firstName && userData?.lastName
+                  ? `${userData.firstName} ${userData.lastName}`
+                  : userData?.email?.split("@")[0] || "Admin",
+            });
+            console.log("✅ Restore notification sent to user");
+          } catch (notificationError) {
+            console.warn(
+              "⚠️ Failed to send restore notification:",
+              notificationError
+            );
+            // Don't throw - notification failures shouldn't break main functionality
+          }
+        }
       } catch (error: any) {
         console.error("Failed to restore post:", error);
         showToast(
@@ -803,6 +969,34 @@ export default function AdminHomePage() {
           "Post Permanently Deleted",
           `"${post.title}" has been permanently deleted.`
         );
+
+        // Send notification to the post creator
+        if (post.creatorId) {
+          try {
+            await notificationSender.sendDeleteNotification({
+              postId: post.id,
+              postTitle: post.title,
+              postType: post.type as "lost" | "found",
+              creatorId: post.creatorId,
+              creatorName:
+                post.user.firstName && post.user.lastName
+                  ? `${post.user.firstName} ${post.user.lastName}`
+                  : post.user.email?.split("@")[0] || "User",
+              adminName:
+                userData?.firstName && userData?.lastName
+                  ? `${userData.firstName} ${userData.lastName}`
+                  : userData?.email?.split("@")[0] || "Admin",
+              deletionType: 'permanent',
+            });
+            console.log("✅ Permanent delete notification sent to user");
+          } catch (notificationError) {
+            console.warn(
+              "⚠️ Failed to send permanent delete notification:",
+              notificationError
+            );
+            // Don't throw - notification failures shouldn't break main functionality
+          }
+        }
       } catch (error: any) {
         console.error("Failed to permanently delete post:", error);
         showToast(

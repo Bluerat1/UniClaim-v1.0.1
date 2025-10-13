@@ -105,6 +105,10 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const shouldShowBrowserNotification = (notificationType: string, preferences: any): boolean => {
     switch (notificationType) {
       case 'status_change':
+      case 'post_activated':
+      case 'post_reverted':
+      case 'post_deleted':
+      case 'post_restored':
         return preferences.claimUpdates || preferences.adminAlerts;
       case 'new_post':
         return preferences.newPosts;
