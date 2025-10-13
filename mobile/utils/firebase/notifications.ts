@@ -3,7 +3,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { db } from './config';
+import { auth, db } from './config';
 import { doc, setDoc, getDoc, updateDoc, collection, addDoc, serverTimestamp, query, where, getDocs, orderBy, limit, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { NotificationData, NotificationPreferences } from '../../types/Notification';
 import { notificationSubscriptionService } from './notificationSubscriptions';
@@ -265,12 +265,15 @@ export class NotificationService {
                 console.error('Failed to send push notification:', response.status);
             }
         } catch (error) {
+            console.error('Error sending push notification:', error);
+        }
+    }
 
     // Get user's notifications
     async getUserNotifications(userId: string, limitCount: number = 20): Promise<NotificationData[]> {
         try {
             // Security check: ensure the requested userId matches the current authenticated user
-            if (!auth.currentUser || auth.currentUser.uid !== userId) {
+            if (!auth.currentUser?.uid || auth.currentUser.uid !== userId) {
                 console.warn('🔒 Security check failed: Current user does not match requested userId in getUserNotifications');
                 return [];
             }
@@ -305,7 +308,7 @@ export class NotificationService {
             // Security check: ensure the requested notificationId belongs to the current authenticated user
             const notificationRef = doc(db, 'notifications', notificationId);
             const notificationDoc = await getDoc(notificationRef);
-            if (!notificationDoc.exists() || notificationDoc.data().userId !== auth.currentUser.uid) {
+            if (!notificationDoc.exists() || notificationDoc.data().userId !== auth.currentUser?.uid) {
                 console.warn('🔒 Security check failed: Current user does not own the notification in markNotificationAsRead');
                 return;
             }

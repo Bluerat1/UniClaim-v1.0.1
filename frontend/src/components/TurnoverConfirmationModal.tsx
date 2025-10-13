@@ -101,16 +101,26 @@ export default function TurnoverConfirmationModal({
                 ? "Item Condition Notes (Optional)"
                 : "Reason Notes (Optional)"}
             </label>
+            <div className="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <span className="text-amber-600 text-sm mt-0.5">⚠️</span>
+                <p className="text-xs text-amber-800">
+                  <strong>Important:</strong> Do not include specific details
+                  about item contents, personal information, or sensitive data
+                  in these notes as they may be visible to users.
+                </p>
+              </div>
+            </div>
             <textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder={
                 isConfirming
-                  ? "e.g., Item is in good condition, minor scratches on case..."
+                  ? "e.g., Good condition, wallet contents intact, purse functional, bag undamaged..."
                   : "e.g., Finder did not show up, item was damaged..."
               }
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
               rows={3}
             />
           </div>
