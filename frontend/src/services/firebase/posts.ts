@@ -1313,24 +1313,6 @@ export const postService = {
             }
 
             if (hardDelete) {
-                // Send notification to the post creator about permanent deletion BEFORE deleting
-                try {
-                    const adminName = getAuth().currentUser?.displayName || getAuth().currentUser?.email || 'an admin';
-                    await notificationSender.sendDeleteNotification({
-                        postId: postId,
-                        postTitle: postData.title,
-                        postType: postData.type,
-                        creatorId: postData.creatorId,
-                        creatorName: `${postData.user.firstName} ${postData.user.lastName}`,
-                        adminName: adminName,
-                        deletionType: 'permanent'
-                    });
-                    console.log(`📨 Permanent delete notification sent to post creator`);
-                } catch (notificationError) {
-                    console.error('❌ Failed to send permanent delete notification:', notificationError);
-                    // Don't fail the operation if notification fails
-                }
-
                 // Delete all collected images from Cloudinary if any exist
                 if (allImagesToDelete.length > 0) {
                     console.log(`🗑️ Deleting ${allImagesToDelete.length} total images from Cloudinary`);
@@ -1362,24 +1344,6 @@ export const postService = {
                     console.error('Failed to delete notifications for post:', postId, notificationError);
                 }
             } else {
-                // Send notification to the post creator about soft deletion BEFORE moving to deleted collection
-                try {
-                    const adminName = getAuth().currentUser?.displayName || getAuth().currentUser?.email || 'an admin';
-                    await notificationSender.sendDeleteNotification({
-                        postId: postId,
-                        postTitle: postData.title,
-                        postType: postData.type,
-                        creatorId: postData.creatorId,
-                        creatorName: `${postData.user.firstName} ${postData.user.lastName}`,
-                        adminName: adminName,
-                        deletionType: 'soft'
-                    });
-                    console.log(`📨 Soft delete notification sent to post creator`);
-                } catch (notificationError) {
-                    console.error('❌ Failed to send soft delete notification:', notificationError);
-                    // Don't fail the operation if notification fails
-                }
-
                 // Soft delete - move to deleted collection
                 const deletedAt = new Date().toISOString();
                 const deletedByUser = deletedBy || 'system';
