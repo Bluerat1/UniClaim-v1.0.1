@@ -281,6 +281,23 @@ function PostCard({
           }}
         />
 
+        {/* Admin Confirmation Notes - show for all users when item has been confirmed by admin */}
+        {post.turnoverDetails &&
+          post.turnoverDetails.turnoverStatus === "confirmed" &&
+          post.turnoverDetails.confirmationNotes && (
+            <div className="mt-2 p-2 bg-gray-50 border-l-4 border-blue-400 rounded-r-lg">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-blue-600 text-sm">📝</span>
+                <span className="text-xs font-medium text-blue-800">
+                  Admin Notes
+                </span>
+              </div>
+              <div className="text-blue-700 text-xs italic">
+                "{post.turnoverDetails.confirmationNotes}"
+              </div>
+            </div>
+          )}
+
         {/* Claim Information - only show for resolved posts with claim details, and only if claim is not yet confirmed */}
         {post.status === "resolved" &&
           post.claimDetails &&
