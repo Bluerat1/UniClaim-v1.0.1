@@ -16,6 +16,25 @@ import type { Post } from "@/types/Post";
 import successPic from "@/assets/success.png";
 import { detectLocationFromCoordinates } from "@/utils/locationDetection";
 
+// Import Firebase config for database access
+import { getFirestore } from 'firebase/firestore';
+import { getApps, getApp, initializeApp } from 'firebase/app';
+
+// Firebase configuration (same as in config.ts)
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCgN70CTX2wQpcgoSZF6AK0fuq7ikcQgNs",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "uniclaim2.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "uniclaim2",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "uniclaim2.appspot.com",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "38339063459",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:38339063459:web:3b5650ebe6fabd352b1916",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-E693CKMPSY"
+};
+
+// Initialize Firebase
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+const db = getFirestore(app);
+
 export default function ReportPage() {
   const { userData, loading } = useAuth();
   const [selectedReport, setSelectedReport] = useState<"lost" | "found" | null>(
@@ -219,21 +238,59 @@ export default function ReportPage() {
         selectedReport === "found" &&
         selectedFoundAction === "turnover to Campus Security";
 
-      // Get real Campus Security user data
+      // Get real Campus Security user data from database instead of hardcoded data
       let campusSecurityData = null;
       let campusSecurityUserId = null;
 
       if (shouldTransferToCampusSecurity) {
-        // Use hardcoded Campus Security data as fallback since getCampusSecurityUser doesn't exist
-        campusSecurityData = {
-          firstName: "Campus",
-          lastName: "Security",
-          email: "cs@uniclaim.com",
-          contactNum: "",
-          studentId: "",
-          profilePicture: null,
-        };
-        campusSecurityUserId = "hedUWuv96VWQek5OucPzXTCkpQU2";
+        try {
+          // Query for Campus Security user by role instead of hardcoded ID
+          const { collection, query, where, limit, getDocs } = await import('firebase/firestore');
+
+          const usersRef = collection(db, 'users');
+          const q = query(usersRef, where('role', '==', 'campus_security'), limit(1));
+          const querySnapshot = await getDocs(q);
+
+          if (!querySnapshot.empty) {
+            const doc = querySnapshot.docs[0];
+            const userDataFromDb = doc.data();
+            campusSecurityData = {
+              firstName: userDataFromDb.firstName || 'Campus',
+              lastName: userDataFromDb.lastName || 'Security',
+              email: userDataFromDb.email || 'cs@uniclaim.com',
+              contactNum: userDataFromDb.contactNum || '',
+              studentId: userDataFromDb.studentId || '',
+              profilePicture: userDataFromDb.profilePicture || null,
+              role: userDataFromDb.role || 'campus_security',
+            };
+            campusSecurityUserId = doc.id;
+            console.log('✅ Campus Security user data fetched from database:', campusSecurityData);
+          } else {
+            console.warn('⚠️ No Campus Security user found in database, using fallback data');
+            // Fallback to hardcoded data if no Campus Security user found
+            campusSecurityData = {
+              firstName: "Campus",
+              lastName: "Security",
+              email: "cs@uniclaim.com",
+              contactNum: "",
+              studentId: "",
+              profilePicture: null,
+            };
+            campusSecurityUserId = "hedUWuv96VWQek5OucPzXTCkpQU2";
+          }
+        } catch (error) {
+          console.error('❌ Error fetching Campus Security user data:', error);
+          // Fallback to hardcoded data on error
+          campusSecurityData = {
+            firstName: "Campus",
+            lastName: "Security",
+            email: "cs@uniclaim.com",
+            contactNum: "",
+            studentId: "",
+            profilePicture: null,
+          };
+          campusSecurityUserId = "hedUWuv96VWQek5OucPzXTCkpQU2";
+        }
       }
 
       // Ensure location is set if coordinates are available

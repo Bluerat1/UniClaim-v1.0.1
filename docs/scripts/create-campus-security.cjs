@@ -64,6 +64,7 @@ async function createCampusSecurityAccount() {
             lastName: campusSecurityData.lastName,
             contactNum: campusSecurityData.contactNum,
             studentId: campusSecurityData.studentId,
+            profilePicture: 'https://res.cloudinary.com/dopuxb8xw/image/upload/v1701234567/profile_pictures/campus_security_default.jpg', // Default Campus Security profile picture
             role: 'campus_security',
             status: 'active',
             createdAt: serverTimestamp(),
