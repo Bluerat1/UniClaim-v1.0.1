@@ -79,6 +79,48 @@ export default function HomeHeader({
       await markAsRead(notification.id);
     }
 
+    // Handle claim_response and handover_response notifications - navigate to completed post if postId is available
+    if (
+      (notification.type === "claim_response" || notification.type === "handover_response" ||
+       (notification.type === "message" && (notification.data?.responseType === "claim_response" || notification.data?.responseType === "handover_response"))) &&
+      notification.data?.postId
+    ) {
+      console.log("Response notification - fetching post:", notification.data.postId);
+      try {
+        const post = await postService.getPostById(notification.data.postId);
+        if (post) {
+          console.log("Post found, opening modal for response notification");
+          setSelectedPost(post);
+          toggleNotif(); // Close the notification dropdown
+        } else {
+          console.log("Post not found, showing toast");
+          toast.error("This post has been deleted.", {
+            position: "top-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            toastId: "post-deleted", // Add a unique ID to prevent duplicate toasts
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching post:", error);
+        toast.error("Error loading post. Please try again.", {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          toastId: "post-load-error", // Add a unique ID to prevent duplicate toasts
+        });
+      }
+      return;
+    }
+
     // Handle different notification types
     if (notification.type === "message" && notification.data?.conversationId) {
       console.log(
@@ -434,7 +476,7 @@ export default function HomeHeader({
         <PostModal
           post={selectedPost}
           onClose={() => setSelectedPost(null)}
-          hideSendMessage={false}
+          hideSendMessage={selectedPost.status === 'resolved' || selectedPost.status === 'completed'}
         />
       )}
     </>

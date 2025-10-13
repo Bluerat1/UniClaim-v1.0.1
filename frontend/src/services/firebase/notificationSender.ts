@@ -622,77 +622,43 @@ export class NotificationSender {
             return `Someone found a ${category.toLowerCase()} at ${location}. Is it yours?`;
         }
     }
-    // Send response notification for handover/claim requests
+    // Send response notification for handover/claim requests (user-only)
     async sendResponseNotification(conversationId: string, responseData: {
         responderId: string;
         responderName: string;
         responseType: 'handover_response' | 'claim_response';
         status: 'accepted' | 'rejected';
         postTitle?: string;
+        postId?: string;
     }): Promise<void> {
         try {
-            console.log('🚀 Sending response notification for conversation:', conversationId);
-
-            // Get the conversation to find participants
-            const conversationRef = doc(db, 'conversations', conversationId);
-            const conversationDoc = await getDoc(conversationRef);
-
-            if (!conversationDoc.exists()) {
-                console.warn('⚠️ Conversation not found for response notification, skipping silently');
-                return;
-            }
-
-            const conversationData = conversationDoc.data();
-            const participantIds = Object.keys(conversationData.participants || {});
-
-            // Get other participants (exclude the responder)
-            const recipientIds = participantIds.filter(id => id !== responseData.responderId);
-
-            if (recipientIds.length === 0) {
-                console.log('⚠️ No recipients found for response notification');
-                return;
-            }
+            console.log('🚀 Sending user-only response notification for conversation:', conversationId);
 
             const postTitle = responseData.postTitle || 'Unknown Post';
             const statusText = responseData.status === 'accepted' ? 'accepted' : 'rejected';
 
-            // Send notifications to all other participants
-            await this.sendNotificationToUsers(recipientIds, {
-                type: responseData.status === 'rejected' ?
-                    (responseData.responseType === 'handover_response' ? 'handover_response' : 'claim_response') :
-                    'message',
+            // Send notification only to the responder
+            await this.sendNotificationToUsers([responseData.responderId], {
+                type: responseData.responseType,
                 title: `${responseData.responseType === 'handover_response' ? 'Handover' : 'Claim'} ${statusText}`,
                 body: `${responseData.responderName} ${statusText} the ${responseData.responseType === 'handover_response' ? 'handover' : 'claim'} request for "${postTitle}"`,
                 data: {
                     conversationId: conversationId,
                     postTitle: postTitle,
+                    postId: responseData.postId,
                     responderId: responseData.responderId,
                     responderName: responseData.responderName,
                     responseType: responseData.responseType,
                     status: responseData.status,
                     timestamp: new Date().toISOString()
-                }
+                },
+                postId: responseData.postId,
+                conversationId: conversationId
             });
 
-            // Send admin notifications
-            await this.sendAdminNotifications({
-                type: responseData.responseType === 'handover_response' ? 'admin_handover' : 'admin_claim',
-                title: `${responseData.responseType === 'handover_response' ? 'Handover' : 'Claim'} ${statusText}`,
-                body: `${responseData.responderName} ${statusText} a ${responseData.responseType === 'handover_response' ? 'handover' : 'claim'} request for "${postTitle}"`,
-                data: {
-                    conversationId: conversationId,
-                    postTitle: postTitle,
-                    responderId: responseData.responderId,
-                    responderName: responseData.responderName,
-                    responseType: responseData.responseType,
-                    status: responseData.status,
-                    timestamp: new Date().toISOString()
-                }
-            });
-
-            console.log(`✅ Response notification sent to ${recipientIds.length} participants and admins`);
+            console.log(`✅ User-only response notification sent to ${responseData.responderId}`);
         } catch (error) {
-            console.error('❌ Failed to send response notification:', error);
+            console.error('❌ Failed to send user-only response notification:', error);
             throw error;
         }
     }
@@ -948,7 +914,12 @@ export class NotificationSender {
             if (process.env.NODE_ENV === 'development' && (notificationData.type === 'message' || notificationData.type === 'claim_response' || notificationData.type === 'handover_response')) {
                 console.log('🧪 Development mode: Testing notification click...');
                 setTimeout(() => {
-                    const testUrl = `/messages?conversation=${notificationData.data?.conversationId}`;
+                    let testUrl;
+                    if (notificationData.data?.postId) {
+                        testUrl = `/post/${notificationData.data.postId}`;
+                    } else {
+                        testUrl = `/messages?conversation=${notificationData.data?.conversationId}`;
+                    }
                     console.log('🧪 Would navigate to:', testUrl);
                     // Uncomment the next line to test navigation
                     // window.open(testUrl, '_blank');

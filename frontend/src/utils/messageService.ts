@@ -638,6 +638,24 @@ export const messageService = {
                             const ownerData = ownerDoc.exists() ? ownerDoc.data() : null;
                             const ownerName = ownerData ? `${ownerData.firstName || ''} ${ownerData.lastName || ''}`.trim() : 'Unknown';
 
+                            // STEP 5.5: Fetch post data to ensure claimer details are complete (fallback to post's user data)
+                            const postDoc = await getDoc(doc(db, 'posts', postId));
+                            const postData = postDoc.exists() ? postDoc.data() : null;
+                            const postUserData = postData?.user || {};
+
+                            // Use claimerData if available, otherwise fallback to post's user data if claimer is the post creator
+                            const isClaimerPostCreator = postData && claimerId === postData.creatorId;
+                            const finalClaimerData = claimerData || (isClaimerPostCreator ? postUserData : null);
+
+                            // If still no data, set defaults
+                            const claimerInfo = finalClaimerData || {
+                                firstName: 'Unknown',
+                                lastName: '',
+                                contactNum: 'Not Provided',
+                                studentId: 'Not Provided',
+                                email: 'Not Provided'
+                            };
+
                             // STEP 6: Prepare claim request details for the post
                             const claimRequestDetails = {
                                 // Original message details
@@ -653,6 +671,11 @@ export const messageService = {
                                 claimRequestedAt: claimData.requestedAt || null,
                                 claimRespondedAt: claimData.respondedAt || null,
                                 claimResponseMessage: claimData.responseMessage || '',
+
+                                // Add claimer details for preservation
+                                claimerStudentId: claimerInfo?.studentId || '',
+                                claimerContact: claimerInfo?.contactNum || '',
+                                claimerEmail: claimerInfo?.email || '',
 
                                 // ID photo verification details
                                 idPhotoUrl: claimData.idPhotoUrl || '',
@@ -679,10 +702,11 @@ export const messageService = {
 
                             // Prepare claim details for the post
                             const claimDetails = {
-                                claimerName: claimerData ? `${claimerData.firstName || ''} ${claimerData.lastName || ''}`.trim() : 'Unknown',
-                                claimerContact: claimerData?.contactNum || '',
-                                claimerEmail: claimerData?.email || '',
-                                claimerProfilePicture: claimerData?.profilePicture || claimerData?.profileImageUrl || '',
+                                claimerName: claimerInfo ? `${claimerInfo.firstName || ''} ${claimerInfo.lastName || ''}`.trim() : 'Unknown',
+                                claimerContact: claimerInfo?.contactNum || '',
+                                claimerStudentId: claimerInfo?.studentId || '',
+                                claimerEmail: claimerInfo?.email || '',
+                                claimerProfilePicture: claimerInfo?.profilePicture || claimerInfo?.profileImageUrl || '',
 
                                 ownerName: ownerName,
                                 ownerContact: ownerData?.contactNum || '',

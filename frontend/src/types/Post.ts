@@ -78,6 +78,11 @@ export interface Post {
       handoverRespondedAt?: any;
       handoverResponseMessage?: string;
 
+      // Add handover person details for preservation
+      handoverPersonStudentId: string; // Student ID of the person who handed over
+      handoverPersonContact: string; // Contact number of the person who handed over
+      handoverPersonEmail: string; // Email of the person who handed over
+
       // ID photo verification details
       idPhotoUrl?: string;
       idPhotoConfirmed: boolean;
@@ -145,6 +150,11 @@ export interface Post {
       claimResponseMessage?: string;
       claimConfirmedAt?: any;
       claimConfirmedBy?: string;
+
+      // Add claimer details for preservation
+      claimerStudentId: string; // Student ID of the claimer
+      claimerContact: string; // Contact number of the claimer
+      claimerEmail: string; // Email of the claimer
 
       // ID photo verification details
       idPhotoUrl?: string;
