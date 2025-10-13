@@ -14,6 +14,13 @@ const getStatusStyles = (status: string | undefined) => {
         borderColor: "border-green-200",
         displayText: "Resolved",
       };
+    case "completed":
+      return {
+        bgColor: "bg-green-100",
+        textColor: "text-green-800",
+        borderColor: "border-green-200",
+        displayText: "Completed",
+      };
     case "pending":
       return {
         bgColor: "bg-yellow-100",
@@ -120,10 +127,10 @@ const TicketModal = ({
   const [editedCategory, setEditedCategory] = useState(post.category);
   const [editedType, setEditedType] = useState(post.type);
 
-  // Prevent editing resolved posts (unless admin)
+  // Prevent editing resolved or completed posts (unless admin)
   const handleEditClick = () => {
-    if (post.status === "resolved" && !isAdmin) {
-      return; // Do nothing for resolved posts (unless admin)
+    if ((post.status === "resolved" || post.status === "completed") && !isAdmin) {
+      return; // Do nothing for resolved or completed posts (unless admin)
     }
     setIsEditing(true);
   };
@@ -143,8 +150,8 @@ const TicketModal = ({
     setEditedCategory(post.category);
     setEditedType(post.type);
 
-    // Prevent editing state for resolved posts (unless admin)
-    if (post.status === "resolved" && !isAdmin) {
+    // Prevent editing state for resolved or completed posts (unless admin)
+    if ((post.status === "resolved" || post.status === "completed") && !isAdmin) {
       setIsEditing(false);
     }
   }, [post, isAdmin]);
@@ -264,11 +271,12 @@ const TicketModal = ({
           options: [
             { value: "pending", label: "Pending" },
             { value: "resolved", label: "Resolved" },
+            { value: "completed", label: "Completed" },
             { value: "unclaimed", label: "Unclaimed" },
           ],
           onChange: (e: React.ChangeEvent<HTMLSelectElement>) =>
             setEditedStatus(
-              e.target.value as "pending" | "resolved" | "unclaimed"
+              e.target.value as "pending" | "resolved" | "completed" | "unclaimed"
             ),
         },
         {
@@ -330,6 +338,11 @@ const TicketModal = ({
                     ✅ Resolved
                   </span>
                 )}
+                {post.status === "completed" && (
+                  <span className="px-2 py-1 text-xs font-medium rounded-[3px] bg-green-100 text-green-700">
+                    ✅ Completed
+                  </span>
+                )}
                 {post.status === "unclaimed" && (
                   <span className="px-2 py-1 text-xs font-medium rounded-[3px] bg-orange-100 text-orange-700">
                     ⏰ Unclaimed
@@ -357,15 +370,15 @@ const TicketModal = ({
             <>
               <button
                 onClick={handleEditClick}
-                disabled={post.status === "resolved" && !isAdmin}
+                disabled={(post.status === "resolved" || post.status === "completed") && !isAdmin}
                 className={`text-xs px-3 py-2 mr-2 rounded hover:bg-yellow-600 ${
-                  post.status === "resolved" && !isAdmin
+                  (post.status === "resolved" || post.status === "completed") && !isAdmin
                     ? "bg-gray-400 text-gray-600 cursor-not-allowed"
                     : "bg-brand text-white hover:bg-yellow-600"
                 }`}
                 title={
-                  post.status === "resolved" && !isAdmin
-                    ? "Cannot edit resolved tickets"
+                  (post.status === "resolved" || post.status === "completed") && !isAdmin
+                    ? "Cannot edit resolved or completed tickets"
                     : "Edit ticket details"
                 }
               >
@@ -373,15 +386,15 @@ const TicketModal = ({
               </button>
               <button
                 onClick={() => onDelete(post.id)}
-                disabled={isDeleting || (post.status === "resolved" && !isAdmin)}
+                disabled={isDeleting || ((post.status === "resolved" || post.status === "completed") && !isAdmin)}
                 className={`text-xs px-3 py-2 mr-2 rounded disabled:opacity-50 disabled:cursor-not-allowed ${
-                  post.status === "resolved" && !isAdmin
+                  (post.status === "resolved" || post.status === "completed") && !isAdmin
                     ? "bg-gray-400 text-gray-600 cursor-not-allowed"
                     : "bg-[#FD8E74] text-white hover:bg-[#c07c6d]"
                 }`}
                 title={
-                  post.status === "resolved" && !isAdmin
-                    ? "Cannot delete resolved tickets"
+                  (post.status === "resolved" || post.status === "completed") && !isAdmin
+                    ? "Cannot delete resolved or completed tickets"
                     : isDeleting
                     ? "Deleting ticket..."
                     : `Delete ticket "${post.title}" and ${post.images.length} associated image${post.images.length !== 1 ? "s" : ""}`

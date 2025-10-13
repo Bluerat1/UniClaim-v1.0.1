@@ -209,7 +209,7 @@ export default function MyTicket() {
     if (activeTab === "all_tickets") return true;
     if (activeTab === "active_tickets")
       return post.status === "pending" || post.status === "unclaimed";
-    if (activeTab === "completed_tickets") return post.status === "resolved";
+    if (activeTab === "completed_tickets") return post.status === "resolved" || post.status === "completed";
     if (activeTab === "deleted_tickets") return post.deletedAt; // Only show posts with deletedAt timestamp
     return false;
   });
