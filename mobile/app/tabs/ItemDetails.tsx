@@ -105,8 +105,16 @@ export default function ItemDetails({
       } else {
         // Fallback to detection logic
         const detectionResult = detectLocationFromCoordinates(coordinates);
-        if (detectionResult.location && detectionResult.confidence >= 80) {
+        if (detectionResult.location && detectionResult.confidence >= 50) {
           setSelectedLocation(detectionResult.location);
+        } else if (detectionResult.alternatives && detectionResult.alternatives.length > 0) {
+          // Show the top alternative if confidence is reasonable (>= 10)
+          const topAlternative = detectionResult.alternatives[0];
+          if (topAlternative.confidence >= 10) {
+            setSelectedLocation(topAlternative.location);
+          } else {
+            setSelectedLocation(null);
+          }
         } else {
           setSelectedLocation(null);
         }
