@@ -571,18 +571,90 @@ const TicketModal = ({
                     <p className="text-[12px]">{post.description}</p>
                   </div>
 
-                  {/* Found Action Information - only show for found items */}
-                  {post.type === "found" && post.foundAction && (
+                  {/* Turnover Details - only show when turnoverDetails exist */}
+                  {post.turnoverDetails && (
                     <>
-                      <h1 className="text-sm mt-3 mb-2">Found Item Action</h1>
-                      <div className="bg-blue-100 p-2 rounded border-blue-300">
-                        <p className="text-[12px] text-blue-700 font-medium">
-                          {post.foundAction === "keep"
-                            ? "The finder will keep this item and return it themselves"
-                            : post.foundAction === "turnover to OSA"
-                            ? "This item will be turned over to the OSA office"
-                            : "This item was turned over to Campus Security"}
-                        </p>
+                      <h1 className="text-sm mt-3 mb-2">Turnover Details</h1>
+                      <div className="bg-orange-50 p-3 rounded border border-orange-200 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-orange-800">Original Finder:</span>
+                          <div className="flex items-center gap-2">
+                            {post.turnoverDetails.originalFinder.profilePicture && (
+                              <img
+                                src={post.turnoverDetails.originalFinder.profilePicture}
+                                alt={`${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`}
+                                className="w-8 h-8 rounded-full object-cover border-2 border-orange-200"
+                              />
+                            )}
+                            <span className="text-sm text-orange-700">
+                              {post.turnoverDetails.originalFinder.firstName} {post.turnoverDetails.originalFinder.lastName}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-orange-800">Student ID:</span>
+                          <span className="text-sm text-orange-700">{post.turnoverDetails.originalFinder.studentId}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-orange-800">Action:</span>
+                          <span className="text-sm text-orange-700 font-medium">
+                            {post.turnoverDetails.turnoverAction === "turnover to OSA"
+                              ? "Turned over to OSA"
+                              : "Turned over to Campus Security"}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-orange-800">Decision Date:</span>
+                          <span className="text-sm text-orange-700">
+                            {post.turnoverDetails.turnoverDecisionAt
+                              ? new Date(post.turnoverDetails.turnoverDecisionAt).toLocaleDateString()
+                              : "Not specified"}
+                          </span>
+                        </div>
+                        {post.turnoverDetails.turnoverReason && (
+                          <div className="mt-2">
+                            <span className="text-sm font-medium text-orange-800 block">Reason:</span>
+                            <p className="text-sm text-orange-700 bg-orange-100 p-2 rounded mt-1">
+                              {post.turnoverDetails.turnoverReason}
+                            </p>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-orange-800">Status:</span>
+                          <span className={`text-sm px-2 py-1 rounded-full ${
+                            post.turnoverDetails.turnoverStatus === "declared"
+                              ? "bg-blue-100 text-blue-800"
+                              : post.turnoverDetails.turnoverStatus === "confirmed"
+                              ? "bg-green-100 text-green-800"
+                              : post.turnoverDetails.turnoverStatus === "not_received"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}>
+                            {post.turnoverDetails.turnoverStatus === "declared"
+                              ? "Declared for Turnover"
+                              : post.turnoverDetails.turnoverStatus === "confirmed"
+                              ? "Confirmed by OSA"
+                              : post.turnoverDetails.turnoverStatus === "not_received"
+                              ? "Not Received"
+                              : "Transferred"}
+                          </span>
+                        </div>
+                        {post.turnoverDetails.confirmedAt && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-orange-800">Confirmed Date:</span>
+                            <span className="text-sm text-orange-700">
+                              {new Date(post.turnoverDetails.confirmedAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
+                        {post.turnoverDetails.confirmationNotes && (
+                          <div className="mt-2">
+                            <span className="text-sm font-medium text-orange-800 block">Confirmation Notes:</span>
+                            <p className="text-sm text-orange-700 bg-orange-100 p-2 rounded mt-1">
+                              {post.turnoverDetails.confirmationNotes}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </>
                   )}
