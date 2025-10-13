@@ -45,6 +45,7 @@ export default function AdminHomePage() {
   const [deletedPostsError, setDeletedPostsError] = useState<string | null>(
     null
   );
+  const [deletedPostsCount, setDeletedPostsCount] = useState(0);
 
   const [viewType, setViewType] = useState<
     | "all"
@@ -118,6 +119,9 @@ export default function AdminHomePage() {
       if (viewType === "deleted") {
         fetchDeletedPosts();
       }
+
+      // Update the deleted posts count (always update, regardless of current view)
+      fetchDeletedPostsCount();
     } catch (error: any) {
       console.error("Error moving post to deleted:", error);
       showToast(
@@ -129,6 +133,18 @@ export default function AdminHomePage() {
       setDeletingPostId(null);
     }
   }, [postToDelete, userData?.email, viewType, showToast]);
+
+  // Fetch deleted posts count only (more efficient for counter)
+  const fetchDeletedPostsCount = useCallback(async () => {
+    try {
+      const { postService } = await import("../../services/firebase/posts");
+      const count = await postService.getDeletedPostsCount();
+      setDeletedPostsCount(count);
+    } catch (error: any) {
+      console.error("Error fetching deleted posts count:", error);
+      // Don't show toast for count errors as it's not critical
+    }
+  }, []);
 
   // Fetch deleted posts
   const fetchDeletedPosts = useCallback(async () => {
@@ -251,6 +267,11 @@ export default function AdminHomePage() {
       );
     }
   };
+
+  // Initial load of deleted posts count
+  useEffect(() => {
+    fetchDeletedPostsCount();
+  }, [fetchDeletedPostsCount]);
 
   // Load deleted posts when the deleted tab is active
   useEffect(() => {
@@ -523,6 +544,9 @@ export default function AdminHomePage() {
           postToConfirm.title,
           "Reason: Not received by OSA"
         );
+
+        // Update the deleted posts count when a post is deleted via turnover
+        fetchDeletedPostsCount();
       } else {
         // Normal status update for confirmed items
         await postService.updateTurnoverStatus(
@@ -729,6 +753,9 @@ export default function AdminHomePage() {
         // Update the UI by removing the restored post from the list
         setDeletedPosts((prev) => prev.filter((p) => p.id !== post.id));
 
+        // Update the deleted posts count (always update, regardless of current view)
+        fetchDeletedPostsCount();
+
         showToast(
           "success",
           "Post Restored",
@@ -767,6 +794,9 @@ export default function AdminHomePage() {
 
         // Update the UI by removing the deleted post from the list
         setDeletedPosts((prev) => prev.filter((p) => p.id !== post.id));
+
+        // Update the deleted posts count (always update, regardless of current view)
+        fetchDeletedPostsCount();
 
         showToast(
           "success",
@@ -891,7 +921,7 @@ export default function AdminHomePage() {
           {/* Recently Deleted Items */}
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="text-2xl font-bold text-red-600">
-              {deletedPosts.length || 0}
+              {deletedPostsCount}
             </div>
             <div className="text-sm text-gray-600">Recently Deleted</div>
           </div>

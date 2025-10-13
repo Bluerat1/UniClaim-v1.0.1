@@ -1800,6 +1800,18 @@ export const postService = {
         }
     },
 
+    // Get soft-deleted posts count only (more efficient for counter)
+    async getDeletedPostsCount(): Promise<number> {
+        try {
+            const deletedPostsQuery = query(collection(db, 'deleted_posts'));
+            const querySnapshot = await getDocs(deletedPostsQuery);
+            return querySnapshot.size;
+        } catch (error) {
+            console.error('Error fetching deleted posts count:', error);
+            throw new Error('Failed to fetch deleted posts count');
+        }
+    },
+
     // Get soft-deleted posts (admin only)
     async getDeletedPosts(limit: number = 50): Promise<Post[]> {
         try {
