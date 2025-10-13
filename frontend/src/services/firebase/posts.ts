@@ -1010,13 +1010,90 @@ export const postService = {
                 updateData.createdAt = serverTimestamp();
                 updateData.updatedAt = serverTimestamp();
 
-                console.log(`🔄 Preparing ownership transfer:`, {
-                    fromCreatorId: originalCreatorId,
-                    toCreatorId: confirmedBy,
-                    adminData: adminData,
-                    turnoverActionChange: 'Campus Security → OSA',
-                    createdAtUpdate: 'Set to current time for homepage ordering'
-                });
+                // Update conversations with the new post creator
+                try {
+                    console.log(`🔄 Starting conversation update for post ${postId} with status ${status}`);
+                    // Find all conversations for this post
+                    const conversationsQuery = query(
+                        collection(db, 'conversations'),
+                        where('postId', '==', postId)
+                    );
+
+                    const conversationsSnapshot = await getDocs(conversationsQuery);
+                    console.log(`🔍 Found ${conversationsSnapshot.docs.length} conversations for post ${postId}`);
+
+                    if (!conversationsSnapshot.empty) {
+                        console.log(`🔄 Updating ${conversationsSnapshot.docs.length} conversations with new post creator`);
+
+                        // Update each conversation's postCreatorId
+                        const updatePromises = conversationsSnapshot.docs.map(async (convDoc) => {
+                            const conversationRef = convDoc.ref;
+                            const conversationData = convDoc.data();
+
+                            console.log(`🔍 Processing conversation ${convDoc.id}`);
+                            console.log(`  - Current postCreatorId: ${conversationData.postCreatorId}`);
+                            console.log(`  - Current participants keys:`, Object.keys(conversationData.participants || {}));
+
+                            // Get admin user data to add to participants
+                            console.log(`🔍 Fetching admin data for user ID: ${confirmedBy}`);
+                            const adminDoc = await getDoc(doc(db, 'users', confirmedBy));
+                            const adminUserData = adminDoc.data();
+
+                            let adminParticipantData;
+                            if (adminDoc.exists() && adminUserData) {
+                                console.log(`✅ Admin document exists for ${confirmedBy}`);
+                                console.log(`🔍 Admin user data keys:`, Object.keys(adminUserData));
+                                console.log(`🔍 Admin user data:`, adminUserData);
+
+                                adminParticipantData = {
+                                    firstName: adminUserData.firstName || "System",
+                                    lastName: adminUserData.lastName || "Administrator",
+                                    email: adminUserData.email || "admin@uniclaim.com",
+                                    profilePicture: adminUserData.profilePicture || adminUserData.profileImageUrl || DEFAULT_PROFILE_PICTURE,
+                                    profileImageUrl: adminUserData.profilePicture || adminUserData.profileImageUrl || DEFAULT_PROFILE_PICTURE,
+                                    role: "admin"
+                                };
+                                console.log(`✅ Created admin participant data:`, adminParticipantData);
+                            } else {
+                                console.warn(`⚠️ Admin user document not found for ${confirmedBy} (exists: ${adminDoc.exists()}, hasData: ${!!adminUserData})`);
+                                // Fallback if admin data not found
+                                adminParticipantData = {
+                                    firstName: "System",
+                                    lastName: "Administrator",
+                                    email: "admin@uniclaim.com",
+                                    profilePicture: DEFAULT_PROFILE_PICTURE,
+                                    profileImageUrl: DEFAULT_PROFILE_PICTURE,
+                                    role: "admin"
+                                };
+                            }
+
+                            // Update conversation with new post creator and admin participant data
+                            const participants = conversationData.participants || {};
+                            participants[confirmedBy] = adminParticipantData;
+
+                            console.log(`🔄 Updating conversation ${convDoc.id}:`);
+                            console.log(`  - postCreatorId: ${confirmedBy}`);
+                            console.log(`  - isAdminPost: true`);
+                            console.log(`  - participants[${confirmedBy}]:`, adminParticipantData);
+
+                            await updateDoc(conversationRef, {
+                                postCreatorId: confirmedBy,
+                                isAdminPost: true,
+                                participants: participants,
+                                updatedAt: serverTimestamp()
+                            });
+
+                            console.log(`✅ Updated conversation ${convDoc.id} with new post creator: ${confirmedBy} and admin participant data`);
+                        });
+
+                        await Promise.all(updatePromises);
+                    } else {
+                        console.log(`ℹ️ No conversations found for post ${postId}`);
+                    }
+                } catch (conversationError) {
+                    console.error('❌ Failed to update conversations with new post creator:', conversationError);
+                    // Don't fail the whole operation if conversation update fails
+                }
             }
 
             // Update the document

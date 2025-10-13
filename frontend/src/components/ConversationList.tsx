@@ -178,6 +178,44 @@ const ConversationList: React.FC<ConversationListProps> = ({
     return date.toLocaleDateString();
   };
 
+  // Get the post creator's name
+  const getPostCreatorName = (conversation: Conversation) => {
+    if (!conversation.postCreatorId) {
+      console.log("❌ No postCreatorId in conversation");
+      return "Unknown User";
+    }
+
+    if (!conversation.participants[conversation.postCreatorId]) {
+      console.log("❌ No participant data for postCreatorId:", conversation.postCreatorId);
+      return "Unknown User";
+    }
+
+    const creator = conversation.participants[conversation.postCreatorId];
+    console.log("🔍 Post creator participant data:", creator);
+
+    const firstName = creator.firstName || "";
+    const lastName = creator.lastName || "";
+
+    if (!firstName && !lastName) {
+      console.log("❌ Empty firstName and lastName for admin:", conversation.postCreatorId);
+      return "Unknown User";
+    }
+
+    const fullName = `${firstName} ${lastName}`.trim();
+    console.log("✅ Post creator name:", fullName);
+    return fullName || "Unknown User";
+  };
+
+  // Get the post creator's profile picture
+  const getPostCreatorProfilePicture = (conversation: Conversation) => {
+    if (!conversation.postCreatorId || !conversation.participants[conversation.postCreatorId]) {
+      return null;
+    }
+
+    const creator = conversation.participants[conversation.postCreatorId];
+    return creator.profilePicture || creator.profileImageUrl || null;
+  };
+
   // Get the other participant's name (exclude current user)
   const getOtherParticipantName = (
     conversation: Conversation,
@@ -269,10 +307,12 @@ const ConversationList: React.FC<ConversationListProps> = ({
                     <ProfilePicture
                       src={
                         userData
-                          ? getOtherParticipantProfilePicture(
-                              conversation,
-                              userData.uid
-                            )
+                          ? conversation.isAdminPost
+                            ? getPostCreatorProfilePicture(conversation)
+                            : getOtherParticipantProfilePicture(
+                                conversation,
+                                userData.uid
+                              )
                           : null
                       }
                       alt="participant profile"
@@ -297,7 +337,9 @@ const ConversationList: React.FC<ConversationListProps> = ({
                     </div>
                     <p className="text-sm text-gray-500 truncate">
                       {userData
-                        ? getOtherParticipantName(conversation, userData.uid)
+                        ? conversation.isAdminPost
+                          ? `${getPostCreatorName(conversation)}${conversation.isAdminPost ? " (Admin)" : ""}`
+                          : getOtherParticipantName(conversation, userData.uid)
                         : "Unknown User"}
                     </p>
                   </div>

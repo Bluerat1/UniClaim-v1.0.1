@@ -22,6 +22,7 @@ import {
 // Message service functions from separate files
 import { sanitizePostData } from './dataSanitizers';
 import { extractMessageImages, deleteMessageImages } from './cloudinary';
+import { notificationSender } from '../services/firebase/notificationSender';
 
 // Message service functions
 export const messageService = {
@@ -725,6 +726,322 @@ export const messageService = {
 
         } catch (error: any) {
             throw new Error(error.message || 'Failed to confirm claim ID photo');
+        }
+    },
+
+    // Confirm handover ID photo with detail preservation (matches mobile implementation)
+    async confirmHandoverIdPhoto(conversationId: string, messageId: string, userId: string): Promise<{ success: boolean; conversationDeleted: boolean; postId?: string; error?: string }> {
+        try {
+            console.log('🔄 Web: confirmHandoverIdPhoto called with:', { conversationId, messageId, userId });
+
+            const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
+            const messageDoc = await getDoc(messageRef);
+
+            if (!messageDoc.exists()) {
+                console.error('❌ Web: Handover message not found');
+                return { success: false, conversationDeleted: false, error: 'Handover message not found' };
+            }
+
+            const messageData = messageDoc.data();
+            if (messageData.messageType !== 'handover_request') {
+                return { success: false, conversationDeleted: false, error: 'Message is not a handover request' };
+            }
+
+            // Get conversation data to find the post ID
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
+
+            if (!conversationDoc.exists()) {
+                throw new Error('Conversation not found');
+            }
+
+            const conversationData = conversationDoc.data();
+            const postId = conversationData.postId;
+
+            if (!postId) {
+                throw new Error('No post ID found in conversation');
+            }
+
+            // Update the handover request with confirmation
+            await updateDoc(messageRef, {
+                'handoverData.idPhotoConfirmed': true,
+                'handoverData.idPhotoConfirmedAt': serverTimestamp(),
+                'handoverData.idPhotoConfirmedBy': userId
+            });
+
+            // Update the conversation's postCreatorId to the user who confirmed the handover
+            // and mark as admin post since an admin confirmed it
+            await updateDoc(conversationRef, {
+                postCreatorId: userId,
+                isAdminPost: true
+            });
+
+            console.log(`🔄 Web: Updated conversation ${conversationId} postCreatorId to ${userId} and set isAdminPost to true`);
+
+            // Extract handover details and preserve in post before deletion
+            const handoverData = messageData.handoverData;
+            if (handoverData) {
+                console.log('📋 Web: handoverData available:', JSON.stringify(handoverData, null, 2));
+                console.log('📋 Web: handoverData fields:', Object.keys(handoverData || {}));
+
+                // Get handover person user data
+                const handoverPersonId = messageData.senderId;
+                const handoverPersonDoc = await getDoc(doc(db, 'users', handoverPersonId));
+                const handoverPersonData = handoverPersonDoc.exists() ? handoverPersonDoc.data() : null;
+
+                // Get owner user data (person who confirmed)
+                const ownerDoc = await getDoc(doc(db, 'users', userId));
+                const ownerData = ownerDoc.exists() ? ownerDoc.data() : null;
+                const ownerName = ownerData ? `${ownerData.firstName || ''} ${ownerData.lastName || ''}`.trim() : 'Unknown';
+
+                // Prepare handover request details for the post
+                const handoverRequestDetails: any = {
+                    // Original message details
+                    messageId: messageId,
+                    messageText: messageData.text || '',
+                    messageTimestamp: messageData.timestamp,
+                    senderId: messageData.senderId,
+                    senderName: messageData.senderName || '',
+                    senderProfilePicture: messageData.senderProfilePicture || '',
+
+                    // Handover data from the message
+                    handoverReason: handoverData.handoverReason || '',
+                    handoverRequestedAt: handoverData.requestedAt || null,
+                    handoverRespondedAt: handoverData.respondedAt || null,
+                    handoverResponseMessage: handoverData.responseMessage || '',
+
+                    // ID photo verification details
+                    idPhotoUrl: handoverData.idPhotoUrl || '',
+                    idPhotoConfirmed: true,
+                    idPhotoConfirmedAt: serverTimestamp(),
+                    idPhotoConfirmedBy: userId,
+
+                    // Item photos
+                    itemPhotos: handoverData.itemPhotos || [],
+                    itemPhotosConfirmed: handoverData.itemPhotosConfirmed || false,
+                    itemPhotosConfirmedAt: handoverData.itemPhotosConfirmedAt || null,
+                    itemPhotosConfirmedBy: handoverData.itemPhotosConfirmedBy || '',
+
+                    // Owner verification details
+                    ownerIdPhoto: handoverData.ownerIdPhoto || '',
+                    ownerIdPhotoConfirmed: handoverData.ownerIdPhotoConfirmed || false,
+                    ownerIdPhotoConfirmedAt: handoverData.ownerIdPhotoConfirmedAt || null,
+                    ownerIdPhotoConfirmedBy: handoverData.ownerIdPhotoConfirmedBy || ''
+                };
+
+                // Add handover confirmed timestamp to request details
+                handoverRequestDetails.handoverConfirmedAt = serverTimestamp();
+                handoverRequestDetails.handoverConfirmedBy = userId;
+
+                // Prepare handover details for the post
+                const handoverDetails = {
+                    handoverPersonName: handoverPersonData ? `${handoverPersonData.firstName || ''} ${handoverPersonData.lastName || ''}`.trim() : 'Unknown',
+                    handoverPersonContact: handoverPersonData?.contactNum || '',
+                    handoverPersonStudentId: handoverPersonData?.studentId || '',
+                    handoverPersonEmail: handoverPersonData?.email || '',
+                    handoverItemPhotos: handoverData.itemPhotos || [],
+                    handoverIdPhoto: handoverData.idPhotoUrl || '',
+                    ownerIdPhoto: handoverData.ownerIdPhoto || '',
+                    handoverConfirmedAt: serverTimestamp(),
+                    handoverConfirmedBy: userId,
+                    ownerName: ownerName,
+                    // Store the complete handover request chat bubble details
+                    handoverRequestDetails: handoverRequestDetails
+                };
+
+                // Get all messages from the conversation to preserve the chat history
+                const messagesRef = collection(db, 'conversations', conversationId, 'messages');
+                const messagesQuery = query(messagesRef, orderBy('timestamp', 'asc'));
+                const messagesSnap = await getDocs(messagesQuery);
+
+                const conversationMessages = messagesSnap.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                // Update post with handover details, status, and conversation data
+                await updateDoc(doc(db, 'posts', postId), {
+                    status: 'resolved',
+                    handoverDetails: handoverDetails,
+                    conversationData: {
+                        conversationId: conversationId,
+                        messages: conversationMessages,
+                        participants: conversationData.participants || {},
+                        createdAt: conversationData.createdAt || serverTimestamp(),
+                        lastMessage: conversationData.lastMessage || null
+                    },
+                    updatedAt: serverTimestamp()
+                });
+
+                console.log('✅ Web: Post updated with complete handover details and conversation data');
+                console.log('📋 Web: handoverDetails saved:', JSON.stringify(handoverDetails, null, 2));
+            } else {
+                console.warn('⚠️ Web: No handover data found in message, cannot store handover details');
+                // Fallback: just update post status
+                await updateDoc(doc(db, 'posts', postId), {
+                    status: 'resolved',
+                    updatedAt: serverTimestamp()
+                });
+            }
+
+            // Delete ALL conversations tied to this post after successful data preservation
+            try {
+                // First, find all conversations for this post
+                const conversationsQuery = query(
+                    collection(db, 'conversations'),
+                    where('postId', '==', postId)
+                );
+                const conversationsSnapshot = await getDocs(conversationsQuery);
+
+                console.log(`🔍 Web: Found ${conversationsSnapshot.docs.length} conversations for post ${postId}`);
+
+                // STEP 1: Send reject notifications to other conversations before deletion
+                for (const conversationDoc of conversationsSnapshot.docs) {
+                    const currentConversationId = conversationDoc.id;
+                    const conversationRef = doc(db, 'conversations', currentConversationId);
+                    const conversationDocData = await getDoc(conversationRef);
+
+                    if (!conversationDocData.exists()) continue;
+
+                    const conversationData = conversationDocData.data();
+                    const participantIds = Object.keys(conversationData.participants || {});
+
+                    // Skip the conversation that was just confirmed (it will be deleted anyway)
+                    if (conversationDoc.id === conversationId) continue;
+
+                    // Get user data for the person who confirmed the handover
+                    const confirmerDoc = await getDoc(doc(db, 'users', userId));
+                    const confirmerData = confirmerDoc.exists() ? confirmerDoc.data() : null;
+                    const confirmerName = confirmerData ? `${confirmerData.firstName || ''} ${confirmerData.lastName || ''}`.trim() : 'Someone';
+
+                    // Send reject notifications to all participants in other conversations
+                    for (const participantId of participantIds) {
+                        // Skip the user who confirmed (they shouldn't get a reject notification for their own confirmation)
+                        if (participantId === userId) continue;
+
+                        try {
+                            // Get participant user data for personalized notification
+                            const participantDoc = await getDoc(doc(db, 'users', participantId));
+                            if (!participantDoc.exists()) continue;
+
+                            // Send database notification
+                            await notificationSender.sendNotificationToUsers([participantId], {
+                                type: 'handover_response',
+                                title: 'Handover Request Rejected',
+                                body: `${confirmerName} has already completed the handover process for "${conversationData.postTitle || 'this item'}". Your request cannot be processed.`,
+                                data: {
+                                    conversationId: currentConversationId,
+                                    postTitle: conversationData.postTitle || 'Unknown Item',
+                                    postId: postId,
+                                    confirmerId: userId,
+                                    confirmerName: confirmerName,
+                                    rejectionReason: 'another_user_confirmed',
+                                    timestamp: new Date().toISOString()
+                                }
+                            });
+
+                            console.log(`📢 Web: Sent reject notification to user ${participantId} for conversation ${currentConversationId}`);
+                        } catch (notificationError) {
+                            console.warn(`⚠️ Web: Failed to send reject notification to user ${participantId}:`, notificationError);
+                            // Continue with other participants even if one fails
+                        }
+                    }
+                }
+
+                // STEP 2: Collect all image URLs from all conversations, but preserve only confirmed request photos
+                const allImageUrls: string[] = [];
+                const confirmedRequestPhotos: string[] = []; // Only photos from the confirmed request should be preserved
+
+                for (const conversationDoc of conversationsSnapshot.docs) {
+                    const conversationId = conversationDoc.id;
+
+                    // Get all messages in this conversation to extract image URLs
+                    const messagesQuery = query(collection(db, `conversations/${conversationId}/messages`));
+                    const messagesSnapshot = await getDocs(messagesQuery);
+
+                    console.log(`📸 Web: Scanning ${messagesSnapshot.docs.length} messages for images in conversation ${conversationId}`);
+
+                    // Extract image URLs from each message
+                    for (const messageDoc of messagesSnapshot.docs) {
+                        const messageData = messageDoc.data();
+                        const messageImageUrls = extractMessageImages(messageData);
+
+                        // Check if this is the specific confirmed handover request message
+                        if (messageDoc.id === messageId && messageData.handoverData && messageData.handoverData.idPhotoConfirmed) {
+                            // This is the confirmed handover request - preserve its photos
+                            if (messageData.handoverData.idPhotoUrl) {
+                                confirmedRequestPhotos.push(messageData.handoverData.idPhotoUrl);
+                                console.log('🛡️ Web: Preserving confirmed handover request requester photo:', messageData.handoverData.idPhotoUrl.split('/').pop());
+                            }
+                            if (messageData.handoverData.ownerIdPhoto) {
+                                confirmedRequestPhotos.push(messageData.handoverData.ownerIdPhoto);
+                                console.log('🛡️ Web: Preserving confirmed handover request owner photo:', messageData.handoverData.ownerIdPhoto.split('/').pop());
+                            }
+                            // Also preserve item photos from the confirmed request
+                            if (messageData.handoverData.itemPhotos && Array.isArray(messageData.handoverData.itemPhotos)) {
+                                messageData.handoverData.itemPhotos.forEach((photo: any) => {
+                                    if (photo.url) {
+                                        confirmedRequestPhotos.push(photo.url);
+                                        console.log('🛡️ Web: Preserving confirmed handover request item photo:', photo.url.split('/').pop());
+                                    }
+                                });
+                            }
+                        }
+
+                        allImageUrls.push(...messageImageUrls);
+                    }
+                }
+
+                // STEP 3: Filter out only the confirmed request photos from deletion list
+                const imagesToDelete = allImageUrls.filter(url => !confirmedRequestPhotos.includes(url));
+
+                // STEP 4: Delete all non-confirmed-request images from Cloudinary
+                if (imagesToDelete.length > 0) {
+                    console.log(`🗑️ Web: Deleting ${imagesToDelete.length} images from Cloudinary (preserving ${confirmedRequestPhotos.length} photos from confirmed request)`);
+                    const deletionResult = await deleteMessageImages(imagesToDelete);
+
+                    if (deletionResult.success) {
+                        console.log(`✅ Web: Successfully deleted ${deletionResult.deleted.length} images from Cloudinary`);
+                    } else {
+                        console.warn(`⚠️ Web: Cloudinary deletion completed with issues: ${deletionResult.deleted.length} deleted, ${deletionResult.failed.length} failed`);
+                    }
+                } else {
+                    console.log('ℹ️ Web: No images to delete (all images are from confirmed request or no images found)');
+                }
+
+                // STEP 5: Delete each conversation and all its messages
+                for (const conversationDoc of conversationsSnapshot.docs) {
+                    const conversationId = conversationDoc.id;
+                    const conversationRef = doc(db, 'conversations', conversationId);
+
+                    // Delete all messages in the conversation
+                    const messagesQuery = query(collection(db, `conversations/${conversationId}/messages`));
+                    const messagesSnapshot = await getDocs(messagesQuery);
+
+                    console.log(`🗑️ Web: Deleting ${messagesSnapshot.docs.length} messages from conversation ${conversationId}`);
+
+                    // Delete all messages
+                    for (const messageDoc of messagesSnapshot.docs) {
+                        await deleteDoc(doc(db, `conversations/${conversationId}/messages`, messageDoc.id));
+                    }
+
+                    // Then delete the conversation document
+                    await deleteDoc(conversationRef);
+
+                    console.log(`✅ Web: Conversation ${conversationId} deleted`);
+                }
+
+                console.log(`✅ Web: All ${conversationsSnapshot.docs.length} conversations for post ${postId} deleted after handover confirmation`);
+            } catch (deleteError) {
+                console.warn('⚠️ Web: Failed to delete all conversations after handover confirmation:', deleteError);
+                // Continue even if conversation deletion fails
+            }
+
+            console.log(`✅ Web: Handover ID photo confirmed by ${userId}`);
+            return { success: true, conversationDeleted: true, postId };
+        } catch (error: any) {
+            console.error('❌ Web: confirmHandoverIdPhoto failed:', error);
+            return { success: false, conversationDeleted: false, error: error.message };
         }
     },
 

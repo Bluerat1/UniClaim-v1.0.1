@@ -265,13 +265,16 @@ export class NotificationService {
                 console.error('Failed to send push notification:', response.status);
             }
         } catch (error) {
-            console.error('Error sending push notification:', error);
-        }
-    }
 
     // Get user's notifications
     async getUserNotifications(userId: string, limitCount: number = 20): Promise<NotificationData[]> {
         try {
+            // Security check: ensure the requested userId matches the current authenticated user
+            if (!auth.currentUser || auth.currentUser.uid !== userId) {
+                console.warn('🔒 Security check failed: Current user does not match requested userId in getUserNotifications');
+                return [];
+            }
+
             if (!userId) {
                 console.log('No userId provided for getUserNotifications');
                 return [];
@@ -299,6 +302,14 @@ export class NotificationService {
     // Mark notification as read
     async markNotificationAsRead(notificationId: string): Promise<void> {
         try {
+            // Security check: ensure the requested notificationId belongs to the current authenticated user
+            const notificationRef = doc(db, 'notifications', notificationId);
+            const notificationDoc = await getDoc(notificationRef);
+            if (!notificationDoc.exists() || notificationDoc.data().userId !== auth.currentUser.uid) {
+                console.warn('🔒 Security check failed: Current user does not own the notification in markNotificationAsRead');
+                return;
+            }
+
             await updateDoc(doc(db, 'notifications', notificationId), {
                 read: true,
                 readAt: serverTimestamp()

@@ -243,46 +243,40 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
     }
   };
 
-  const getOtherParticipant = (conversation: Conversation) => {
-    const participantIds = Object.keys(conversation.participants || {});
-    const otherParticipantId = participantIds.find(
-      (id) => id !== userData?.uid
-    );
-    return conversation.participants[otherParticipantId || ""] || null;
+  const getPostCreatorName = (conversation: Conversation) => {
+    if (!conversation.postCreatorId) {
+      console.log("❌ No postCreatorId in conversation");
+      return "Unknown User";
+    }
+
+    if (!conversation.participants[conversation.postCreatorId]) {
+      console.log("❌ No participant data for postCreatorId:", conversation.postCreatorId);
+      return "Unknown User";
+    }
+
+    const creator = conversation.participants[conversation.postCreatorId];
+    console.log("🔍 Post creator participant data:", creator);
+
+    const firstName = creator.firstName || "";
+    const lastName = creator.lastName || "";
+
+    if (!firstName && !lastName) {
+      console.log("❌ Empty firstName and lastName for admin:", conversation.postCreatorId);
+      return "Unknown User";
+    }
+
+    const fullName = `${firstName} ${lastName}`.trim();
+    console.log("✅ Post creator name:", fullName);
+    return fullName || "Unknown User";
   };
 
-  const getOtherParticipantName = (conversation: Conversation) => {
-    const participant = getOtherParticipant(conversation);
-
-    if (!participant) return "Unknown User";
-
-    // If we have both first and last name, combine them
-    if ((participant as any).firstName && participant.lastName) {
-      return `${(participant as any).firstName} ${participant.lastName}`.trim();
+  const getPostCreatorProfilePicture = (conversation: Conversation) => {
+    if (!conversation.postCreatorId || !conversation.participants[conversation.postCreatorId]) {
+      return null;
     }
 
-    // If we have just first name
-    if ((participant as any).firstName) {
-      return (participant as any).firstName;
-    }
-
-    // If we have just last name
-    if (participant.lastName) {
-      return participant.lastName;
-    }
-
-    // If we have a uid but no name, use the ID
-    if (participant.uid) {
-      return `User ${participant.uid.substring(0, 6)}`;
-    }
-
-    // Last resort fallback
-    return "Unknown User";
-  };
-
-  const getOtherParticipantProfilePicture = (conversation: Conversation) => {
-    const participant = getOtherParticipant(conversation);
-    return participant?.profilePicture || participant?.profileImageUrl || null;
+    const creator = conversation.participants[conversation.postCreatorId];
+    return creator.profilePicture || creator.profileImageUrl || null;
   };
 
   if (!conversation) {
@@ -312,8 +306,8 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <ProfilePicture
-              src={getOtherParticipantProfilePicture(conversation)}
-              alt="participant profile"
+              src={getPostCreatorProfilePicture(conversation)}
+              alt="post creator profile"
               className="size-5"
             />
             <div>
@@ -332,7 +326,8 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
                 </span>
               </div>
               <p className="text-sm text-gray-500">
-                {getOtherParticipantName(conversation)}
+                {getPostCreatorName(conversation)}
+                {conversation.isAdminPost && " (Admin)"}
               </p>
             </div>
           </div>

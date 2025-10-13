@@ -430,6 +430,15 @@ export const messageService: MessageService = {
                 'handoverData.idPhotoConfirmedBy': userId
             });
 
+            // Update the conversation's postCreatorId to the user who confirmed the handover
+            // This ensures the button behavior changes correctly when an admin collects the item
+            await updateDoc(conversationRef, {
+                postCreatorId: userId,
+                isAdminPost: true // Mark as admin post since an admin confirmed it
+            });
+
+            console.log(`🔄 Mobile: Updated conversation ${conversationId} postCreatorId to ${userId} and set isAdminPost to true`);
+
             // Extract handover details and preserve in post before deletion
             const handoverData = messageData.handoverData;
             if (handoverData) {
@@ -773,6 +782,14 @@ export const messageService: MessageService = {
                 'claimData.idPhotoConfirmedAt': serverTimestamp(),
                 'claimData.idPhotoConfirmedBy': userId
             });
+
+            // STEP 1.5: Update the conversation's postCreatorId to the user who confirmed the claim
+            // This ensures the button behavior changes correctly when an admin collects the item
+            await updateDoc(conversationRef, {
+                postCreatorId: userId
+            });
+
+            console.log(`🔄 Mobile: Updated conversation ${conversationId} postCreatorId to ${userId}`);
 
             // STEP 2: Get conversation data and prepare claim details
             const claimData = messageData.claimData;
