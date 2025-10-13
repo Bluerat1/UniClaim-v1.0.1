@@ -1273,23 +1273,36 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
         ) : (
           <div className="space-y-3">
-            {messages.map((message) => (
-              <MessageBubble
-                key={`${message.id}-${forceRerender}`}
-                message={message}
-                isOwnMessage={message.senderId === userData?.uid}
-                showSenderName={
-                  Object.keys(conversation.participants).length > 2
+            {(() => {
+              // Find the most recent message that has been seen by other users
+              let lastSeenMessageIndex = -1;
+              for (let i = messages.length - 1; i >= 0; i--) {
+                const message = messages[i];
+                if (message.readBy && Array.isArray(message.readBy) && message.readBy.some(uid => uid !== userData?.uid)) {
+                  lastSeenMessageIndex = i;
+                  break;
                 }
-                conversationId={conversation.id}
-                currentUserId={userData?.uid || ""}
-                postOwnerId={conversation.postCreatorId}
-                onHandoverResponse={handleHandoverResponse}
-                onClaimResponse={handleClaimResponse}
-                onConfirmIdPhotoSuccess={handleConfirmIdPhotoSuccess}
-                onMessageSeen={() => handleMessageSeen(message.id)}
-              />
-            ))}
+              }
+
+              return messages.map((message, index) => (
+                <MessageBubble
+                  key={`${message.id}-${forceRerender}`}
+                  message={message}
+                  isOwnMessage={message.senderId === userData?.uid}
+                  showSenderName={
+                    Object.keys(conversation.participants).length > 2
+                  }
+                  conversationId={conversation.id}
+                  currentUserId={userData?.uid || ""}
+                  postOwnerId={conversation.postCreatorId}
+                  isLastSeenMessage={index === lastSeenMessageIndex}
+                  onHandoverResponse={handleHandoverResponse}
+                  onClaimResponse={handleClaimResponse}
+                  onMessageSeen={() => handleMessageSeen(message.id)}
+                  conversationParticipants={conversation.participants}
+                />
+              ));
+            })()}
             <div ref={messagesEndRef} />
           </div>
         )}

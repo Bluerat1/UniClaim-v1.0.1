@@ -8,7 +8,7 @@ import { messageService } from "../services/firebase/messages";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { AiOutlineDelete } from "react-icons/ai";
-import { EyeIcon } from "@heroicons/react/24/outline";
+import ProfilePictureSeenIndicator from "./ProfilePictureSeenIndicator";
 
 interface MessageBubbleProps {
   message: Message;
@@ -17,6 +17,8 @@ interface MessageBubbleProps {
   conversationId: string;
   currentUserId: string;
   postOwnerId?: string; // Add post owner ID for handover confirmation logic
+  isLastSeenMessage?: boolean; // Indicates if this is the most recent message that has been seen by other users
+  conversationParticipants?: { [uid: string]: { profilePicture?: string; firstName: string; lastName: string; } };
   onHandoverResponse?: (
     messageId: string,
     status: "accepted" | "rejected"
@@ -36,6 +38,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   conversationId,
   currentUserId,
   postOwnerId,
+  isLastSeenMessage = false,
+  conversationParticipants = {},
   onHandoverResponse,
   onClaimResponse,
   onMessageSeen,
@@ -65,6 +69,24 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
     // Check if any user other than the current user has read this message
     return message.readBy.some(userId => userId !== currentUserId);
+  };
+
+  // Convert readBy user IDs to user objects with profile data
+  const getReadersWithProfileData = () => {
+    if (!message.readBy || !Array.isArray(message.readBy)) return [];
+
+    return message.readBy
+      .filter((uid: string) => uid !== currentUserId) // Exclude current user
+      .map((uid: string) => {
+        const participant = conversationParticipants[uid];
+        return {
+          uid,
+          profilePicture: participant?.profilePicture || null,
+          firstName: participant?.firstName || 'Unknown',
+          lastName: participant?.lastName || 'User',
+        };
+      })
+      .filter(reader => reader !== null);
   };
   useEffect(() => {
     if (!messageRef.current || !onMessageSeen || hasBeenSeen || isOwnMessage)
@@ -1177,9 +1199,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             {formatTime(message.timestamp)}
           </span>
 
-          {/* Seen indicator - show on sent messages when others have read them */}
-          {isOwnMessage && hasOtherUsersSeenMessage() && (
-            <EyeIcon className="w-3 h-3 text-gray-400" title="Seen by others" />
+          {/* Seen indicator - show on sent messages when others have read them (only on last seen message) */}
+          {isOwnMessage && isLastSeenMessage && hasOtherUsersSeenMessage() && (
+            <ProfilePictureSeenIndicator
+              readBy={getReadersWithProfileData()}
+              currentUserId={currentUserId}
+              maxVisible={3}
+              size="xs"
+            />
           )}
 
           {isOwnMessage && (
