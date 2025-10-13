@@ -404,19 +404,17 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
         ) : (
           messages.map((message) => (
             <div key={message.id} className="flex items-start gap-3 group">
-              <ProfilePicture
-                src={message.senderProfilePicture}
-                alt={message.senderName}
-                size="sm"
-              />
+              {!message.senderName?.startsWith('[ADMIN]') && (
+                <ProfilePicture
+                  src={message.senderProfilePicture}
+                  alt={message.senderName}
+                  size="sm"
+                />
+              )}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
+                <div className={`flex items-center gap-2 mb-1 ${message.senderName?.startsWith('[ADMIN]') ? 'justify-end' : 'justify-start'}`}>
                   <span className="font-medium text-sm text-gray-900">
                     {message.senderName}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {message.timestamp?.toDate?.()?.toLocaleString() ||
-                      "Unknown time"}
                   </span>
                   {message.senderId === userData?.uid && (
                     <span className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">
