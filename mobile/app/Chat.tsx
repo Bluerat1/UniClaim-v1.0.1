@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   FlatList,
@@ -935,22 +935,41 @@ export default function Chat() {
                 ref={flatListRef}
                 data={messages}
                 keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                  <MessageBubble
-                    message={item}
-                    isOwnMessage={item.senderId === userData?.uid}
-                    conversationId={conversationId}
-                    currentUserId={userData?.uid || ""}
-                    isCurrentUserPostOwner={postOwnerId === userData?.uid}
-                    onHandoverResponse={handleHandoverResponse}
-                    onClaimResponse={handleClaimResponse}
-                    onConfirmIdPhotoSuccess={handleConfirmIdPhotoSuccess}
-                    isConfirmationInProgress={isConfirmationInProgress}
-                    onImageClick={(imageUrl, altText) =>
-                      setSelectedImage({ uri: imageUrl, alt: altText })
+                renderItem={({ item, index }) => {
+                  // Check if this is the most recent message that other users have read
+                  let isLastSeenByOthers = false;
+
+                  // Find the most recent message that has been read by other users
+                  for (let i = messages.length - 1; i >= 0; i--) {
+                    const msg = messages[i];
+                    const readers = msg.readBy || [];
+                    const otherUsersRead = readers.some(uid => uid !== userData?.uid);
+
+                    if (otherUsersRead) {
+                      isLastSeenByOthers = (index === i);
+                      break;
                     }
-                  />
-                )}
+                  }
+
+                  return (
+                    <MessageBubble
+                      message={item}
+                      isOwnMessage={item.senderId === userData?.uid}
+                      conversationId={conversationId}
+                      currentUserId={userData?.uid || ""}
+                      isCurrentUserPostOwner={postOwnerId === userData?.uid}
+                      onHandoverResponse={handleHandoverResponse}
+                      onClaimResponse={handleClaimResponse}
+                      onConfirmIdPhotoSuccess={handleConfirmIdPhotoSuccess}
+                      isConfirmationInProgress={isConfirmationInProgress}
+                      onImageClick={(imageUrl, altText) =>
+                        setSelectedImage({ uri: imageUrl, alt: altText })
+                      }
+                      conversationParticipants={conversationData?.participants || {}}
+                      isLastSeenByOthers={isLastSeenByOthers}
+                    />
+                  );
+                }}
                 contentContainerStyle={{ padding: 16, paddingBottom: 10 }}
                 showsVerticalScrollIndicator={false}
                 onViewableItemsChanged={handleViewableItemsChanged}
