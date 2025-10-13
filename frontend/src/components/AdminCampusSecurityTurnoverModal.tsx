@@ -93,7 +93,8 @@ export default function AdminCampusSecurityTurnoverModal({
         {/* Additional Info */}
         <div className="text-sm text-gray-500 text-center">
           <p>
-            • If item is collected, ownership will transfer to System Administrator
+            • If item is collected, ownership will transfer to System
+            Administrator
           </p>
           <p>
             • If item is not available, the post will be deleted from the system

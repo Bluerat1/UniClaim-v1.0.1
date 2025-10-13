@@ -187,7 +187,7 @@ export default function PostModal({
             <ProfilePicture
               src={creatorData?.profilePicture}
               alt="user profile"
-              size="md"
+              className="size-10"
             />
             <div className="flex flex-col">
               <p className="text-xs text-gray-500">Posted by:</p>
@@ -402,12 +402,14 @@ export default function PostModal({
         </div>
 
         {/* Show claim details if post is resolved or completed, has claim details, and user is admin */}
-        {(post.status === "resolved" || post.status === "completed") && post.claimDetails && isAdmin && (
-          <ClaimDetailsDisplay
-            claimDetails={post.claimDetails}
-            conversationData={post.conversationData}
-          />
-        )}
+        {(post.status === "resolved" || post.status === "completed") &&
+          post.claimDetails &&
+          isAdmin && (
+            <ClaimDetailsDisplay
+              claimDetails={post.claimDetails}
+              conversationData={post.conversationData}
+            />
+          )}
 
         {/* Show handover details if post is resolved or completed, has handover details, no claim details, and user is admin */}
         {(post.status === "resolved" || post.status === "completed") &&
@@ -435,8 +437,7 @@ export default function PostModal({
                 <ProfilePicture
                   src={post.turnoverDetails.originalFinder.profilePicture}
                   alt={`${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`}
-                  size="sm"
-                  className="border-blue-300"
+                  className="border-blue-300 size-6"
                 />
                 <span>
                   {post.turnoverDetails.originalFinder.firstName}{" "}

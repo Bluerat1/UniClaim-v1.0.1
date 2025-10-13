@@ -80,8 +80,11 @@ export default function HomeHeader({
     }
 
     // Handle different notification types
-    if (notification.type === 'message' && notification.data?.conversationId) {
-      console.log("Navigating to conversation:", notification.data.conversationId);
+    if (notification.type === "message" && notification.data?.conversationId) {
+      console.log(
+        "Navigating to conversation:",
+        notification.data.conversationId
+      );
       // Navigate to messages page with conversation parameter
       navigate(`/messages?conversation=${notification.data.conversationId}`);
       toggleNotif(); // Close the notification dropdown
@@ -89,8 +92,14 @@ export default function HomeHeader({
     }
 
     // Handle claim_confirmed notifications - navigate to completed post
-    if (notification.data?.notificationType === 'claim_confirmed' && notification.data?.postId) {
-      console.log("Claim confirmed notification - fetching post:", notification.data.postId);
+    if (
+      notification.data?.notificationType === "claim_confirmed" &&
+      notification.data?.postId
+    ) {
+      console.log(
+        "Claim confirmed notification - fetching post:",
+        notification.data.postId
+      );
       try {
         const post = await postService.getPostById(notification.data.postId);
         if (post) {
@@ -228,8 +237,7 @@ export default function HomeHeader({
                 <ProfilePicture
                   src={userData?.profilePicture}
                   alt="user-profile"
-                  size="md"
-                  className="cursor-pointer"
+                  className="cursor-pointer w-10 h-10"
                   onClick={toggleProfileMenu}
                 />
               </div>

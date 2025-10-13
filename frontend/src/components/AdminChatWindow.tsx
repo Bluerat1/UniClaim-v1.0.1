@@ -314,7 +314,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
             <ProfilePicture
               src={getOtherParticipantProfilePicture(conversation)}
               alt="participant profile"
-              size="sm"
+              className="size-5"
             />
             <div>
               <div className="flex items-center gap-2">
@@ -407,7 +407,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
               <ProfilePicture
                 src={message.senderProfilePicture}
                 alt={message.senderName}
-                size="sm"
+                className="size-6"
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
