@@ -876,7 +876,11 @@ export const postService = {
 
             // Get the post data before updating to get the original creator
             const postDoc = await getDoc(doc(db, 'posts', postId));
+            const postData = postDoc.data();
             const originalCreatorId = postDoc.data()?.creatorId;
+
+            // Check if this post has been turned over and use the original finder instead
+            const notificationRecipientId = postData?.turnoverDetails?.originalFinder?.uid || originalCreatorId;
 
             // Update the document
             await updateDoc(doc(db, 'posts', postId), updateData);
@@ -887,7 +891,7 @@ export const postService = {
                 console.log(`✅ User field updated to OSA admin data`);
 
                 // Send notification to the original creator
-                if (originalCreatorId && originalCreatorId !== confirmedBy) {
+                if (notificationRecipientId && notificationRecipientId !== confirmedBy) {
                     try {
                         const adminDoc = await getDoc(doc(db, 'users', confirmedBy));
                         const adminData = adminDoc.data();
@@ -898,7 +902,7 @@ export const postService = {
                         const notificationTitle = 'Item Received';
                         const notificationBody = `Your item "${postDoc.data()?.title || 'item'}" has been received by ${adminName}.`;
                         const notificationData = {
-                            userId: originalCreatorId,
+                            userId: notificationRecipientId,
                             type: 'claim_update',
                             postId: postId,
                             action: 'item_received',
@@ -910,7 +914,7 @@ export const postService = {
 
                         // Also create a notification record in the database
                         await notificationService.createNotification({
-                            userId: originalCreatorId,
+                            userId: notificationRecipientId,
                             type: 'claim_update',
                             title: notificationTitle,
                             body: notificationBody,
@@ -918,7 +922,7 @@ export const postService = {
                             postId: postId
                         });
 
-                        console.log(`📬 Sent receipt confirmation notification to user ${originalCreatorId}`);
+                        console.log(`📬 Sent receipt confirmation notification to user ${notificationRecipientId}`);
                     } catch (notifError) {
                         console.error('Failed to send receipt confirmation notification:', notifError);
                         // Don't fail the whole operation if notification fails
@@ -948,7 +952,11 @@ export const postService = {
 
             // Get the post data before updating to get the original creator
             const postDoc = await getDoc(doc(db, 'posts', postId));
+            const postData = postDoc.data();
             const originalCreatorId = postDoc.data()?.creatorId;
+
+            // Check if this post has been turned over and use the original finder instead
+            const notificationRecipientId = postData?.turnoverDetails?.originalFinder?.uid || originalCreatorId;
 
             // When admin confirms collection, change the creator to the admin
             if (status === 'collected') {
@@ -1124,7 +1132,7 @@ export const postService = {
                 });
 
                 // Send notification to the original creator (campus security)
-                if (originalCreatorId && originalCreatorId !== confirmedBy) {
+                if (notificationRecipientId && notificationRecipientId !== confirmedBy) {
                     try {
                         const adminDoc = await getDoc(doc(db, 'users', confirmedBy));
                         const adminUserData = adminDoc.data();
@@ -1135,7 +1143,7 @@ export const postService = {
                         const notificationTitle = 'Item Collected';
                         const notificationBody = `Your item "${postDoc.data()?.title || 'item'}" has been collected from Campus Security by ${adminName}.`;
                         const notificationData = {
-                            userId: originalCreatorId,
+                            userId: notificationRecipientId,
                             type: 'claim_update',
                             postId: postId,
                             action: 'item_collected',
@@ -1147,7 +1155,7 @@ export const postService = {
 
                         // Also create a notification record in the database
                         await notificationService.createNotification({
-                            userId: originalCreatorId,
+                            userId: notificationRecipientId,
                             type: 'claim_update',
                             title: notificationTitle,
                             body: notificationBody,
@@ -1155,7 +1163,7 @@ export const postService = {
                             postId: postId
                         });
 
-                        console.log(`📬 Sent collection confirmation notification to user ${originalCreatorId}`);
+                        console.log(`📬 Sent collection confirmation notification to user ${notificationRecipientId}`);
                     } catch (notifError) {
                         console.error('Failed to send collection confirmation notification:', notifError);
                         // Don't fail the whole operation if notification fails

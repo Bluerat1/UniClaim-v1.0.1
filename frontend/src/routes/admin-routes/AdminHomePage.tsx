@@ -118,15 +118,20 @@ export default function AdminHomePage() {
       // Send notification to the post creator
       if (postToDelete.creatorId) {
         try {
+          // Check if this post has been turned over and use the original finder instead
+          const notificationRecipientId = postToDelete.turnoverDetails?.originalFinder?.uid || postToDelete.creatorId;
+
           await notificationSender.sendDeleteNotification({
             postId: postToDelete.id,
             postTitle: postToDelete.title,
             postType: postToDelete.type as "lost" | "found",
-            creatorId: postToDelete.creatorId,
+            creatorId: notificationRecipientId,
             creatorName:
-              postToDelete.user.firstName && postToDelete.user.lastName
-                ? `${postToDelete.user.firstName} ${postToDelete.user.lastName}`
-                : postToDelete.user.email?.split("@")[0] || "User",
+              postToDelete.turnoverDetails?.originalFinder ?
+                `${postToDelete.turnoverDetails.originalFinder.firstName} ${postToDelete.turnoverDetails.originalFinder.lastName}` :
+                (postToDelete.user.firstName && postToDelete.user.lastName
+                  ? `${postToDelete.user.firstName} ${postToDelete.user.lastName}`
+                  : postToDelete.user.email?.split("@")[0] || "User"),
             adminName:
               userData?.firstName && userData?.lastName
                 ? `${userData.firstName} ${userData.lastName}`
@@ -447,15 +452,20 @@ export default function AdminHomePage() {
       // Send notification to the post creator if status changed and we have creator info
       if (oldStatus !== status && post.creatorId) {
         try {
+          // Check if this post has been turned over and use the original finder instead
+          const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || post.creatorId;
+
           await notificationSender.sendStatusChangeNotification({
             postId: post.id,
             postTitle: post.title,
             postType: post.type as "lost" | "found",
-            creatorId: post.creatorId,
+            creatorId: notificationRecipientId,
             creatorName:
-              post.user.firstName && post.user.lastName
-                ? `${post.user.firstName} ${post.user.lastName}`
-                : post.user.email?.split("@")[0] || "User",
+              post.turnoverDetails?.originalFinder ?
+                `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                (post.user.firstName && post.user.lastName
+                  ? `${post.user.firstName} ${post.user.lastName}`
+                  : post.user.email?.split("@")[0] || "User"),
             oldStatus: oldStatus || "unknown",
             newStatus: status,
             adminName:
@@ -512,15 +522,20 @@ export default function AdminHomePage() {
         // Send notification to the post creator
         if (post.creatorId) {
           try {
+            // Check if this post has been turned over and use the original finder instead
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || post.creatorId;
+
             await notificationSender.sendActivateNotification({
               postId: post.id,
               postTitle: post.title,
               postType: post.type as "lost" | "found",
-              creatorId: post.creatorId,
+              creatorId: notificationRecipientId,
               creatorName:
-                post.user.firstName && post.user.lastName
-                  ? `${post.user.firstName} ${post.user.lastName}`
-                  : post.user.email?.split("@")[0] || "User",
+                post.turnoverDetails?.originalFinder ?
+                  `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                  (post.user.firstName && post.user.lastName
+                    ? `${post.user.firstName} ${post.user.lastName}`
+                    : post.user.email?.split("@")[0] || "User"),
               adminName:
                 userData?.firstName && userData?.lastName
                   ? `${userData.firstName} ${userData.lastName}`
@@ -590,15 +605,20 @@ export default function AdminHomePage() {
         // Send notification to the post creator
         if (post.creatorId) {
           try {
+            // Check if this post has been turned over and use the original finder instead
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || post.creatorId;
+
             await notificationSender.sendRevertNotification({
               postId: post.id,
               postTitle: post.title,
               postType: post.type as "lost" | "found",
-              creatorId: post.creatorId,
+              creatorId: notificationRecipientId,
               creatorName:
-                post.user.firstName && post.user.lastName
-                  ? `${post.user.firstName} ${post.user.lastName}`
-                  : post.user.email?.split("@")[0] || "User",
+                post.turnoverDetails?.originalFinder ?
+                  `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                  (post.user.firstName && post.user.lastName
+                    ? `${post.user.firstName} ${post.user.lastName}`
+                    : post.user.email?.split("@")[0] || "User"),
               adminName:
                 userData?.firstName && userData?.lastName
                   ? `${userData.firstName} ${userData.lastName}`
@@ -904,15 +924,20 @@ export default function AdminHomePage() {
         // Send notification to the post creator
         if (post.creatorId) {
           try {
+            // Check if this post has been turned over and use the original finder instead
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || post.creatorId;
+
             await notificationSender.sendRestoreNotification({
               postId: post.id,
               postTitle: post.title,
               postType: post.type as "lost" | "found",
-              creatorId: post.creatorId,
+              creatorId: notificationRecipientId,
               creatorName:
-                post.user.firstName && post.user.lastName
-                  ? `${post.user.firstName} ${post.user.lastName}`
-                  : post.user.email?.split("@")[0] || "User",
+                post.turnoverDetails?.originalFinder ?
+                  `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                  (post.user.firstName && post.user.lastName
+                    ? `${post.user.firstName} ${post.user.lastName}`
+                    : post.user.email?.split("@")[0] || "User"),
               adminName:
                 userData?.firstName && userData?.lastName
                   ? `${userData.firstName} ${userData.lastName}`
@@ -973,15 +998,20 @@ export default function AdminHomePage() {
         // Send notification to the post creator
         if (post.creatorId) {
           try {
+            // Check if this post has been turned over and use the original finder instead
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || post.creatorId;
+
             await notificationSender.sendDeleteNotification({
               postId: post.id,
               postTitle: post.title,
               postType: post.type as "lost" | "found",
-              creatorId: post.creatorId,
+              creatorId: notificationRecipientId,
               creatorName:
-                post.user.firstName && post.user.lastName
-                  ? `${post.user.firstName} ${post.user.lastName}`
-                  : post.user.email?.split("@")[0] || "User",
+                post.turnoverDetails?.originalFinder ?
+                  `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                  (post.user.firstName && post.user.lastName
+                    ? `${post.user.firstName} ${post.user.lastName}`
+                    : post.user.email?.split("@")[0] || "User"),
               adminName:
                 userData?.firstName && userData?.lastName
                   ? `${userData.firstName} ${userData.lastName}`

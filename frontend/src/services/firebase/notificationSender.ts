@@ -43,16 +43,29 @@ export class NotificationSender {
         try {
             console.log('🚀 Sending status change notification for post:', postData.postTitle);
 
-            // Send notification to the post creator
-            await this.sendNotificationToUser(postData.creatorId, {
+            // Check if this post has been turned over and use the original finder instead
+            // We need to fetch the post data to check for turnoverDetails
+            const { postService } = await import('./posts');
+            const post = await postService.getPostById(postData.postId);
+
+            if (!post) {
+                throw new Error('Post not found for status change notification');
+            }
+
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || postData.creatorId;
+
+            // Send notification to the post creator (or original finder if post was turned over)
+            await this.sendNotificationToUser(notificationRecipientId, {
                 type: 'status_change',
                 title: `Post Status Updated`,
                 body: `Your ${postData.postType} post "${postData.postTitle}" status changed from ${postData.oldStatus} to ${postData.newStatus}${postData.adminName ? ` by ${postData.adminName}` : ''}`,
                 postId: postData.postId,
                 postTitle: postData.postTitle,
                 postType: postData.postType,
-                creatorId: postData.creatorId,
-                creatorName: postData.creatorName,
+                creatorId: notificationRecipientId,
+                creatorName: post.turnoverDetails?.originalFinder ?
+                    `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                    postData.creatorName,
                 data: {
                     oldStatus: postData.oldStatus,
                     newStatus: postData.newStatus,
@@ -78,16 +91,29 @@ export class NotificationSender {
         try {
             console.log('🚀 Sending post activation notification for post:', postData.postTitle);
 
-            // Send notification to the post creator
-            await this.sendNotificationToUser(postData.creatorId, {
+            // Check if this post has been turned over and use the original finder instead
+            // We need to fetch the post data to check for turnoverDetails
+            const { postService } = await import('./posts');
+            const post = await postService.getPostById(postData.postId);
+
+            if (!post) {
+                throw new Error('Post not found for activation notification');
+            }
+
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || postData.creatorId;
+
+            // Send notification to the post creator (or original finder if post was turned over)
+            await this.sendNotificationToUser(notificationRecipientId, {
                 type: 'post_activated',
                 title: `Post Activated`,
                 body: `Your ${postData.postType} post "${postData.postTitle}" has been activated by ${postData.adminName ? postData.adminName : 'an admin'} and is now visible to other users.`,
                 postId: postData.postId,
                 postTitle: postData.postTitle,
                 postType: postData.postType,
-                creatorId: postData.creatorId,
-                creatorName: postData.creatorName,
+                creatorId: notificationRecipientId,
+                creatorName: post.turnoverDetails?.originalFinder ?
+                    `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                    postData.creatorName,
                 data: {
                     adminName: postData.adminName,
                     timestamp: new Date().toISOString()
@@ -116,16 +142,29 @@ export class NotificationSender {
 
             const deletionTypeText = postData.deletionType === 'permanent' ? 'permanently deleted' : 'moved to Recently Deleted';
 
-            // Send notification to the post creator
-            await this.sendNotificationToUser(postData.creatorId, {
+            // Check if this post has been turned over and use the original finder instead
+            // We need to fetch the post data to check for turnoverDetails
+            const { postService } = await import('./posts');
+            const post = await postService.getPostById(postData.postId);
+
+            if (!post) {
+                throw new Error('Post not found for deletion notification');
+            }
+
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || postData.creatorId;
+
+            // Send notification to the post creator (or original finder if post was turned over)
+            await this.sendNotificationToUser(notificationRecipientId, {
                 type: 'post_deleted',
                 title: `Post ${deletionTypeText.charAt(0).toUpperCase() + deletionTypeText.slice(1)}`,
                 body: `Your ${postData.postType} post "${postData.postTitle}" has been ${deletionTypeText} by ${postData.adminName ? postData.adminName : 'an admin'}.`,
                 postId: postData.postId,
                 postTitle: postData.postTitle,
                 postType: postData.postType,
-                creatorId: postData.creatorId,
-                creatorName: postData.creatorName,
+                creatorId: notificationRecipientId,
+                creatorName: post.turnoverDetails?.originalFinder ?
+                    `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                    postData.creatorName,
                 data: {
                     adminName: postData.adminName,
                     deletionType: postData.deletionType,
@@ -152,16 +191,29 @@ export class NotificationSender {
         try {
             console.log('🚀 Sending post restoration notification for post:', postData.postTitle);
 
-            // Send notification to the post creator
-            await this.sendNotificationToUser(postData.creatorId, {
+            // Check if this post has been turned over and use the original finder instead
+            // We need to fetch the post data to check for turnoverDetails
+            const { postService } = await import('./posts');
+            const post = await postService.getPostById(postData.postId);
+
+            if (!post) {
+                throw new Error('Post not found for restoration notification');
+            }
+
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || postData.creatorId;
+
+            // Send notification to the post creator (or original finder if post was turned over)
+            await this.sendNotificationToUser(notificationRecipientId, {
                 type: 'post_restored',
                 title: `Post Restored`,
                 body: `Your ${postData.postType} post "${postData.postTitle}" has been restored by ${postData.adminName ? postData.adminName : 'an admin'} and is now pending review.`,
                 postId: postData.postId,
                 postTitle: postData.postTitle,
                 postType: postData.postType,
-                creatorId: postData.creatorId,
-                creatorName: postData.creatorName,
+                creatorId: notificationRecipientId,
+                creatorName: post.turnoverDetails?.originalFinder ?
+                    `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                    postData.creatorName,
                 data: {
                     adminName: postData.adminName,
                     timestamp: new Date().toISOString()
@@ -188,16 +240,29 @@ export class NotificationSender {
         try {
             console.log('🚀 Sending post reversion notification for post:', postData.postTitle);
 
-            // Send notification to the post creator
-            await this.sendNotificationToUser(postData.creatorId, {
+            // Check if this post has been turned over and use the original finder instead
+            // We need to fetch the post data to check for turnoverDetails
+            const { postService } = await import('./posts');
+            const post = await postService.getPostById(postData.postId);
+
+            if (!post) {
+                throw new Error('Post not found for reversion notification');
+            }
+
+            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || postData.creatorId;
+
+            // Send notification to the post creator (or original finder if post was turned over)
+            await this.sendNotificationToUser(notificationRecipientId, {
                 type: 'post_reverted',
                 title: `Post Reverted`,
                 body: `Your ${postData.postType} post "${postData.postTitle}" has been reverted to pending status by ${postData.adminName ? postData.adminName : 'an admin'}${postData.revertReason ? ` for the following reason: ${postData.revertReason}` : ''}.`,
                 postId: postData.postId,
                 postTitle: postData.postTitle,
                 postType: postData.postType,
-                creatorId: postData.creatorId,
-                creatorName: postData.creatorName,
+                creatorId: notificationRecipientId,
+                creatorName: post.turnoverDetails?.originalFinder ?
+                    `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                    postData.creatorName,
                 data: {
                     adminName: postData.adminName,
                     revertReason: postData.revertReason,
