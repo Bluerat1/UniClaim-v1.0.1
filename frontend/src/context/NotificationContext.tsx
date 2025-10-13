@@ -54,8 +54,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = notificationService.setupRealtimeListener(
       userData.uid,
       (newNotifications) => {
-        console.log('📬 Real-time notification update:', newNotifications.length, 'notifications');
-
+        
         // Update notifications state
         setNotifications(newNotifications);
 
@@ -69,8 +68,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
         if (newCount > previousCount) {
           const newNotifs = newNotifications.slice(0, newCount - previousCount);
-          console.log('🔔 New notifications detected:', newNotifs.length);
-
+          
           newNotifs.forEach(async (notification) => {
             try {
               // Check if user has notifications enabled for this type
@@ -135,8 +133,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       
       const userNotifications = await notificationService.getUserNotifications(userData.uid, 50);
       
-      console.log(`📬 Loaded ${userNotifications.length} notifications for user ${userData.uid}`);
-      userNotifications.forEach(notif => {
+            userNotifications.forEach(notif => {
         if (notif.type === 'claim_update' && notif.data?.notificationType === 'claim_confirmed') {
           console.log(`🎉 Found claim confirmation notification:`, notif);
         }

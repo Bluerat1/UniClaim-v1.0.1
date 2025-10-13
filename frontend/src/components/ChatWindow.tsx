@@ -365,9 +365,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         }
       }
 
-      console.log(
-        `✅ Auto-read ${newMessages.length} new messages due to user engagement`
-      );
     } catch (error) {
       console.warn("Failed to auto-read new messages:", error);
     }
@@ -1248,11 +1245,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         ) : (
           <div className="space-y-3">
             {(() => {
-              // Find the most recent message that has been seen by other users
+              // Find the most recent sent message that has been seen by other users
               let lastSeenMessageIndex = -1;
               for (let i = messages.length - 1; i >= 0; i--) {
                 const message = messages[i];
-                if (message.readBy && Array.isArray(message.readBy) && message.readBy.some(uid => uid !== userData?.uid)) {
+                if (message.senderId === userData?.uid && message.readBy && Array.isArray(message.readBy) && message.readBy.some(uid => uid !== userData?.uid)) {
                   lastSeenMessageIndex = i;
                   break;
                 }

@@ -1214,7 +1214,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             {formatTime(message.timestamp)}
           </span>
 
-          {/* Seen indicator - show on sent messages when others have read them (only on last seen message) */}
+          {/* Seen indicator - show on sent messages when counterpart has read them (only on last seen message) */}
           {isOwnMessage && isLastSeenMessage && hasOtherUsersSeenMessage() && (
             <ProfilePictureSeenIndicator
               readBy={getReadersWithProfileData()}

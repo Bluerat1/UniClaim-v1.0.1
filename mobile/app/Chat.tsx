@@ -939,13 +939,13 @@ export default function Chat() {
                   // Check if this is the most recent message that other users have read
                   let isLastSeenByOthers = false;
 
-                  // Find the most recent message that has been read by other users
+                  // Find the most recent message SENT BY CURRENT USER that has been read by other users
                   for (let i = messages.length - 1; i >= 0; i--) {
                     const msg = messages[i];
                     const readers = msg.readBy || [];
                     const otherUsersRead = readers.some(uid => uid !== userData?.uid);
 
-                    if (otherUsersRead) {
+                    if (otherUsersRead && msg.senderId === userData?.uid) {
                       isLastSeenByOthers = (index === i);
                       break;
                     }
