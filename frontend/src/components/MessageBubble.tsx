@@ -9,6 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { AiOutlineDelete } from "react-icons/ai";
 import ProfilePictureSeenIndicator from "./ProfilePictureSeenIndicator";
+import ProfilePicture from "./ProfilePicture";
 
 interface MessageBubbleProps {
   message: Message;
@@ -18,7 +19,7 @@ interface MessageBubbleProps {
   currentUserId: string;
   postOwnerId?: string; // Add post owner ID for handover confirmation logic
   isLastSeenMessage?: boolean; // Indicates if this is the most recent message that has been seen by other users
-  conversationParticipants?: { [uid: string]: { profilePicture?: string; firstName: string; lastName: string; } };
+  conversationParticipants?: { [uid: string]: { profilePicture?: string; profileImageUrl?: string; firstName: string; lastName: string; } };
   onHandoverResponse?: (
     messageId: string,
     status: "accepted" | "rejected"
@@ -1175,21 +1176,35 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         isOwnMessage ? "items-end" : "items-start"
       }`}
     >
+      {/* Sender Name - Outside the bubble */}
+      {showSenderName && !isOwnMessage && (
+        <div className={`mb-1 ${isOwnMessage ? "text-right" : "text-left"}`}>
+          <div className="flex items-center gap-2">
+            <ProfilePicture
+              src={
+                message.senderProfilePicture ||
+                conversationParticipants[message.senderId]?.profilePicture ||
+                conversationParticipants[message.senderId]?.profileImageUrl
+              }
+              alt={`${message.senderName || `${conversationParticipants[message.senderId]?.firstName || 'Unknown'} ${conversationParticipants[message.senderId]?.lastName || 'User'}`} profile`}
+              className="size-6"
+            />
+            <div className="text-xs font-medium text-gray-600">
+              {message.senderName || `${conversationParticipants[message.senderId]?.firstName || 'Unknown'} ${conversationParticipants[message.senderId]?.lastName || 'User'}`}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Message Bubble */}
       <div
-        className={`relative p-3 rounded-lg break-words whitespace-pre-wrap 
+        className={`relative p-3 rounded-lg break-words whitespace-pre-wrap
                 inline-block max-w-xs lg:max-w-lg ${
                   isOwnMessage
                     ? "bg-navyblue text-white"
                     : "bg-gray-100 text-gray-900"
                 }`}
       >
-        {showSenderName && !isOwnMessage && (
-          <div className="text-xs font-medium text-gray-600 mb-1">
-            {message.senderName}
-          </div>
-        )}
-
         {message.text && <div className="text-sm">{message.text}</div>}
 
         {renderHandoverRequest()}

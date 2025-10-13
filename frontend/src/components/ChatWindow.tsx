@@ -1260,9 +1260,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   key={`${message.id}-${forceRerender}`}
                   message={message}
                   isOwnMessage={message.senderId === userData?.uid}
-                  showSenderName={
-                    Object.keys(conversation.participants).length > 2
-                  }
+                  showSenderName={true}
                   conversationId={conversation.id}
                   currentUserId={userData?.uid || ""}
                   postOwnerId={conversation.postCreatorId}
