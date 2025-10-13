@@ -327,20 +327,6 @@ export default function AdminHomePage() {
       setDeletingPostId(null);
     }
   }, [postToDelete, userData?.email, viewType, showToast, fetchDeletedPosts]);
-  const handleHidePost = async (post: Post) => {
-    try {
-      const { postService } = await import("../../services/firebase/posts");
-      await postService.hidePost(post.id);
-      showToast(
-        "success",
-        "Post Hidden",
-        "Post has been hidden from public view"
-      );
-    } catch (error: any) {
-      console.error("Failed to hide post:", error);
-      showToast("error", "Hide Failed", error.message || "Failed to hide post");
-    }
-  };
 
   const handleUnhidePost = async (post: Post) => {
     try {
@@ -498,75 +484,6 @@ export default function AdminHomePage() {
     }
   };
 
-  const handleActivateTicket = async (post: Post) => {
-    const canActivate = post.status === "unclaimed" || post.movedToUnclaimed;
-
-    if (!canActivate) {
-      showToast(
-        "error",
-        "Cannot Activate",
-        "This post cannot be activated as it's not in unclaimed status."
-      );
-      return;
-    }
-
-    const confirmMessage = post.movedToUnclaimed
-      ? `Are you sure you want to activate "${post.title}"? This will move it back to active status with a new 30-day period.`
-      : `Are you sure you want to activate "${post.title}"? This will move it back to active status with a new 30-day period.`;
-
-    if (confirm(confirmMessage)) {
-      try {
-        const { postService } = await import("../../utils/firebase");
-        await postService.activateTicket(post.id);
-
-        // Send notification to the post creator
-        if (post.creatorId) {
-          try {
-            // Check if this post has been turned over and use the original finder instead
-            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || post.creatorId;
-
-            await notificationSender.sendActivateNotification({
-              postId: post.id,
-              postTitle: post.title,
-              postType: post.type as "lost" | "found",
-              creatorId: notificationRecipientId,
-              creatorName:
-                post.turnoverDetails?.originalFinder ?
-                  `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
-                  (post.user.firstName && post.user.lastName
-                    ? `${post.user.firstName} ${post.user.lastName}`
-                    : post.user.email?.split("@")[0] || "User"),
-              adminName:
-                userData?.firstName && userData?.lastName
-                  ? `${userData.firstName} ${userData.lastName}`
-                  : userData?.email?.split("@")[0] || "Admin",
-            });
-            console.log("✅ Activate notification sent to user");
-          } catch (notificationError) {
-            console.warn(
-              "⚠️ Failed to send activate notification:",
-              notificationError
-            );
-            // Don't throw - notification failures shouldn't break main functionality
-          }
-        }
-
-        const statusMessage = post.movedToUnclaimed
-          ? `"${post.title}" has been activated from expired status and moved back to active status.`
-          : `"${post.title}" has been activated and moved back to active status.`;
-
-        showToast("success", "Ticket Activated", statusMessage);
-        console.log("Ticket activated successfully:", post.title);
-      } catch (error: any) {
-        console.error("Failed to activate ticket:", error);
-        showToast(
-          "error",
-          "Activation Failed",
-          error.message || "Failed to activate ticket"
-        );
-      }
-    }
-  };
 
   const handleRevertResolution = async (post: Post) => {
     const reason = prompt(
@@ -1355,16 +1272,14 @@ export default function AdminHomePage() {
               onStatusChange={
                 viewType === "deleted" ? undefined : handleStatusChange
               }
-              onActivateTicket={
-                viewType === "deleted" ? undefined : handleActivateTicket
-              }
+              onActivateTicket={undefined}
               onRevertResolution={
                 viewType === "deleted" ? undefined : handleRevertResolution
               }
               onConfirmTurnover={
                 viewType === "deleted" ? undefined : handleConfirmTurnover
               }
-              onHidePost={viewType === "deleted" ? undefined : handleHidePost}
+              onHidePost={undefined}
               onUnhidePost={
                 viewType === "deleted" ? undefined : handleUnhidePost
               }
