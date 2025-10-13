@@ -681,7 +681,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         ) : canConfirm ? (
           <View className="flex-row gap-2">
             <TouchableOpacity
-              onPress={handleConfirmClaimIdPhoto}
+              onPress={handleConfirmIdPhoto}
               disabled={isConfirmationInProgress}
               className={`px-3 py-1 rounded-md ${isConfirmationInProgress ? 'bg-gray-400' : 'bg-blue-500'}`}
             >
