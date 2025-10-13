@@ -171,7 +171,7 @@ export default function AdminUnclaimedPostModal({
             <ProfilePicture
               src={post.user?.profilePicture}
               alt="user profile"
-              size="md"
+              className="size-8"
             />
             <div className="flex flex-col">
               <p className="text-xs text-gray-500">Posted by:</p>
@@ -180,9 +180,9 @@ export default function AdminUnclaimedPostModal({
                   ? `${post.user.firstName} ${post.user.lastName}`
                   : "Anonymous"}
               </p>
-              <p className="text-xs text-gray-500">
+              {/* <p className="text-xs text-gray-500">
                 {post.creatorId || "Unknown User ID"}
-              </p>
+              </p> */}
             </div>
           </div>
           <div className="flex items-center gap-2">

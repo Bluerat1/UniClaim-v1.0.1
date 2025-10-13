@@ -237,7 +237,7 @@ function PostCard({
           <ProfilePicture
             src={creatorData?.profilePicture}
             alt="user profile"
-            size="xs"
+            className="size-5"
             priority={false} // Don't prioritize profile pictures
           />
           <div className="flex items-center gap-2">

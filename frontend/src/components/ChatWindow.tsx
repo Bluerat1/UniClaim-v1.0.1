@@ -64,11 +64,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               {conversation?.createdAt
                 ? (() => {
                     try {
-                      const date = conversation.createdAt instanceof Date
-                        ? conversation.createdAt
-                        : conversation.createdAt.toDate
-                        ? conversation.createdAt.toDate()
-                        : new Date(conversation.createdAt);
+                      const date =
+                        conversation.createdAt instanceof Date
+                          ? conversation.createdAt
+                          : conversation.createdAt.toDate
+                          ? conversation.createdAt.toDate()
+                          : new Date(conversation.createdAt);
                       return date.toLocaleString();
                     } catch (error) {
                       console.error("Error formatting created date:", error);
@@ -1177,7 +1178,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               <ProfilePicture
                 src={getOtherParticipantProfilePicture(conversation)}
                 alt="participant profile"
-                size="sm"
+                className="size-8"
               />
               <p className="text-sm text-gray-500">
                 {getOtherParticipantName(conversation)}
@@ -1514,7 +1515,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                           <ProfilePicture
                             src={user.profilePicture || user.profileImageUrl}
                             alt={`${user.firstName} ${user.lastName}`}
-                            size="xs"
+                            className="size-9"
                           />
                           <span className="text-sm font-inter font-regular">
                             {`${user.firstName} ${user.lastName}`}

@@ -18,20 +18,34 @@ const ConversationList: React.FC<ConversationListProps> = ({
   const { conversations, loading } = useMessage();
   const { userData } = useAuth();
   const [searchParams] = useSearchParams();
-  const conversationIdFromUrl = searchParams.get('conversation');
+  const conversationIdFromUrl = searchParams.get("conversation");
 
   // Auto-select conversation from URL on initial load only
   useEffect(() => {
     // Only auto-select if we have a URL parameter, conversations are loaded,
     // and no conversation is currently selected
-    if (conversationIdFromUrl && conversations.length > 0 && !selectedConversationId) {
-      console.log('Auto-selecting conversation from URL:', conversationIdFromUrl);
-      const conversation = conversations.find(c => c.id === conversationIdFromUrl);
+    if (
+      conversationIdFromUrl &&
+      conversations.length > 0 &&
+      !selectedConversationId
+    ) {
+      console.log(
+        "Auto-selecting conversation from URL:",
+        conversationIdFromUrl
+      );
+      const conversation = conversations.find(
+        (c) => c.id === conversationIdFromUrl
+      );
       if (conversation) {
         onSelectConversation(conversation);
       }
     }
-  }, [conversationIdFromUrl, conversations, selectedConversationId, onSelectConversation]);
+  }, [
+    conversationIdFromUrl,
+    conversations,
+    selectedConversationId,
+    onSelectConversation,
+  ]);
 
   // Prevent auto-selection when conversation is explicitly cleared
   const [isUserClearing, setIsUserClearing] = useState(false);
@@ -46,21 +60,35 @@ const ConversationList: React.FC<ConversationListProps> = ({
 
   // Modified auto-selection that respects user clearing
   useEffect(() => {
-    if (conversationIdFromUrl && conversations.length > 0 && !selectedConversationId && !isUserClearing) {
-      console.log('Auto-selecting conversation from URL:', conversationIdFromUrl);
-      const conversation = conversations.find(c => c.id === conversationIdFromUrl);
+    if (
+      conversationIdFromUrl &&
+      conversations.length > 0 &&
+      !selectedConversationId &&
+      !isUserClearing
+    ) {
+      console.log(
+        "Auto-selecting conversation from URL:",
+        conversationIdFromUrl
+      );
+      const conversation = conversations.find(
+        (c) => c.id === conversationIdFromUrl
+      );
       if (conversation) {
         onSelectConversation(conversation);
       }
     }
-  }, [conversationIdFromUrl, conversations, selectedConversationId, isUserClearing, onSelectConversation]);
+  }, [
+    conversationIdFromUrl,
+    conversations,
+    selectedConversationId,
+    isUserClearing,
+    onSelectConversation,
+  ]);
 
   // Handle conversation selection
   const handleConversationClick = (conversation: Conversation) => {
     onSelectConversation(conversation);
   };
-
-
 
   // Sort conversations by most recent message timestamp, with fallback to createdAt (newest first)
   const sortedConversations = useMemo(() => {
@@ -188,23 +216,23 @@ const ConversationList: React.FC<ConversationListProps> = ({
     currentUserId: string
   ) => {
     if (!conversation.lastMessage?.senderId) return "Unknown User";
-    
+
     // If the sender is the current user
     if (conversation.lastMessage.senderId === currentUserId) {
       return "You";
     }
-    
+
     // Find the sender in participants
     const sender = Object.entries(conversation.participants).find(
       ([uid]) => uid === conversation.lastMessage?.senderId
     );
-    
+
     if (sender) {
       const firstName = sender[1].firstName || "";
       const lastName = sender[1].lastName || "";
       return `${firstName} ${lastName}`.trim() || "Unknown User";
     }
-    
+
     return "Unknown User";
   };
 
@@ -248,8 +276,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
                           : null
                       }
                       alt="participant profile"
-                      size="md"
-                      className="flex-shrink-0"
+                      className="flex-shrink-0 size-9"
                     />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -295,7 +322,8 @@ const ConversationList: React.FC<ConversationListProps> = ({
                           ? getLastMessageSenderName(conversation, userData.uid)
                           : "Unknown User"}
                       </span>
-                      {conversation.lastMessage?.text && `: ${conversation.lastMessage.text}`}
+                      {conversation.lastMessage?.text &&
+                        `: ${conversation.lastMessage.text}`}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
@@ -304,18 +332,36 @@ const ConversationList: React.FC<ConversationListProps> = ({
                     </span>
                     {conversation.lastMessage.senderId !== userData?.uid && (
                       <span className="text-xs">
-                        {conversation.lastMessage.readBy && 
-                         conversation.lastMessage.readBy.includes(userData?.uid || '') ? (
+                        {conversation.lastMessage.readBy &&
+                        conversation.lastMessage.readBy.includes(
+                          userData?.uid || ""
+                        ) ? (
                           <span className="text-blue-500" title="Seen">
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <svg
+                              className="w-3 h-3"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
                               <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                              <path
+                                fillRule="evenodd"
+                                d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                                clipRule="evenodd"
+                              />
                             </svg>
                           </span>
                         ) : (
                           <span className="text-gray-400" title="Not seen">
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            <svg
+                              className="w-3 h-3"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clipRule="evenodd"
+                              />
                             </svg>
                           </span>
                         )}

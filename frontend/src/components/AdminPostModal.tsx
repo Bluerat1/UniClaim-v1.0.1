@@ -27,7 +27,9 @@ interface AdminPostModalProps {
   showDeleteButton?: boolean; // Controls whether delete button is visible
 }
 
-function formatDateTime(datetime: string | Date | { seconds: number; nanoseconds: number }) {
+function formatDateTime(
+  datetime: string | Date | { seconds: number; nanoseconds: number }
+) {
   let date: Date;
 
   if (datetime && typeof datetime === "object" && "seconds" in datetime) {
@@ -69,7 +71,9 @@ export default function AdminPostModal({
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
-  const [imageLoadingError, setImageLoadingError] = useState<string | null>(null);
+  const [imageLoadingError, setImageLoadingError] = useState<string | null>(
+    null
+  );
   const inactivityIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastInteractionTimeRef = useRef<number>(Date.now());
 
@@ -95,7 +99,8 @@ export default function AdminPostModal({
   useEffect(() => {
     const checkInactivity = () => {
       const now = Date.now();
-      const secondsSinceLastClick = (now - lastInteractionTimeRef.current) / 1000;
+      const secondsSinceLastClick =
+        (now - lastInteractionTimeRef.current) / 1000;
       if (secondsSinceLastClick >= 2) {
         setShowOverlay(true);
       }
@@ -137,13 +142,21 @@ export default function AdminPostModal({
   const handleToggleStatus = async () => {
     try {
       setIsUpdatingStatus(true);
-      const newStatus = post.status === 'resolved' ? 'pending' : 'resolved';
+      const newStatus = post.status === "resolved" ? "pending" : "resolved";
       await postService.updatePostStatus(post.id, newStatus);
-      showToast('success', 'Status Updated', `Post has been marked as ${newStatus}.`);
+      showToast(
+        "success",
+        "Status Updated",
+        `Post has been marked as ${newStatus}.`
+      );
       onPostUpdate?.({ ...post, status: newStatus });
     } catch (error) {
-      console.error('Error updating post status:', error);
-      showToast('error', 'Error', 'Failed to update post status. Please try again.');
+      console.error("Error updating post status:", error);
+      showToast(
+        "error",
+        "Error",
+        "Failed to update post status. Please try again."
+      );
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -158,13 +171,13 @@ export default function AdminPostModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-white rounded p-4 shadow w-[25rem] sm:w-[26rem] md:w-[32rem] lg:w-[42rem] xl:w-[60rem] max-w-full max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
+      <div className="bg-white rounded p-4 shadow w-[40rem] sm:w-[43rem] md:w-[45rem] lg:w-[50rem] xl:w-[55rem] max-w-full max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <ProfilePicture
               src={post.user?.profilePicture}
               alt="user profile"
-              size="md"
+              className="size-8"
             />
             <div className="flex flex-col">
               <p className="text-xs text-gray-500">Posted by:</p>
@@ -177,63 +190,67 @@ export default function AdminPostModal({
                   ? `${post.user.firstName} ${post.user.lastName}`
                   : "Anonymous"}
               </button>
-              <p className="text-xs text-gray-500">
-                {post.creatorId || 'Unknown User ID'}
-              </p>
+              {/* <p className="text-xs text-gray-500">
+                {post.creatorId || "Unknown User ID"}
+              </p> */}
             </div>
           </div>
           <div className="flex items-center gap-2">
             {post.turnoverDetails &&
-             post.turnoverDetails.turnoverStatus === "declared" &&
-             post.turnoverDetails.turnoverAction === "turnover to OSA" && (
-              <>
-                <button
-                  onClick={() => {
-                    onConfirmTurnover?.(post, "confirmed");
-                  }}
-                  className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors flex items-center gap-1"
-                >
-                  ✓ Confirm Received
-                </button>
-                <button
-                  onClick={() => {
-                    onConfirmTurnover?.(post, "not_received");
-                  }}
-                  className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors flex items-center gap-1"
-                >
-                  ✗ Not Received
-                </button>
-              </>
-            )}
+              post.turnoverDetails.turnoverStatus === "declared" &&
+              post.turnoverDetails.turnoverAction === "turnover to OSA" && (
+                <>
+                  <button
+                    onClick={() => {
+                      onConfirmTurnover?.(post, "confirmed");
+                    }}
+                    className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors flex items-center gap-1"
+                  >
+                    ✓ Confirm Received
+                  </button>
+                  <button
+                    onClick={() => {
+                      onConfirmTurnover?.(post, "not_received");
+                    }}
+                    className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
+                  >
+                    ✗ Not Received
+                  </button>
+                </>
+              )}
 
             {post.turnoverDetails &&
-             post.turnoverDetails.turnoverAction === "turnover to Campus Security" && (
-              <>
-                <button
-                  onClick={() => {
-                    onConfirmCampusSecurityCollection?.(post, "collected");
-                  }}
-                  className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors flex items-center gap-1"
-                >
-                  ✓ Item Collected
-                </button>
-                <button
-                  onClick={() => {
-                    onConfirmCampusSecurityCollection?.(post, "not_available");
-                  }}
-                  className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors flex items-center gap-1"
-                >
-                  ✗ Not Available
-                </button>
-              </>
-            )}
+              post.turnoverDetails.turnoverAction ===
+                "turnover to Campus Security" && (
+                <>
+                  <button
+                    onClick={() => {
+                      onConfirmCampusSecurityCollection?.(post, "collected");
+                    }}
+                    className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors flex items-center gap-1"
+                  >
+                    ✓ Item Collected
+                  </button>
+                  <button
+                    onClick={() => {
+                      onConfirmCampusSecurityCollection?.(
+                        post,
+                        "not_available"
+                      );
+                    }}
+                    className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors flex items-center gap-1"
+                  >
+                    ✗ Not Available
+                  </button>
+                </>
+              )}
 
             {/* Admin Action Buttons - Top Right */}
             <div className="flex items-center gap-2">
               {showDeleteButton && onDelete && (
                 <button
                   onClick={() => onDelete(post)}
-                  className="px-2 py-1 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition"
+                  className="px-3 py-1.5 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition"
                   title="Delete Post"
                 >
                   Delete
@@ -284,24 +301,27 @@ export default function AdminPostModal({
         {/* Admin Actions */}
         <div className="mt-4 flex flex-wrap gap-2">
           {/* Show regular status button for non-turnover items or turnover items that don't need confirmation */}
-          {!((post.turnoverDetails?.turnoverStatus === "declared" &&
+          {!(
+            (post.turnoverDetails?.turnoverStatus === "declared" &&
               post.turnoverDetails.turnoverAction === "turnover to OSA") ||
-             post.turnoverDetails?.turnoverAction === "turnover to Campus Security") && (
+            post.turnoverDetails?.turnoverAction ===
+              "turnover to Campus Security"
+          ) && (
             <button
               onClick={handleToggleStatus}
               disabled={isUpdatingStatus}
               className={`px-3 py-1 text-sm rounded flex items-center gap-1 ${
-                post.status === 'resolved'
-                  ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                  : 'bg-green-100 text-green-800 hover:bg-green-200'
+                post.status === "resolved"
+                  ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+                  : "bg-green-100 text-green-800 hover:bg-green-200"
               } hidden`}
             >
               {isUpdatingStatus ? (
                 <span className="animate-spin">⟳</span>
-              ) : post.status === 'resolved' ? (
-                'Mark as Pending'
+              ) : post.status === "resolved" ? (
+                "Mark as Pending"
               ) : (
-                'Mark as Resolved'
+                "Mark as Resolved"
               )}
             </button>
           )}
@@ -344,7 +364,9 @@ export default function AdminPostModal({
         {imageLoadingError && (
           <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
             <div className="flex items-center justify-between">
-              <span className="text-red-600 text-sm">⚠️ {imageLoadingError}</span>
+              <span className="text-red-600 text-sm">
+                ⚠️ {imageLoadingError}
+              </span>
               <button
                 onClick={() => {
                   setImageLoadingError(null);
@@ -390,16 +412,16 @@ export default function AdminPostModal({
               </span>
             )}
 
-            <span 
+            <span
               className={`px-2 py-1 rounded-[3px] font-medium ${
-                post.status === 'resolved' 
-                  ? 'bg-green-100 text-green-700' 
-                  : post.status === 'unclaimed'
-                  ? 'bg-orange-100 text-orange-700'
-                  : 'bg-gray-100 text-gray-700'
+                post.status === "resolved"
+                  ? "bg-green-100 text-green-700"
+                  : post.status === "unclaimed"
+                  ? "bg-orange-100 text-orange-700"
+                  : "bg-gray-100 text-gray-700"
               }`}
             >
-              {post.status?.toUpperCase() || 'PENDING'}
+              {post.status?.toUpperCase() || "PENDING"}
             </span>
           </div>
         </div>
@@ -439,19 +461,20 @@ export default function AdminPostModal({
                 <p className="text-[13px] mt-3 mb-2">Pinned Coordinates</p>
                 <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2">
                   <p className="text-[13px] text-gray-600">
-                    {post.coordinates.lat.toFixed(5)}, {post.coordinates.lng.toFixed(5)}
+                    {post.coordinates.lat.toFixed(5)},{" "}
+                    {post.coordinates.lng.toFixed(5)}
                   </p>
                 </div>
               </>
             )}
           </div>
-          
+
           <div>
             <p className="text-[13px] mt-2">Last seen location</p>
             <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2 mb-3">
               <p className="text-sm text-gray-700">{post.location}</p>
             </div>
-            
+
             {post.coordinates && (
               <div className="w-full h-64">
                 <iframe
@@ -482,7 +505,9 @@ export default function AdminPostModal({
 
         {post.handoverDetails && (
           <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
-            <h3 className="font-semibold text-blue-800 mb-2">Handover Details</h3>
+            <h3 className="font-semibold text-blue-800 mb-2">
+              Handover Details
+            </h3>
             <HandoverDetailsDisplay handoverDetails={post.handoverDetails} />
           </div>
         )}
@@ -491,7 +516,7 @@ export default function AdminPostModal({
         <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-md">
           <h3 className="font-semibold text-gray-800 mb-2">Admin Notes</h3>
           <p className="text-sm text-gray-600">
-            {post.description || 'No admin notes available.'}
+            {post.description || "No admin notes available."}
           </p>
         </div>
       </div>

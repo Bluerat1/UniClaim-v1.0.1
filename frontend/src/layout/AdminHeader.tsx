@@ -45,16 +45,23 @@ export default function AdminHeader({
 
       // Handle conversation/message notifications
       if (notification.data?.conversationId) {
-        console.log("Admin navigating to conversation:", notification.data.conversationId);
+        console.log(
+          "Admin navigating to conversation:",
+          notification.data.conversationId
+        );
         // Navigate to admin messages page with conversation parameter
-        navigate(`/admin/messages?conversation=${notification.data.conversationId}`);
+        navigate(
+          `/admin/messages?conversation=${notification.data.conversationId}`
+        );
         setShowNotif(false); // Close notification panel
         return;
       }
 
       // Check for postId in different possible locations
-      const postId = notification.postId ||
-                    (notification.data && (notification.data.postId || notification.data.id));
+      const postId =
+        notification.postId ||
+        (notification.data &&
+          (notification.data.postId || notification.data.id));
 
       if (postId) {
         try {
@@ -76,7 +83,7 @@ export default function AdminHeader({
             console.log("Post not found, it may have been deleted:", postId);
           }
         } catch (error) {
-          console.error('Error fetching post:', error);
+          console.error("Error fetching post:", error);
           // Show error toast
           toast.error("Error loading post. Please try again.", {
             position: "top-right",
@@ -90,7 +97,7 @@ export default function AdminHeader({
         }
       }
     } catch (error) {
-      console.error('Error handling notification click:', error);
+      console.error("Error handling notification click:", error);
     }
   };
 
@@ -167,8 +174,7 @@ export default function AdminHeader({
                 <ProfilePicture
                   src={userData?.profilePicture}
                   alt="admin-profile"
-                  size="md"
-                  className="cursor-pointer"
+                  className="cursor-pointer size-10"
                   onClick={toggleProfileMenu}
                 />
               </div>
@@ -314,9 +320,18 @@ export default function AdminHeader({
                             {notification.type === "user_report" &&
                               "👤 User Report"}
                             {notification.type === "system_alert" &&
-                              `${notification.data?.adminNotificationType === 'admin_message' ? '💬' :
-                                notification.data?.adminNotificationType === 'admin_handover' ? '🔄' :
-                                notification.data?.adminNotificationType === 'admin_claim' ? '📋' : '⚠️'} System Alert`}
+                              `${
+                                notification.data?.adminNotificationType ===
+                                "admin_message"
+                                  ? "💬"
+                                  : notification.data?.adminNotificationType ===
+                                    "admin_handover"
+                                  ? "🔄"
+                                  : notification.data?.adminNotificationType ===
+                                    "admin_claim"
+                                  ? "📋"
+                                  : "⚠️"
+                              } System Alert`}
                             {notification.type === "activity_summary" &&
                               "📊 Activity Summary"}
                           </span>

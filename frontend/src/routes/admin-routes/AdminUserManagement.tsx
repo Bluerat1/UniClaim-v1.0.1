@@ -297,8 +297,7 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                             <ProfilePicture
                               src={user.profilePicture}
                               alt={`${user.firstName} ${user.lastName}`}
-                              size="md"
-                              className="mr-4"
+                              className="mr-4 size-9"
                             />
                             <div>
                               <div className="text-sm font-medium text-gray-900">
@@ -670,7 +669,7 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
                         selectedUser.profileImageUrl
                       }
                       alt={`${selectedUser.firstName} ${selectedUser.lastName}`}
-                      size="3xl"
+                      className="size-15"
                     />
                     <div>
                       <h4 className="text-xl font-semibold text-gray-900">

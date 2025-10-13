@@ -349,7 +349,7 @@ function AdminPostCard({
             <ProfilePicture
               src={post.user?.profilePicture}
               alt="user profile"
-              size="xs"
+              className="size-5"
               priority={false}
             />
             <div>
@@ -402,8 +402,7 @@ function AdminPostCard({
                   <ProfilePicture
                     src={post.turnoverDetails.originalFinder.profilePicture}
                     alt={`${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`}
-                    size="xs"
-                    className="border-blue-300"
+                    className="border-blue-300 size-5"
                   />
                   <span>
                     {post.turnoverDetails.originalFinder.firstName}{" "}

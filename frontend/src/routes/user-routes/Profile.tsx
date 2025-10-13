@@ -518,15 +518,14 @@ const Profile = () => {
 
         {/* profile icon */}
         <div className="relative bg-gray-200 h-45 mx-4 mt-4 rounded lg:h-50 lg:mx-6">
-          <div className="absolute flex gap-8 -bottom-20 z-10 left-4 md:-bottom-25 lg:-bottom-30">
+          <div className="absolute flex gap-8 -bottom-13 z-10 left-4 sm:-bottom-16 md:-bottom-22 lg:-bottom-30">
             <div className="relative">
               <ProfilePicture
                 src={profilePicturePreviewUrl || userInfo.profilePicture}
-                alt="profile"
-                size="5xl"
-                className="lg:left-6"
-                priority={true}
-                key={userInfo.profilePicture || "default"} // Force re-render when profile picture changes
+                alt="Profile picture"
+                className="size-25 sm:w-32 sm:h-32 lg:w-40 lg:h-40 lg:left-6"
+                priority
+                key={userInfo.profilePicture || "default"}
               />
               {isEdit && (
                 <div className="absolute -bottom-2 -right-2 flex gap-1">
@@ -682,7 +681,7 @@ const Profile = () => {
           )}
         </div>
 
-        <div className="mx-9 mt-13 space-y-2 lg:mx-6 md:hidden">
+        <div className="mx-9 mt-8 space-y-2 lg:mx-6 md:hidden">
           <h1 className="text-xl font-semibold">
             {userInfo.firstName} {userInfo.lastName}
           </h1>
