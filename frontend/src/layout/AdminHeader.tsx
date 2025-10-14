@@ -232,6 +232,9 @@ export default function AdminHeader({
               <h2 className="text-lg font-semibold text-navyblue">
                 Admin Notifications
               </h2>
+              <span className="ml-2 text-sm text-gray-500">
+                ({notifications.length}/15)
+              </span>
               {unreadCount > 0 && (
                 <span className="ml-2 bg-red-500 text-white text-[10px] rounded-full py-1 px-2">
                   {unreadCount}

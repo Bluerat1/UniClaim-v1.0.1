@@ -161,7 +161,7 @@ export class NotificationService {
             categories: preferences.categoryFilter || [], // Map categoryFilter to categories
             locations: [], // TODO: Add location mapping when location preferences are implemented
             quietHours: preferences.quietHours,
-            soundEnabled: true // Mobile doesn't have soundEnabled in preferences, default to true
+            soundEnabled: preferences.soundEnabled ?? true
         };
     }
 
@@ -198,13 +198,16 @@ export class NotificationService {
             messages: true,
             claimUpdates: true,
             adminAlerts: true,
+            claimResponses: true,
+            handoverResponses: true,
             locationFilter: false,
             categoryFilter: [],
             quietHours: {
                 enabled: false,
                 start: "22:00",
                 end: "08:00"
-            }
+            },
+            soundEnabled: true
         };
     }
 
@@ -353,9 +356,13 @@ export class NotificationService {
                     if (!preferences.messages) return false;
                     break;
                 case 'claim_update':
-                case 'claim_response':
-                case 'handover_response':
                     if (!preferences.claimUpdates) return false;
+                    break;
+                case 'claim_response':
+                    if (!preferences.claimResponses) return false;
+                    break;
+                case 'handover_response':
+                    if (!preferences.handoverResponses) return false;
                     break;
                 case 'admin_alert':
                     if (!preferences.adminAlerts) return false;
@@ -432,10 +439,34 @@ export class NotificationService {
             );
 
             const snapshot = await getDocs(q);
-            const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
-            await Promise.all(deletePromises);
 
-            console.log(`Successfully deleted ${snapshot.docs.length} notifications for user:`, userId);
+            if (snapshot.empty) {
+                console.log('No notifications found for user:', userId);
+                return;
+            }
+
+            console.log(`Found ${snapshot.size} notifications to delete for user:`, userId);
+
+            // Delete notifications individually to handle permission errors gracefully
+            const deletePromises = snapshot.docs.map(async (doc) => {
+                try {
+                    await deleteDoc(doc.ref);
+                    return { success: true, id: doc.id };
+                } catch (error) {
+                    console.warn(`Failed to delete notification ${doc.id}:`, error);
+                    return { success: false, id: doc.id, error };
+                }
+            });
+
+            const results = await Promise.all(deletePromises);
+            const successful = results.filter(r => r.success);
+            const failed = results.filter(r => !r.success);
+
+            console.log(`Successfully deleted ${successful.length} notifications for user:`, userId);
+            if (failed.length > 0) {
+                console.warn(`Failed to delete ${failed.length} notifications:`, failed);
+                throw new Error(`Failed to delete ${failed.length} out of ${snapshot.size} notifications. Check console for details.`);
+            }
         } catch (error) {
             console.error('Error deleting all notifications:', error);
             throw error;
@@ -445,7 +476,7 @@ export class NotificationService {
     // Create a new notification
     async createNotification(notificationData: {
         userId: string;
-        type: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted';
+        type: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted' | 'claim_response' | 'handover_response' | 'status_change' | 'post_activated' | 'post_reverted' | 'post_deleted' | 'post_restored';
         title: string;
         body: string;
         data?: any;

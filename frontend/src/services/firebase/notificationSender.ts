@@ -811,10 +811,35 @@ export class NotificationSender {
         conversationId?: string;
     }): Promise<void> {
         try {
-            // Filter users based on their notification preferences for claim/handover responses
+            // Filter users based on their notification preferences
             let filteredUserIds = userIds;
 
-            if (notificationData.type === 'claim_response' || notificationData.type === 'handover_response') {
+            if (notificationData.type === 'message') {
+                // For message notifications, check if users have messages enabled in their preferences
+                const usersWithPreferences = await Promise.all(
+                    userIds.map(async (userId) => {
+                        try {
+                            // Import notificationService here to avoid circular dependency
+                            const { notificationService } = await import('./notifications');
+                            const preferences = await notificationService.getNotificationPreferences(userId);
+
+                            // Check if user has enabled message notifications
+                            return preferences.messages ? userId : null;
+                        } catch (error) {
+                            console.warn(`Failed to get preferences for user ${userId}:`, error);
+                            // If we can't get preferences, assume enabled (don't block notifications)
+                            return userId;
+                        }
+                    })
+                );
+
+                filteredUserIds = usersWithPreferences.filter((userId): userId is string => userId !== null);
+
+                if (filteredUserIds.length === 0) {
+                    console.log('⚠️ No users have enabled message notifications');
+                    return;
+                }
+            } else if (notificationData.type === 'claim_response' || notificationData.type === 'handover_response') {
                 // For response notifications, check if it's a rejection or acceptance
                 const isRejection = notificationData.data?.status === 'rejected';
 

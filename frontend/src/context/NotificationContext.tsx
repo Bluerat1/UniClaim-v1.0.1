@@ -119,6 +119,8 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
         return preferences.handoverResponses || preferences.claimUpdates;
       case 'admin_alert':
         return preferences.adminAlerts;
+      case 'claim_update':
+        return preferences.claimUpdates;
       default:
         return true; // Show by default for unknown types
     }

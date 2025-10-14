@@ -139,20 +139,17 @@ service cloud.firestore {
     match /notifications/{notificationId} {
       // Users can read their own notifications
       allow read: if request.auth != null && request.auth.uid == resource.data.userId;
-      
+
       // Users can update their own notifications (for marking as read)
       allow update: if request.auth != null && request.auth.uid == resource.data.userId;
-      
+
       // Users can delete their own notifications
       allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
-      
+
       // Allow creating notifications (for the notification sender service)
       // This allows any authenticated user to create notifications
       allow create: if request.auth != null;
-      
-      // Allow reading notifications for the current user (simplified for debugging)
-      allow read: if request.auth != null;
-      
+
       // Admins can read and manage all notifications
       allow read, write: if request.auth != null && isAdmin();
     }

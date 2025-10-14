@@ -2,7 +2,7 @@
 export interface NotificationData {
     id: string;
     userId: string;
-    type: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted';
+    type: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted' | 'claim_response' | 'handover_response' | 'status_change' | 'post_activated' | 'post_reverted' | 'post_deleted' | 'post_restored';
     title: string;
     body: string;
     data?: any;
@@ -18,6 +18,8 @@ export interface NotificationPreferences {
     messages: boolean;
     claimUpdates: boolean;
     adminAlerts: boolean;
+    claimResponses: boolean;
+    handoverResponses: boolean;
     locationFilter: boolean;
     categoryFilter: string[];
     quietHours: {
@@ -25,4 +27,5 @@ export interface NotificationPreferences {
         start: string; // "22:00"
         end: string;   // "08:00"
     };
+    soundEnabled: boolean;
 }

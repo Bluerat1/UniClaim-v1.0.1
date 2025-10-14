@@ -27,6 +27,8 @@ export default function NotificationPreferencesModal({
     messages: true,
     claimUpdates: true,
     adminAlerts: true,
+    claimResponses: true,
+    handoverResponses: true,
     locationFilter: false,
     categoryFilter: [],
     quietHours: {
@@ -34,6 +36,7 @@ export default function NotificationPreferencesModal({
       start: "22:00",
       end: "08:00",
     },
+    soundEnabled: true,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -208,10 +211,34 @@ export default function NotificationPreferencesModal({
                 thumbColor={preferences.adminAlerts ? "#FFFFFF" : "#F3F4F6"}
               />
             </View>
+
+            <View className="flex-row items-center justify-between py-3">
+              <View className="flex-row items-center gap-2">
+                <Feather name="bell" size={20} color="#8B5CF6" />
+                <Text className="text-gray-700 font-inter ">Claim Responses</Text>
+              </View>
+              <Switch
+                value={preferences.claimResponses}
+                onValueChange={() => handleToggle("claimResponses")}
+                trackColor={{ false: "#E5E7EB", true: "#0A193A" }}
+                thumbColor={preferences.claimResponses ? "#FFFFFF" : "#F3F4F6"}
+              />
+            </View>
+
+            <View className="flex-row items-center justify-between py-3">
+              <View className="flex-row items-center gap-2">
+                <Feather name="bell" size={20} color="#F97316" />
+                <Text className="text-gray-700 font-inter ">Handover Responses</Text>
+              </View>
+              <Switch
+                value={preferences.handoverResponses}
+                onValueChange={() => handleToggle("handoverResponses")}
+                trackColor={{ false: "#E5E7EB", true: "#0A193A" }}
+                thumbColor={preferences.handoverResponses ? "#FFFFFF" : "#F3F4F6"}
+              />
+            </View>
           </View>
         </View>
-
-        {/* Category Filter */}
         <View className="mb-6">
           <View className="flex-row items-center mb-3 gap-3">
             <Feather name="tag" size={20} color="#8B5CF6" />
@@ -297,6 +324,31 @@ export default function NotificationPreferencesModal({
                 </View>
               </View>
             )}
+          </View>
+        </View>
+        <View className="mb-6">
+          <View className="flex-row items-center gap-3">
+            <Feather name="volume-2" size={20} color="#10B981" />
+            <Text className="text-lg font-manrope-bold text-gray-900">
+              Sound Settings
+            </Text>
+          </View>
+
+          <View className="flex-row items-center justify-between py-3">
+            <View className="flex-row items-center gap-2">
+              {preferences.soundEnabled ? (
+                <Feather name="volume-2" size={20} color="#10B981" />
+              ) : (
+                <Feather name="volume-x" size={20} color="#6B7280" />
+              )}
+              <Text className="text-gray-700 font-inter">Notification Sounds</Text>
+            </View>
+            <Switch
+              value={preferences.soundEnabled}
+              onValueChange={() => handleToggle("soundEnabled")}
+              trackColor={{ false: "#E5E7EB", true: "#0A193A" }}
+              thumbColor={preferences.soundEnabled ? "#FFFFFF" : "#F3F4F6"}
+            />
           </View>
         </View>
       </ScrollView>

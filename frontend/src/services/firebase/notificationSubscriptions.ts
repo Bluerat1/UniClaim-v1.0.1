@@ -110,7 +110,19 @@ export class NotificationSubscriptionService {
             };
 
             if (data.preferences) {
-                updateData.preferences = data.preferences;
+                // Ensure all preference fields are properly set with defaults, matching the subscription interface
+                updateData.preferences = {
+                    newPosts: data.preferences.newPosts ?? true,
+                    messages: data.preferences.messages ?? true,
+                    claimUpdates: data.preferences.claimUpdates ?? true,
+                    adminAlerts: data.preferences.adminAlerts ?? true,
+                    categories: data.preferences.categories ?? [],
+                    locations: data.preferences.locations ?? [],
+                    quietHours: data.preferences.quietHours ?? { enabled: false, start: '22:00', end: '08:00' },
+                    soundEnabled: data.preferences.soundEnabled ?? true,
+                    // Override with any additional provided values that match the interface
+                    ...data.preferences
+                };
             }
 
             if (data.isActive !== undefined) {

@@ -1,4 +1,6 @@
 import GhostConversationCleanup from './GhostConversationCleanup';
+import { notificationService } from '../services/firebase/notifications';
+import { useState } from 'react';
 
 /**
  * ConversationCleanupAdmin Component
@@ -8,6 +10,23 @@ import GhostConversationCleanup from './GhostConversationCleanup';
  * with additional admin-specific context and styling.
  */
 export default function ConversationCleanupAdmin() {
+  const [isDeletingNotifications, setIsDeletingNotifications] = useState(false);
+
+  const handleDeleteAllNotifications = async () => {
+    if (window.confirm('Are you sure you want to delete ALL notifications? This action cannot be undone.')) {
+      setIsDeletingNotifications(true);
+      try {
+        await notificationService.deleteAllSystemNotifications();
+        alert('All notifications have been deleted successfully.');
+      } catch (error) {
+        console.error('Error deleting notifications:', error);
+        alert('Error deleting notifications. Check console for details.');
+      } finally {
+        setIsDeletingNotifications(false);
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -41,6 +60,23 @@ export default function ConversationCleanupAdmin() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Notification Cleanup Section */}
+        <div className="bg-white shadow rounded-lg p-6 mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Notification Management</h2>
+          <p className="text-gray-600 mb-4">
+            Delete all notifications across the system. This is useful for clearing out old or unnecessary notifications.
+          </p>
+          <button
+            onClick={handleDeleteAllNotifications}
+            disabled={isDeletingNotifications}
+            className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
+              isDeletingNotifications ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {isDeletingNotifications ? 'Deleting...' : 'Delete All Notifications'}
+          </button>
         </div>
 
         {/* Main Cleanup Tool */}

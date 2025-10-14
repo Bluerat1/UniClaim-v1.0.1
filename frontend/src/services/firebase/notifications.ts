@@ -288,18 +288,21 @@ export class NotificationService {
 
   // Convert old notification preferences format to new subscription format
   private convertToSubscriptionPreferences(preferences: NotificationPreferences): any {
-    return {
-      newPosts: preferences.newPosts,
-      messages: preferences.messages,
-      claimUpdates: preferences.claimUpdates,
-      adminAlerts: preferences.adminAlerts,
-      claimResponses: preferences.claimResponses,
-      handoverResponses: preferences.handoverResponses,
-      categories: preferences.categoryFilter || [], // Map categoryFilter to categories
-      locations: [], // TODO: Add location mapping when location preferences are implemented
-      quietHours: preferences.quietHours,
-      soundEnabled: preferences.soundEnabled
+    const subscriptionPreferences: any = {
+      // Always set default values to ensure proper structure
+      newPosts: preferences.newPosts ?? true,
+      messages: preferences.messages ?? true,
+      claimUpdates: preferences.claimUpdates ?? true,
+      adminAlerts: preferences.adminAlerts ?? true,
+      claimResponses: preferences.claimResponses ?? true,
+      handoverResponses: preferences.handoverResponses ?? true,
+      categories: preferences.categoryFilter ?? [],
+      locations: [], // Initialize empty locations array for future use
+      quietHours: preferences.quietHours ?? { enabled: false, start: '22:00', end: '08:00' },
+      soundEnabled: preferences.soundEnabled ?? true
     };
+
+    return subscriptionPreferences;
   }
 
   // Ensure user has a subscription record (for existing users)
@@ -408,12 +411,34 @@ export class NotificationService {
       );
 
       const snapshot = await getDocs(q);
-      const deletePromises = snapshot.docs.map(doc =>
-        deleteDoc(doc.ref)
-      );
 
-      await Promise.all(deletePromises);
-      console.log(`Successfully deleted ${snapshot.size} notifications for user:`, userId);
+      if (snapshot.empty) {
+        console.log('No notifications found for user:', userId);
+        return;
+      }
+
+      console.log(`Found ${snapshot.size} notifications to delete for user:`, userId);
+
+      // Delete notifications individually to handle permission errors gracefully
+      const deletePromises = snapshot.docs.map(async (doc) => {
+        try {
+          await deleteDoc(doc.ref);
+          return { success: true, id: doc.id };
+        } catch (error) {
+          console.warn(`Failed to delete notification ${doc.id}:`, error);
+          return { success: false, id: doc.id, error };
+        }
+      });
+
+      const results = await Promise.all(deletePromises);
+      const successful = results.filter(r => r.success);
+      const failed = results.filter(r => !r.success);
+
+      console.log(`Successfully deleted ${successful.length} notifications for user:`, userId);
+      if (failed.length > 0) {
+        console.warn(`Failed to delete ${failed.length} notifications:`, failed);
+        throw new Error(`Failed to delete ${failed.length} out of ${snapshot.size} notifications. Check console for details.`);
+      }
     } catch (error) {
       console.error('Error deleting all notifications:', error);
       throw error;
@@ -444,11 +469,48 @@ export class NotificationService {
         conversationId: notificationData.conversationId || null
       });
 
+      // Enforce 15-notification limit per user
+      await this.enforceNotificationLimit(notificationData.userId, 15);
+
       console.log('Successfully created notification:', docRef.id);
       return docRef.id;
     } catch (error) {
       console.error('Error creating notification:', error);
       throw error;
+    }
+  }
+
+  // Helper to enforce notification limit per user
+  private async enforceNotificationLimit(userId: string, maxLimit: number): Promise<void> {
+    try {
+      const notificationsRef = collection(db, 'notifications');
+      const q = query(
+        notificationsRef,
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc')
+      );
+
+      const snapshot = await getDocs(q);
+      const totalNotifications = snapshot.size;
+
+      if (totalNotifications > maxLimit) {
+        const excessCount = totalNotifications - maxLimit;
+        const excessDocs = snapshot.docs.slice(maxLimit); // Get the oldest ones to delete
+
+        console.log(`User ${userId} has ${totalNotifications} notifications, deleting ${excessCount} oldest.`);
+
+        // Delete excess notifications in a batch
+        const batch = writeBatch(db);
+        excessDocs.forEach(doc => {
+          batch.delete(doc.ref);
+        });
+        await batch.commit();
+
+        console.log(`Deleted ${excessCount} old notifications for user ${userId}.`);
+      }
+    } catch (error) {
+      console.error('Error enforcing notification limit:', error);
+      // Don't throw to avoid blocking notification creation
     }
   }
 
@@ -527,6 +589,53 @@ export class NotificationService {
       console.error('Error setting up real-time notification listener:', error);
       onError(error);
       return () => { };
+    }
+  }
+
+  // Admin: Delete all notifications (for system cleanup)
+  async deleteAllSystemNotifications(): Promise<void> {
+    try {
+      // Security check: ensure current user is an admin
+      const { auth } = await import('./config');
+      if (!auth.currentUser) {
+        throw new Error('Unauthorized: User must be authenticated');
+      }
+
+      // Check if user is admin (you can implement proper admin check here)
+      // For now, assuming admin check is handled in the UI component
+      const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      if (!userDoc.exists() || userDoc.data().role !== 'admin') {
+        throw new Error('Unauthorized: Admin access required');
+      }
+
+      const notificationsRef = collection(db, 'notifications');
+      const q = query(notificationsRef); // Get all notifications
+
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        console.log('No notifications found to delete');
+        return;
+      }
+
+      console.log(`Found ${snapshot.size} notifications to delete`);
+
+      // Delete in batches to avoid Firestore limits
+      const batchSize = 500;
+      for (let i = 0; i < snapshot.docs.length; i += batchSize) {
+        const batch = writeBatch(db);
+        const batchDocs = snapshot.docs.slice(i, i + batchSize);
+        batchDocs.forEach(doc => {
+          batch.delete(doc.ref);
+        });
+        await batch.commit();
+        console.log(`Deleted batch of ${batchDocs.length} notifications`);
+      }
+
+      console.log(`Successfully deleted all ${snapshot.size} notifications`);
+    } catch (error) {
+      console.error('Error deleting all system notifications:', error);
+      throw error;
     }
   }
 }
