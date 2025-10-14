@@ -365,9 +365,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         }
       }
 
-      console.log(
-        `✅ Auto-read ${newMessages.length} new messages due to user engagement`
-      );
     } catch (error) {
       console.warn("Failed to auto-read new messages:", error);
     }
@@ -1009,33 +1006,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
 
-  const getPostCreatorName = (conversation: Conversation) => {
-    if (!conversation.postCreatorId) {
-      console.log("❌ No postCreatorId in conversation");
-      return "Unknown User";
-    }
-
-    if (!conversation.participants[conversation.postCreatorId]) {
-      console.log("❌ No participant data for postCreatorId:", conversation.postCreatorId);
-      return "Unknown User";
-    }
-
-    const creator = conversation.participants[conversation.postCreatorId];
-    console.log("🔍 Post creator participant data:", creator);
-
-    const firstName = creator.firstName || "";
-    const lastName = creator.lastName || "";
-
-    if (!firstName && !lastName) {
-      console.log("❌ Empty firstName and lastName for admin:", conversation.postCreatorId);
-      return "Unknown User";
-    }
-
-    const fullName = `${firstName} ${lastName}`.trim();
-    console.log("✅ Post creator name:", fullName);
-    return fullName || "Unknown User";
-  };
-
   const getPostCreatorProfilePicture = (conversation: Conversation) => {
     if (!conversation.postCreatorId || !conversation.participants[conversation.postCreatorId]) {
       return null;
@@ -1043,6 +1013,27 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
     const creator = conversation.participants[conversation.postCreatorId];
     return creator.profilePicture || creator.profileImageUrl || null;
+  };
+
+  const getPostCreatorName = (conversation: Conversation) => {
+    if (!conversation.postCreatorId) {
+      return "Unknown User";
+    }
+
+    if (!conversation.participants[conversation.postCreatorId]) {
+      return "Unknown User";
+    }
+
+    const creator = conversation.participants[conversation.postCreatorId];
+    const firstName = creator.firstName || "";
+    const lastName = creator.lastName || "";
+
+    if (!firstName && !lastName) {
+      return "Unknown User";
+    }
+
+    const fullName = `${firstName} ${lastName}`.trim();
+    return fullName || "Unknown User";
   };
 
   // Check if handover button should be shown (memoized)
@@ -1063,21 +1054,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const shouldShowClaimItemButton = useMemo(() => {
     if (!conversation || !userData) {
-      console.log("Missing conversation or userData");
       return false;
     }
 
     // Only show for found items
-    console.log("postType:", conversation.postType);
     if (conversation.postType !== "found") {
-      console.log("Not a found item");
       return false;
     }
 
     // Only show if post is still pending
-    console.log("postStatus:", conversation.postStatus);
     if (conversation.postStatus !== "pending") {
-      console.log("Post is not pending");
       return false;
     }
 
@@ -1093,53 +1079,24 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       (creatorData?.firstName === "Campus" &&
         creatorData?.lastName === "Security");
 
-    console.log("=== Admin Post Detection ===");
-    console.log("isAdminPost flag:", conversation.isAdminPost);
-    console.log("creatorData:", creatorData);
-    console.log("creator role:", creatorData?.role);
-    console.log("isAdminPost result:", isAdminPost);
-    console.log("postCreatorId:", conversation.postCreatorId);
-    console.log("current user id:", userData.uid);
-    console.log("participants:", conversation.participants);
-
     if (isAdminPost) {
-      console.log("Admin post detected, ignoring foundAction");
       // For admin posts, don't hide the button just because current user is the post creator
       // The admin who confirmed the handover/claim should still be able to see the claim button
-      console.log("Showing claim button for admin post");
       return true;
     }
 
     // For non-admin posts, check if the item is turned over
     if (conversation.foundAction && conversation.foundAction !== "keep") {
-      console.log("Item has been turned over, hiding claim button");
       return false;
     }
 
     // Don't show if current user is the post creator
     if (conversation.postCreatorId === userData.uid) {
-      console.log("Current user is the post creator, hiding claim button");
       return false;
     }
 
-    console.log("All conditions met, showing claim button");
-
     return true;
   }, [conversation, userData]);
-
-  if (!conversation) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="flex flex-col items-center text-center text-gray-500">
-          <img src={NoChat} alt="no_message" className="size-60" />
-          <p className="text-lg font-medium mb-3">Select a conversation</p>
-          <p className="text-sm">
-            Choose a conversation from the list to start chatting
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   const handleConfirmIdPhotoSuccess = (messageId: string): void => {
     // The ID photo confirmation was successful - refresh conversation data first, then close the chat window
@@ -1178,6 +1135,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       }
     }
   };
+
+  if (!conversation) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center text-center text-gray-500">
+          <img src={NoChat} alt="no_message" className="size-60" />
+          <p className="text-lg font-medium mb-3">Select a conversation</p>
+          <p className="text-sm">
+            Choose a conversation from the list to start chatting
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col bg-white h-full">
@@ -1273,23 +1244,35 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
         ) : (
           <div className="space-y-3">
-            {messages.map((message) => (
-              <MessageBubble
-                key={`${message.id}-${forceRerender}`}
-                message={message}
-                isOwnMessage={message.senderId === userData?.uid}
-                showSenderName={
-                  Object.keys(conversation.participants).length > 2
+            {(() => {
+              // Find the most recent sent message that has been seen by other users
+              let lastSeenMessageIndex = -1;
+              for (let i = messages.length - 1; i >= 0; i--) {
+                const message = messages[i];
+                if (message.senderId === userData?.uid && message.readBy && Array.isArray(message.readBy) && message.readBy.some(uid => uid !== userData?.uid)) {
+                  lastSeenMessageIndex = i;
+                  break;
                 }
-                conversationId={conversation.id}
-                currentUserId={userData?.uid || ""}
-                postOwnerId={conversation.postCreatorId}
-                onHandoverResponse={handleHandoverResponse}
-                onClaimResponse={handleClaimResponse}
-                onConfirmIdPhotoSuccess={handleConfirmIdPhotoSuccess}
-                onMessageSeen={() => handleMessageSeen(message.id)}
-              />
-            ))}
+              }
+
+              return messages.map((message, index) => (
+                <MessageBubble
+                  key={`${message.id}-${forceRerender}`}
+                  message={message}
+                  isOwnMessage={message.senderId === userData?.uid}
+                  showSenderName={true}
+                  conversationId={conversation.id}
+                  currentUserId={userData?.uid || ""}
+                  postOwnerId={conversation.postCreatorId}
+                  isLastSeenMessage={index === lastSeenMessageIndex}
+                  onHandoverResponse={handleHandoverResponse}
+                  onClaimResponse={handleClaimResponse}
+                  onConfirmIdPhotoSuccess={handleConfirmIdPhotoSuccess}
+                  onMessageSeen={() => handleMessageSeen(message.id)}
+                  conversationParticipants={conversation.participants}
+                />
+              ));
+            })()}
             <div ref={messagesEndRef} />
           </div>
         )}

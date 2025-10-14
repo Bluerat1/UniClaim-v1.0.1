@@ -12,6 +12,7 @@ import { useMessage } from "@/context/MessageContext";
 import type { Message } from "@/types/type";
 import ImagePicker from "@/components/ImagePicker";
 import ProfilePicture from "@/components/ProfilePicture";
+import ProfilePictureSeenIndicator from "@/components/ProfilePictureSeenIndicator";
 import {
   handoverClaimService,
   type HandoverClaimCallbacks,
@@ -36,6 +37,8 @@ interface MessageBubbleProps {
   onMessageSeen?: () => void;
   onImageClick?: (imageUrl: string, altText: string) => void;
   isConfirmationInProgress?: boolean;
+  conversationParticipants?: { [uid: string]: { profilePicture?: string; firstName: string; lastName: string; } };
+  isLastSeenByOthers?: boolean;
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -50,6 +53,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onMessageSeen,
   onImageClick,
   isConfirmationInProgress = false,
+  conversationParticipants = {},
+  isLastSeenByOthers = false,
 }) => {
   const { deleteMessage } = useMessage();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -62,8 +67,23 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  // For mobile, visibility detection is handled by FlatList's onViewableItemsChanged
-  // This component just provides the callback interface
+  // Convert readBy user IDs to user objects with profile data
+  const getReadersWithProfileData = () => {
+    if (!message.readBy || !Array.isArray(message.readBy)) return [];
+
+    return message.readBy
+      .filter((uid: string) => uid !== currentUserId) // Exclude current user
+      .map((uid: string) => {
+        const participant = conversationParticipants[uid];
+        return {
+          uid,
+          profilePicture: participant?.profilePicture || null,
+          firstName: participant?.firstName || 'Unknown',
+          lastName: participant?.lastName || 'User',
+        };
+      })
+      .filter(reader => reader !== null);
+  };
 
   const handleHandoverResponse = async (status: "accepted" | "rejected") => {
     if (!onHandoverResponse) return;
@@ -186,39 +206,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     );
 
     setIsUploadingIdPhoto(false);
-  };
-
-  const handleConfirmClaimIdPhoto = async () => {
-    console.log('🔄 Mobile MessageBubble: handleConfirmClaimIdPhoto called for message:', message.id);
-    console.log('🔄 Mobile MessageBubble: Message details:', {
-      id: message.id,
-      messageType: message.messageType,
-      claimDataStatus: message.claimData?.status,
-      claimDataPostTitle: message.claimData?.postTitle
-    });
-
-    const callbacks: HandoverClaimCallbacks = {
-      onClaimResponse: (messageId, status) => {
-        if (onClaimResponse) {
-          onClaimResponse(messageId, status);
-        }
-      },
-      onSuccess: (message) => Alert.alert("Success", message),
-      onError: (error) => Alert.alert("Error", error),
-      onClearConversation: () => {
-        console.log('🔄 Mobile MessageBubble: onClearConversation called for message:', message.id);
-        if (onConfirmIdPhotoSuccess) {
-          onConfirmIdPhotoSuccess(message.id);
-        }
-      },
-    };
-
-    await handoverClaimService.handleConfirmClaimIdPhoto(
-      conversationId,
-      message.id,
-      currentUserId,
-      callbacks
-    );
   };
 
   const handleDeleteMessage = async () => {
@@ -694,7 +681,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         ) : canConfirm ? (
           <View className="flex-row gap-2">
             <TouchableOpacity
-              onPress={handleConfirmClaimIdPhoto}
+              onPress={handleConfirmIdPhoto}
               disabled={isConfirmationInProgress}
               className={`px-3 py-1 rounded-md ${isConfirmationInProgress ? 'bg-gray-400' : 'bg-blue-500'}`}
             >
@@ -856,14 +843,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               <Text className="text-xs text-gray-500">
                 {formatTime(message.timestamp)}
               </Text>
-              {isOwnMessage && (
-                <View>
-                  {message.readBy && message.readBy.length > 1 ? (
-                    <Ionicons name="eye" size={12} color="#3b82f6" />
-                  ) : (
-                    <Ionicons name="checkmark" size={12} color="#9ca3af" />
-                  )}
-                </View>
+              {isOwnMessage && isLastSeenByOthers && (
+                <ProfilePictureSeenIndicator
+                  readBy={getReadersWithProfileData()}
+                  currentUserId={currentUserId}
+                  maxVisible={3}
+                  size="xs"
+                />
               )}
             </View>
 

@@ -186,8 +186,8 @@ const HandoverDetailsDisplay: React.FC<HandoverDetailsDisplayProps> = ({
                   </div>
                 )}
 
-                {/* Handover Timeline */}
-                <div className="bg-gray-50 p-2 rounded">
+                {/* Handover Timeline - HIDDEN PER USER REQUEST */}
+                {/* <div className="bg-gray-50 p-2 rounded">
                   <p className="font-medium text-gray-700 mb-1">Handover Timeline:</p>
                   <div className="space-y-1">
                     <p className="text-gray-600">
@@ -204,10 +204,10 @@ const HandoverDetailsDisplay: React.FC<HandoverDetailsDisplayProps> = ({
                       </p>
                     )}
                   </div>
-                </div>
+                </div> */}
 
-                {/* ID Photo Verification Status */}
-                <div className="bg-gray-50 p-2 rounded">
+                {/* ID Photo Verification Status - HIDDEN PER USER REQUEST */}
+                {/* <div className="bg-gray-50 p-2 rounded">
                   <p className="font-medium text-gray-700 mb-1">ID Photo Verification:</p>
                   <div className="space-y-1">
                     <p className="text-gray-600">
@@ -224,10 +224,10 @@ const HandoverDetailsDisplay: React.FC<HandoverDetailsDisplayProps> = ({
                       </>
                     )}
                   </div>
-                </div>
+                </div> */}
 
-                {/* Item Photos Verification Status */}
-                {handoverDetails.handoverRequestDetails.itemPhotos && handoverDetails.handoverRequestDetails.itemPhotos.length > 0 && (
+                {/* Item Photos Verification Status - HIDDEN PER USER REQUEST */}
+                {/* handoverDetails.handoverRequestDetails.itemPhotos && handoverDetails.handoverRequestDetails.itemPhotos.length > 0 && (
                   <div className="bg-gray-50 p-2 rounded">
                     <p className="font-medium text-gray-700 mb-1">Item Photos Verification:</p>
                     <div className="space-y-1">
@@ -249,10 +249,10 @@ const HandoverDetailsDisplay: React.FC<HandoverDetailsDisplayProps> = ({
                       )}
                     </div>
                   </div>
-                )}
+                ) */}
 
-                {/* Owner Verification Status */}
-                {handoverDetails.handoverRequestDetails.ownerIdPhoto && (
+                {/* Owner Verification Status - HIDDEN PER USER REQUEST */}
+                {/* handoverDetails.handoverRequestDetails.ownerIdPhoto && (
                   <div className="bg-gray-50 p-2 rounded">
                     <p className="font-medium text-gray-700 mb-1">Owner ID Photo Verification:</p>
                     <div className="space-y-1">
@@ -271,7 +271,7 @@ const HandoverDetailsDisplay: React.FC<HandoverDetailsDisplayProps> = ({
                       )}
                     </div>
                   </div>
-                )}
+                ) */}
               </div>
             </div>
           )}

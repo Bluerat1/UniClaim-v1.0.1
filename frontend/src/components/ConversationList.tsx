@@ -191,8 +191,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
     }
 
     const creator = conversation.participants[conversation.postCreatorId];
-    console.log("🔍 Post creator participant data:", creator);
-
+    
     const firstName = creator.firstName || "";
     const lastName = creator.lastName || "";
 
@@ -202,8 +201,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
     }
 
     const fullName = `${firstName} ${lastName}`.trim();
-    console.log("✅ Post creator name:", fullName);
-    return fullName || "Unknown User";
+        return fullName || "Unknown User";
   };
 
   // Get the post creator's profile picture

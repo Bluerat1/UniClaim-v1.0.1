@@ -8,7 +8,8 @@ import { messageService } from "../services/firebase/messages";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { AiOutlineDelete } from "react-icons/ai";
-import { EyeIcon } from "@heroicons/react/24/outline";
+import ProfilePictureSeenIndicator from "./ProfilePictureSeenIndicator";
+import ProfilePicture from "./ProfilePicture";
 
 interface MessageBubbleProps {
   message: Message;
@@ -17,6 +18,8 @@ interface MessageBubbleProps {
   conversationId: string;
   currentUserId: string;
   postOwnerId?: string; // Add post owner ID for handover confirmation logic
+  isLastSeenMessage?: boolean; // Indicates if this is the most recent message that has been seen by other users
+  conversationParticipants?: { [uid: string]: { profilePicture?: string; profileImageUrl?: string; firstName: string; lastName: string; } };
   onHandoverResponse?: (
     messageId: string,
     status: "accepted" | "rejected"
@@ -25,8 +28,8 @@ interface MessageBubbleProps {
     messageId: string,
     status: "accepted" | "rejected"
   ) => void;
-  onConfirmIdPhotoSuccess?: (_messageId: string) => void;
-  onMessageSeen?: () => void; // Callback when message is seen
+  onConfirmIdPhotoSuccess?: (messageId: string) => void;
+  onMessageSeen?: (messageId: string) => void; // Callback when message is seen
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -36,8 +39,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   conversationId,
   currentUserId,
   postOwnerId,
+  isLastSeenMessage = false,
+  conversationParticipants = {},
   onHandoverResponse,
   onClaimResponse,
+  onConfirmIdPhotoSuccess,
   onMessageSeen,
 }) => {
   const { deleteMessage } = useMessage();
@@ -66,6 +72,24 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     // Check if any user other than the current user has read this message
     return message.readBy.some(userId => userId !== currentUserId);
   };
+
+  // Convert readBy user IDs to user objects with profile data
+  const getReadersWithProfileData = () => {
+    if (!message.readBy || !Array.isArray(message.readBy)) return [];
+
+    return message.readBy
+      .filter((uid: string) => uid !== currentUserId) // Exclude current user
+      .map((uid: string) => {
+        const participant = conversationParticipants[uid];
+        return {
+          uid,
+          profilePicture: participant?.profilePicture || null,
+          firstName: participant?.firstName || 'Unknown',
+          lastName: participant?.lastName || 'User',
+        };
+      })
+      .filter(reader => reader !== null);
+  };
   useEffect(() => {
     if (!messageRef.current || !onMessageSeen || hasBeenSeen || isOwnMessage)
       return;
@@ -75,7 +99,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             setHasBeenSeen(true);
-            onMessageSeen();
+            onMessageSeen(message.id);
             observer.disconnect();
           }
         });
@@ -219,11 +243,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const handleConfirmIdPhoto = async () => {
-    await handoverClaimService.handleConfirmIdPhoto(
-      conversationId,
-      message.id,
-      currentUserId
-    );
+    try {
+      await handoverClaimService.handleConfirmIdPhoto(
+        conversationId,
+        message.id,
+        currentUserId
+      );
+      // Call parent callback after successful confirmation
+      onConfirmIdPhotoSuccess?.(message.id);
+    } catch (error) {
+      console.error("Error confirming ID photo:", error);
+      showToast('error', "Failed to confirm ID photo. Please try again.");
+    }
   };
 
   const handleClaimResponse = async (status: "accepted" | "rejected") => {
@@ -335,11 +366,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const handleConfirmClaimIdPhoto = async () => {
-    await handoverClaimService.handleConfirmClaimIdPhoto(
-      conversationId,
-      message.id,
-      currentUserId
-    );
+    try {
+      await handoverClaimService.handleConfirmClaimIdPhoto(
+        conversationId,
+        message.id,
+        currentUserId
+      );
+      // Call parent callback after successful confirmation
+      onConfirmIdPhotoSuccess?.(message.id);
+    } catch (error) {
+      console.error("Error confirming claim ID photo:", error);
+      showToast('error', "Failed to confirm claim ID photo. Please try again.");
+    }
   };
 
   const handleDeleteMessage = async () => {
@@ -1138,21 +1176,35 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         isOwnMessage ? "items-end" : "items-start"
       }`}
     >
+      {/* Sender Name - Outside the bubble */}
+      {showSenderName && !isOwnMessage && (
+        <div className={`mb-1 ${isOwnMessage ? "text-right" : "text-left"}`}>
+          <div className="flex items-center gap-2">
+            <ProfilePicture
+              src={
+                message.senderProfilePicture ||
+                conversationParticipants[message.senderId]?.profilePicture ||
+                conversationParticipants[message.senderId]?.profileImageUrl
+              }
+              alt={`${message.senderName || `${conversationParticipants[message.senderId]?.firstName || 'Unknown'} ${conversationParticipants[message.senderId]?.lastName || 'User'}`} profile`}
+              className="size-6"
+            />
+            <div className="text-xs font-medium text-gray-600">
+              {message.senderName || `${conversationParticipants[message.senderId]?.firstName || 'Unknown'} ${conversationParticipants[message.senderId]?.lastName || 'User'}`}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Message Bubble */}
       <div
-        className={`relative p-3 rounded-lg break-words whitespace-pre-wrap 
+        className={`relative p-3 rounded-lg break-words whitespace-pre-wrap
                 inline-block max-w-xs lg:max-w-lg ${
                   isOwnMessage
                     ? "bg-navyblue text-white"
                     : "bg-gray-100 text-gray-900"
                 }`}
       >
-        {showSenderName && !isOwnMessage && (
-          <div className="text-xs font-medium text-gray-600 mb-1">
-            {message.senderName}
-          </div>
-        )}
-
         {message.text && <div className="text-sm">{message.text}</div>}
 
         {renderHandoverRequest()}
@@ -1177,9 +1229,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             {formatTime(message.timestamp)}
           </span>
 
-          {/* Seen indicator - show on sent messages when others have read them */}
-          {isOwnMessage && hasOtherUsersSeenMessage() && (
-            <EyeIcon className="w-3 h-3 text-gray-400" title="Seen by others" />
+          {/* Seen indicator - show on sent messages when counterpart has read them (only on last seen message) */}
+          {isOwnMessage && isLastSeenMessage && hasOtherUsersSeenMessage() && (
+            <ProfilePictureSeenIndicator
+              readBy={getReadersWithProfileData()}
+              currentUserId={currentUserId}
+              maxVisible={3}
+              size="xs"
+            />
           )}
 
           {isOwnMessage && (

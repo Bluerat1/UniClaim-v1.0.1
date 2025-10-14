@@ -186,8 +186,8 @@ const ClaimDetailsDisplay: React.FC<ClaimDetailsDisplayProps> = ({
                   </div>
                 )}
 
-                {/* Claim Timeline */}
-                <div className="bg-gray-50 p-2 rounded">
+                {/* Claim Timeline - HIDDEN PER USER REQUEST */}
+                {/* <div className="bg-gray-50 p-2 rounded">
                   <p className="font-medium text-gray-700 mb-1">Claim Timeline:</p>
                   <div className="space-y-1">
                     <p className="text-gray-600">
@@ -204,10 +204,10 @@ const ClaimDetailsDisplay: React.FC<ClaimDetailsDisplayProps> = ({
                       </p>
                     )}
                   </div>
-                </div>
+                </div> */}
 
-                {/* Claimer ID Photo Verification Status */}
-                <div className="bg-gray-50 p-2 rounded">
+                {/* Claimer ID Photo Verification Status - HIDDEN PER USER REQUEST */}
+                {/* <div className="bg-gray-50 p-2 rounded">
                   <p className="font-medium text-gray-700 mb-1">Claimer ID Photo Verification:</p>
                   <div className="space-y-1">
                     <p className="text-gray-600">
@@ -224,10 +224,10 @@ const ClaimDetailsDisplay: React.FC<ClaimDetailsDisplayProps> = ({
                       </>
                     )}
                   </div>
-                </div>
+                </div> */}
 
-                {/* Evidence Photos Verification Status */}
-                {claimDetails.claimRequestDetails.evidencePhotos && claimDetails.claimRequestDetails.evidencePhotos.length > 0 && (
+                {/* Evidence Photos Verification Status - HIDDEN PER USER REQUEST */}
+                {/* claimDetails.claimRequestDetails.evidencePhotos && claimDetails.claimRequestDetails.evidencePhotos.length > 0 && (
                   <div className="bg-gray-50 p-2 rounded">
                     <p className="font-medium text-gray-700 mb-1">Evidence Photos Verification:</p>
                     <div className="space-y-1">
@@ -249,10 +249,10 @@ const ClaimDetailsDisplay: React.FC<ClaimDetailsDisplayProps> = ({
                       )}
                     </div>
                   </div>
-                )}
+                ) */}
 
-                {/* Owner Verification Status */}
-                {claimDetails.claimRequestDetails.ownerIdPhoto && (
+                {/* Owner Verification Status - HIDDEN PER USER REQUEST */}
+                {/* claimDetails.claimRequestDetails.ownerIdPhoto && (
                   <div className="bg-gray-50 p-2 rounded">
                     <p className="font-medium text-gray-700 mb-1">Owner ID Photo Verification:</p>
                     <div className="space-y-1">
@@ -271,7 +271,7 @@ const ClaimDetailsDisplay: React.FC<ClaimDetailsDisplayProps> = ({
                       )}
                     </div>
                   </div>
-                )}
+                ) */}
               </div>
             </div>
           )}
