@@ -12,7 +12,7 @@ import React from "react";
 import { ScrollView, Text, TouchableOpacity, View, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { RootStackParamList } from "../../types/type";
-import LocationMapView from '../../components/LocationMapView';
+import LocationMapView from "../../components/LocationMapView";
 import { useAuth } from "../../context/AuthContext";
 
 type PostDetailsRouteProp = RouteProp<RootStackParamList, "PostDetails">;
@@ -26,7 +26,8 @@ export default function PostDetailsScreen() {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   // Check if current user is the creator of this post
-  const isCurrentUserCreator = userData?.uid === post.creatorId || userData?.uid === post.postedById;
+  const isCurrentUserCreator =
+    userData?.uid === post.creatorId || userData?.uid === post.postedById;
 
   const getCategoryBadgeStyle = (category: string) => {
     switch (category.toLowerCase()) {
@@ -63,46 +64,48 @@ export default function PostDetailsScreen() {
 
         {/* Send Message Button - Only show if user is NOT the creator */}
         {!isCurrentUserCreator && (
-          <TouchableOpacity 
+          <TouchableOpacity
             className="bg-brand h-[3.5rem] mb-5 w-full items-center justify-center rounded-md"
             onPress={() => {
               // Debug: Log post data to see what's available
-              console.log('PostDetails - Post data for messaging:', {
+              console.log("PostDetails - Post data for messaging:", {
                 id: post.id,
                 title: post.title,
                 postedById: post.postedById,
                 user: post.user,
                 hasPostedById: !!post.postedById,
-                userKeys: Object.keys(post.user || {})
+                userKeys: Object.keys(post.user || {}),
               });
 
               // Try to get postOwnerId from multiple sources
               let postOwnerId = post.creatorId || post.postedById;
-              
+
               // Fallback: if postedById is missing, try to get it from the user object
               if (!postOwnerId && post.user) {
                 // For now, we'll show an alert, but in the future we could implement
                 // a way to get the user ID from the user object or other means
-                console.warn('PostDetails - postedById missing, cannot start conversation');
+                console.warn(
+                  "PostDetails - postedById missing, cannot start conversation"
+                );
               }
 
               // Navigate to Chat screen with post details
               if (postOwnerId) {
-                (navigation as any).navigate('Chat', {
+                (navigation as any).navigate("Chat", {
                   postTitle: post.title,
                   postId: post.id,
                   postOwnerId: postOwnerId,
                   postOwnerUserData: post.user, // Pass the post owner's user data
                   postType: post.type, // Pass post type (lost/found)
-                  postStatus: post.status || 'pending', // Pass post status
-                  foundAction: post.foundAction // Pass found action for found items
+                  postStatus: post.status || "pending", // Pass post status
+                  foundAction: post.foundAction, // Pass found action for found items
                 });
               } else {
                 // Fallback: show alert that messaging is not available
                 Alert.alert(
-                  'Messaging Unavailable',
-                  'Unable to start conversation. Post owner information is missing. This post was created before messaging was enabled.',
-                  [{ text: 'OK' }]
+                  "Messaging Unavailable",
+                  "Unable to start conversation. Post owner information is missing. This post was created before messaging was enabled.",
+                  [{ text: "OK" }]
                 );
               }
             }}
@@ -188,9 +191,11 @@ export default function PostDetailsScreen() {
                   post.foundAction === "keep" ? "text-black" : "text-black"
                 }`}
               >
-                {post.foundAction === "keep" ? "Keep" : 
-                 post.foundAction === "turnover to OSA" ? "OSA" : 
-                 "Campus Security"}
+                {post.foundAction === "keep"
+                  ? "Keep"
+                  : post.foundAction === "turnover to OSA"
+                    ? "OSA"
+                    : "Campus Security"}
               </Text>
             </View>
           </View>
@@ -220,25 +225,25 @@ export default function PostDetailsScreen() {
               {(() => {
                 // Priority: dateTime (when item was lost/found) > createdAt (when post was created)
                 let dateToShow: Date | null = null;
-                
+
                 if (post.dateTime) {
                   dateToShow = new Date(post.dateTime);
                 } else if (post.createdAt) {
                   dateToShow = new Date(post.createdAt);
                 }
-                
+
                 if (!dateToShow || isNaN(dateToShow.getTime())) {
-                  return 'Date not available';
+                  return "Date not available";
                 }
-                
+
                 // Show both date and time in a user-friendly format
-                return dateToShow.toLocaleString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: true
+                return dateToShow.toLocaleString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: true,
                 });
               })()}
             </Text>
@@ -253,8 +258,15 @@ export default function PostDetailsScreen() {
 
         <View className="mt-1 mb-3">
           <Text className="mb-2 font-manrope-semibold">Last Seen Location</Text>
+
           <View className="bg-zinc-100 justify-center w-full p-3 h-[3.5rem] border border-zinc-200 rounded-md">
-            <Text className="text-base capitalize font-manrope-medium text-black">
+            <Text
+              className="text-base font-manrope-medium text-black flex-shrink"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.9}
+              ellipsizeMode="tail"
+            >
               {post.location}
             </Text>
           </View>
@@ -263,9 +275,9 @@ export default function PostDetailsScreen() {
         <View className="mt-1 mb-3">
           <Text className="mb-2 font-manrope-semibold">Location Map</Text>
           {post.coordinates ? (
-            <LocationMapView 
-              coordinates={post.coordinates} 
-              location={post.location} 
+            <LocationMapView
+              coordinates={post.coordinates}
+              location={post.location}
             />
           ) : (
             <View className="bg-zinc-100 w-full p-3 h-[20rem] border border-zinc-200 rounded-md justify-center items-center">
@@ -273,7 +285,7 @@ export default function PostDetailsScreen() {
               <Text className="text-base font-manrope-medium text-gray-600 mt-2 text-center">
                 No coordinates available
               </Text>
-              <Text className="text-xs font-manrope-medium text-gray-500 mt-1 text-center">
+              <Text className="text-xs font-manrope-medium text-gray-500 mt-1 text-center ">
                 Location: {post.location}
               </Text>
             </View>
@@ -303,7 +315,7 @@ export default function PostDetailsScreen() {
           <Text className="mb-2 font-manrope-semibold">Contact Number</Text>
           <View className="bg-zinc-100 justify-center w-full p-3 h-[3.5rem] border border-zinc-200 rounded-md">
             <Text className="text-base capitalize font-manrope-medium text-black">
-              {post.user.contactNum || 'Not provided'}
+              {post.user.contactNum || "Not provided"}
             </Text>
           </View>
         </View>
@@ -311,7 +323,7 @@ export default function PostDetailsScreen() {
         <View className="mt-1 mb-3">
           <Text className="mb-2 font-manrope-semibold">Email</Text>
           <View className="bg-zinc-100 justify-center w-full p-3 h-[3.5rem] border border-zinc-200 rounded-md">
-            <Text className="text-base capitalize font-manrope-medium text-black">
+            <Text className="text-base font-manrope-medium text-black">
               {post.user.email}
             </Text>
           </View>
@@ -441,7 +453,6 @@ export default function PostDetailsScreen() {
           </View>
         )}
         */}
-
       </ScrollView>
     </SafeAreaView>
   );

@@ -6,8 +6,6 @@ import {
   TextInput,
   ScrollView,
   Alert,
-  ActivityIndicator,
-  StyleSheet,
 } from "react-native";
 import ImagePicker from "./ImagePicker";
 import { cloudinaryService } from "../utils/cloudinary";
@@ -23,168 +21,7 @@ interface HandoverModalProps {
   }) => void;
   isLoading?: boolean;
   postTitle: string;
-};
-
-const styles = StyleSheet.create({
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2000,
-  },
-  modalContainer: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    margin: 20,
-    width: '90%',
-    maxWidth: 500,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#3B82F6',
-    backgroundColor: '#EFF6FF',
-    padding: 12,
-    borderRadius: 6,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  formSection: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  required: {
-    color: '#EF4444',
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
-    textAlignVertical: 'top',
-  },
-  successText: {
-    color: '#10B981',
-    fontSize: 14,
-    flex: 1,
-  },
-  removeButton: {
-    padding: 4,
-  },
-  removeButtonText: {
-    color: '#EF4444',
-    fontSize: 14,
-  },
-  uploadArea: {
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    padding: 20,
-    alignItems: 'center',
-    backgroundColor: 'white',
-  },
-  uploadIcon: {
-    marginBottom: 12,
-  },
-  uploadText: {
-    color: '#6B7280',
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  uploadSubtext: {
-    color: '#9CA3AF',
-    fontSize: 12,
-  },
-  itemPhotoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    padding: 8,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 6,
-  },
-  itemPhotoText: {
-    color: '#10B981',
-    fontSize: 14,
-    flex: 1,
-  },
-  addButton: {
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    backgroundColor: 'white',
-  },
-  addButtonText: {
-    color: '#6B7280',
-    fontSize: 14,
-    marginTop: 4,
-    marginBottom: 4,
-  },
-  addButtonSubtext: {
-    color: '#9CA3AF',
-    fontSize: 12,
-  },
-  submitButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  submitButtonEnabled: {
-    backgroundColor: '#10B981',
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#9CA3AF',
-  },
-  submitButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  cancelButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#FEE2E2',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    color: '#DC2626',
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  buttonContainer: {
-    flexDirection: 'column',
-    gap: 12,
-    marginTop: 20,
-  },
-  loadingText: {
-    color: 'white',
-  },
-});
+}
 
 export default function HandoverModal({
   visible,
@@ -196,8 +33,6 @@ export default function HandoverModal({
   const [handoverReason, setHandoverReason] = useState("");
   const [idPhotoUri, setIdPhotoUri] = useState("");
   const [itemPhotoUris, setItemPhotoUris] = useState<string[]>([]);
-  const [isUploadingIdPhoto, setIsUploadingIdPhoto] = useState(false);
-  const [isUploadingItemPhoto, setIsUploadingItemPhoto] = useState(false);
   const [isHandoverSubmitting, setIsHandoverSubmitting] = useState(false);
   const [showIdPhotoPicker, setShowIdPhotoPicker] = useState(false);
   const [showItemPhotoPicker, setShowItemPhotoPicker] = useState(false);
@@ -235,13 +70,11 @@ export default function HandoverModal({
     try {
       setIsHandoverSubmitting(true);
 
-      // Upload ID photo
       const idPhotoUrl = await cloudinaryService.uploadImage(
         idPhotoUri,
         "id_photos"
       );
 
-      // Upload item photos
       const itemPhotos = await Promise.all(
         itemPhotoUris.map(async (uri) => {
           const url = await cloudinaryService.uploadImage(uri, "item_photos");
@@ -280,111 +113,104 @@ export default function HandoverModal({
   if (!visible) return null;
 
   return (
-    <View style={styles.modalOverlay}>
-      <View style={styles.modalContainer}>
+    <View className="absolute inset-0 bg-black/50 justify-center items-center z-[2000]">
+      <View className="bg-white rounded-xl p-5 mx-5 w-[90%] max-h-[80%]">
         <ScrollView showsVerticalScrollIndicator={false}>
-          <Text style={styles.title}>
+          <Text className="text-lg font-manrope-bold mb-2 text-center">
             Handover Request
           </Text>
 
-          <Text style={styles.subtitle}>
+          <Text className="text-sm text-blue-500 bg-blue-50 border border-blue-300 p-3 rounded-md mb-5 text-center">
             Requesting to handover: {postTitle}
           </Text>
 
           {/* Handover Reason */}
-          <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>
-              Reason for Handover <Text style={styles.required}>*</Text>
+          <View className="mb-5">
+            <Text className="text-base font-manrope-semibold mb-2">
+              Reason for Handover <Text className="text-red-500">*</Text>
             </Text>
             <TextInput
-              style={styles.textInput}
-              placeholder="State why do you want to hand over this item..."
+              className="border border-gray-300 font-inter rounded-lg p-3 text-sm text-gray-800"
+              placeholder="State why you want to hand over this item..."
               value={handoverReason}
               onChangeText={setHandoverReason}
               multiline
               numberOfLines={4}
+              placeholderTextColor="#9CA3AF"
             />
           </View>
 
           {/* ID Photo Selection */}
-          <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>
-              ID Photo for Verification <Text style={styles.required}>*</Text>
+          <View className="mb-5">
+            <Text className="text-base font-manrope-semibold mb-2">
+              ID Photo for Verification <Text className="text-red-500">*</Text>
             </Text>
             {idPhotoUri ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <Text style={styles.successText}>
+              <View className="flex-row items-center mb-2">
+                <Text className="text-green-500 text-sm flex-1">
                   ✓ ID photo selected
                 </Text>
-                <TouchableOpacity
-                  onPress={() => setIdPhotoUri("")}
-                  style={styles.removeButton}
-                >
-                  <Text style={styles.removeButtonText}>Remove</Text>
+                <TouchableOpacity onPress={() => setIdPhotoUri("")}>
+                  <Text className="text-red-500 text-sm">Remove</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <TouchableOpacity
                 onPress={() => setShowIdPhotoPicker(true)}
-                style={styles.uploadArea}
+                className="border-2 border-gray-300 border-dashed rounded-lg p-5 items-center bg-white"
               >
-                <View style={{ alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-                  <Ionicons name="camera-outline" size={30} color="gray" />
-                  <Text style={styles.uploadText}>
-                    Tap to select ID photo
-                  </Text>
-                </View>
-                <Text style={styles.uploadSubtext}>
+                <Ionicons name="camera-outline" size={30} color="gray" />
+                <Text className="text-gray-500 font-inter text-sm mt-3">
+                  Tap to select ID photo
+                </Text>
+                <Text className="text-gray-400 text-xs font-inter mt-1">
                   Required for verification
                 </Text>
               </TouchableOpacity>
             )}
           </View>
 
-          {/* Item Photos Selection */}
-          <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>
-              Item Photos <Text style={styles.required}>*</Text>
+          {/* Item Photos */}
+          <View className="mb-5">
+            <Text className="text-base font-manrope-semibold mb-2">
+              Item Photos <Text className="text-red-500">*</Text>
             </Text>
-            <Text style={[styles.uploadSubtext, { marginBottom: 8 }]}>
+            <Text className="text-xs font-inter text-gray-400 mb-2">
               Select photos of the item (up to 3 photos)
             </Text>
 
-            {/* Selected Item Photos */}
             {itemPhotoUris.map((uri, index) => (
               <View
                 key={index}
-                style={styles.itemPhotoContainer}
+                className="flex-row items-center mb-2 p-2 bg-gray-50 rounded-md"
               >
-                <Text style={styles.itemPhotoText}>
+                <Text className="text-green-500 font-inter text-sm flex-1">
                   ✓ Photo {index + 1} selected
                 </Text>
-                <TouchableOpacity
-                  onPress={() => removeItemPhoto(index)}
-                  style={styles.removeButton}
-                >
-                  <Text style={styles.removeButtonText}>Remove</Text>
+                <TouchableOpacity onPress={() => removeItemPhoto(index)}>
+                  <Text className="text-red-500 text-sm">Remove</Text>
                 </TouchableOpacity>
               </View>
             ))}
 
-            {/* Add Item Photo Button */}
             {itemPhotoUris.length < 3 && (
               <TouchableOpacity
                 onPress={() => setShowItemPhotoPicker(true)}
-                style={styles.addButton}
+                className="border-2 border-gray-300 border-dashed rounded-lg p-4 items-center bg-white"
               >
                 <Ionicons name="camera-outline" size={30} color="gray" />
-                <Text style={styles.addButtonText}>
+                <Text className="text-gray-500 text-sm font-inter mt-2">
                   Add Item Photo ({itemPhotoUris.length}/3)
                 </Text>
-                <Text style={styles.addButtonSubtext}>Tap to select</Text>
+                <Text className="text-gray-400 font-inter text-xs mt-1">
+                  Tap to select
+                </Text>
               </TouchableOpacity>
             )}
           </View>
 
-          {/* Action Buttons */}
-          <View style={styles.buttonContainer}>
+          {/* Buttons */}
+          <View className="flex-col gap-3 mt-5">
             <TouchableOpacity
               onPress={handleSubmit}
               disabled={
@@ -394,28 +220,28 @@ export default function HandoverModal({
                 !idPhotoUri ||
                 itemPhotoUris.length === 0
               }
-              style={[
-                styles.submitButton,
-                (isLoading ||
+              className={`rounded-lg py-3 items-center ${
+                isLoading ||
                 isHandoverSubmitting ||
                 !handoverReason.trim() ||
                 !idPhotoUri ||
-                itemPhotoUris.length === 0)
-                  ? styles.submitButtonDisabled
-                  : styles.submitButtonEnabled,
-              ]}
+                itemPhotoUris.length === 0
+                  ? "bg-gray-400"
+                  : "bg-green-500"
+              }`}
             >
-              <Text style={styles.submitButtonText}>
+              <Text className="text-white text-base font-manrope-semibold">
                 {isLoading || isHandoverSubmitting
                   ? "Uploading & Sending..."
                   : "Send Request"}
               </Text>
             </TouchableOpacity>
+
             <TouchableOpacity
               onPress={handleClose}
-              style={styles.cancelButton}
+              className="rounded-lg py-3 items-center bg-red-100"
             >
-              <Text style={styles.cancelButtonText}>
+              <Text className="text-red-600 text-base font-manrope-semibold">
                 Cancel
               </Text>
             </TouchableOpacity>
@@ -431,7 +257,6 @@ export default function HandoverModal({
           isUploading={false}
         />
       )}
-
       {showItemPhotoPicker && (
         <ImagePicker
           onImageSelect={handleItemPhotoSelect}
