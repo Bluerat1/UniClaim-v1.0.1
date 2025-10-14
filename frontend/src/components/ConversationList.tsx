@@ -5,6 +5,7 @@ import type { Conversation } from "../types/Post";
 import LoadingSpinner from "./LoadingSpinner";
 import ProfilePicture from "./ProfilePicture";
 import { useSearchParams } from "react-router-dom";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
 interface ConversationListProps {
   onSelectConversation: (conversation: Conversation | null) => void;
@@ -141,6 +142,69 @@ const ConversationList: React.FC<ConversationListProps> = ({
     });
   }, [conversations]);
 
+  const [searchText, setSearchText] = useState("");
+  const [debouncedSearchText, setDebouncedSearchText] = useState("");
+
+  // Debounce search text to reduce excessive filtering
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchText(searchText);
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchText]);
+
+  // Filter conversations based on search
+  const filteredConversations: Conversation[] = useMemo(() => {
+    if (!debouncedSearchText.trim()) {
+      return sortedConversations;
+    }
+
+    const searchLower = debouncedSearchText.toLowerCase();
+    return sortedConversations.filter((conversation) => {
+      // Search in post title
+      if (conversation.postTitle?.toLowerCase().includes(searchLower)) {
+        return true;
+      }
+
+      // Search in participant names
+      const participantNames = Object.values(conversation.participants || {})
+        .map((p: any) => `${p.firstName} ${p.lastName}`.toLowerCase())
+        .join(' ');
+
+      if (participantNames.includes(searchLower)) {
+        return true;
+      }
+
+      // Search in last message text
+      if (conversation.lastMessage?.text?.toLowerCase().includes(searchLower)) {
+        return true;
+      }
+
+      return false;
+    });
+  }, [sortedConversations, debouncedSearchText]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Calculate pagination
+  const totalPostsToShow = Math.min(
+    filteredConversations.length,
+    currentPage * itemsPerPage
+  );
+  const hasMore = filteredConversations.length > totalPostsToShow;
+
+  // Function to load more conversations when scrolling
+  const handleLoadMore = () => {
+    if (hasMore && !loading) {
+      setCurrentPage((prev) => prev + 1);
+    }
+  };
+
+  // Use the infinite scroll hook
+  const loadingRef = useInfiniteScroll(handleLoadMore, hasMore, loading);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -149,14 +213,16 @@ const ConversationList: React.FC<ConversationListProps> = ({
     );
   }
 
-  if (sortedConversations.length === 0) {
+  if (filteredConversations.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="flex flex-col items-center text-gray-500 text-center">
           <div className="text-6xl mb-4">💬</div>
-          <p className="text-lg font-medium">No conversations yet</p>
+          <p className="text-lg font-medium">
+            {debouncedSearchText.trim() ? "No conversations found" : "No conversations yet"}
+          </p>
           <p className="text-sm text-gray-400">
-            Start chatting about lost and found items!
+            {debouncedSearchText.trim() ? "Try a different search term" : "Start chatting about lost and found items!"}
           </p>
         </div>
       </div>
@@ -201,7 +267,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
     }
 
     const fullName = `${firstName} ${lastName}`.trim();
-        return fullName || "Unknown User";
+    return fullName || "Unknown User";
   };
 
   // Get the post creator's profile picture
@@ -277,151 +343,183 @@ const ConversationList: React.FC<ConversationListProps> = ({
       <div className="pl-7 pr-4 py-3 border-b border-gray-200 flex-shrink-0">
         <h1 className="text-xl font-semibold">Contacts</h1>
         <p className="text-sm text-gray-500">
-          {sortedConversations.length} conversation
-          {sortedConversations.length !== 1 ? "s" : ""}
+          {filteredConversations.length} conversation
+          {filteredConversations.length !== 1 ? "s" : ""}
+          {debouncedSearchText.trim() && ` matching "${debouncedSearchText}"`}
         </p>
       </div>
 
-      <div className="overflow-y-auto flex-1">
-        {sortedConversations.map((conversation) => {
-          const isSelected = selectedConversationId === conversation.id;
-          // Get the current user's unread count from this conversation
-          const hasUnread =
-            conversation.unreadCounts?.[userData?.uid || ""] > 0;
-
-          return (
-            <div
-              key={conversation.id}
-              onClick={() => handleConversationClick(conversation)}
-              className={`p-4 border-b border-gray-100 cursor-pointer transition-colors hover:bg-zinc-100 ${
-                isSelected
-                  ? "bg-brand/10 border-l-3 border-l-brand"
-                  : "hover:bg-brand/10"
-              }`}
+      {/* Search Input */}
+      <div className="p-4 border-b border-gray-200">
+        <div className="relative">
+          <input
+            type="text"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Search conversations..."
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand focus:border-transparent text-sm"
+          />
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          {searchText && (
+            <button
+              onClick={() => setSearchText("")}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center"
             >
-              <div className="flex items-start justify-between mb-2 pl-3">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="relative flex-shrink-0">
-                    <ProfilePicture
-                      src={
-                        userData
-                          ? conversation.isAdminPost
-                            ? getPostCreatorProfilePicture(conversation)
-                            : getOtherParticipantProfilePicture(
-                                conversation,
-                                userData.uid
-                              )
-                          : null
-                      }
-                      alt="participant profile"
-                      className="flex-shrink-0 size-9"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-gray-900 truncate">
-                        {conversation.postTitle}
-                      </h3>
-                      {/* Post Type Badge */}
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0 ml-1 ${
-                          conversation.postType === "found"
-                            ? "bg-green-200 text-green-800"
-                            : "bg-orange-300 text-orange-800"
-                        }`}
-                      >
-                        {conversation.postType === "found" ? "FOUND" : "LOST"}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-500 truncate">
-                      {userData
-                        ? conversation.isAdminPost
-                          ? `${getPostCreatorName(conversation)}${conversation.isAdminPost ? " (Admin)" : ""}`
-                          : getOtherParticipantName(conversation, userData.uid)
-                        : "Unknown User"}
-                    </p>
-                  </div>
-                </div>
-                {hasUnread && (
-                  <div className=" mr-5 mt-7 w-2 h-2 bg-blue-500 rounded-full" />
-                )}
-              </div>
+              <svg className="h-4 w-4 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
 
-              {conversation.lastMessage ? (
-                <div className="flex items-center justify-between pl-3">
-                  <div className="flex-1 min-w-0 mr-2">
-                    <p
-                      className={`text-sm truncate ${
-                        hasUnread
-                          ? "font-semibold text-gray-800"
-                          : "text-gray-600"
+    <div className="overflow-y-auto flex-1">
+      {filteredConversations.slice(0, totalPostsToShow).map((conversation: Conversation) => {
+        const isSelected = selectedConversationId === conversation.id;
+        // Get the current user's unread count from this conversation
+        const hasUnread =
+          conversation.unreadCounts?.[userData?.uid || ""] > 0;
+
+        return (
+          <div
+            key={conversation.id}
+            onClick={() => handleConversationClick(conversation)}
+            className={`p-4 border-b border-gray-100 cursor-pointer transition-colors hover:bg-zinc-100 ${
+              isSelected
+                ? "bg-brand/10 border-l-3 border-l-brand"
+                : "hover:bg-brand/10"
+            }`}
+          >
+            <div className="flex items-start justify-between mb-2 pl-3">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="relative flex-shrink-0">
+                  <ProfilePicture
+                    src={
+                      userData
+                        ? conversation.isAdminPost
+                          ? getPostCreatorProfilePicture(conversation)
+                          : getOtherParticipantProfilePicture(
+                              conversation,
+                              userData.uid
+                            )
+                        : null
+                    }
+                    alt="participant profile"
+                    className="flex-shrink-0 size-9"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium text-gray-900 truncate">
+                      {conversation.postTitle}
+                    </h3>
+                    {/* Post Type Badge */}
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0 ml-1 ${
+                        conversation.postType === "found"
+                          ? "bg-green-200 text-green-800"
+                          : "bg-orange-300 text-orange-800"
                       }`}
                     >
-                      <span className="font-medium">
-                        {userData
-                          ? getLastMessageSenderName(conversation, userData.uid)
-                          : "Unknown User"}
-                      </span>
-                      {conversation.lastMessage?.text &&
-                        `: ${conversation.lastMessage.text}`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-gray-400 whitespace-nowrap">
-                      {formatTimestamp(conversation.lastMessage.timestamp)}
+                      {conversation.postType === "found" ? "FOUND" : "LOST"}
                     </span>
-                    {conversation.lastMessage.senderId !== userData?.uid && (
-                      <span className="text-xs">
-                        {conversation.lastMessage.readBy &&
-                        conversation.lastMessage.readBy.includes(
-                          userData?.uid || ""
-                        ) ? (
-                          <span className="text-blue-500" title="Seen">
-                            <svg
-                              className="w-3 h-3"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                              <path
-                                fillRule="evenodd"
-                                d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          </span>
-                        ) : (
-                          <span className="text-gray-400" title="Not seen">
-                            <svg
-                              className="w-3 h-3"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          </span>
-                        )}
-                      </span>
-                    )}
                   </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between pl-3">
-                  <p className="text-sm text-gray-400 italic">
-                    No messages yet
+                  <p className="text-sm text-gray-500 truncate">
+                    {userData
+                      ? conversation.isAdminPost
+                        ? `${getPostCreatorName(conversation)}${conversation.isAdminPost ? " (Admin)" : ""}`
+                        : getOtherParticipantName(conversation, userData.uid)
+                      : "Unknown User"}
                   </p>
                 </div>
+              </div>
+              {hasUnread && (
+                <div className=" mr-5 mt-7 w-2 h-2 bg-blue-500 rounded-full" />
               )}
             </div>
-          );
-        })}
-      </div>
+
+            {conversation.lastMessage ? (
+              <div className="flex items-center justify-between pl-3">
+                <div className="flex-1 min-w-0 mr-2">
+                  <p
+                    className={`text-sm truncate ${
+                      hasUnread
+                        ? "font-semibold text-gray-800"
+                        : "text-gray-600"
+                    }`}
+                  >
+                    <span className="font-medium">
+                      {userData
+                        ? getLastMessageSenderName(conversation, userData.uid)
+                        : "Unknown User"}
+                    </span>
+                    {conversation.lastMessage?.text &&
+                      `: ${conversation.lastMessage.text}`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-gray-400 whitespace-nowrap">
+                    {formatTimestamp(conversation.lastMessage.timestamp)}
+                  </span>
+                  {conversation.lastMessage.senderId !== userData?.uid && (
+                    <span className="text-xs">
+                      {(() => {
+                        if (conversation.lastMessage.readBy &&
+                            conversation.lastMessage.readBy.includes(userData?.uid || "")) {
+                          return (
+                            <span className="text-blue-500" title="Seen">
+                              <svg
+                                className="w-3 h-3"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </span>
+                          );
+                        }
+                      })()}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between pl-3">
+                <p className="text-sm text-gray-400 italic">
+                  No messages yet
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Invisible loading indicator for scroll-to-load */}
+      {hasMore && (
+        <div
+          ref={loadingRef}
+          className="h-10 flex items-center justify-center my-6"
+        >
+          {loading ? (
+            <div className="text-gray-500 text-sm">Loading more conversations...</div>
+          ) : (
+            <div className="text-gray-400 text-sm">
+              Scroll down to load more
+            </div>
+          )}
+        </div>
+      )}
     </div>
-  );
-};
+  </div>
+);
+}
 
 export default ConversationList;

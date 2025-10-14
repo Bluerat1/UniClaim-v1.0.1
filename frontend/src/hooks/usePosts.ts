@@ -52,7 +52,7 @@ export const usePosts = () => {
             listenerActiveRef.current = false;
         }, 15000); // 15 second timeout
 
-        // Subscribe to real-time updates - OPTIMIZED: Only fetch active (non-expired) posts
+        // Subscribe to real-time updates - OPTIMIZED: Only fetch active (non-expired) posts with pagination
         const unsubscribe = postService.getActivePosts((fetchedPosts) => {
             if (listenerActiveRef.current) {
                 setPosts(fetchedPosts);
@@ -65,7 +65,7 @@ export const usePosts = () => {
                     loadingTimeoutRef.current = null;
                 }
             }
-        });
+        }, 50); // Limit to 50 posts for better performance
 
         // Set up background refresh every 2 minutes for optimal performance
         // This ensures data stays fresh without blocking the UI
@@ -76,7 +76,7 @@ export const usePosts = () => {
                     if (listenerActiveRef.current) {
                         setPosts(refreshedPosts);
                     }
-                });
+                }, 50); // Limit to 50 posts for better performance
             }
         }, 2 * 60 * 1000); // 2 minutes
 
@@ -183,7 +183,7 @@ export const useAdminPosts = () => {
                     loadingTimeoutRef.current = null;
                 }
             }
-        });
+        }, 100); // Limit to 100 posts for better performance
 
         // Set up background refresh every 2 minutes for optimal performance
         const backgroundRefreshInterval = setInterval(() => {
@@ -193,7 +193,7 @@ export const useAdminPosts = () => {
                     if (listenerActiveRef.current) {
                         setPosts(refreshedPosts);
                     }
-                });
+                }, 100); // Limit to 100 posts for better performance
             }
         }, 2 * 60 * 1000); // 2 minutes
 
@@ -387,7 +387,7 @@ export const useUserPostsWithSet = (userEmail: string) => {
         setLoading(true);
 
         // Subscribe to non-deleted posts
-        const unsubscribePosts = (postService.getUserPosts as any)(
+        const unsubscribePosts = postService.getUserPosts(
             userEmail, 
             (fetchedPosts: Post[]) => {
                 // Filter out deleted posts from the regular posts
@@ -395,18 +395,18 @@ export const useUserPostsWithSet = (userEmail: string) => {
                 setPosts(nonDeletedPosts);
                 setLoading(false);
             }, 
-            false
+            50 // Limit to 50 posts for better performance
         );
 
         // Subscribe to deleted posts
-        const unsubscribeDeleted = (postService.getUserPosts as any)(
+        const unsubscribeDeleted = postService.getUserPosts(
             userEmail, 
             (fetchedPosts: Post[]) => {
                 // Only include posts that have a deletedAt timestamp
                 const deletedOnly = fetchedPosts.filter(post => post.deletedAt);
                 setDeletedPosts(deletedOnly);
             }, 
-            true
+            50 // Limit to 50 posts for better performance
         );
 
         return () => {
@@ -427,7 +427,115 @@ export const useUserPostsWithSet = (userEmail: string) => {
     };
 };
 
-// Custom hook for resolved posts (resolved reports)
+// Custom hook for optimized posts with pagination and caching
+export const useOptimizedPosts = () => {
+    const [posts, setPosts] = useState<Post[]>([]);
+    const [resolvedPosts, setResolvedPosts] = useState<Post[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const { isAuthenticated, userData } = useAuth();
+    const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const listenerActiveRef = useRef<boolean>(false);
+
+    useEffect(() => {
+        // Clear any existing timeout
+        if (loadingTimeoutRef.current) {
+            clearTimeout(loadingTimeoutRef.current);
+            loadingTimeoutRef.current = null;
+        }
+
+        // Don't create listeners until user is authenticated
+        if (!isAuthenticated) {
+            setPosts([]);
+            setResolvedPosts([]);
+            setLoading(false);
+            setError(null);
+            listenerActiveRef.current = false;
+            return;
+        }
+
+        // If authenticated but userData is still loading, wait
+        if (isAuthenticated && !userData) {
+            setLoading(true);
+            setError(null);
+            listenerActiveRef.current = false;
+            return;
+        }
+
+        // Both authenticated and userData loaded - create listeners
+        setLoading(true);
+        setError(null);
+        listenerActiveRef.current = true;
+
+        // Set a safety timeout to prevent infinite loading
+        loadingTimeoutRef.current = setTimeout(() => {
+            setLoading(false);
+            setError('Loading timeout - please refresh the page');
+            listenerActiveRef.current = false;
+        }, 15000); // 15 second timeout
+
+        // Subscribe to active posts with pagination
+        const unsubscribePosts = postService.getActivePosts((fetchedPosts) => {
+            if (listenerActiveRef.current) {
+                setPosts(fetchedPosts);
+                setLoading(false);
+                setError(null);
+
+                // Clear the timeout since we got data
+                if (loadingTimeoutRef.current) {
+                    clearTimeout(loadingTimeoutRef.current);
+                    loadingTimeoutRef.current = null;
+                }
+            }
+        }, 50);
+
+        // Subscribe to resolved posts with pagination
+        const unsubscribeResolved = postService.getResolvedPosts((fetchedPosts) => {
+            if (listenerActiveRef.current) {
+                setResolvedPosts(fetchedPosts);
+                setLoading(false);
+                setError(null);
+
+                // Clear the timeout since we got data
+                if (loadingTimeoutRef.current) {
+                    clearTimeout(loadingTimeoutRef.current);
+                    loadingTimeoutRef.current = null;
+                }
+            }
+        }, 50);
+
+        return () => {
+            listenerActiveRef.current = false;
+
+            // Clear timeout
+            if (loadingTimeoutRef.current) {
+                clearTimeout(loadingTimeoutRef.current);
+                loadingTimeoutRef.current = null;
+            }
+
+            if (unsubscribePosts) {
+                unsubscribePosts();
+            }
+            if (unsubscribeResolved) {
+                unsubscribeResolved();
+            }
+        };
+    }, [isAuthenticated, userData]);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (loadingTimeoutRef.current) {
+                clearTimeout(loadingTimeoutRef.current);
+            }
+            listenerActiveRef.current = false;
+        };
+    }, []);
+
+    return { posts, resolvedPosts, loading, error };
+};
+
+// Legacy hook for backward compatibility - use useOptimizedPosts instead
 export const useResolvedPosts = () => {
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
@@ -485,7 +593,7 @@ export const useResolvedPosts = () => {
                     loadingTimeoutRef.current = null;
                 }
             }
-        });
+        }, 50); // Limit to 50 posts for better performance
 
         return () => {
             listenerActiveRef.current = false;

@@ -343,11 +343,6 @@ export default function AdminHomePage() {
     }
   };
 
-  // Initial load of deleted posts count
-  useEffect(() => {
-    fetchDeletedPostsCount();
-  }, [fetchDeletedPostsCount]);
-
   // Load deleted posts when the deleted tab is active
   useEffect(() => {
     if (viewType === "deleted") {
@@ -1261,6 +1256,8 @@ export default function AdminHomePage() {
               : "No results found."}
           </div>
         ) : (
+          // Display posts with newest first (natural order from Firebase)
+          // When scrolling down, older posts will be loaded via pagination
           postsToDisplay.slice(0, currentPage * itemsPerPage).map((post) => (
             <AdminPostCard
               key={post.id}

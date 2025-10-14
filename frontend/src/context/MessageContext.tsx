@@ -53,7 +53,7 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
       if (error?.code === 'permission-denied' || error?.code === 'not-found') {
         refreshConversations();
       }
-    });
+    }, 50); // Limit to 50 conversations for better performance
 
     return () => {
       unsubscribe();
@@ -223,7 +223,7 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
       }, (error) => {
         console.error('refreshConversations: Error loading conversations:', error);
         setLoading(false);
-      });
+      }, 50); // Limit to 50 conversations for better performance
 
       setTimeout(() => {
         unsubscribe();

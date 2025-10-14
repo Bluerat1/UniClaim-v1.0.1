@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAdminPosts } from "../../hooks/usePosts";
 import { useToast } from "../../context/ToastContext";
 import { postService } from "../../services/firebase/posts";
@@ -24,11 +24,25 @@ export default function UnclaimedPostsPage() {
   const { showToast } = useToast();
   const { userData } = useAuth();
 
-  // State for search and filtering
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Search state with debouncing
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("All");
   const [rawResults, setRawResults] = useState<Post[] | null>(null);
   const [lastDescriptionKeyword, setLastDescriptionKeyword] = useState("");
+
+  // Debounce search text to reduce excessive filtering
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // State for activation
   const [activatingPostId, setActivatingPostId] = useState<string | null>(null);
@@ -52,50 +66,64 @@ export default function UnclaimedPostsPage() {
 
   // Apply category filtering
   const filteredPosts = useMemo(() => {
+    let filtered = unclaimedPosts;
+
+    // Apply category filter
     if (selectedCategoryFilter && selectedCategoryFilter !== "All") {
-      return unclaimedPosts.filter(post =>
+      filtered = filtered.filter(post =>
         post.category && post.category.toLowerCase() === selectedCategoryFilter.toLowerCase()
       );
     }
-    return unclaimedPosts;
-  }, [unclaimedPosts, selectedCategoryFilter]);
+
+    // Apply search filter if debounced query exists
+    if (debouncedSearchQuery.trim()) {
+      const query = debouncedSearchQuery.toLowerCase();
+      filtered = filtered.filter(post => {
+        return fuzzyMatch(post.title, query) ||
+               fuzzyMatch(post.description || '', query) ||
+               fuzzyMatch(post.category || '', query) ||
+               fuzzyMatch(post.location || '', query) ||
+               fuzzyMatch(`${post.user?.firstName} ${post.user?.lastName}`, query);
+      });
+    }
+
+    return filtered;
+  }, [unclaimedPosts, selectedCategoryFilter, debouncedSearchQuery]);
+
+  // Pagination logic
+  const totalPostsToShow = Math.min(
+    filteredPosts.length,
+    currentPage * itemsPerPage
+  );
+  const hasMorePosts = filteredPosts.length > totalPostsToShow;
+
+  // Function to load more posts when scrolling
+  const handleLoadMore = useCallback(() => {
+    if (hasMorePosts && !loading) {
+      setCurrentPage((prev) => prev + 1);
+    }
+  }, [hasMorePosts, loading]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery, selectedCategoryFilter]);
 
   // Handle search
-  const handleSearch = (query: string, filters: any) => {
+  const handleSearch = useCallback((query: string, filters: any) => {
     setLastDescriptionKeyword(filters.description || "");
-
-    const filtered = unclaimedPosts.filter((item) => {
-      const matchesQuery = query.trim() ? fuzzyMatch(item.title, query) : true;
-
-      const matchesCategory =
-        filters.selectedCategory &&
-        filters.selectedCategory.toLowerCase() != "all"
-          ? item.category.toLowerCase() ===
-            filters.selectedCategory.toLowerCase()
-          : true;
-
-      const matchesDescription = filters.description
-        ? fuzzyMatch(item.description, filters.description)
-        : true;
-
-      const matchesLocation = filters.location
-        ? item.location.toLowerCase() === filters.location.toLowerCase()
-        : true;
-
-      return (
-        matchesQuery && matchesCategory && matchesDescription && matchesLocation
-      );
-    });
-    setRawResults(filtered);
-  };
+    setSearchQuery(query);
+    setSelectedCategoryFilter(filters.selectedCategory || "All");
+  }, []);
 
   // Handle clear search
-  const handleClearSearch = () => {
+  const handleClearSearch = useCallback(() => {
     setRawResults(null);
     setLastDescriptionKeyword("");
     setSearchQuery("");
     setSelectedCategoryFilter("All");
-  };
+    setCurrentPage(1);
+  }, []);
 
   // Handle post activation (move back from unclaimed status)
   const handleActivatePost = async (post: Post) => {
@@ -355,7 +383,7 @@ export default function UnclaimedPostsPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredPosts.map((post) => (
+              {filteredPosts.slice(0, totalPostsToShow).map((post) => (
                 <AdminPostCard
                   key={post.id}
                   post={post}
@@ -368,6 +396,18 @@ export default function UnclaimedPostsPage() {
                   hideStatusDropdown={true}
                 />
               ))}
+            </div>
+          )}
+
+          {/* Load More Button */}
+          {hasMorePosts && !loading && (
+            <div className="flex justify-center mt-8">
+              <button
+                onClick={handleLoadMore}
+                className="px-6 py-3 bg-brand text-white rounded-lg hover:bg-teal-600 transition-colors shadow-sm"
+              >
+                Load More Posts ({filteredPosts.length - totalPostsToShow} remaining)
+              </button>
             </div>
           )}
         </div>

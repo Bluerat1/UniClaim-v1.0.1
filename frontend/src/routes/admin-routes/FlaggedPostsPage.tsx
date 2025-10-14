@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { postService } from "../../services/firebase/posts";
 import { useToast } from "../../context/ToastContext";
 import type { Post } from "../../types/Post";
@@ -6,6 +6,7 @@ import PageWrapper from "../../components/PageWrapper";
 import NavHeader from "../../components/NavHeadComp";
 import AdminPostCard from "../../components/AdminPostCard";
 import AdminPostModal from "../../components/AdminPostModal";
+import SearchBar from "../../components/SearchBar";
 
 export default function FlaggedPostsPage() {
   const [flaggedPosts, setFlaggedPosts] = useState<Post[]>([]);
@@ -13,6 +14,14 @@ export default function FlaggedPostsPage() {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const { showToast } = useToast();
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
   // Confirmation modal states
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -33,24 +42,50 @@ export default function FlaggedPostsPage() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [showPostModal, setShowPostModal] = useState(false);
 
-  // Load flagged posts on component mount
+  // Debounce search text to reduce excessive filtering
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Load flagged posts on component mount and when page/search changes
   useEffect(() => {
     loadFlaggedPosts();
-  }, []);
+  }, [currentPage, debouncedSearchQuery]);
 
-  const loadFlaggedPosts = async () => {
+  const loadFlaggedPosts = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const posts = await postService.getFlaggedPosts();
-      setFlaggedPosts(posts);
+
+      // Apply search filter if there's a search query
+      if (debouncedSearchQuery.trim()) {
+        // For now, we'll filter on the client side since Firebase doesn't support
+        // text search on all fields easily. In production, you'd want to use
+        // a search service like Algolia or implement server-side search
+        const allPosts = await postService.getFlaggedPosts(500); // Get more for search
+        const filteredPosts = allPosts.filter(post =>
+          post.title?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+          post.description?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+          post.category?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+          post.location?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+          `${post.user?.firstName} ${post.user?.lastName}`.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+        );
+        setFlaggedPosts(filteredPosts);
+      } else {
+        const posts = await postService.getFlaggedPosts(currentPage * itemsPerPage);
+        setFlaggedPosts(posts);
+      }
     } catch (err: any) {
       setError(err.message || "Failed to load flagged posts");
       showToast("error", "Error", "Failed to load flagged posts");
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, debouncedSearchQuery, showToast]);
 
   const handleActionClick = (
     action: "approve" | "hide" | "unhide" | "delete",
@@ -130,10 +165,34 @@ export default function FlaggedPostsPage() {
     }
   };
 
-  const handleCancelAction = () => {
-    setShowConfirmModal(false);
-    setConfirmAction(null);
-  };
+  // Check if there are more posts to load
+  const totalPostsToShow = Math.min(
+    flaggedPosts.length,
+    currentPage * itemsPerPage
+  );
+  const hasMorePosts = flaggedPosts.length > totalPostsToShow;
+
+  // Function to load more posts when scrolling
+  const handleLoadMore = useCallback(() => {
+    if (hasMorePosts && !loading) {
+      setCurrentPage((prev) => prev + 1);
+    }
+  }, [hasMorePosts, loading]);
+
+  // Reset pagination when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery]);
+
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+  }, []);
+
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery("");
+    setDebouncedSearchQuery("");
+    setCurrentPage(1);
+  }, []);
 
   // Bulk action handlers
   const handleSelectAll = () => {
@@ -217,6 +276,11 @@ export default function FlaggedPostsPage() {
     }
   };
 
+  const handleCancelAction = () => {
+    setShowConfirmModal(false);
+    setConfirmAction(null);
+  };
+
   const handleCancelBulkAction = () => {
     setShowBulkConfirmModal(false);
     setBulkAction(null);
@@ -278,6 +342,19 @@ export default function FlaggedPostsPage() {
           title="Flagged Posts Management"
           description="Review and manage posts that have been flagged by users"
         />
+
+        {/* Search Bar */}
+        <div className="px-4 py-4 border-b border-gray-200">
+          <SearchBar
+            onSearch={handleSearch}
+            onClear={handleClearSearch}
+            query={searchQuery}
+            setQuery={setSearchQuery}
+            // Disable filters for flagged posts page
+            selectedCategoryFilter=""
+            setSelectedCategoryFilter={() => {}}
+          />
+        </div>
 
         {/* Content */}
         <div className="p-4 sm:p-6 lg:p-8">
@@ -361,7 +438,7 @@ export default function FlaggedPostsPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {flaggedPosts.map((post) => (
+              {flaggedPosts.slice(0, totalPostsToShow).map((post) => (
                 <AdminPostCard
                   key={post.id}
                   post={post}
@@ -386,6 +463,18 @@ export default function FlaggedPostsPage() {
                   }}
                 />
               ))}
+            </div>
+          )}
+
+          {/* Load More Button */}
+          {hasMorePosts && !loading && (
+            <div className="flex justify-center mt-8">
+              <button
+                onClick={handleLoadMore}
+                className="px-6 py-3 bg-brand text-white rounded-lg hover:bg-teal-600 transition-colors shadow-sm"
+              >
+                Load More Posts ({flaggedPosts.length - totalPostsToShow} remaining)
+              </button>
             </div>
           )}
         </div>

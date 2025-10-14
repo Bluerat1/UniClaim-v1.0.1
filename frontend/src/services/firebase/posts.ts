@@ -1,4 +1,3 @@
-// Post service for Firebase - handles all post-related operations
 import {
     doc,
     setDoc,
@@ -13,7 +12,8 @@ import {
     serverTimestamp,
     writeBatch,
     orderBy,
-    limit as firestoreLimit
+    limit as firestoreLimit,
+    startAfter
 } from 'firebase/firestore';
 import { DEFAULT_PROFILE_PICTURE } from '../../types/User';
 
@@ -359,6 +359,71 @@ export const postService = {
         }
     },
 
+    // Get posts with pagination for loading more (not real-time)
+    async getPostsPaginated(lastDoc?: any, pageSize: number = 20, filters?: {
+        type?: 'lost' | 'found' | 'all';
+        category?: string;
+        status?: string[];
+    }): Promise<{ posts: Post[]; hasMore: boolean; lastDoc: any }> {
+        let q;
+
+        if (filters?.type && filters.type !== 'all') {
+            q = query(
+                collection(db, 'posts'),
+                where('type', '==', filters.type),
+                orderBy('createdAt', 'desc'),
+                ...(lastDoc ? [startAfter(lastDoc)] : []),
+                firestoreLimit(pageSize + 1) // +1 to check if there are more
+            );
+        } else if (filters?.category) {
+            q = query(
+                collection(db, 'posts'),
+                where('category', '==', filters.category),
+                orderBy('createdAt', 'desc'),
+                ...(lastDoc ? [startAfter(lastDoc)] : []),
+                firestoreLimit(pageSize + 1)
+            );
+        } else if (filters?.status) {
+            q = query(
+                collection(db, 'posts'),
+                where('status', 'in', filters.status),
+                orderBy('updatedAt', 'desc'),
+                ...(lastDoc ? [startAfter(lastDoc)] : []),
+                firestoreLimit(pageSize + 1)
+            );
+        } else {
+            // Default active posts
+            q = query(
+                collection(db, 'posts'),
+                where('movedToUnclaimed', '==', false),
+                orderBy('createdAt', 'desc'),
+                ...(lastDoc ? [startAfter(lastDoc)] : []),
+                firestoreLimit(pageSize + 1)
+            );
+        }
+
+        const snapshot = await getDocs(q);
+        const posts = snapshot.docs.slice(0, pageSize).map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
+            updatedAt: doc.data().updatedAt?.toDate?.() || doc.data().updatedAt
+        })) as Post[];
+
+        // Apply client-side filters if needed
+        let filteredPosts = posts;
+
+        if (filters?.type === 'all') {
+            // For 'all', we need to filter client-side since we can't query multiple types easily
+            filteredPosts = posts.filter(post => post.type === 'lost' || post.type === 'found');
+        }
+
+        const hasMore = snapshot.docs.length > pageSize;
+        const lastDocResult = hasMore ? snapshot.docs[pageSize - 1] : null;
+
+        return { posts: filteredPosts, hasMore, lastDoc: lastDocResult };
+    },
+
     // Get all posts with real-time updates (DEPRECATED - use getActivePosts for better performance)
     getAllPosts(callback: (posts: Post[]) => void) {
         const q = query(
@@ -395,17 +460,16 @@ export const postService = {
         };
     },
 
-    // Get only active (non-expired) posts with real-time updates - OPTIMIZED FOR PERFORMANCE
-    getActivePosts(callback: (posts: Post[]) => void) {
+    // Get only active (non-expired) posts with real-time updates and pagination - OPTIMIZED FOR PERFORMANCE
+    getActivePosts(callback: (posts: Post[]) => void, pageSize: number = 50) {
         const now = new Date();
 
         // Create query for active posts only (excluding movedToUnclaimed posts for regular users)
         const q = query(
             collection(db, 'posts'),
             where('movedToUnclaimed', '==', false), // Only posts not moved to unclaimed for regular users
-            orderBy('createdAt', 'desc') // Sort by createdAt in descending order (newest first) for better pagination
-            // Note: We can't use where('expiryDate', '>', now) in the same query with movedToUnclaimed
-            // due to Firestore limitations, so we'll filter expiryDate in the callback
+            orderBy('createdAt', 'desc'), // Sort by createdAt in descending order (newest first)
+            firestoreLimit(pageSize) // Limit to pageSize posts for better performance
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -415,11 +479,8 @@ export const postService = {
                 createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt
             })) as Post[];
 
-            // Filter out expired, resolved, and soft-deleted posts on the client side (this is fast since we're only processing ~20-50 posts)
+            // Filter out expired, resolved, and soft-deleted posts on the client side (this is fast since we're only processing pageSize posts)
             const activePosts = posts.filter(post => {
-                // Note: movedToUnclaimed posts are already filtered out by the database query above
-                // but we're keeping this check for safety
-
                 // Exclude resolved, completed, and unclaimed posts from active sections
                 if (post.status === 'resolved' || post.status === 'completed' || post.status === 'unclaimed') return false;
 
@@ -430,7 +491,6 @@ export const postService = {
                 if (post.deletedAt) return false;
 
                 // Exclude items with turnoverStatus: "declared" ONLY for OSA turnover (awaiting OSA confirmation)
-                // Campus Security items with "transferred" status should be visible
                 if (post.turnoverDetails &&
                     post.turnoverDetails.turnoverStatus === "declared" &&
                     post.turnoverDetails.turnoverAction === "turnover to OSA") {
@@ -457,14 +517,7 @@ export const postService = {
                 return true;
             });
 
-            // Sort posts by createdAt (most recent first)
-            const sortedPosts = activePosts.sort((a, b) => {
-                const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
-                const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
-                return dateB.getTime() - dateA.getTime();
-            });
-
-            callback(sortedPosts);
+            callback(activePosts);
         }, (error) => {
             console.error('PostService: Error fetching active posts:', error);
             callback([]);
@@ -480,13 +533,14 @@ export const postService = {
     },
 
     // Get all posts for admin use (includes items awaiting turnover confirmation)
-    getAllPostsForAdmin(callback: (posts: Post[]) => void) {
+    getAllPostsForAdmin(callback: (posts: Post[]) => void, pageSize: number = 100) {
         const now = new Date();
 
         // Create query for all posts (no filtering at database level for movedToUnclaimed)
         const q = query(
-            collection(db, 'posts')
-            // Removed the movedToUnclaimed filter to allow these posts through for admin visibility
+            collection(db, 'posts'),
+            orderBy('createdAt', 'desc'), // Add orderBy for consistent sorting
+            firestoreLimit(pageSize) // Limit to pageSize posts for better performance
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -594,12 +648,13 @@ export const postService = {
         };
     },
 
-    // Get resolved posts for completed reports section
-    getResolvedPosts(callback: (posts: Post[]) => void) {
+    // Get resolved posts for completed reports section with pagination
+    getResolvedPosts(callback: (posts: Post[]) => void, pageSize: number = 50) {
         const q = query(
             collection(db, 'posts'),
-            where('status', 'in', ['resolved', 'completed']) // Query for both resolved and completed posts
-            // Removed orderBy to avoid composite index requirement
+            where('status', 'in', ['resolved', 'completed']), // Query for both resolved and completed posts
+            orderBy('updatedAt', 'desc'), // Sort by updatedAt for most recent resolutions first
+            firestoreLimit(pageSize) // Limit to pageSize posts for better performance
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -610,14 +665,7 @@ export const postService = {
                 updatedAt: doc.data().updatedAt?.toDate?.() || doc.data().updatedAt
             })) as Post[];
 
-            // Sort posts by updatedAt in JavaScript instead (most recent resolution first)
-            const sortedPosts = posts.sort((a, b) => {
-                const dateA = a.updatedAt instanceof Date ? a.updatedAt : new Date(a.updatedAt || a.createdAt);
-                const dateB = b.updatedAt instanceof Date ? b.updatedAt : new Date(b.updatedAt || b.createdAt);
-                return dateB.getTime() - dateA.getTime(); // Most recent first
-            });
-
-            callback(sortedPosts);
+            callback(posts);
         }, (error) => {
             console.error('PostService: Error fetching resolved posts:', error);
             callback([]);
@@ -669,12 +717,13 @@ export const postService = {
         };
     },
 
-    // Get posts by user email
-    getUserPosts(userEmail: string, callback: (posts: Post[]) => void) {
+    // Get posts by user email with pagination
+    getUserPosts(userEmail: string, callback: (posts: Post[]) => void, pageSize: number = 50) {
         const q = query(
             collection(db, 'posts'),
-            where('user.email', '==', userEmail)
-            // Removed orderBy to avoid composite index requirement
+            where('user.email', '==', userEmail),
+            orderBy('createdAt', 'desc'), // Sort by createdAt in descending order (newest first)
+            firestoreLimit(pageSize) // Limit to pageSize posts for better performance
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -684,14 +733,7 @@ export const postService = {
                 createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt
             })) as Post[];
 
-            // Sort posts by createdAt in JavaScript instead
-            const sortedPosts = posts.sort((a, b) => {
-                const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
-                const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
-                return dateB.getTime() - dateA.getTime(); // Most recent first
-            });
-
-            callback(sortedPosts);
+            callback(posts);
         });
 
         // Register with ListenerManager for tracking
@@ -2123,11 +2165,13 @@ export const postService = {
     },
 
     // Get flagged posts (admin only)
-    async getFlaggedPosts(): Promise<Post[]> {
+    async getFlaggedPosts(limit: number = 50): Promise<Post[]> {
         try {
             const q = query(
                 collection(db, 'posts'),
-                where('isFlagged', '==', true)
+                where('isFlagged', '==', true),
+                orderBy('updatedAt', 'desc'),
+                firestoreLimit(limit)
             );
 
             const querySnapshot = await getDocs(q);

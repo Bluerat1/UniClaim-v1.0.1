@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import type { Post } from "@/types/Post";
 
 // components
@@ -6,16 +6,43 @@ import AdminPostCard from "@/components/AdminPostCard";
 import AdminPostModal from "@/components/AdminPostModal";
 import TurnoverConfirmationModal from "@/components/TurnoverConfirmationModal";
 import MobileNavText from "@/components/NavHeadComp";
+import SearchBar from "@/components/SearchBar";
 
 // hooks
 import { useAdminPosts } from "@/hooks/usePosts";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
 
+function fuzzyMatch(text: string, query: string): boolean {
+  const cleanedText = text.toLowerCase();
+  const queryWords = query.toLowerCase().split(/\W+/).filter(Boolean);
+
+  // Make sure every keyword appears in the text
+  return queryWords.every((word) => cleanedText.includes(word));
+}
+
 export default function TurnoverManagementPage() {
   const { posts = [], loading, error } = useAdminPosts();
   const { showToast } = useToast();
   const { userData } = useAuth();
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Search state with debouncing
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("All");
+
+  // Debounce search text to reduce excessive filtering
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // State for admin post modal
   const [showAdminPostModal, setShowAdminPostModal] = useState(false);
@@ -125,6 +152,64 @@ export default function TurnoverManagementPage() {
     });
   }, [posts]);
 
+  // Apply search and category filtering to turnover posts
+  const filteredTurnoverPosts = useMemo(() => {
+    let filtered = turnoverPosts;
+
+    // Apply category filter
+    if (selectedCategoryFilter && selectedCategoryFilter !== "All") {
+      filtered = filtered.filter(post =>
+        post.category && post.category.toLowerCase() === selectedCategoryFilter.toLowerCase()
+      );
+    }
+
+    // Apply search filter if debounced query exists
+    if (debouncedSearchQuery.trim()) {
+      const query = debouncedSearchQuery.toLowerCase();
+      filtered = filtered.filter(post => {
+        return fuzzyMatch(post.title, query) ||
+               fuzzyMatch(post.description || '', query) ||
+               fuzzyMatch(post.category || '', query) ||
+               fuzzyMatch(post.location || '', query) ||
+               fuzzyMatch(`${post.user?.firstName} ${post.user?.lastName}`, query);
+      });
+    }
+
+    return filtered;
+  }, [turnoverPosts, selectedCategoryFilter, debouncedSearchQuery]);
+
+  // Pagination logic
+  const totalPostsToShow = Math.min(
+    filteredTurnoverPosts.length,
+    currentPage * itemsPerPage
+  );
+  const hasMorePosts = filteredTurnoverPosts.length > totalPostsToShow;
+
+  // Function to load more posts when scrolling
+  const handleLoadMore = useCallback(() => {
+    if (hasMorePosts && !loading) {
+      setCurrentPage((prev) => prev + 1);
+    }
+  }, [hasMorePosts, loading]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery, selectedCategoryFilter]);
+
+  // Handle search
+  const handleSearch = useCallback((query: string, filters: any) => {
+    setSearchQuery(query);
+    setSelectedCategoryFilter(filters.selectedCategory || "All");
+  }, []);
+
+  // Handle clear search
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery("");
+    setSelectedCategoryFilter("All");
+    setCurrentPage(1);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-100 mb-13 font-manrope transition-colors duration-300">
       <MobileNavText
@@ -138,11 +223,26 @@ export default function TurnoverManagementPage() {
           <h1 className="text-lg font-bold text-gray-800 mb-2">
             Turnover Management
           </h1>
+          <div className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">
+            {filteredTurnoverPosts.length} Turnover Items
+          </div>
           <p className="text-gray-600 text-sm">
             Manage found items that need to be turned over to OSA (Office of
             Student Affairs)
           </p>
         </div>
+      </div>
+
+      {/* Search Bar */}
+      <div className="px-6">
+        <SearchBar
+          onSearch={handleSearch}
+          onClear={handleClearSearch}
+          query={searchQuery}
+          setQuery={setSearchQuery}
+          selectedCategoryFilter={selectedCategoryFilter}
+          setSelectedCategoryFilter={setSelectedCategoryFilter}
+        />
       </div>
 
       {/* Posts Grid */}
@@ -166,7 +266,7 @@ export default function TurnoverManagementPage() {
             No turnover items found.
           </div>
         ) : (
-          turnoverPosts.map((post) => (
+          filteredTurnoverPosts.slice(0, totalPostsToShow).map((post) => (
             <AdminPostCard
               key={post.id}
               post={post}
@@ -188,6 +288,18 @@ export default function TurnoverManagementPage() {
           ))
         )}
       </div>
+
+      {/* Load More Button */}
+      {hasMorePosts && !loading && (
+        <div className="flex justify-center mt-8 mx-6">
+          <button
+            onClick={handleLoadMore}
+            className="px-6 py-3 bg-brand text-white rounded-lg hover:bg-teal-600 transition-colors shadow-sm"
+          >
+            Load More Posts ({filteredTurnoverPosts.length - totalPostsToShow} remaining)
+          </button>
+        </div>
+      )}
 
       {/* Turnover Confirmation Modal */}
       <TurnoverConfirmationModal

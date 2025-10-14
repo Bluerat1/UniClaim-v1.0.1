@@ -255,7 +255,6 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
     }
 
     const creator = conversation.participants[conversation.postCreatorId];
-    console.log("🔍 Post creator participant data:", creator);
 
     const firstName = creator.firstName || "";
     const lastName = creator.lastName || "";
@@ -266,7 +265,6 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
     }
 
     const fullName = `${firstName} ${lastName}`.trim();
-    console.log("✅ Post creator name:", fullName);
     return fullName || "Unknown User";
   };
 

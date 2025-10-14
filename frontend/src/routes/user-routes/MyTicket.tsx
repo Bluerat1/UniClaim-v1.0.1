@@ -1,13 +1,14 @@
 import MobileNavText from "@/components/NavHeadComp";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Post } from "@/types/Post";
 import TicketCard from "@/components/TicketCard";
 import TicketModal from "@/components/TicketModal";
+import { MdOutlineClear } from "react-icons/md";
 import { useAuth } from "../../context/AuthContext";
 import { useUserPostsWithSet } from "../../hooks/usePosts";
 import { postService } from "../../services/firebase";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useToast } from "../../context/ToastContext";
-import { MdOutlineClear } from "react-icons/md";
 
 export default function MyTicket() {
   const { userData, loading: authLoading } = useAuth();
@@ -22,13 +23,22 @@ export default function MyTicket() {
     "all_tickets" | "active_tickets" | "completed_tickets" | "deleted_tickets"
   >("all_tickets");
   const [searchText, setSearchText] = useState("");
+  const [debouncedSearchText, setDebouncedSearchText] = useState("");
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
   const [restoringPostId, setRestoringPostId] = useState<string | null>(null);
   const [permanentlyDeletingPostId, setPermanentlyDeletingPostId] = useState<
     string | null
   >(null);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
-  // Show loading state while checking auth
+  // Debounce search text to reduce excessive filtering
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchText(searchText);
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchText]);
   if (authLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -50,8 +60,6 @@ export default function MyTicket() {
   const rawUserPosts = posts.filter(
     (post) => post.user.email === userData.email
   );
-
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   const handleDeletePost = async (id: string) => {
     try {
@@ -215,8 +223,33 @@ export default function MyTicket() {
   });
 
   const visiblePosts = tabFilteredPosts.filter((post) =>
-    post.title.toLowerCase().includes(searchText.toLowerCase())
+    post.title.toLowerCase().includes(debouncedSearchText.toLowerCase())
   );
+
+  // Reset pagination when search or tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, debouncedSearchText]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(6);
+
+  // Calculate pagination
+  const totalPostsToShow = Math.min(
+    visiblePosts.length,
+    currentPage * itemsPerPage
+  );
+  const hasMore = visiblePosts.length > totalPostsToShow;
+
+  // Function to load more posts when scrolling
+  const handleLoadMore = () => {
+    if (hasMore && !postsLoading) {
+      setCurrentPage((prev) => prev + 1);
+    }
+  };
+
+  // Use the infinite scroll hook
+  const loadingRef = useInfiniteScroll(handleLoadMore, hasMore, postsLoading);
 
   const tabOptions = [
     { key: "all_tickets", label: "All Tickets" },
@@ -294,7 +327,7 @@ export default function MyTicket() {
               <p className="text-gray-500 text-sm">No tickets found.</p>
             </div>
           ) : (
-            visiblePosts.map((post) => (
+            visiblePosts.slice(0, totalPostsToShow).map((post) => (
               <div key={post.id} className="relative group">
                 {activeTab === "deleted_tickets" && (
                   <div className="absolute top-2 right-2 bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
@@ -332,6 +365,22 @@ export default function MyTicket() {
             ))
           )}
         </div>
+
+        {/* Invisible loading indicator for scroll-to-load */}
+        {hasMore && (
+          <div
+            ref={loadingRef}
+            className="h-10 flex items-center justify-center my-6"
+          >
+            {postsLoading ? (
+              <div className="text-gray-500 text-sm">Loading more tickets...</div>
+            ) : (
+              <div className="text-gray-400 text-sm">
+                Scroll down to load more
+              </div>
+            )}
+          </div>
+        )}
 
         {selectedPost && (
           <TicketModal

@@ -1,11 +1,10 @@
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useEffect } from "react";
 import { useMessage } from "../context/MessageContext";
 import { useAuth } from "../context/AuthContext";
 import type { Conversation } from "../types/Post";
 import LoadingSpinner from "./LoadingSpinner";
 import { messageService } from "../services/firebase/messages";
 import { useToast } from "../context/ToastContext";
-// Simple button component for the mark all as read functionality
 
 interface AdminConversationListProps {
   onSelectConversation: (conversation: Conversation) => void;
@@ -27,25 +26,35 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     string | null
   >(null);
 
+  // Debounce search text to reduce excessive filtering
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const getTotalUnreadCount = useCallback((conversation: Conversation) => {
     if (!conversation.unreadCounts || !userData?.uid) return 0;
     return conversation.unreadCounts[userData.uid] || 0;
   }, [userData?.uid]);
 
-
   // Filter and sort conversations
-  const filteredAndSortedConversations = useMemo(() => {
+  const filteredAndSortedConversations: Conversation[] = useMemo(() => {
     let filtered = [...conversations];
 
     // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (debouncedSearchQuery.trim()) {
+      const query = debouncedSearchQuery.toLowerCase();
       filtered = filtered.filter(
-        (conversation) =>
+        (conversation: Conversation) =>
           conversation.postTitle?.toLowerCase().includes(query) ||
           Object.values(conversation.participants || {}).some((participant) =>
             ((participant as any).firstName?.toLowerCase().includes(query) ||
-             participant.lastName?.toLowerCase().includes(query))
+             (participant as any).lastName?.toLowerCase().includes(query))
           ) ||
           conversation.lastMessage?.text?.toLowerCase().includes(query)
       );
@@ -53,7 +62,7 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
 
     // Apply type filter
     if (filterType !== "all") {
-      filtered = filtered.filter((conversation) => {
+      filtered = filtered.filter((conversation: Conversation) => {
         switch (filterType) {
           case "unread":
             return getTotalUnreadCount(conversation) > 0;
@@ -67,7 +76,7 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     }
 
     // Sort by most recent message timestamp, with fallback to createdAt (newest first)
-    return filtered.sort((a, b) => {
+    return filtered.sort((a: Conversation, b: Conversation) => {
       // Helper function to get a comparable timestamp
       const getComparableTimestamp = (conversation: any) => {
         // First try to get timestamp from last message
@@ -114,7 +123,7 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
       // Sort newest first (descending order)
       return bTimestamp - aTimestamp;
     });
-  }, [conversations, filterType, searchQuery]);
+  }, [conversations, filterType, debouncedSearchQuery, getTotalUnreadCount]);
 
   const handleDeleteConversation = async (
     conversationId: string,
@@ -143,7 +152,6 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     }
   };
 
-
   const getParticipantNames = (conversation: Conversation) => {
     const participantIds = Object.keys(conversation.participants || {});
 
@@ -154,8 +162,8 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
         if (!participant) return "Unknown User";
 
         // If we have both first and last name, combine them
-        if ((participant as any).firstName && participant.lastName) {
-          return `${(participant as any).firstName} ${participant.lastName}`.trim();
+        if ((participant as any).firstName && (participant as any).lastName) {
+          return `${(participant as any).firstName} ${(participant as any).lastName}`.trim();
         }
 
         // If we have just first name
@@ -164,8 +172,8 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
         }
 
         // If we have just last name
-        if (participant.lastName) {
-          return participant.lastName;
+        if ((participant as any).lastName) {
+          return (participant as any).lastName;
         }
 
         // Fallback to displayName if it exists
@@ -189,8 +197,8 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     if (!participant) return "Unknown User";
 
     // If we have both first and last name, combine them
-    if ((participant as any).firstName && participant.lastName) {
-      return `${(participant as any).firstName} ${participant.lastName}`.trim();
+    if ((participant as any).firstName && (participant as any).lastName) {
+      return `${(participant as any).firstName} ${(participant as any).lastName}`.trim();
     }
 
     // If we have just first name
@@ -199,8 +207,8 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     }
 
     // If we have just last name
-    if (participant.lastName) {
-      return participant.lastName;
+    if ((participant as any).lastName) {
+      return (participant as any).lastName;
     }
 
     // Fallback to displayName if it exists
@@ -211,28 +219,6 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     // If we only have the ID, use that
     return `User ${senderId.substring(0, 6)}`;
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
-  if (filteredAndSortedConversations.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="flex flex-col items-center text-gray-500 text-center">
-          <div className="text-6xl mb-4">💬</div>
-          <p className="text-lg font-medium">No conversations found</p>
-          <p className="text-sm text-gray-400">
-            Admin view - no user conversations to monitor
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   const formatTimestamp = (timestamp: any) => {
     if (!timestamp) return "";
@@ -270,9 +256,31 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (filteredAndSortedConversations.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="flex flex-col items-center text-gray-500 text-center">
+          <div className="text-6xl mb-4">💬</div>
+          <p className="text-lg font-medium">No conversations found</p>
+          <p className="text-sm text-gray-400">
+            Admin view - no user conversations to monitor
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full overflow-y-auto">
-      {filteredAndSortedConversations.map((conversation) => {
+      {filteredAndSortedConversations.map((conversation: Conversation) => {
         const isSelected = selectedConversationId === conversation.id;
         const totalUnread = getTotalUnreadCount(conversation);
         const participantNames = getParticipantNames(conversation);

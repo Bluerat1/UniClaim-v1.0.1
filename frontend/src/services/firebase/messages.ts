@@ -27,11 +27,13 @@ import { sanitizePostData } from './utils';
 
 // Message service functions
 export const messageService = {
-    // Get user's conversations (real-time listener)
-    getUserConversations(userId: string, callback: (conversations: any[]) => void, errorCallback?: (error: any) => void) {
+    // Get user's conversations (real-time listener) with pagination
+    getUserConversations(userId: string, callback: (conversations: any[]) => void, errorCallback?: (error: any) => void, pageSize: number = 50) {
         const q = query(
             collection(db, 'conversations'),
-            where(`participants.${userId}`, '!=', null)
+            where(`participants.${userId}`, '!=', null),
+            orderBy('lastMessage.timestamp', 'desc'), // Sort by last message timestamp
+            limit(pageSize) // Limit to pageSize conversations for better performance
         );
 
         const unsubscribe = onSnapshot(
@@ -48,7 +50,6 @@ export const messageService = {
                     return participantIds.length > 1; // Must have at least 2 participants
                 });
 
-                // Return conversations without sorting - let the UI component handle sorting
                 callback(validConversations);
             },
             (error) => {

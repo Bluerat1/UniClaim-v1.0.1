@@ -9,7 +9,7 @@ import SearchBar from "../../components/SearchBar";
 import FlagModal from "@/components/FlagModal";
 
 // hooks
-import { usePosts, useResolvedPosts } from "@/hooks/usePosts";
+import { useOptimizedPosts } from "@/hooks/usePosts";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { postService } from "@/services/firebase/posts";
@@ -34,13 +34,8 @@ function fuzzyMatch(text: string, query: string): boolean {
 }
 
 export default function HomePage() {
-  // ✅ Use the custom hooks for real-time posts
-  const { posts, loading, error } = usePosts();
-  const {
-    posts: resolvedPosts,
-    loading: resolvedLoading,
-    error: resolvedError,
-  } = useResolvedPosts();
+  // ✅ Use the optimized custom hook for real-time posts with pagination
+  const { posts, resolvedPosts, loading, error } = useOptimizedPosts();
 
   // Get admin statuses for all posts
   const allPosts = [...posts, ...resolvedPosts];
@@ -97,7 +92,25 @@ export default function HomePage() {
   // e change dari pila ka post mu appear pag scroll down
   const itemsPerPage = 6; // Increased from 2 to 6 for better scroll experience
 
-  const handleSearch = async (query: string, filters: any) => {
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  // Debounce search query to reduce excessive API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Trigger search when debounced query changes
+  useEffect(() => {
+    if (debouncedSearchQuery !== searchQuery) {
+      // This will be handled by the SearchBar component
+    }
+  }, [debouncedSearchQuery, searchQuery]);
+
+  const handleSearch = useCallback(async (query: string, filters: any) => {
     setLastDescriptionKeyword(filters.description || "");
 
     // Always reset pagination when searching (now only manual searches)
@@ -129,7 +142,7 @@ export default function HomePage() {
       );
     });
     setRawResults(filtered);
-  };
+  }, [viewType, posts, resolvedPosts, debouncedSearchQuery]);
 
   // const postsToDisplay = (rawResults ?? posts ?? []).filter(
   //   (post) => post.type === viewType
@@ -311,16 +324,16 @@ export default function HomePage() {
 
       <div className="grid grid-cols-1 gap-5 mx-4 mt-7 sm:grid-cols-2 lg:grid-cols-3">
         {/* ✅ Handle Firebase loading state */}
-        {loading || resolvedLoading || isLoading ? (
+        {loading || isLoading ? (
           <div className="col-span-full flex items-center justify-center h-80">
             <span className="text-gray-400">
               Loading {viewType === "completed" ? "completed" : viewType} report
               items...
             </span>
           </div>
-        ) : error || resolvedError ? (
+        ) : error ? (
           <div className="col-span-full flex items-center justify-center h-80 text-red-500">
-            <p>Error loading posts: {error || resolvedError}</p>
+            <p>Error loading posts: {error}</p>
             <button
               onClick={() => window.location.reload()}
               className="ml-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
@@ -333,8 +346,8 @@ export default function HomePage() {
             No results found.
           </div>
         ) : (
-          // Show the oldest posts first by taking them from the start of the array
-          // and then reversing the order so oldest appear at the top
+          // Display posts with newest first (natural order from Firebase)
+          // When scrolling down, older posts will be loaded via pagination
           postsToDisplay
             .slice(0, totalPostsToShow)
             .map((post) => (
