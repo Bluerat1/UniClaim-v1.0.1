@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   collection,
   getDocs,
@@ -14,13 +14,39 @@ import {
 import { db } from "../../utils/firebase";
 import type { User } from "../../types/User";
 import ProfilePicture from "../../components/ProfilePicture";
+import { useToast } from "../../context/ToastContext";
+import { useAuth } from "../../context/AuthContext";
 
-interface AdminUserManagementProps {}
+function fuzzyMatch(text: string, query: string): boolean {
+  const cleanedText = text.toLowerCase();
+  const queryWords = query.toLowerCase().split(/\W+/).filter(Boolean);
 
-const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
+  // Make sure every keyword appears in the text
+  return queryWords.every((word) => cleanedText.includes(word));
+}
+
+const AdminUserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Search state with debouncing
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("All");
+
+  // Debounce search text to reduce excessive filtering
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // View user modal states
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -42,6 +68,9 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
   const [unbanningUser, setUnbanningUser] = useState<User | null>(null);
   const [unbanReason, setUnbanReason] = useState("");
 
+  const { showToast } = useToast();
+  const { } = useAuth();
+
   // Load initial users
   useEffect(() => {
     loadUsers();
@@ -50,8 +79,9 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
   const loadUsers = async () => {
     try {
       setLoading(true);
+      setError(null);
       const usersRef = collection(db, "users");
-      const q = query(usersRef, orderBy("createdAt", "desc"), limit(20));
+      const q = query(usersRef, orderBy("createdAt", "desc"), limit(100)); // Increased limit for better pagination
       const snapshot = await getDocs(q);
 
       const userData: User[] = [];
@@ -64,14 +94,65 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
       });
 
       setUsers(userData);
-      setError(null);
-    } catch (err) {
+    } catch (err: any) {
       setError("Failed to load users");
+      showToast("error", "Error", "Failed to load users");
       console.error("Error loading users:", err);
     } finally {
       setLoading(false);
     }
   };
+
+  // Apply search and status filtering to users
+  const filteredUsers = useMemo(() => {
+    let filtered = users;
+
+    // Apply status filter
+    if (statusFilter && statusFilter !== "All") {
+      filtered = filtered.filter(user =>
+        user.status?.toLowerCase() === statusFilter.toLowerCase()
+      );
+    }
+
+    // Apply search filter if debounced query exists
+    if (debouncedSearchQuery.trim()) {
+      const query = debouncedSearchQuery.toLowerCase();
+      filtered = filtered.filter(user => {
+        return fuzzyMatch(`${user.firstName} ${user.lastName}`, query) ||
+               fuzzyMatch(user.email || '', query) ||
+               fuzzyMatch(user.studentId || '', query) ||
+               fuzzyMatch(user.contactNum || '', query);
+      });
+    }
+
+    return filtered;
+  }, [users, statusFilter, debouncedSearchQuery]);
+
+  // Pagination logic
+  const totalUsersToShow = Math.min(
+    filteredUsers.length,
+    currentPage * itemsPerPage
+  );
+  const hasMoreUsers = filteredUsers.length > totalUsersToShow;
+
+  // Function to load more users when scrolling
+  const handleLoadMore = useCallback(() => {
+    if (hasMoreUsers && !loading) {
+      setCurrentPage((prev) => prev + 1);
+    }
+  }, [hasMoreUsers, loading]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery, statusFilter]);
+
+  // Handle clear search
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery("");
+    setStatusFilter("All");
+    setCurrentPage(1);
+  }, [setCurrentPage]);
 
   // View user functions
   const handleViewUser = (user: User) => {
@@ -162,11 +243,13 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
       handleCloseBanModal();
       await loadUsers(); // Refresh the user list to show updated status
 
-      // TODO: Add success message/toast
+      // Show success toast
+      showToast("success", "User Deactivated",
+        `${banningUser.firstName} ${banningUser.lastName} has been successfully deactivated`);
       console.log("User banned successfully");
-    } catch (error) {
+    } catch (error: any) {
+      showToast("error", "Error", error.message || "Failed to deactivate user");
       console.error("Error banning user:", error);
-      // TODO: Add error message/toast
     }
   };
 
@@ -219,8 +302,12 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
       handleCloseUnbanModal();
       await loadUsers(); // Refresh the user list to show updated status
 
+      // Show success toast
+      showToast("success", "User Reactivated",
+        `${unbanningUser.firstName} ${unbanningUser.lastName} has been successfully reactivated`);
       console.log("User unbanned and ban record deleted successfully");
-    } catch (error) {
+    } catch (error: any) {
+      showToast("error", "Error", error.message || "Failed to reactivate user");
       console.error("Error unbanning user:", error);
     }
   };
@@ -243,10 +330,42 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
         </div>
       )}
 
+      {/* Search and Filter Section */}
+      <div className="bg-white rounded-lg mb-6 p-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder="Search users by name, email, or student ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+            />
+          </div>
+          <div className="flex gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand"
+            >
+              <option value="All">All Status</option>
+              <option value="active">Active</option>
+              <option value="deactivated">Deactivated</option>
+            </select>
+            <button
+              onClick={handleClearSearch}
+              className="px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white rounded-lg mb-10 shadow overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-medium">
-            Regular Users ({users.length})
+            Regular Users ({filteredUsers.length})
           </h2>
         </div>
 
@@ -276,21 +395,24 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
             <div className="max-h-145 overflow-y-auto border-t border-gray-200">
               <table className="min-w-full divide-y divide-gray-200">
                 <tbody className="bg-white">
-                  {users.length === 0 ? (
+                  {filteredUsers.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="px-6 py-12 text-center">
                         <div className="text-gray-500">
                           <p className="text-lg font-medium mb-2">
-                            No users available
+                            No users found
                           </p>
                           <p className="text-sm">
-                            Users will appear here once they register
+                            {debouncedSearchQuery || statusFilter !== "All"
+                              ? "Try adjusting your search or filter criteria"
+                              : "Users will appear here once they register"
+                            }
                           </p>
                         </div>
                       </td>
                     </tr>
                   ) : (
-                    users.map((user) => (
+                    filteredUsers.slice(0, totalUsersToShow).map((user) => (
                       <tr key={user.uid} className="hover:bg-brand/8">
                         <td className="px-6 py-4 whitespace-nowrap w-1/5">
                           <div className="flex items-center">
@@ -365,437 +487,449 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = () => {
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Ban User Modal */}
-        {showBanModal && banningUser && (
-          <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-8 mx-auto p-3 w-11/12 md:w-3/4 lg:w-1/2 rounded-md bg-white">
-              <div className="py-2 px-3">
-                {/* Modal Header */}
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-semibold text-gray-900">
-                    Deactivate User
-                  </h3>
-                  <button
-                    onClick={handleCloseBanModal}
-                    className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
-                  >
-                    ×
-                  </button>
+      {/* Load More Button */}
+      {hasMoreUsers && !loading && (
+        <div className="flex justify-center mt-6">
+          <button
+            onClick={handleLoadMore}
+            className="px-6 py-3 bg-brand text-white rounded-lg hover:bg-teal-600 transition-colors shadow-sm"
+          >
+            Load More Users ({filteredUsers.length - totalUsersToShow} remaining)
+          </button>
+        </div>
+      )}
+
+      {/* Ban User Modal */}
+      {showBanModal && banningUser && (
+        <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Deactivate User
+                </h3>
+                <button
+                  onClick={handleCloseBanModal}
+                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Ban Form */}
+              <div className="space-y-6">
+                {/* User Info */}
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <h4 className="font-medium text-gray-900 mb-2">
+                    Deactivate User:
+                  </h4>
+                  <p className="text-gray-700">
+                    {banningUser.firstName} {banningUser.lastName} (
+                    {banningUser.email})
+                  </p>
                 </div>
 
-                {/* Ban Form */}
-                <div className="space-y-6">
-                  {/* User Info */}
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2">
-                      Deactivate User:
-                    </h4>
-                    <p className="text-gray-700">
-                      {banningUser.firstName} {banningUser.lastName} (
-                      {banningUser.email})
-                    </p>
-                  </div>
+                {/* Ban Reason */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Reason for Account Deactivation{" "}
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={banReason}
+                    onChange={(e) => {
+                      setBanReason(e.target.value);
+                      if (e.target.value !== "other") {
+                        setCustomBanReason("");
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    required
+                  >
+                    <option value="">Select a reason</option>
+                    <option value="spam">Spam or Repeated Posts</option>
+                    <option value="harassment">Harassment or Bullying</option>
+                    <option value="fake">Fake or Misleading Posts</option>
+                    <option value="inappropriate">
+                      Inappropriate Content
+                    </option>
+                    <option value="violation">
+                      Terms of Service Violation
+                    </option>
+                    <option value="other">Other</option>
+                  </select>
 
-                  {/* Ban Reason */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Reason for Account Deactivation{" "}
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={banReason}
-                      onChange={(e) => {
-                        setBanReason(e.target.value);
-                        if (e.target.value !== "other") {
-                          setCustomBanReason("");
-                        }
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      required
-                    >
-                      <option value="">Select a reason</option>
-                      <option value="spam">Spam or Repeated Posts</option>
-                      <option value="harassment">Harassment or Bullying</option>
-                      <option value="fake">Fake or Misleading Posts</option>
-                      <option value="inappropriate">
-                        Inappropriate Content
-                      </option>
-                      <option value="violation">
-                        Terms of Service Violation
-                      </option>
-                      <option value="other">Other</option>
-                    </select>
-
-                    {/* Custom Reason Input for "Other" */}
-                    {banReason === "other" && (
-                      <div className="mt-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Custom Reason <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={customBanReason}
-                          onChange={(e) => setCustomBanReason(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          placeholder="Enter custom ban reason..."
-                          maxLength={100}
-                          required
-                        />
-                        <p className="text-sm text-gray-500 mt-1">
-                          Maximum 100 characters
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Ban Duration */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Account Deactivate Duration{" "}
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <div className="space-y-3">
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          value="temporary"
-                          checked={banDuration === "temporary"}
-                          onChange={(e) =>
-                            setBanDuration(
-                              e.target.value as "temporary" | "permanent"
-                            )
-                          }
-                          className="mr-2"
-                        />
-                        Temporary Deactivation
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          value="permanent"
-                          checked={banDuration === "permanent"}
-                          onChange={(e) =>
-                            setBanDuration(
-                              e.target.value as "temporary" | "permanent"
-                            )
-                          }
-                          className="mr-2"
-                        />
-                        Permanent Deactivation
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Ban Days (for temporary bans) */}
-                  {banDuration === "temporary" && (
-                    <div>
+                  {/* Custom Reason Input for "Other" */}
+                  {banReason === "other" && (
+                    <div className="mt-3">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Account Deactivation Period (Days){" "}
-                        <span className="text-red-500">*</span>
+                        Custom Reason <span className="text-red-500">*</span>
                       </label>
                       <input
-                        type="number"
-                        min="1"
-                        max="365"
-                        value={banDays}
-                        onChange={(e) =>
-                          setBanDays(parseInt(e.target.value) || 1)
-                        }
+                        type="text"
+                        value={customBanReason}
+                        onChange={(e) => setCustomBanReason(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="7"
+                        placeholder="Enter custom ban reason..."
+                        maxLength={100}
+                        required
                       />
                       <p className="text-sm text-gray-500 mt-1">
-                        Maximum 365 days
+                        Maximum 100 characters
                       </p>
                     </div>
                   )}
+                </div>
 
-                  {/* Admin Notes */}
+                {/* Ban Duration */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Account Deactivate Duration{" "}
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <div className="space-y-3">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        value="temporary"
+                        checked={banDuration === "temporary"}
+                        onChange={(e) =>
+                          setBanDuration(
+                            e.target.value as "temporary" | "permanent"
+                          )
+                        }
+                        className="mr-2"
+                      />
+                      Temporary Deactivation
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        value="permanent"
+                        checked={banDuration === "permanent"}
+                        onChange={(e) =>
+                          setBanDuration(
+                            e.target.value as "temporary" | "permanent"
+                          )
+                        }
+                        className="mr-2"
+                      />
+                      Permanent Deactivation
+                    </label>
+                  </div>
+                </div>
+
+                {/* Ban Days (for temporary bans) */}
+                {banDuration === "temporary" && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Admin Notes (Optional)
+                      Account Deactivation Period (Days){" "}
+                      <span className="text-red-500">*</span>
                     </label>
-                    <textarea
-                      value={banNotes}
-                      onChange={(e) => setBanNotes(e.target.value)}
-                      rows={3}
+                    <input
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={banDays}
+                      onChange={(e) =>
+                        setBanDays(parseInt(e.target.value) || 1)
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      placeholder="Additional details about this account deactivation..."
+                      placeholder="7"
                     />
+                    <p className="text-sm text-gray-500 mt-1">
+                      Maximum 365 days
+                    </p>
                   </div>
+                )}
 
-                  {/* Action Buttons */}
-                  <div className="flex justify-end space-x-3 pt-4 border-t">
-                    <button
-                      onClick={handleCloseBanModal}
-                      className="px-4 py-2 text-gray-700 bg-gray-200 rounded-sm hover:bg-gray-300 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleSubmitBan}
-                      disabled={!banReason}
-                      className="px-4 py-2 text-white bg-red-600 rounded-sm hover:bg-red-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    >
-                      Deactivate User
-                    </button>
-                  </div>
+                {/* Admin Notes */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Admin Notes (Optional)
+                  </label>
+                  <textarea
+                    value={banNotes}
+                    onChange={(e) => setBanNotes(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Additional details about this account deactivation..."
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3 pt-4 border-t">
+                  <button
+                    onClick={handleCloseBanModal}
+                    className="px-4 py-2 text-gray-700 bg-gray-200 rounded-sm hover:bg-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSubmitBan}
+                    disabled={!banReason}
+                    className="px-4 py-2 text-white bg-red-600 rounded-sm hover:bg-red-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    Deactivate User
+                  </button>
                 </div>
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Unban User Modal */}
-        {showUnbanModal && unbanningUser && (
-          <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-              <div className="mt-3">
-                {/* Modal Header */}
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-2xl font-bold text-gray-900">
-                    Reactivate User
-                  </h3>
-                  <button
-                    onClick={handleCloseUnbanModal}
-                    className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
-                  >
-                    ×
-                  </button>
+      {/* Unban User Modal */}
+      {showUnbanModal && unbanningUser && (
+        <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">
+                  Reactivate User
+                </h3>
+                <button
+                  onClick={handleCloseUnbanModal}
+                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Unban Form */}
+              <div className="space-y-6">
+                {/* User Info */}
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                  <h4 className="font-medium text-green-900 mb-2">
+                    Reactivate User:
+                  </h4>
+                  <p className="text-green-700">
+                    {unbanningUser.firstName} {unbanningUser.lastName} (
+                    {unbanningUser.email})
+                  </p>
+                  <p className="text-sm text-green-600 mt-1">
+                    This will restore their account access immediately.
+                  </p>
                 </div>
 
-                {/* Unban Form */}
-                <div className="space-y-6">
-                  {/* User Info */}
-                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                    <h4 className="font-medium text-green-900 mb-2">
-                      Reactivate User:
-                    </h4>
-                    <p className="text-green-700">
-                      {unbanningUser.firstName} {unbanningUser.lastName} (
-                      {unbanningUser.email})
-                    </p>
-                    <p className="text-sm text-green-600 mt-1">
-                      This will restore their account access immediately.
-                    </p>
-                  </div>
+                {/* Unban Reason (Optional) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Reason of Account Activation (Optional)
+                  </label>
+                  <textarea
+                    value={unbanReason}
+                    onChange={(e) => setUnbanReason(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="Why are you reactivate this user account? (Optional)"
+                  />
+                </div>
 
-                  {/* Unban Reason (Optional) */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Reason of Account Activation (Optional)
-                    </label>
-                    <textarea
-                      value={unbanReason}
-                      onChange={(e) => setUnbanReason(e.target.value)}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                      placeholder="Why are you reactivate this user account? (Optional)"
-                    />
-                  </div>
-
-                  {/* Warning Message */}
-                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                    <div className="flex">
-                      <div className="flex-shrink-0">
-                        <svg
-                          className="h-5 w-5 text-yellow-400"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                      <div className="ml-3">
-                        <h3 className="text-sm font-medium text-yellow-800">
-                          Important Note
-                        </h3>
-                        <div className="mt-2 text-sm text-yellow-700">
-                          <p>
-                            Reactivate an account will immediately restore this
-                            user's access to the app. Make sure this action is
-                            appropriate.
-                          </p>
-                        </div>
+                {/* Warning Message */}
+                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg
+                        className="h-5 w-5 text-yellow-400"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-yellow-800">
+                        Important Note
+                      </h3>
+                      <div className="mt-2 text-sm text-yellow-700">
+                        <p>
+                          Reactivate an account will immediately restore this
+                          user's access to the app. Make sure this action is
+                          appropriate.
+                        </p>
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex justify-end space-x-3 pt-4 border-t">
-                    <button
-                      onClick={handleCloseUnbanModal}
-                      className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3 pt-4 border-t">
+                  <button
+                    onClick={handleCloseUnbanModal}
+                    className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSubmitUnban}
+                    className="px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors"
+                  >
+                    Reactivate User
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Detail Modal */}
+      {showUserModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-30 mx-auto p-5 w-11/12 md:w-3/4 lg:w-1/2 rounded-md bg-white">
+            <div className="mt-3">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-manrope font-semibold text-gray-900">
+                  User Details
+                </h3>
+              </div>
+
+              {/* User Information */}
+              <div className="space-y-6">
+                {/* Profile Section */}
+                <div className="flex items-center space-x-4">
+                  <ProfilePicture
+                    src={
+                      selectedUser.profilePicture ||
+                      selectedUser.profileImageUrl
+                    }
+                    alt={`${selectedUser.firstName} ${selectedUser.lastName}`}
+                    className="size-15"
+                  />
+                  <div>
+                    <h4 className="text-xl font-semibold text-gray-900">
+                      {selectedUser.firstName} {selectedUser.lastName}
+                    </h4>
+                    <p className="text-gray-600">
+                      @{selectedUser.studentId || "No ID"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* User Details Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email
+                    </label>
+                    <p className="text-gray-900">{selectedUser.email}</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Contact Number
+                    </label>
+                    <p className="text-gray-900">
+                      {selectedUser.contactNum || "Not provided"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Student ID
+                    </label>
+                    <p className="text-gray-900">
+                      {selectedUser.studentId || "Not provided"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Account Status
+                    </label>
+                    <span
+                      className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                        selectedUser.status === "deactivated"
+                          ? "bg-red-100 text-red-800"
+                          : "bg-green-100 text-green-800"
+                      }`}
                     >
-                      Cancel
-                    </button>
+                      {selectedUser.status === "deactivated"
+                        ? "Deactivated"
+                        : "Active"}
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Joined Date
+                    </label>
+                    <p className="text-gray-900">
+                      {selectedUser.createdAt
+                        ? selectedUser.createdAt.toDate
+                          ? new Date(
+                              selectedUser.createdAt.toDate()
+                            ).toLocaleDateString()
+                          : new Date(
+                              selectedUser.createdAt
+                            ).toLocaleDateString()
+                        : "N/A"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Last Updated
+                    </label>
+                    <p className="text-gray-900">
+                      {selectedUser.updatedAt
+                        ? selectedUser.updatedAt.toDate
+                          ? new Date(
+                              selectedUser.updatedAt.toDate()
+                            ).toLocaleDateString()
+                          : new Date(
+                              selectedUser.updatedAt
+                            ).toLocaleDateString()
+                        : "N/A"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={handleCloseUserModal}
+                    className="px-4 py-2 text-gray-700 bg-gray-200 rounded-sm hover:bg-gray-300 transition-colors"
+                  >
+                    Close
+                  </button>
+                  {selectedUser.status === "deactivated" ? (
                     <button
-                      onClick={handleSubmitUnban}
+                      onClick={() => {
+                        handleCloseUserModal();
+                        handleUnbanUser(selectedUser);
+                      }}
                       className="px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors"
                     >
                       Reactivate User
                     </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* User Detail Modal */}
-        {showUserModal && selectedUser && (
-          <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-30 mx-auto p-5 w-11/12 md:w-3/4 lg:w-1/2 rounded-md bg-white">
-              <div className="mt-3">
-                {/* Modal Header */}
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-manrope font-semibold text-gray-900">
-                    User Details
-                  </h3>
-                </div>
-
-                {/* User Information */}
-                <div className="space-y-6">
-                  {/* Profile Section */}
-                  <div className="flex items-center space-x-4">
-                    <ProfilePicture
-                      src={
-                        selectedUser.profilePicture ||
-                        selectedUser.profileImageUrl
-                      }
-                      alt={`${selectedUser.firstName} ${selectedUser.lastName}`}
-                      className="size-15"
-                    />
-                    <div>
-                      <h4 className="text-xl font-semibold text-gray-900">
-                        {selectedUser.firstName} {selectedUser.lastName}
-                      </h4>
-                      <p className="text-gray-600">
-                        @{selectedUser.studentId || "No ID"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* User Details Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Email
-                      </label>
-                      <p className="text-gray-900">{selectedUser.email}</p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Contact Number
-                      </label>
-                      <p className="text-gray-900">
-                        {selectedUser.contactNum || "Not provided"}
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Student ID
-                      </label>
-                      <p className="text-gray-900">
-                        {selectedUser.studentId || "Not provided"}
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Account Status
-                      </label>
-                      <span
-                        className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          selectedUser.status === "deactivated"
-                            ? "bg-red-100 text-red-800"
-                            : "bg-green-100 text-green-800"
-                        }`}
-                      >
-                        {selectedUser.status === "deactivated"
-                          ? "Deactivated"
-                          : "Active"}
-                      </span>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Joined Date
-                      </label>
-                      <p className="text-gray-900">
-                        {selectedUser.createdAt
-                          ? selectedUser.createdAt.toDate
-                            ? new Date(
-                                selectedUser.createdAt.toDate()
-                              ).toLocaleDateString()
-                            : new Date(
-                                selectedUser.createdAt
-                              ).toLocaleDateString()
-                          : "N/A"}
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Last Updated
-                      </label>
-                      <p className="text-gray-900">
-                        {selectedUser.updatedAt
-                          ? selectedUser.updatedAt.toDate
-                            ? new Date(
-                                selectedUser.updatedAt.toDate()
-                              ).toLocaleDateString()
-                            : new Date(
-                                selectedUser.updatedAt
-                              ).toLocaleDateString()
-                          : "N/A"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                  ) : (
                     <button
-                      onClick={handleCloseUserModal}
-                      className="px-4 py-2 text-gray-700 bg-gray-200 rounded-sm hover:bg-gray-300 transition-colors"
+                      onClick={() => {
+                        handleCloseUserModal();
+                        handleBanUser(selectedUser);
+                      }}
+                      className="px-4 py-2 text-white bg-red-600 rounded-sm hover:bg-red-700 transition-colors"
                     >
-                      Close
+                      Deactivate User
                     </button>
-                    {selectedUser.status === "deactivated" ? (
-                      <button
-                        onClick={() => {
-                          handleCloseUserModal();
-                          handleUnbanUser(selectedUser);
-                        }}
-                        className="px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors"
-                      >
-                        Reactivate User
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          handleCloseUserModal();
-                          handleBanUser(selectedUser);
-                        }}
-                        className="px-4 py-2 text-white bg-red-600 rounded-sm hover:bg-red-700 transition-colors"
-                      >
-                        Deactivate User
-                      </button>
-                    )}
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

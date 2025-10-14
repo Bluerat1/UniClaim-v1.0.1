@@ -1,4 +1,4 @@
-// Posts service for lost and found items
+// Posts service for lost and found items - Enhanced with performance optimizations
 import { db } from './config';
 import { cloudinaryService, extractPublicIdFromUrl } from '../cloudinary';
 import {
@@ -13,14 +13,70 @@ import {
     onSnapshot,
     where,
     getDocs,
-    serverTimestamp
+    serverTimestamp,
+    limit,
+    startAfter,
+    writeBatch
 } from 'firebase/firestore';
 
 // Import notification sender (mobile service)
 import { notificationSender } from './notificationSender';
 import { adminNotificationService } from './adminNotifications';
 
-// Post service
+// Connection state management for optimization
+let isOnline = true;
+let connectionListeners: (() => void)[] = [];
+
+// Query result cache for frequently accessed data
+const queryCache = new Map<string, { data: any, timestamp: number, expiry: number }>();
+const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes for query results
+const MAX_CACHE_SIZE = 50; // Prevent memory leaks
+
+// Cache management functions
+const getCacheKey = (collectionName: string, queryConstraints: string[]) => {
+  return `${collectionName}:${queryConstraints.join(':')}`;
+};
+
+const setCache = (key: string, data: any) => {
+  // Clean cache if it gets too large
+  if (queryCache.size >= MAX_CACHE_SIZE) {
+    const oldestKey = Array.from(queryCache.keys())[0];
+    queryCache.delete(oldestKey);
+  }
+
+  queryCache.set(key, {
+    data,
+    timestamp: Date.now(),
+    expiry: Date.now() + CACHE_DURATION
+  });
+};
+
+const getCache = (key: string) => {
+  const cached = queryCache.get(key);
+  if (cached && Date.now() < cached.expiry) {
+    return cached.data;
+  }
+  if (cached) {
+    queryCache.delete(key); // Remove expired cache
+  }
+  return null;
+};
+
+// Connection state management
+export const setOnlineStatus = (online: boolean) => {
+  isOnline = online;
+  if (online) {
+    // Clear expired cache when coming back online
+    const now = Date.now();
+    for (const [key, cached] of queryCache.entries()) {
+      if (now >= cached.expiry) {
+        queryCache.delete(key);
+      }
+    }
+  }
+};
+
+// Post service with performance optimizations
 export const postService = {
     // Get all posts (deprecated - use getActivePosts instead)
     getAllPosts(callback: (posts: any[]) => void) {
@@ -31,24 +87,33 @@ export const postService = {
     // Get only active (non-expired) posts
     getActivePosts(callback: (posts: any[]) => void) {
         const now = new Date();
+        const cacheKey = getCacheKey('posts', ['active', now.toISOString().split('T')[0]]);
+
+        // Check cache first
+        const cachedData = getCache(cacheKey);
+        if (cachedData && isOnline) {
+            console.log('🔄 Using cached active posts data');
+            callback(cachedData);
+            return () => {}; // Return empty unsubscribe function
+        }
 
         // Create query for active posts only (not moved to unclaimed)
         const q = query(
             collection(db, 'posts'),
             where('movedToUnclaimed', '==', false),
-            orderBy('createdAt', 'desc') // Sort by newest first for pagination
+            where('status', 'not-in', ['resolved', 'completed']),
+            orderBy('createdAt', 'desc'),
+            limit(50) // Limit initial load for better performance
         );
 
-        return onSnapshot(q, (snapshot) => {
+        const unsubscribe = onSnapshot(q, (snapshot) => {
             const posts = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             })) as any[];
 
-            // Filter out expired posts and resolved posts on the client side
+            // Filter out expired posts and hidden posts on the client side (additional safety)
             const activePosts = posts.filter(post => {
-                if (post.movedToUnclaimed) return false;
-                if (post.status === 'resolved' || post.status === 'completed') return false;
                 if (post.isHidden === true) return false;
 
                 // Filter out items with turnoverStatus: "declared" for OSA turnover
@@ -67,8 +132,18 @@ export const postService = {
                 return true;
             });
 
+            // Cache the results
+            setCache(cacheKey, activePosts);
+
             callback(activePosts);
+        }, (error) => {
+            console.error('❌ Firebase getActivePosts failed:', error);
+            // Return cached data if available, otherwise empty array
+            const cachedData = getCache(cacheKey);
+            callback(cachedData || []);
         });
+
+        return unsubscribe;
     },
 
     // Get posts by type
@@ -88,7 +163,84 @@ export const postService = {
         });
     },
 
-    // Get user posts
+    // Get posts with pagination support for infinite scroll
+    async getPostsPaginated(lastDoc?: any, pageSize: number = 10): Promise<{ posts: any[], hasMore: boolean, lastDoc: any }> {
+        const cacheKey = getCacheKey('posts', ['paginated', pageSize.toString(), lastDoc?.id || 'start']);
+
+        // Check cache first
+        const cachedData = getCache(cacheKey);
+        if (cachedData && isOnline) {
+            return cachedData;
+        }
+
+        try {
+            let q;
+            if (lastDoc) {
+                q = query(
+                    collection(db, 'posts'),
+                    where('movedToUnclaimed', '==', false),
+                    where('status', 'not-in', ['resolved', 'completed']),
+                    orderBy('createdAt', 'desc'),
+                    startAfter(lastDoc),
+                    limit(pageSize)
+                );
+            } else {
+                q = query(
+                    collection(db, 'posts'),
+                    where('movedToUnclaimed', '==', false),
+                    where('status', 'not-in', ['resolved', 'completed']),
+                    orderBy('createdAt', 'desc'),
+                    limit(pageSize)
+                );
+            }
+
+            const snapshot = await getDocs(q);
+            const posts = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })) as any[];
+
+            // Filter for additional safety
+            const filteredPosts = posts.filter(post => !post.isHidden);
+
+            const result = {
+                posts: filteredPosts,
+                hasMore: snapshot.docs.length === pageSize,
+                lastDoc: snapshot.docs[snapshot.docs.length - 1]
+            };
+
+            // Cache the results
+            setCache(cacheKey, result);
+
+            return result;
+        } catch (error) {
+            console.error('❌ Firebase getPostsPaginated failed:', error);
+            return { posts: [], hasMore: false, lastDoc: null };
+        }
+    },
+
+    // Batch update multiple posts (optimized for admin operations)
+    async batchUpdatePosts(updates: Array<{ id: string, data: any }>): Promise<void> {
+        if (updates.length === 0) return;
+
+        try {
+            const batch = writeBatch(db);
+
+            updates.forEach(({ id, data }) => {
+                const postRef = doc(db, 'posts', id);
+                batch.update(postRef, {
+                    ...data,
+                    updatedAt: serverTimestamp()
+                });
+            });
+
+            await batch.commit();
+            console.log(`✅ Successfully batch updated ${updates.length} posts`);
+        } catch (error) {
+            console.error('❌ Firebase batchUpdatePosts failed:', error);
+            throw new Error('Failed to batch update posts');
+        }
+    },
     getUserPosts(userEmail: string, callback: (posts: any[]) => void) {
         console.log('🔍 [DEBUG] getUserPosts: Querying posts for user:', userEmail);
 
@@ -129,12 +281,23 @@ export const postService = {
         }
     },
 
-    // Get resolved posts
+    // Get resolved posts with caching and optimization
     getResolvedPosts(callback: (posts: any[]) => void) {
+        const cacheKey = getCacheKey('posts', ['resolved']);
+
+        // Check cache first
+        const cachedData = getCache(cacheKey);
+        if (cachedData && isOnline) {
+            console.log('🔄 Using cached resolved posts data');
+            callback(cachedData);
+            return () => {};
+        }
+
         const q = query(
             collection(db, 'posts'),
-            where('status', 'in', ['resolved', 'completed'])
-            // Removed orderBy to match frontend behavior and avoid composite index requirement
+            where('status', 'in', ['resolved', 'completed']),
+            orderBy('updatedAt', 'desc'),
+            limit(50)
         );
 
         return onSnapshot(q, (snapshot) => {
@@ -143,15 +306,14 @@ export const postService = {
                 ...doc.data()
             })) as any[];
 
-            // Sort posts by updatedAt in JavaScript instead (most recent resolution first)
-            // This matches the frontend behavior exactly
-            const sortedPosts = posts.sort((a, b) => {
-                const dateA = a.updatedAt instanceof Date ? a.updatedAt : new Date(a.updatedAt || a.createdAt);
-                const dateB = b.updatedAt instanceof Date ? b.updatedAt : new Date(b.updatedAt || b.createdAt);
-                return dateB.getTime() - dateA.getTime(); // Most recent first
-            });
+            // Cache the results
+            setCache(cacheKey, posts);
 
-            callback(sortedPosts);
+            callback(posts);
+        }, (error) => {
+            console.error('❌ Firebase getResolvedPosts failed:', error);
+            const cachedData = getCache(cacheKey);
+            callback(cachedData || []);
         });
     },
 

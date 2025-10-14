@@ -375,7 +375,7 @@ export const useResolvedPosts = () => {
         setError(null);
 
         // Subscribe to resolved posts directly (like web version)
-        const unsubscribe = postService.getResolvedPosts((fetchedPosts: Post[]) => {
+        const unsubscribe = (postService as any).getResolvedPosts((fetchedPosts: Post[]) => {
             console.log('🔍 [DEBUG] useResolvedPosts: Fetched resolved posts count:', fetchedPosts.length);
             console.log('🔍 [DEBUG] useResolvedPosts: Sample resolved posts:', fetchedPosts.slice(0, 3).map(p => ({ id: p.id, status: p.status, title: p.title })));
 

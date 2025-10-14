@@ -1,5 +1,5 @@
 import PageLayout from "@/layout/PageLayout";
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   Text,
@@ -8,8 +8,8 @@ import {
   View,
   ScrollView,
   ActivityIndicator,
-  Image,
   Alert,
+  Image,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -26,6 +26,21 @@ import { notificationSender } from "@/utils/firebase/notificationSender";
 import { deleteMessageImages, extractMessageImages } from "@/utils/cloudinary";
 import EditTicketModal from "@/components/EditTicketModal";
 import { Ionicons } from "@expo/vector-icons";
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
 
 export default function Ticket() {
   const { userData, loading: authLoading } = useAuth();
@@ -43,6 +58,9 @@ export default function Ticket() {
   const [permanentlyDeletingPostId, setPermanentlyDeletingPostId] = useState<
     string | null
   >(null);
+
+  // Debounced search for better performance
+  const debouncedSearchText = useDebounce(searchText, 300);
 
   // Edit modal state
   const [editingPost, setEditingPost] = useState<Post | null>(null);
@@ -72,11 +90,11 @@ export default function Ticket() {
             ? !post.deletedAt && post.status === "resolved"
             : !!post.deletedAt; // Show deleted posts in the deleted tab
       const matchesSearch =
-        post.title.toLowerCase().includes(searchText.toLowerCase()) ||
-        post.description.toLowerCase().includes(searchText.toLowerCase());
+        post.title.toLowerCase().includes(debouncedSearchText.toLowerCase()) ||
+        post.description.toLowerCase().includes(debouncedSearchText.toLowerCase());
       return matchesTab && matchesSearch;
     });
-  }, [posts, activeTab, searchText]);
+  }, [posts, activeTab, debouncedSearchText]);
 
   const handleClearSearch = useCallback(() => {
     setSearchText("");
@@ -187,11 +205,29 @@ export default function Ticket() {
     [posts]
   );
 
-  // Helper function to find all conversations for a post
+  // Conversation cache to reduce Firebase queries
+  const conversationCache = useMemo(() => new Map<string, { data: any[], timestamp: number }>(), []);
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+  // Helper function to find all conversations for a post (with caching)
   const findConversationsForPost = async (postId: string): Promise<any[]> => {
     try {
+      // Check cache first
+      const cached = conversationCache.get(postId);
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        return cached.data;
+      }
+
       const conversations = await messageService.getCurrentConversations(userData?.uid || '');
-      return conversations.filter(conv => conv.postId === postId);
+      const postConversations = conversations.filter(conv => conv.postId === postId);
+
+      // Cache the result
+      conversationCache.set(postId, {
+        data: postConversations,
+        timestamp: Date.now()
+      });
+
+      return postConversations;
     } catch (error) {
       console.error('Error finding conversations for post:', error);
       return [];
@@ -433,19 +469,34 @@ export default function Ticket() {
             try {
               setPermanentlyDeletingPostId(id);
 
-              // Step 1: Auto-reject any pending handover or claim requests and send notifications
-              console.log(`Auto-rejecting pending requests for post ${id}`);
-              await autoRejectPendingRequestsWithNotifications(id);
+              // Step 1: Get all required data in parallel for better performance
+              console.log(`Starting permanent deletion for post ${id}`);
 
-              // Step 2: Delete all conversation images from Cloudinary
-              console.log(`Deleting conversation images for post ${id}`);
-              await deleteConversationImages(id);
+              // Run all preparatory operations in parallel
+              const [pendingRequests, conversations] = await Promise.all([
+                findPendingRequests(id),
+                findConversationsForPost(id)
+              ]);
 
-              // Step 3: Delete all conversations for this post
-              console.log(`Deleting conversations for post ${id}`);
-              await deleteAllConversations(id);
+              // Step 2: Auto-reject pending requests with notifications (single operation for all requests)
+              if (pendingRequests.length > 0) {
+                console.log(`Auto-rejecting ${pendingRequests.length} pending requests for post ${id}`);
+                await autoRejectPendingRequestsWithNotifications(id);
+              }
 
-              // Step 4: Finally delete the post
+              // Step 3: Delete conversation images (single operation for all conversations)
+              if (conversations.length > 0) {
+                console.log(`Deleting images for ${conversations.length} conversations for post ${id}`);
+                await deleteConversationImages(id);
+              }
+
+              // Step 4: Delete all conversations
+              if (conversations.length > 0) {
+                console.log(`Deleting ${conversations.length} conversations for post ${id}`);
+                await deleteAllConversations(id);
+              }
+
+              // Step 5: Finally delete the post
               console.log(`Deleting post ${id}`);
               await postService.deletePost(id);
 
@@ -734,8 +785,12 @@ const TicketCard = ({
 
     const firstImage = images[0];
     if (typeof firstImage === "string") {
-      // If it's already a URL (Cloudinary URL), use it directly
-      return { uri: firstImage };
+      // If it's already a URL (Cloudinary URL), use it directly with optimization
+      const separator = firstImage.includes('?') ? '&' : '?';
+      return {
+        uri: `${firstImage}${separator}w=400&h=300&q=80&f=webp`,
+        cache: 'force-cache' as const,
+      };
     }
 
     // If it's a File object, this shouldn't happen in mobile but handle gracefully

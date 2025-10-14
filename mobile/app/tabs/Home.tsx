@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   FlatList,
   Text,
@@ -16,18 +16,24 @@ import type { Post } from "../../types/type";
 // hooks
 import { usePosts, useResolvedPosts } from "../../hooks/usePosts";
 
+// Debounce utility for search optimization
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
 export default function Home() {
-  // ✅ Use the custom hook for real-time posts with smart loading
-  const { posts, loading, error, isInitialLoad } = usePosts();
-  const {
-    posts: resolvedPosts,
-    loading: resolvedLoading,
-    error: resolvedError,
-  } = useResolvedPosts();
-
-  // Simple scroll handling (like web version)
-  const flatListRef = React.useRef<FlatList>(null);
-
   const [activeButton, setActiveButton] = useState<
     "all" | "lost" | "found" | "resolved"
   >("all");
@@ -37,13 +43,30 @@ export default function Home() {
   const [descriptionSearch, setDescriptionSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
+  // Debounce search inputs for better performance
+  const debouncedQuery = useDebounce(query, 300);
+  const debouncedDescriptionSearch = useDebounce(descriptionSearch, 300);
+  const debouncedLocationSearch = useDebounce(locationSearch, 300);
+
+  // Conditional hook usage - only call the active hook
+  const isResolvedTab = activeButton === "resolved";
+  const postsHook = usePosts();
+  const resolvedPostsHook = useResolvedPosts();
+
+  // Handle different return types from hooks
+  const { posts, loading, error, isInitialLoad } = isResolvedTab
+    ? { ...resolvedPostsHook, isInitialLoad: false } // resolved hook doesn't have isInitialLoad
+    : postsHook;
+
+  // Simple scroll handling (like web version)
+  const flatListRef = React.useRef<FlatList>(null);
+
   // Simple scroll handling - no complex preservation needed
 
   // Determine which posts to display based on activeButton
   const getPostsToDisplay = () => {
     // Get the appropriate posts based on active tab
-    let basePosts =
-      activeButton === "resolved" ? resolvedPosts || [] : posts || [];
+    let basePosts = isResolvedTab ? resolvedPostsHook.posts || [] : posts || [];
 
     // Create a new array to avoid mutating the original
     // Sort by createdAt in descending order (newest first)
@@ -60,76 +83,87 @@ export default function Home() {
 
   const postsToDisplay = getPostsToDisplay();
 
-  const filteredPosts = postsToDisplay.filter((post) => {
-    // Add data validation to prevent crashes
-    if (
-      !post ||
-      !post.title ||
-      !post.description ||
-      !post.category ||
-      !post.location
-    ) {
-      return false;
-    }
+  // Memoized filtered posts - only recalculate when dependencies change
+  const filteredPosts = useMemo(() => {
+    return postsToDisplay.filter((post) => {
+      // Add data validation to prevent crashes
+      if (
+        !post ||
+        !post.title ||
+        !post.description ||
+        !post.category ||
+        !post.location
+      ) {
+        return false;
+      }
 
-    // Filter out unclaimed posts
-    if (post.status === "unclaimed") return false;
+      // Filter out unclaimed posts
+      if (post.status === "unclaimed") return false;
 
-    // Filter out completed posts
-    if (post.status === "completed") return false;
+      // Filter out completed posts
+      if (post.status === "completed") return false;
 
-    // Filter out any posts that might have been missed by the service
-    // This is just an extra safety check
-    if (post.movedToUnclaimed || post.isHidden === true) {
-      return false;
-    }
+      // Filter out any posts that might have been missed by the service
+      // This is just an extra safety check
+      if (post.movedToUnclaimed || post.isHidden === true) {
+        return false;
+      }
 
-    // Filter out items with turnoverStatus: "declared" for OSA turnover
-    if (
-      post.turnoverDetails &&
-      post.turnoverDetails.turnoverStatus === "declared" &&
-      post.turnoverDetails.turnoverAction === "turnover to OSA"
-    ) {
-      return false;
-    }
+      // Filter out items with turnoverStatus: "declared" for OSA turnover
+      if (
+        post.turnoverDetails &&
+        post.turnoverDetails.turnoverStatus === "declared" &&
+        post.turnoverDetails.turnoverAction === "turnover to OSA"
+      ) {
+        return false;
+      }
 
-    const queryWords = query.toLowerCase().trim().split(/\s+/);
+      const queryWords = debouncedQuery.toLowerCase().trim().split(/\s+/);
 
-    const titleMatch = queryWords.every((word) =>
-      post.title.toLowerCase().includes(word)
-    );
+      const titleMatch = queryWords.every((word) =>
+        post.title.toLowerCase().includes(word)
+      );
 
-    const descriptionMatch = descriptionSearch
-      ? post.description
-          .toLowerCase()
-          .includes(descriptionSearch.toLowerCase().trim())
-      : true;
+      const descriptionMatch = debouncedDescriptionSearch
+        ? post.description
+            .toLowerCase()
+            .includes(debouncedDescriptionSearch.toLowerCase().trim())
+        : true;
 
-    const categoryMatch = categorySearch
-      ? post.category === categorySearch
-      : true;
+      const categoryMatch = categorySearch
+        ? post.category === categorySearch
+        : true;
 
-    const locationMatch = locationSearch
-      ? post.location
-          .toLowerCase()
-          .includes(locationSearch.toLowerCase().trim())
-      : true;
+      const locationMatch = debouncedLocationSearch
+        ? post.location
+            .toLowerCase()
+            .includes(debouncedLocationSearch.toLowerCase().trim())
+        : true;
 
-    // For active posts, make sure they're not resolved
-    // For resolved view, we don't need to check status as resolvedPosts already contains only resolved posts
-    const typeMatch =
-      activeButton === "resolved" ||
-      (post.status !== "resolved" &&
-        (activeButton === "all" || post.type === activeButton));
+      // For active posts, make sure they're not resolved
+      // For resolved view, we don't need to check status as resolvedPosts already contains only resolved posts
+      const typeMatch =
+        isResolvedTab ||
+        (post.status !== "resolved" &&
+          (activeButton === "all" || post.type === activeButton));
 
-    return (
-      typeMatch &&
-      titleMatch &&
-      categoryMatch &&
-      locationMatch &&
-      descriptionMatch
-    );
-  });
+      return (
+        typeMatch &&
+        titleMatch &&
+        categoryMatch &&
+        locationMatch &&
+        descriptionMatch
+      );
+    });
+  }, [
+    postsToDisplay,
+    debouncedQuery,
+    debouncedDescriptionSearch,
+    debouncedLocationSearch,
+    categorySearch,
+    activeButton,
+    isResolvedTab
+  ]);
 
   return (
     <Layout>
@@ -245,10 +279,10 @@ export default function Home() {
         </View>
 
         {/* 📄 Filtered Post List with Smart Loading & Error States */}
-        {error || resolvedError ? (
+        {error ? (
           <View className="items-center justify-center mt-10">
             <Text className="text-red-500 text-base font-manrope-medium">
-              Error loading posts: {error || resolvedError}
+              Error loading posts: {error}
             </Text>
             <TouchableOpacity
               onPress={() => {
@@ -259,7 +293,7 @@ export default function Home() {
               <Text className="text-white font-manrope-medium">Retry</Text>
             </TouchableOpacity>
           </View>
-        ) : isInitialLoad && (loading || resolvedLoading) ? (
+        ) : isInitialLoad && loading ? (
           // Show skeleton loading only on first load
           <PostCardSkeletonList count={5} />
         ) : (

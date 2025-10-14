@@ -6,7 +6,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as ImagePicker from "expo-image-picker";
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -32,10 +32,25 @@ import { userService } from "../../utils/firebase";
 import { postUpdateService } from "../../utils/postUpdateService";
 import { userDeletionService } from "../../utils/firebase/userDeletion";
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList, "Profile">;
-
 // Default profile picture constant
 const DEFAULT_PROFILE_PICTURE = require("../../assets/images/empty_profile.jpg");
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, "Profile">;
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
 
 export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
@@ -78,33 +93,44 @@ export default function Profile() {
     setIsProfilePictureMarkedForDeletion,
   ] = useState(false);
 
-  // Update profile when userData changes
-  React.useEffect(() => {
-    if (userData) {
-      console.log(
-        "Profile useEffect - userData.profilePicture:",
-        userData.profilePicture
-      );
-      const newImageUri =
-        userData.profilePicture &&
-        userData.profilePicture.trim() !== "" &&
-        !userData.profilePicture.includes("/src/assets/")
-          ? { uri: userData.profilePicture }
-          : DEFAULT_PROFILE_PICTURE;
-      console.log("Profile useEffect - newImageUri:", newImageUri);
+  // Handle image source properly for React Native with optimization
+  const getOptimizedImageSource = (imageUri: any) => {
+    if (!imageUri) return DEFAULT_PROFILE_PICTURE;
 
-      setProfile({
-        firstName: userData.firstName || "",
-        lastName: userData.lastName || "",
-        email: userData.email || "",
-        contactNumber: userData.contactNum || "",
-        studentId: userData.studentId || "",
-        imageUri: newImageUri,
-      });
-      setHasImageChanged(false);
-      setIsProfilePictureMarkedForDeletion(false);
+    if (typeof imageUri === "object" && "uri" in imageUri) {
+      const uri = imageUri.uri;
+
+      // If it's already a Cloudinary URL, optimize it
+      if (uri.includes("cloudinary.com")) {
+        const separator = uri.includes('?') ? '&' : '?';
+        return {
+          uri: `${uri}${separator}w=400&h=400&q=80&f=webp`,
+          cache: 'force-cache' as const,
+        };
+      }
+
+      // If it's a local file, use it directly (will be handled by ImagePicker)
+      return imageUri;
     }
-  }, [userData]);
+
+    // If it's a string URL
+    if (typeof imageUri === "string") {
+      if (imageUri.includes("cloudinary.com")) {
+        const separator = imageUri.includes('?') ? '&' : '?';
+        return {
+          uri: `${imageUri}${separator}w=400&h=400&q=80&f=webp`,
+          cache: 'force-cache' as const,
+        };
+      }
+
+      // Return as-is for other URLs
+      return { uri: imageUri };
+    }
+
+    return DEFAULT_PROFILE_PICTURE;
+  };
+
+  const optimizedImageSource = getOptimizedImageSource(profile.imageUri);
 
   const handleSave = async () => {
     if (!userData || !user) {
@@ -300,7 +326,7 @@ export default function Profile() {
     }
   };
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     // Revert to original userData
     if (userData) {
       setProfile({
@@ -320,9 +346,9 @@ export default function Profile() {
     setIsEditing(false);
     setHasImageChanged(false);
     setIsProfilePictureMarkedForDeletion(false);
-  };
+  }, [userData]);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
       {
         text: "Cancel",
@@ -347,20 +373,20 @@ export default function Profile() {
         },
       },
     ]);
-  };
+  }, [logout, navigation]);
 
   // Delete account handlers
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = useCallback(() => {
     setShowDeleteModal(true);
     setDeleteConfirmation("");
     setDeletePassword("");
-  };
+  }, []);
 
-  const handleCloseDeleteModal = () => {
+  const handleCloseDeleteModal = useCallback(() => {
     setShowDeleteModal(false);
     setDeleteConfirmation("");
     setDeletePassword("");
-  };
+  }, []);
 
   const handleConfirmDelete = async () => {
     if (deleteConfirmation !== "DELETE") {
@@ -458,7 +484,7 @@ export default function Profile() {
     }
   };
 
-  const pickImage = async () => {
+  const pickImage = useCallback(async () => {
     // Ask for permission
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
@@ -482,9 +508,9 @@ export default function Profile() {
       }));
       setHasImageChanged(true);
     }
-  };
+  }, []);
 
-  const handleRemoveProfilePicture = () => {
+  const handleRemoveProfilePicture = useCallback(() => {
     // Check if there's a current profile picture to mark for deletion
     const hasCurrentPicture =
       userData?.profilePicture &&
@@ -531,7 +557,7 @@ export default function Profile() {
         },
       ]
     );
-  };
+  }, [userData?.profilePicture]);
 
   const renderField = (
     iconName: keyof typeof AntDesign.glyphMap | keyof typeof Ionicons.glyphMap,
@@ -618,7 +644,7 @@ export default function Profile() {
               }}
             >
               <Image
-                source={profile.imageUri}
+                source={optimizedImageSource}
                 className="size-[7.8rem] rounded-full"
                 onError={(error) => {
                   console.error("Profile image error:", error);

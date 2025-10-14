@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   SafeAreaView,
   Text,
@@ -20,7 +20,7 @@ type MessageNavigationProp = NativeStackNavigationProp<
   "Message"
 >;
 
-const ConversationItem = ({
+const ConversationItem = React.memo(({
   conversation,
   onPress,
 }: {
@@ -29,7 +29,7 @@ const ConversationItem = ({
 }) => {
   const { userData } = useAuth();
 
-  const formatTime = (timestamp: any) => {
+  const formatTime = useCallback((timestamp: any) => {
     if (!timestamp) return "";
 
     const date = timestamp instanceof Date ? timestamp : timestamp.toDate();
@@ -42,36 +42,29 @@ const ConversationItem = ({
     if (diffInHours < 24) return `${Math.floor(diffInHours)}h ago`;
     if (diffInHours < 48) return "Yesterday";
     return date.toLocaleDateString();
-  };
+  }, []);
 
-  // Get the other participant's name (exclude current user)
-  const getOtherParticipantName = () => {
+  // Memoize expensive participant computations
+  const otherParticipantName = useMemo(() => {
     if (!userData) return "Unknown User";
 
-    // Use new structure (participants with user data)
     const otherParticipants = Object.entries(conversation.participants || {})
-      .filter(([uid]) => uid !== userData.uid) // Exclude current user
+      .filter(([uid]) => uid !== userData.uid)
       .map(([, participant]) => {
         const p = participant as { firstName: string; lastName: string };
         return `${p.firstName} ${p.lastName}`.trim();
       })
       .filter((name) => name.length > 0);
 
-    if (otherParticipants.length > 0) {
-      return otherParticipants.join(", ");
-    }
+    return otherParticipants.length > 0 ? otherParticipants.join(", ") : "Unknown User";
+  }, [conversation.participants, userData]);
 
-    return "Unknown User";
-  };
-
-  // Get the other participant's profile picture (exclude current user)
-  const getOtherParticipantProfilePicture = () => {
+  const otherParticipantProfilePicture = useMemo(() => {
     if (!userData) return null;
 
-    // Use new structure (participants with user data)
-    const otherParticipant = Object.entries(
-      conversation.participants || {}
-    ).find(([uid]) => uid !== userData.uid);
+    const otherParticipant = Object.entries(conversation.participants || {}).find(
+      ([uid]) => uid !== userData.uid
+    );
 
     if (otherParticipant) {
       const p = otherParticipant[1] as {
@@ -82,18 +75,15 @@ const ConversationItem = ({
     }
 
     return null;
-  };
+  }, [conversation.participants, userData]);
 
-  // Get the name of the user who sent the last message
-  const getLastMessageSenderName = () => {
+  const lastMessageSenderName = useMemo(() => {
     if (!conversation.lastMessage?.senderId || !userData) return "Unknown User";
 
-    // If the sender is the current user
     if (conversation.lastMessage.senderId === userData.uid) {
       return "You";
     }
 
-    // Find the sender in participants (new structure)
     const sender = Object.entries(conversation.participants || {}).find(
       ([uid]) => uid === conversation.lastMessage?.senderId
     );
@@ -106,7 +96,10 @@ const ConversationItem = ({
     }
 
     return "Unknown User";
-  };
+  }, [conversation.lastMessage?.senderId, conversation.participants, userData]);
+
+  const formattedTime = useMemo(() => formatTime(conversation.lastMessage?.timestamp), [formatTime, conversation.lastMessage?.timestamp]);
+  const unreadCount = useMemo(() => conversation.unreadCounts?.[userData?.uid || ""] || 0, [conversation.unreadCounts, userData?.uid]);
 
   return (
     <TouchableOpacity
@@ -116,7 +109,7 @@ const ConversationItem = ({
       <View className="flex-row items-start">
         {/* Profile Picture */}
         <View className="mr-3">
-          <ProfilePicture src={getOtherParticipantProfilePicture()} size="md" />
+          <ProfilePicture src={otherParticipantProfilePicture} size="md" />
         </View>
 
         {/* Conversation Details */}
@@ -145,16 +138,16 @@ const ConversationItem = ({
                 className="text-gray-500 font-manrope-medium text-xs mt-1"
                 numberOfLines={1}
               >
-                {getOtherParticipantName()}
+                {otherParticipantName}
               </Text>
               <Text
-                className={`text-sm mt-2 font-inter ${conversation.unreadCounts?.[userData?.uid || ""] > 0 ? "font-bold text-gray-800" : "text-gray-600"}`}
+                className={`text-sm mt-2 font-inter ${unreadCount > 0 ? "font-bold text-gray-800" : "text-gray-600"}`}
                 numberOfLines={2}
               >
                 {conversation.lastMessage ? (
                   <>
                     <Text className="font-medium">
-                      {getLastMessageSenderName()}
+                      {lastMessageSenderName}
                     </Text>
                     <Text>: {conversation.lastMessage.text}</Text>
                   </>
@@ -165,15 +158,13 @@ const ConversationItem = ({
             </View>
             <View className="ml-2">
               <Text className="text-gray-500 text-xs font-manrope">
-                {formatTime(conversation.lastMessage?.timestamp)}
+                {formattedTime}
               </Text>
               {/* Get the current user's unread count from this conversation */}
-              {conversation.unreadCounts?.[userData?.uid || ""] > 0 && (
+              {unreadCount > 0 && (
                 <View className="bg-blue-500 rounded-full px-2 py-1 mt-1 self-end min-w-[20px] items-center justify-center">
                   <Text className="text-white text-xs font-bold">
-                    {conversation.unreadCounts[userData?.uid || ""] > 99
-                      ? "99+"
-                      : conversation.unreadCounts[userData?.uid || ""]}
+                    {unreadCount > 99 ? "99+" : unreadCount}
                   </Text>
                 </View>
               )}
@@ -183,7 +174,7 @@ const ConversationItem = ({
       </View>
     </TouchableOpacity>
   );
-};
+});
 
 export default function Message() {
   const navigation = useNavigation<MessageNavigationProp>();
@@ -196,7 +187,7 @@ export default function Message() {
   const { userData } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
-  const handleConversationPress = async (conversation: Conversation) => {
+  const handleConversationPress = useCallback(async (conversation: Conversation) => {
     console.log("🔍 DEBUG: Navigating to Chat with conversation data:", {
       conversationId: conversation.id,
       postTitle: conversation.postTitle,
@@ -224,9 +215,9 @@ export default function Message() {
       postStatus: conversation.postStatus,
       foundAction: conversation.foundAction,
     });
-  };
+  }, [userData?.uid, markConversationAsRead, navigation]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await refreshConversations();
@@ -235,7 +226,7 @@ export default function Message() {
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [refreshConversations]);
 
   // Sort conversations by most recent message timestamp (newest first)
   const sortedConversations = useMemo(() => {

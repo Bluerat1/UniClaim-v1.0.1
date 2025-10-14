@@ -1,16 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import React from "react";
-import {
-  Image,
-  Image as RNImage,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import React, { useState, useCallback } from 'react';
+import { TouchableOpacity, View, Text, Image as RNImage, ActivityIndicator } from 'react-native';
 import type { Post } from "@/types/type";
 import ProfilePicture from "./ProfilePicture";
+import { usePerformanceMonitor, trackImageLoad } from '../utils/performanceMonitor';
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import PostCardMenu from "./PostCardMenu";
 
@@ -32,6 +27,13 @@ export default function PostCard({
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
+  // Image optimization state
+  const [imageLoading, setImageLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
+
+  // Performance monitoring hook
+  const { recordError, startTimer, endTimer } = usePerformanceMonitor('PostCard');
+
   // Fallback to individual admin status fetch if not provided
   const fallbackAdminStatuses = useAdminStatus(adminStatuses ? [] : [post]);
   const effectiveAdminStatuses = adminStatuses || fallbackAdminStatuses;
@@ -47,6 +49,93 @@ export default function PostCard({
       default:
         return "bg-blue-100 text-blue-700";
     }
+  };
+
+  const handleImageLoadStart = useCallback(() => {
+    setImageLoading(true);
+    setImageError(false);
+    startTimer('imageLoad');
+  }, [startTimer]);
+
+  const handleImageLoadEnd = useCallback(() => {
+    setImageLoading(false);
+    endTimer('imageLoad');
+  }, [endTimer]);
+
+  const handleImageError = useCallback(() => {
+    setImageLoading(false);
+    setImageError(true);
+    recordError(new Error('Image load failed'), 'low');
+  }, [recordError]);
+
+  const getOptimizedImageSource = (imageSource: string | number | File) => {
+    if (typeof imageSource === "string") {
+      // For remote images, add query parameters for optimization
+      const separator = imageSource.includes('?') ? '&' : '?';
+      return {
+        uri: `${imageSource}${separator}w=400&h=300&q=80&f=webp`,
+        cache: 'force-cache' as const,
+      };
+    }
+    if (imageSource instanceof File) {
+      // For File objects, we can't use them directly in React Native Image
+      // Return a placeholder or handle differently
+      return null;
+    }
+    return imageSource;
+  };
+
+  const renderImage = () => {
+    if (!post.images || post.images.length === 0) {
+      return (
+        <View className="w-full h-72 bg-gray-200 rounded-t-md items-center justify-center">
+          <Ionicons name="image-outline" size={48} color="#9CA3AF" />
+          <Text className="text-gray-500 mt-2">No image available</Text>
+        </View>
+      );
+    }
+
+    const firstImage = post.images[0];
+    const imageSource = getOptimizedImageSource(firstImage);
+
+    // If image source is not valid (e.g., File object), show placeholder
+    if (!imageSource) {
+      return (
+        <View className="w-full h-72 bg-gray-200 rounded-t-md items-center justify-center">
+          <Ionicons name="image-outline" size={48} color="#9CA3AF" />
+          <Text className="text-gray-500 mt-2">Image unavailable</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View className="relative">
+        <RNImage
+          source={imageSource}
+          className="w-full h-72 rounded-t-md"
+          resizeMode="cover"
+          onLoadStart={handleImageLoadStart}
+          onLoadEnd={handleImageLoadEnd}
+          onError={handleImageError}
+          key={`${post.id}-${firstImage}`} // Force re-render when post changes
+        />
+
+        {/* Loading indicator */}
+        {imageLoading && (
+          <View className="absolute inset-0 bg-gray-100 rounded-t-md items-center justify-center">
+            <ActivityIndicator size="large" color="#2563eb" />
+          </View>
+        )}
+
+        {/* Error state */}
+        {imageError && (
+          <View className="absolute inset-0 bg-gray-100 rounded-t-md items-center justify-center">
+            <Ionicons name="image-outline" size={48} color="#9CA3AF" />
+            <Text className="text-gray-500 mt-2">Failed to load image</Text>
+          </View>
+        )}
+      </View>
+    );
   };
 
   const highlightText = (text: string, search: string) => {
@@ -88,15 +177,7 @@ export default function PostCard({
       }
     >
       <View className="relative">
-        <Image
-          source={
-            typeof post.images[0] === "string"
-              ? { uri: post.images[0] as string }
-              : (post.images[0] as any)
-          }
-          className="w-full h-72 rounded-t-md"
-          resizeMode="cover"
-        />
+        {renderImage()}
 
         {/* Resolved Status Badge */}
         {post.status === "resolved" && (

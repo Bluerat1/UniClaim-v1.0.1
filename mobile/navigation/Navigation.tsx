@@ -1,10 +1,22 @@
 // Navigation.tsx
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
+import { View, ActivityIndicator } from "react-native";
 import type { RootStackParamList } from "../types/type";
 import { useAuth } from "../context/AuthContext";
 
-// Screens
+// Simple loading component for Suspense fallback
+const ScreenLoader = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+    <ActivityIndicator size="large" color="#2563eb" />
+  </View>
+);
+
+// Components
+import CustomTabs from "../components/BottomTabs";
+import ScreenWrapper from "../components/ScreenWrapper";
+
+// Screens - keeping direct imports for React Native compatibility
 import Chat from "@/app/Chat";
 import ForgotPassword from "@/app/tabs/ForgotPassword";
 import Home from "../app/tabs/Home";
@@ -20,10 +32,6 @@ import Report from "../app/tabs/Report";
 import USTPMapScreen from "../app/tabs/USTPMapScreen";
 import ClaimFormScreen from "../app/tabs/ClaimFormScreen";
 import PhotoCaptureScreen from "../app/tabs/PhotoCaptureScreen";
-
-// Components
-import CustomTabs from "../components/BottomTabs";
-import ScreenWrapper from "../components/ScreenWrapper";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -117,11 +125,19 @@ export default function Navigation({
     >
       {/* Entry Screens */}
       <Stack.Screen name="OnBoarding">
-        {() => <OnBoarding onFinish={() => setHasSeenOnBoarding(true)} />}
+        {() => (
+          <Suspense fallback={<ScreenLoader />}>
+            <OnBoarding onFinish={() => setHasSeenOnBoarding(true)} />
+          </Suspense>
+        )}
       </Stack.Screen>
 
       <Stack.Screen name="Index">
-        {() => <Index onContinue={() => setHasPassedIndex(true)} />}
+        {() => (
+          <Suspense fallback={<ScreenLoader />}>
+            <Index onContinue={() => setHasPassedIndex(true)} />
+          </Suspense>
+        )}
       </Stack.Screen>
 
       {/* Main Screens */}
@@ -129,27 +145,83 @@ export default function Navigation({
         name="RootBottomTabs"
         component={withScreenWrapper(CustomTabs)}
       />
-      <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
-      <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
-      <Stack.Screen name="Home" component={withScreenWrapper(Home)} />
-      <Stack.Screen name="Report" component={withScreenWrapper(Report)} />
-      <Stack.Screen name="Profile" component={withScreenWrapper(Profile)} />
-      <Stack.Screen name="Message" component={withScreenWrapper(Message)} />
-      <Stack.Screen
-        name="ForgotPassword"
-        component={withScreenWrapper(ForgotPassword)}
-      />
-      <Stack.Screen
-        name="PostDetails"
-        component={withScreenWrapper(PostDetails)}
-      />
-      <Stack.Screen 
-        name="Chat" 
-        component={withScreenWrapper(Chat)} 
-        options={{ animation: 'none' }}
-      />
-      <Stack.Screen name="ClaimFormScreen" component={withScreenWrapper(ClaimFormScreen)} />
-      <Stack.Screen name="PhotoCaptureScreen" component={withScreenWrapper(PhotoCaptureScreen)} />
+      <Stack.Screen name="Login">
+        {() => (
+          <Suspense fallback={<ScreenLoader />}>
+            <Login />
+          </Suspense>
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="Register">
+        {() => (
+          <Suspense fallback={<ScreenLoader />}>
+            <Register />
+          </Suspense>
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="Home">
+        {() => (
+          <Suspense fallback={<ScreenLoader />}>
+            <Home />
+          </Suspense>
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="Report">
+        {() => (
+          <Suspense fallback={<ScreenLoader />}>
+            <Report />
+          </Suspense>
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="Profile">
+        {() => (
+          <Suspense fallback={<ScreenLoader />}>
+            <Profile />
+          </Suspense>
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="Message">
+        {() => (
+          <Suspense fallback={<ScreenLoader />}>
+            <Message />
+          </Suspense>
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="ForgotPassword">
+        {() => (
+          <Suspense fallback={<ScreenLoader />}>
+            <ForgotPassword />
+          </Suspense>
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="PostDetails">
+        {() => (
+          <Suspense fallback={<ScreenLoader />}>
+            <PostDetails />
+          </Suspense>
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="Chat">
+        {() => (
+          <Suspense fallback={<ScreenLoader />}>
+            <Chat />
+          </Suspense>
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="ClaimFormScreen">
+        {() => (
+          <Suspense fallback={<ScreenLoader />}>
+            <ClaimFormScreen />
+          </Suspense>
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="PhotoCaptureScreen">
+        {() => (
+          <Suspense fallback={<ScreenLoader />}>
+            <PhotoCaptureScreen />
+          </Suspense>
+        )}
+      </Stack.Screen>
 
       {/* ✅ FIXED: Pass props using render function */}
       <Stack.Screen name="ItemDetails">
@@ -181,11 +253,13 @@ export default function Navigation({
           </ScreenWrapper>
         )}
       </Stack.Screen>
-      <Stack.Screen
-        name="USTPMapScreen"
-        component={USTPMapScreen}
-        options={{ title: "USTP Campus Map", presentation: "modal" }} // optional customization
-      />
+      <Stack.Screen name="USTPMapScreen">
+        {() => (
+          <Suspense fallback={<ScreenLoader />}>
+            <USTPMapScreen />
+          </Suspense>
+        )}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 }
