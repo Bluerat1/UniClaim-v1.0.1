@@ -52,7 +52,7 @@ const ConversationItem = ({
     const otherParticipants = Object.entries(conversation.participants || {})
       .filter(([uid]) => uid !== userData.uid) // Exclude current user
       .map(([, participant]) => {
-        const p = participant as { firstName: string; lastName: string; };
+        const p = participant as { firstName: string; lastName: string };
         return `${p.firstName} ${p.lastName}`.trim();
       })
       .filter((name) => name.length > 0);
@@ -74,7 +74,10 @@ const ConversationItem = ({
     ).find(([uid]) => uid !== userData.uid);
 
     if (otherParticipant) {
-      const p = otherParticipant[1] as { profilePicture?: string; profileImageUrl?: string; };
+      const p = otherParticipant[1] as {
+        profilePicture?: string;
+        profileImageUrl?: string;
+      };
       return p.profilePicture || p.profileImageUrl || null;
     }
 
@@ -96,7 +99,7 @@ const ConversationItem = ({
     );
 
     if (sender) {
-      const p = sender[1] as { firstName: string; lastName: string; };
+      const p = sender[1] as { firstName: string; lastName: string };
       const firstName = p.firstName || "";
       const lastName = p.lastName || "";
       return `${firstName} ${lastName}`.trim() || "Unknown User";
@@ -184,7 +187,12 @@ const ConversationItem = ({
 
 export default function Message() {
   const navigation = useNavigation<MessageNavigationProp>();
-  const { conversations, loading, refreshConversations, markConversationAsRead } = useMessage();
+  const {
+    conversations,
+    loading,
+    refreshConversations,
+    markConversationAsRead,
+  } = useMessage();
   const { userData } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 

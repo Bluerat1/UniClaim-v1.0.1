@@ -12,6 +12,7 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Text,
   TextInput,
@@ -549,8 +550,10 @@ export default function Profile() {
             onChangeText={(text) =>
               setProfile((prev) => ({ ...prev, [fieldKey]: text }))
             }
-            className="w-full bg-zinc-100 p-3 rounded-md border border-zinc-300 font-inter text-base"
+            editable={!isReadOnly} // Optional if you have a read-only field (like email)
+            className="w-full bg-zinc-100 p-3 rounded-md border border-zinc-300 font-inter text-base flex-shrink"
             returnKeyType="done"
+            numberOfLines={1}
           />
         </View>
       );
@@ -560,9 +563,17 @@ export default function Profile() {
       <View className="flex-row justify-between items-center w-full bg-zinc-100 p-3 rounded-md border border-zinc-300">
         <View className="flex-row items-center gap-3">
           <IconComponent name={iconName as any} size={20} color="black" />
-          <Text className="text-base font-manrope-medium">{label}</Text>
+          <Text className="text-[13px] font-manrope-medium">{label}</Text>
         </View>
-        <Text className="font-inter text-base">{value}</Text>
+
+        <Text
+          className="font-inter text-[13px] flex-shrink text-right max-w-[70%]"
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          minimumFontScale={0.9}
+        >
+          {value}
+        </Text>
       </View>
     );
   };
@@ -769,7 +780,7 @@ export default function Profile() {
                 >
                   <View className="flex-row items-center gap-3">
                     <Ionicons name="exit-outline" size={20} color="red" />
-                    <Text className="text-base font-manrope-medium text-red-500">
+                    <Text className="text-[13px] font-manrope-medium text-red-500">
                       Log Out
                     </Text>
                   </View>
@@ -783,7 +794,7 @@ export default function Profile() {
                 >
                   <View className="flex-row items-center gap-3">
                     <Ionicons name="trash-outline" size={20} color="white" />
-                    <Text className="text-base font-manrope-medium text-white">
+                    <Text className="text-[13px] font-manrope-medium text-white">
                       {isDeleting ? "Deleting Account..." : "Delete Account"}
                     </Text>
                   </View>
@@ -796,90 +807,96 @@ export default function Profile() {
 
       {/* Delete Account Confirmation Modal */}
       {showDeleteModal && (
-        <View className="absolute inset-0 bg-black/50 flex-1 flex items-center justify-center z-60 p-4">
-          <View className="bg-white rounded-lg max-w-md w-full p-6">
-            <View className="flex-row items-center gap-3 mb-4">
-              <View className="size-10 bg-red-100 rounded-full flex items-center justify-center">
-                <Ionicons name="warning" size={24} color="#dc2626" />
-              </View>
-              <Text className="text-lg font-manrope-semibold text-gray-900">
-                Delete Account
-              </Text>
-            </View>
-
-            <View className="mb-4">
-              <Text className="text-gray-700 mb-4 font-manrope-medium text-sm">
-                This action cannot be undone. This will permanently delete your
-                account and remove all data from our servers, including:
-              </Text>
-              <View className="space-y-1 mb-4">
-                <Text className="text-sm text-gray-500 font-inter">
-                  • Your profile and personal information
-                </Text>
-                <Text className="text-sm text-gray-500 font-inter">
-                  • All your posts and images
-                </Text>
-                <Text className="text-sm text-gray-500 font-inter">
-                  • All conversations and messages
-                </Text>
-                <Text className="text-sm text-gray-500 font-inter">
-                  • All notifications and settings
+        <Modal
+          visible={showDeleteModal}
+          transparent
+          onRequestClose={handleCloseDeleteModal}
+        >
+          <View className="flex-1 bg-black/50 items-center justify-center z-50 p-4">
+            <View className="bg-white rounded-lg max-w-md w-full p-6">
+              <View className="flex-row items-center gap-3 mb-4">
+                <View className="size-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <Ionicons name="warning" size={24} color="#dc2626" />
+                </View>
+                <Text className="text-lg font-manrope-semibold text-gray-900">
+                  Delete Account
                 </Text>
               </View>
-              <Text className="text-red-600 font-manrope-medium">
-                Type{" "}
-                <Text className="bg-red-50 px-1 rounded font-manrope-bold">
-                  DELETE
-                </Text>{" "}
-                to confirm:
-              </Text>
-            </View>
 
-            <View className="flex-col gap-3">
-              <TextInput
-                value={deleteConfirmation}
-                onChangeText={setDeleteConfirmation}
-                placeholder="Type DELETE to confirm"
-                className="w-full px-3 py-3 border font-inter border-gray-300 rounded-lg"
-                editable={!isDeleting}
-              />
-
-              <TextInput
-                value={deletePassword}
-                onChangeText={setDeletePassword}
-                placeholder="Enter your password to confirm"
-                secureTextEntry={true}
-                className="w-full px-3 py-3 border font-inter border-gray-300 rounded-lg"
-                editable={!isDeleting}
-              />
-
-              <View className="flex-row gap-3">
-                <TouchableOpacity
-                  onPress={handleCloseDeleteModal}
-                  disabled={isDeleting}
-                  className="flex-1 px-4 py-3 bg-gray-100 rounded-lg"
-                >
-                  <Text className="text-center font-manrope-medium text-gray-700 font-medium">
-                    Cancel
+              <View className="mb-4">
+                <Text className="text-gray-700 mb-4 font-manrope-medium text-sm">
+                  This action cannot be undone. This will permanently delete
+                  your account and remove all data from our servers, including:
+                </Text>
+                <View className="space-y-1 mb-4">
+                  <Text className="text-sm text-gray-500 font-inter">
+                    • Your profile and personal information
                   </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleConfirmDelete}
-                  disabled={
-                    isDeleting ||
-                    deleteConfirmation !== "DELETE" ||
-                    !deletePassword
-                  }
-                  className="flex-1 px-4 py-3 bg-red-600 rounded-lg"
-                >
-                  <Text className="text-center font-manrope-medium text-white font-medium">
-                    {isDeleting ? "Deleting..." : "Delete Account"}
+                  <Text className="text-sm text-gray-500 font-inter">
+                    • All your posts and images
                   </Text>
-                </TouchableOpacity>
+                  <Text className="text-sm text-gray-500 font-inter">
+                    • All conversations and messages
+                  </Text>
+                  <Text className="text-sm text-gray-500 font-inter">
+                    • All notifications and settings
+                  </Text>
+                </View>
+                <Text className="text-red-600 font-manrope-medium">
+                  Type{" "}
+                  <Text className="bg-red-50 px-1 rounded font-manrope-bold">
+                    DELETE
+                  </Text>{" "}
+                  to confirm:
+                </Text>
+              </View>
+
+              <View className="flex-col gap-3">
+                <TextInput
+                  value={deleteConfirmation}
+                  onChangeText={setDeleteConfirmation}
+                  placeholder="Type DELETE to confirm"
+                  className="w-full px-3 py-3 border font-inter border-gray-300 rounded-lg"
+                  editable={!isDeleting}
+                />
+
+                <TextInput
+                  value={deletePassword}
+                  onChangeText={setDeletePassword}
+                  placeholder="Enter your password to confirm"
+                  secureTextEntry={true}
+                  className="w-full px-3 py-3 border font-inter border-gray-300 rounded-lg"
+                  editable={!isDeleting}
+                />
+
+                <View className="flex-row gap-3">
+                  <TouchableOpacity
+                    onPress={handleCloseDeleteModal}
+                    disabled={isDeleting}
+                    className="flex-1 px-4 py-3 bg-gray-100 rounded-lg"
+                  >
+                    <Text className="text-center font-manrope-medium text-gray-700 font-medium">
+                      Cancel
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleConfirmDelete}
+                    disabled={
+                      isDeleting ||
+                      deleteConfirmation !== "DELETE" ||
+                      !deletePassword
+                    }
+                    className="flex-1 px-4 py-3 bg-red-600 rounded-lg"
+                  >
+                    <Text className="text-center font-manrope-medium text-white font-medium">
+                      {isDeleting ? "Deleting..." : "Delete Account"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </View>
-        </View>
+        </Modal>
       )}
     </PageLayout>
   );

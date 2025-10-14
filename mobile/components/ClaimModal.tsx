@@ -6,8 +6,6 @@ import {
   TextInput,
   ScrollView,
   Alert,
-  ActivityIndicator,
-  StyleSheet,
 } from "react-native";
 import ImagePicker from "./ImagePicker";
 import { cloudinaryService } from "../utils/cloudinary";
@@ -23,170 +21,7 @@ interface ClaimModalProps {
   }) => void;
   isLoading?: boolean;
   postTitle: string;
-};
-
-const styles = StyleSheet.create({
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2000,
-  },
-  modalContainer: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    margin: 20,
-    width: '90%',
-    maxHeight: '80%',
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#3B82F6',
-    backgroundColor: '#EFF6FF',
-    padding: 12,
-    borderRadius: 6,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  required: {
-    color: '#EF4444',
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    textAlignVertical: 'top',
-  },
-  textInputPlaceholder: {
-    color: '#9CA3AF',
-  },
-  successText: {
-    color: '#10B981',
-    fontSize: 14,
-    flex: 1,
-  },
-  removeButton: {
-    padding: 4,
-  },
-  removeButtonText: {
-    color: '#EF4444',
-    fontSize: 14,
-  },
-  uploadArea: {
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    padding: 20,
-    alignItems: 'center',
-    backgroundColor: 'white',
-  },
-  uploadIcon: {
-    marginBottom: 12,
-  },
-  uploadText: {
-    color: '#6B7280',
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  uploadSubtext: {
-    color: '#9CA3AF',
-    fontSize: 12,
-  },
-  evidenceItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    padding: 8,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 6,
-  },
-  evidenceText: {
-    color: '#10B981',
-    fontSize: 14,
-    flex: 1,
-  },
-  addButton: {
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    backgroundColor: 'white',
-  },
-  addButtonText: {
-    color: '#6B7280',
-    fontSize: 14,
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  addButtonSubtext: {
-    color: '#9CA3AF',
-    fontSize: 12,
-  },
-  submitButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  submitButtonEnabled: {
-    backgroundColor: '#7C3AED',
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#E5E7EB',
-  },
-  submitButtonText: {
-    color: '#6B7280',
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  cancelButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#FEE2E2',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    color: '#DC2626',
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  buttonContainer: {
-    flexDirection: 'column',
-    gap: 12,
-    marginTop: 20,
-  },
-  loadingText: {
-    color: '#6B7280',
-  },
-});
+}
 
 export default function ClaimModal({
   visible,
@@ -198,9 +33,6 @@ export default function ClaimModal({
   const [claimReason, setClaimReason] = useState("");
   const [idPhotoUri, setIdPhotoUri] = useState("");
   const [evidencePhotoUris, setEvidencePhotoUris] = useState<string[]>([]);
-  const [isUploadingIdPhoto, setIsUploadingIdPhoto] = useState(false);
-  const [isUploadingEvidencePhoto, setIsUploadingEvidencePhoto] =
-    useState(false);
   const [isClaimSubmitting, setIsClaimSubmitting] = useState(false);
   const [showIdPhotoPicker, setShowIdPhotoPicker] = useState(false);
   const [showEvidencePhotoPicker, setShowEvidencePhotoPicker] = useState(false);
@@ -224,12 +56,10 @@ export default function ClaimModal({
       Alert.alert("Error", "Please provide a reason for your claim.");
       return;
     }
-
     if (!idPhotoUri) {
       Alert.alert("Error", "Please select your ID photo for verification.");
       return;
     }
-
     if (evidencePhotoUris.length === 0) {
       Alert.alert(
         "Error",
@@ -241,24 +71,18 @@ export default function ClaimModal({
     try {
       setIsClaimSubmitting(true);
 
-      // Upload ID photo
       const idPhotoUrl = await cloudinaryService.uploadImage(
         idPhotoUri,
         "id_photos"
       );
 
-      // Upload evidence photos
       const evidencePhotos = await Promise.all(
         evidencePhotoUris.map(async (uri) => {
           const url = await cloudinaryService.uploadImage(
             uri,
             "evidence_photos"
           );
-          return {
-            url,
-            uploadedAt: new Date(),
-            description: "",
-          };
+          return { url, uploadedAt: new Date(), description: "" };
         })
       );
 
@@ -289,26 +113,25 @@ export default function ClaimModal({
   if (!visible) return null;
 
   return (
-    <View style={styles.overlay}>
-      <View style={styles.modalContainer}>
+    <View className="absolute inset-0 bg-black/50 justify-center items-center z-[2000]">
+      <View className="bg-white rounded-xl p-5 m-5 w-[90%] max-h-[80%]">
         <ScrollView showsVerticalScrollIndicator={false}>
-          <Text style={styles.title}>
+          <Text className="text-lg font-manrope-bold mb-2 text-center">
             Claim Request
           </Text>
-
-          <Text style={styles.subtitle}>
+          <Text className="text-sm font-inter text-blue-600 border border-blue-300 bg-blue-50 p-3 rounded-md mb-5 text-center">
             Requesting to claim: {postTitle}
           </Text>
 
           {/* Claim Reason */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Reason for Claim <Text style={styles.required}>*</Text>
+          <View className="mb-5">
+            <Text className="text-base font-manrope-semibold mb-2">
+              Reason for Claim <Text className="text-red-500">*</Text>
             </Text>
             <TextInput
-              style={styles.textInput}
+              className="border border-gray-300 rounded-lg p-3 font-inter text-base text-gray-900"
               placeholder="Briefly state why you claim ownership of this item ..."
-              placeholderTextColor={styles.textInputPlaceholder.color}
+              placeholderTextColor="#9CA3AF"
               value={claimReason}
               onChangeText={setClaimReason}
               multiline
@@ -317,62 +140,56 @@ export default function ClaimModal({
           </View>
 
           {/* ID Photo Selection */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              ID Photo for Verification <Text style={styles.required}>*</Text>
+          <View className="mb-5">
+            <Text className="text-base font-manrope-semibold mb-2">
+              ID Photo for Verification <Text className="text-red-500">*</Text>
             </Text>
             {idPhotoUri ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <Text style={styles.successText}>
+              <View className="flex-row items-center mb-2">
+                <Text className="text-green-500 text-sm flex-1">
                   ✓ ID photo selected
                 </Text>
-                <TouchableOpacity
-                  onPress={() => setIdPhotoUri("")}
-                  style={styles.removeButton}
-                >
-                  <Text style={styles.removeButtonText}>Remove</Text>
+                <TouchableOpacity onPress={() => setIdPhotoUri("")}>
+                  <Text className="text-red-500 text-sm">Remove</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <TouchableOpacity
                 onPress={() => setShowIdPhotoPicker(true)}
-                style={styles.uploadArea}
+                className="border-2 border-dashed border-gray-300 rounded-lg p-5 items-center bg-white"
               >
-                <View style={{ alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                <View className="items-center justify-center gap-3">
                   <Ionicons name="camera-outline" size={30} color="gray" />
-                  <Text style={styles.uploadText}>
+                  <Text className="text-gray-600 text-sm font-inter">
                     Tap to select ID photo
                   </Text>
                 </View>
-                <Text style={styles.uploadSubtext}>
+                <Text className="text-gray-400 text-xs font-inter">
                   Required for verification
                 </Text>
               </TouchableOpacity>
             )}
           </View>
 
-          {/* Evidence Photos Selection */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Evidence Photos <Text style={styles.required}>*</Text>
+          {/* Evidence Photos */}
+          <View className="mb-5">
+            <Text className="text-base font-manrope-semibold mb-1">
+              Evidence Photos <Text className="text-red-500">*</Text>
             </Text>
-            <Text style={[styles.uploadSubtext, { marginBottom: 8 }]}>
+            <Text className="text-xs font-inter text-gray-400 mb-2">
               Select photos that prove this item belongs to you (up to 5 photos)
             </Text>
 
             {evidencePhotoUris.map((uri, index) => (
               <View
                 key={index}
-                style={styles.evidenceItem}
+                className="flex-row items-center font-inter mb-2 p-2 bg-gray-50 rounded-md"
               >
-                <Text style={styles.evidenceText}>
+                <Text className="text-green-500 text-sm flex-1">
                   ✓ Evidence photo {index + 1} selected
                 </Text>
-                <TouchableOpacity
-                  onPress={() => removeEvidencePhoto(index)}
-                  style={styles.removeButton}
-                >
-                  <Text style={styles.removeButtonText}>Remove</Text>
+                <TouchableOpacity onPress={() => removeEvidencePhoto(index)}>
+                  <Text className="text-red-500 text-sm">Remove</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -380,19 +197,21 @@ export default function ClaimModal({
             {evidencePhotoUris.length < 5 && (
               <TouchableOpacity
                 onPress={() => setShowEvidencePhotoPicker(true)}
-                style={styles.addButton}
+                className="border-2 border-dashed border-gray-300 rounded-lg p-4 items-center bg-white"
               >
                 <Ionicons name="camera-outline" size={30} color="gray" />
-                <Text style={styles.addButtonText}>
+                <Text className="text-gray-600 text-sm font-inter mt-3 mb-1">
                   Add Evidence Photo ({evidencePhotoUris.length}/5)
                 </Text>
-                <Text style={styles.addButtonSubtext}>Tap to select</Text>
+                <Text className="text-gray-400 text-xs font-inter">
+                  Tap to select
+                </Text>
               </TouchableOpacity>
             )}
           </View>
 
           {/* Action Buttons */}
-          <View style={styles.buttonContainer}>
+          <View className="flex-col gap-3 mt-5">
             <TouchableOpacity
               onPress={handleSubmit}
               disabled={
@@ -402,28 +221,28 @@ export default function ClaimModal({
                 !idPhotoUri ||
                 evidencePhotoUris.length === 0
               }
-              style={[
-                styles.submitButton,
-                (isLoading ||
+              className={`px-5 py-3 rounded-lg items-center ${
+                isLoading ||
                 isClaimSubmitting ||
                 !claimReason.trim() ||
                 !idPhotoUri ||
-                evidencePhotoUris.length === 0)
-                  ? styles.submitButtonDisabled
-                  : styles.submitButtonEnabled
-              ]}
+                evidencePhotoUris.length === 0
+                  ? "bg-gray-200"
+                  : "bg-violet-600"
+              }`}
             >
-              <Text style={styles.submitButtonText}>
+              <Text className="text-gray-700 text-base font-manrope-semibold text-center">
                 {isLoading || isClaimSubmitting
                   ? "Uploading & Sending..."
                   : "Send Request"}
               </Text>
             </TouchableOpacity>
+
             <TouchableOpacity
               onPress={handleClose}
-              style={styles.cancelButton}
+              className="px-5 py-3 rounded-lg bg-red-100 items-center"
             >
-              <Text style={styles.cancelButtonText}>
+              <Text className="text-red-600 text-base font-manrope-semibold text-center">
                 Cancel
               </Text>
             </TouchableOpacity>
@@ -439,7 +258,6 @@ export default function ClaimModal({
           isUploading={false}
         />
       )}
-
       {showEvidencePhotoPicker && (
         <ImagePicker
           onImageSelect={handleEvidencePhotoSelect}

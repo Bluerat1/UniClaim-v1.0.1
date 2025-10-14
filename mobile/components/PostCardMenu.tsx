@@ -221,16 +221,36 @@ export default function PostCardMenu({
                 console.log("Flag Post button tapped!");
                 handleFlagClick();
               }}
-              disabled={isAlreadyFlaggedByUser || postOwnerId === user?.uid || postStatus === 'resolved'}
+              disabled={
+                isAlreadyFlaggedByUser ||
+                postOwnerId === user?.uid ||
+                postStatus === "resolved"
+              }
               className={`flex-row items-center px-4 py-3 mr-3 ${
-                (isAlreadyFlaggedByUser || postOwnerId === user?.uid || postStatus === 'resolved')
+                isAlreadyFlaggedByUser ||
+                postOwnerId === user?.uid ||
+                postStatus === "resolved"
                   ? "opacity-50"
                   : "active:bg-gray-50"
               }`}
             >
-              <Text 
+              <Ionicons
+                name="flag-outline"
+                size={20}
+                color={
+                  isAlreadyFlaggedByUser ||
+                  postOwnerId === user?.uid ||
+                  postStatus === "resolved"
+                    ? "#9CA3AF" // gray-400
+                    : "#DC2626" // red-600
+                }
+                className="mr-3"
+              />
+              <Text
                 className={`text-base font-manrope-medium ${
-                  isAlreadyFlaggedByUser || postOwnerId === user?.uid || postStatus === 'resolved'
+                  isAlreadyFlaggedByUser ||
+                  postOwnerId === user?.uid ||
+                  postStatus === "resolved"
                     ? "text-gray-400"
                     : "text-red-600"
                 }`}
@@ -239,10 +259,9 @@ export default function PostCardMenu({
                   ? "Already Flagged"
                   : postOwnerId === user?.uid
                     ? "Can't Flag Own Post"
-                    : postStatus === 'resolved'
+                    : postStatus === "resolved"
                       ? "Can't Flag Resolved Post"
-                      : "Flag Post"
-                }
+                      : "Flag Post"}
               </Text>
             </TouchableOpacity>
           </View>

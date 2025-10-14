@@ -328,7 +328,7 @@ export default function AdminPostModal({
 
           {/* Hidden flagged indicator */}
           {post.isFlagged && (
-            <span className="px-3 py-1 text-sm bg-red-100 text-red-800 rounded flex items-center gap-1 hidden">
+            <span className="px-3 py-1 text-sm bg-red-100 text-red-800 rounded flex items-center gap-1">
               ⚠️ Flagged
             </span>
           )}
