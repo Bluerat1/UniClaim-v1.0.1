@@ -134,7 +134,7 @@ export default function Header() {
                   <Text className="text-xl font-manrope-semibold text-black">
                     Notifications
                   </Text>
-                  <Text className="ml-2 text-sm text-gray-500">
+                  <Text className="ml-2 text-sm font-inter text-gray-500">
                     ({notifications.length}/15)
                   </Text>
                   {unreadCount > 0 && (

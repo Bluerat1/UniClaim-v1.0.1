@@ -67,16 +67,29 @@ export default function FlaggedPostsPage() {
         // text search on all fields easily. In production, you'd want to use
         // a search service like Algolia or implement server-side search
         const allPosts = await postService.getFlaggedPosts(500); // Get more for search
-        const filteredPosts = allPosts.filter(post =>
-          post.title?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-          post.description?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-          post.category?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-          post.location?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-          `${post.user?.firstName} ${post.user?.lastName}`.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+        const filteredPosts = allPosts.filter(
+          (post) =>
+            post.title
+              ?.toLowerCase()
+              .includes(debouncedSearchQuery.toLowerCase()) ||
+            post.description
+              ?.toLowerCase()
+              .includes(debouncedSearchQuery.toLowerCase()) ||
+            post.category
+              ?.toLowerCase()
+              .includes(debouncedSearchQuery.toLowerCase()) ||
+            post.location
+              ?.toLowerCase()
+              .includes(debouncedSearchQuery.toLowerCase()) ||
+            `${post.user?.firstName} ${post.user?.lastName}`
+              .toLowerCase()
+              .includes(debouncedSearchQuery.toLowerCase())
         );
         setFlaggedPosts(filteredPosts);
       } else {
-        const posts = await postService.getFlaggedPosts(currentPage * itemsPerPage);
+        const posts = await postService.getFlaggedPosts(
+          currentPage * itemsPerPage
+        );
         setFlaggedPosts(posts);
       }
     } catch (err: any) {
@@ -141,7 +154,11 @@ export default function FlaggedPostsPage() {
           await postService.deletePost(postId, true); // Hard delete instead of soft delete
           // Only remove from list if the post is actually deleted
           setFlaggedPosts((prev) => prev.filter((p) => p.id !== postId));
-          showToast("success", "Success", "Post permanently deleted successfully");
+          showToast(
+            "success",
+            "Success",
+            "Post permanently deleted successfully"
+          );
           break;
       }
     } catch (err: any) {
@@ -344,7 +361,7 @@ export default function FlaggedPostsPage() {
         />
 
         {/* Search Bar */}
-        <div className="px-4 py-4 border-b border-gray-200">
+        <div className="px-8 pt-4 border-gray-200">
           <SearchBar
             onSearch={handleSearch}
             onClear={handleClearSearch}
@@ -357,10 +374,10 @@ export default function FlaggedPostsPage() {
         </div>
 
         {/* Content */}
-        <div className="p-4 sm:p-6 lg:p-8">
+        <div className="px-4 sm:px-6 lg:px-8">
           {/* Bulk Actions Bar */}
           {flaggedPosts.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6 shadow-sm">
+            <div className="bg-white border border-gray-200 rounded-lg p-3 mb-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <label className="flex items-center gap-3 cursor-pointer">
@@ -473,7 +490,8 @@ export default function FlaggedPostsPage() {
                 onClick={handleLoadMore}
                 className="px-6 py-3 bg-brand text-white rounded-lg hover:bg-teal-600 transition-colors shadow-sm"
               >
-                Load More Posts ({flaggedPosts.length - totalPostsToShow} remaining)
+                Load More Posts ({flaggedPosts.length - totalPostsToShow}{" "}
+                remaining)
               </button>
             </div>
           )}
@@ -703,12 +721,24 @@ export default function FlaggedPostsPage() {
           }}
           onConfirmTurnover={(_post, status) => {
             // Handle turnover confirmation - this would update the post status
-            showToast("success", "Turnover Confirmed", `Post turnover has been ${status === "confirmed" ? "confirmed" : "marked as not received"}`);
+            showToast(
+              "success",
+              "Turnover Confirmed",
+              `Post turnover has been ${
+                status === "confirmed" ? "confirmed" : "marked as not received"
+              }`
+            );
             // You might want to refresh the post data or update the post status here
           }}
           onConfirmCampusSecurityCollection={(_post, status) => {
             // Handle campus security collection confirmation
-            showToast("success", "Collection Confirmed", `Item has been ${status === "collected" ? "collected" : "marked as not available"}`);
+            showToast(
+              "success",
+              "Collection Confirmed",
+              `Item has been ${
+                status === "collected" ? "collected" : "marked as not available"
+              }`
+            );
             // You might want to refresh the post data or update the post status here
           }}
           onApprove={() => handleActionClick("approve", selectedPost)}

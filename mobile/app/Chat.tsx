@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   FlatList,
@@ -847,12 +847,12 @@ export default function Chat() {
 
         <View className="flex-1">
           <Text
-            className="font-semibold text-lg text-gray-800"
+            className="font-manrope-semibold text-md text-gray-800"
             numberOfLines={1}
           >
             {postTitle}
           </Text>
-          <Text className="text-sm text-gray-500">
+          <Text className="text-[12px] text-gray-500">
             {postOwnerId && userData
               ? postOwnerId === userData.uid
                 ? "Your post"
@@ -867,7 +867,9 @@ export default function Chat() {
             className="ml-3 px-4 py-2 bg-green-500 rounded-lg"
             onPress={handleHandoverRequest}
           >
-            <Text className="text-white font-medium text-sm">Handover</Text>
+            <Text className="text-white font-manrope-semibold text-sm">
+              Handover
+            </Text>
           </TouchableOpacity>
         )}
 
@@ -876,7 +878,9 @@ export default function Chat() {
             className="ml-3 px-4 py-2 bg-blue-500 rounded-lg"
             onPress={handleClaimRequest}
           >
-            <Text className="text-white font-medium text-sm">Claim Item</Text>
+            <Text className="text-white font-manrope-semibold text-sm">
+              Claim Item
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -943,10 +947,12 @@ export default function Chat() {
                   for (let i = messages.length - 1; i >= 0; i--) {
                     const msg = messages[i];
                     const readers = msg.readBy || [];
-                    const otherUsersRead = readers.some(uid => uid !== userData?.uid);
+                    const otherUsersRead = readers.some(
+                      (uid) => uid !== userData?.uid
+                    );
 
                     if (otherUsersRead && msg.senderId === userData?.uid) {
-                      isLastSeenByOthers = (index === i);
+                      isLastSeenByOthers = index === i;
                       break;
                     }
                   }
@@ -965,7 +971,9 @@ export default function Chat() {
                       onImageClick={(imageUrl, altText) =>
                         setSelectedImage({ uri: imageUrl, alt: altText })
                       }
-                      conversationParticipants={conversationData?.participants || {}}
+                      conversationParticipants={
+                        conversationData?.participants || {}
+                      }
                       isLastSeenByOthers={isLastSeenByOthers}
                     />
                   );

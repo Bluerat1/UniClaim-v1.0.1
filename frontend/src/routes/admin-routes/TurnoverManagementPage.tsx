@@ -33,7 +33,8 @@ export default function TurnoverManagementPage() {
   // Search state with debouncing
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("All");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] =
+    useState<string>("All");
 
   // Debounce search text to reduce excessive filtering
   useEffect(() => {
@@ -158,20 +159,24 @@ export default function TurnoverManagementPage() {
 
     // Apply category filter
     if (selectedCategoryFilter && selectedCategoryFilter !== "All") {
-      filtered = filtered.filter(post =>
-        post.category && post.category.toLowerCase() === selectedCategoryFilter.toLowerCase()
+      filtered = filtered.filter(
+        (post) =>
+          post.category &&
+          post.category.toLowerCase() === selectedCategoryFilter.toLowerCase()
       );
     }
 
     // Apply search filter if debounced query exists
     if (debouncedSearchQuery.trim()) {
       const query = debouncedSearchQuery.toLowerCase();
-      filtered = filtered.filter(post => {
-        return fuzzyMatch(post.title, query) ||
-               fuzzyMatch(post.description || '', query) ||
-               fuzzyMatch(post.category || '', query) ||
-               fuzzyMatch(post.location || '', query) ||
-               fuzzyMatch(`${post.user?.firstName} ${post.user?.lastName}`, query);
+      filtered = filtered.filter((post) => {
+        return (
+          fuzzyMatch(post.title, query) ||
+          fuzzyMatch(post.description || "", query) ||
+          fuzzyMatch(post.category || "", query) ||
+          fuzzyMatch(post.location || "", query) ||
+          fuzzyMatch(`${post.user?.firstName} ${post.user?.lastName}`, query)
+        );
       });
     }
 
@@ -218,18 +223,20 @@ export default function TurnoverManagementPage() {
       />
 
       {/* Header Section */}
-      <div className="pt-4 px-6">
-        <div className="mb-6 hidden lg:block">
-          <h1 className="text-lg font-bold text-gray-800 mb-2">
-            Turnover Management
-          </h1>
+      <div className="pt-4 border-b border-gray-300 bg-gray-50 px-6 mb-4">
+        <div className="mb-4 hidden items-center justify-between lg:flex">
+          <div className="">
+            <h1 className="text-lg font-bold text-gray-800 mb-2">
+              Turnover Management
+            </h1>
+            <p className="text-gray-600 text-sm">
+              Manage found items that need to be turned over to OSA (Office of
+              Student Affairs)
+            </p>
+          </div>
           <div className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">
             {filteredTurnoverPosts.length} Turnover Items
           </div>
-          <p className="text-gray-600 text-sm">
-            Manage found items that need to be turned over to OSA (Office of
-            Student Affairs)
-          </p>
         </div>
       </div>
 
@@ -296,7 +303,8 @@ export default function TurnoverManagementPage() {
             onClick={handleLoadMore}
             className="px-6 py-3 bg-brand text-white rounded-lg hover:bg-teal-600 transition-colors shadow-sm"
           >
-            Load More Posts ({filteredTurnoverPosts.length - totalPostsToShow} remaining)
+            Load More Posts ({filteredTurnoverPosts.length - totalPostsToShow}{" "}
+            remaining)
           </button>
         </div>
       )}
