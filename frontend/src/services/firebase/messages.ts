@@ -160,12 +160,15 @@ export const messageService = {
             // Simple duplicate check: get all user conversations and filter in JavaScript
             const userConversationsQuery = query(
                 collection(db, 'conversations'),
-                where('participants', 'array-contains', currentUserId)
+                where(`participants.${currentUserId}`, '!=', null)
             );
             const userConversationsSnapshot = await getDocs(userConversationsQuery);
             const existingConversation = userConversationsSnapshot.docs.find((docSnap) => {
                 const data: any = docSnap.data();
-                return data.postId === postId && data.participants && data.participants.includes(postOwnerId);
+                const participants = data.participants || {};
+                return data.postId === postId &&
+                       participants[postOwnerId] &&
+                       participants[currentUserId];
             });
             if (existingConversation) {
                 console.log('Reusing existing conversation:', existingConversation.id);
@@ -175,13 +178,33 @@ export const messageService = {
             const conversationData = {
                 postId,
                 postTitle,
-                // New fields for handover button functionality
-                postType,
-                postStatus,
-                postCreatorId,
-                foundAction, // Include foundAction for found items
-                participants: [currentUserId, postOwnerId],
-                createdAt: serverTimestamp()
+                postOwnerId,
+                postCreatorId: postCreatorId, // Use the actual post creator ID
+                postType: postType, // Use the actual post type
+                postStatus: postStatus, // Use the actual post status
+                foundAction: foundAction, // Use the actual found action
+                participants: {
+                    [currentUserId]: {
+                        uid: currentUserId,
+                        firstName: currentUserData.firstName,
+                        lastName: currentUserData.lastName,
+                        profilePicture: currentUserProfilePicture || null,
+                        joinedAt: serverTimestamp()
+                    },
+                    [postOwnerId]: {
+                        uid: postOwnerId,
+                        firstName: postOwnerUserData?.firstName || '',
+                        lastName: postOwnerUserData?.lastName || '',
+                        profilePicture: postOwnerProfilePicture || null,
+                        joinedAt: serverTimestamp()
+                    }
+                },
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+                unreadCounts: {
+                    [postOwnerId]: 0,
+                    [currentUserId]: 0
+                }
             };
 
             // Sanitize conversation data before saving to Firestore
@@ -218,31 +241,32 @@ export const messageService = {
             }
 
             const conversationData = conversationDoc.data();
-            // Normalize participants to an array of user IDs (handles both old object and new array formats)
-            const participants = conversationData.participants || [];
-            const participantIds = Array.isArray(participants) ? participants : Object.keys(participants);
+            const participantIds = Object.keys(conversationData.participants || {});
 
             // Increment unread count for all participants except the sender
-            const otherParticipantIds = participantIds.filter((id: string) => id !== senderId);
+            const otherParticipantIds = participantIds.filter(id => id !== senderId);
 
             // Prepare unread count updates for each receiver
             const unreadCountUpdates: { [key: string]: any } = {};
-            otherParticipantIds.forEach((participantId: string) => {
+            otherParticipantIds.forEach(participantId => {
                 unreadCountUpdates[`unreadCounts.${participantId}`] = increment(1);
             });
 
+            console.log(`📈 Web: Incrementing unread counts for ${otherParticipantIds.length} participants:`, otherParticipantIds);
+            console.log(`📈 Web: Unread count updates:`, unreadCountUpdates);
+
             // Update conversation with last message and increment unread counts for other participants
             const currentTimestamp = new Date();
-            console.log(`🔄 [sendMessage] Updating conversation ${conversationId} with lastMessage`);
             await updateDoc(conversationRef, {
                 lastMessage: {
                     text,
                     senderId,
                     timestamp: currentTimestamp
                 },
+                updatedAt: serverTimestamp(),
                 ...unreadCountUpdates
             });
-            console.log(`✅ [sendMessage] Conversation ${conversationId} updated successfully`);
+            console.log(`✅ Web: Conversation ${conversationId} updated successfully`);
 
             // Send notification to other participants
             try {
@@ -1555,57 +1579,6 @@ export const messageService = {
         } catch (error: any) {
             console.error('❌ Firebase rejectClaimAfterConfirmation failed:', error);
             throw new Error(error.message || 'Failed to reject claim after confirmation');
-        }
-    },
-
-    // Delete a single message and its associated images
-    async deleteMessage(conversationId: string, messageId: string, userId: string): Promise<void> {
-        try {
-            console.log(`🗑️ [deleteMessage] Starting deletion of message ${messageId} in conversation ${conversationId}`);
-
-            // First, get the message data to extract any image URLs for cleanup
-            const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
-            const messageDoc = await getDoc(messageRef);
-
-            if (!messageDoc.exists()) {
-                throw new Error('Message not found');
-            }
-
-            const messageData = messageDoc.data();
-            console.log(`📝 [deleteMessage] Message data retrieved, type: ${messageData.messageType}`);
-
-            // Extract image URLs from the message for cleanup
-            const { extractMessageImages } = await import('../../utils/cloudinary');
-            const imageUrls = extractMessageImages(messageData);
-
-            console.log(`🖼️ [deleteMessage] Found ${imageUrls.length} images to delete from Cloudinary`);
-
-            // Delete the message from Firestore
-            await deleteDoc(messageRef);
-            console.log(`✅ [deleteMessage] Message ${messageId} deleted from Firestore`);
-
-            // Delete associated images from Cloudinary if any exist
-            if (imageUrls.length > 0) {
-                try {
-                    console.log(`🗑️ [deleteMessage] Deleting ${imageUrls.length} images from Cloudinary`);
-                    const { deleteMessageImages } = await import('../../utils/cloudinary');
-                    const result = await deleteMessageImages(imageUrls);
-                    console.log(`✅ [deleteMessage] Cloudinary cleanup result: ${result.deleted.length} deleted, ${result.failed.length} failed`);
-
-                    if (result.failed.length > 0) {
-                        console.warn(`⚠️ [deleteMessage] Some images failed to delete from Cloudinary:`, result.failed);
-                    }
-                } catch (cloudinaryError) {
-                    console.error(`❌ [deleteMessage] Failed to delete images from Cloudinary:`, cloudinaryError);
-                    // Don't throw error - message is already deleted from Firestore
-                    // This prevents the delete operation from appearing to fail when it actually succeeded
-                }
-            }
-
-            console.log(`✅ [deleteMessage] Message deletion completed successfully`);
-        } catch (error: any) {
-            console.error('❌ [deleteMessage] Failed to delete message:', error);
-            throw new Error(error.message || 'Failed to delete message');
         }
     },
 

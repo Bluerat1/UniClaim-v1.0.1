@@ -87,14 +87,25 @@ export class NotificationSender {
                 notifications.push(notificationData);
             }
 
-            // Batch create all notifications
+            // Batch create all notifications using notificationService
             if (notifications.length > 0) {
-                const batch = notifications.map(notification =>
-                    addDoc(collection(db, 'notifications'), notification)
-                );
+                for (const notification of notifications) {
+                    try {
+                        await notificationService.createNotification({
+                            userId: notification.userId,
+                            type: notification.type,
+                            title: notification.title,
+                            body: notification.body,
+                            data: notification.data,
+                            postId: notification.postId
+                        });
+                        console.log(`✅ Mobile: Created notification for user ${notification.userId}`);
+                    } catch (error) {
+                        console.error(`❌ Mobile: Failed to create notification for user ${notification.userId}:`, error);
+                    }
+                }
 
-                await Promise.all(batch);
-                console.log(`Sent ${notifications.length} new post notifications`);
+                console.log(`✅ Mobile: Sent ${notifications.length} new post notifications with limit enforcement`);
 
                 // Send push notifications to users' phones
                 for (const notification of notifications) {
@@ -216,21 +227,24 @@ export class NotificationSender {
         data?: any;
     }): Promise<void> {
         try {
-            const notifications = userIds.map(userId => ({
-                userId,
-                ...notificationData,
-                read: false,
-                createdAt: serverTimestamp()
-            }));
-
-            const batch = notifications.map(notification =>
-                addDoc(collection(db, 'notifications'), notification)
-            );
-
-            await Promise.all(batch);
-            console.log(`Sent ${notifications.length} notifications to specific users`);
+            for (const userId of userIds) {
+                try {
+                    await notificationService.createNotification({
+                        userId: userId,
+                        type: notificationData.type,
+                        title: notificationData.title,
+                        body: notificationData.body,
+                        data: notificationData.data || {},
+                        // Note: postId and conversationId not included in this interface, but can be added to data if needed
+                    });
+                    console.log(`✅ Mobile: Created notification for user ${userId}`);
+                } catch (error) {
+                    console.error(`❌ Mobile: Failed to create notification for user ${userId}:`, error);
+                }
+            }
+            console.log(`✅ Mobile: Sent ${userIds.length} notifications to specific users with limit enforcement`);
         } catch (error) {
-            console.error('Error sending notifications to specific users:', error);
+            console.error('❌ Mobile: Error sending notifications to specific users:', error);
             // Don't throw error - notification failures shouldn't break main functionality
         }
     }
@@ -355,14 +369,24 @@ export class NotificationSender {
                 }
             }
 
-            // Batch create regular user notifications
+            // Batch create regular user notifications using notificationService
             if (notifications.length > 0) {
-                const batch = notifications.map(notification =>
-                    addDoc(collection(db, 'notifications'), notification)
-                );
-
-                await Promise.all(batch);
-                console.log(`✅ Mobile: Created ${notifications.length} regular message notifications in database`);
+                for (const notification of notifications) {
+                    try {
+                        await notificationService.createNotification({
+                            userId: notification.userId,
+                            type: notification.type,
+                            title: notification.title,
+                            body: notification.body,
+                            data: notification.data,
+                            conversationId: notification.conversationId
+                        });
+                        console.log(`✅ Mobile: Created message notification for user ${notification.userId}`);
+                    } catch (error) {
+                        console.error(`❌ Mobile: Failed to create message notification for user ${notification.userId}:`, error);
+                    }
+                }
+                console.log(`✅ Mobile: Created ${notifications.length} regular message notifications in database with limit enforcement`);
             } else {
                 console.log('ℹ️ Mobile: No regular users eligible for message notifications');
             }

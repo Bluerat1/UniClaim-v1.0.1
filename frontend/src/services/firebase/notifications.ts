@@ -457,12 +457,18 @@ export class NotificationService {
   }): Promise<string> {
     try {
       const notificationsRef = collection(db, 'notifications');
+
+      // Filter out undefined values from data object
+      const cleanData = notificationData.data ? Object.fromEntries(
+        Object.entries(notificationData.data).filter(([_, value]) => value !== undefined)
+      ) : {};
+
       const docRef = await addDoc(notificationsRef, {
         userId: notificationData.userId,
         type: notificationData.type,
         title: notificationData.title,
         body: notificationData.body,
-        data: notificationData.data || {},
+        data: cleanData,
         read: false,
         createdAt: serverTimestamp(),
         postId: notificationData.postId || null,

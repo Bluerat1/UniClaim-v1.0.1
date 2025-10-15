@@ -5,6 +5,7 @@ import { notificationSubscriptionService } from './notificationSubscriptions';
 import { authService } from './auth';
 import { adminNotificationService } from './adminNotifications';
 import { userService } from './users';
+import { notificationService } from './notifications';
 export interface PostNotificationData {
     type: 'new_post' | 'claim_request' | 'claim_response' | 'handover_response' | 'status_change' | 'post_reverted' | 'post_activated' | 'post_deleted' | 'post_restored' | 'post_hidden' | 'post_unhidden' | 'post_approved';
     title: string;
@@ -473,46 +474,26 @@ export class NotificationSender {
     // Send notification to a specific user
     async sendNotificationToUser(userId: string, notificationData: PostNotificationData): Promise<void> {
         try {
-            // In a real implementation, you would:
-            // 1. Get the user's FCM token from Firestore
-            // 2. Send a push notification using Firebase Cloud Messaging
-            // 3. Save the notification to the user's notifications collection
+            // Map PostNotificationData types to createNotification accepted types
+            let notificationType: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted' | 'claim_response' | 'handover_response' | 'status_change' | 'post_activated' | 'post_reverted' | 'post_deleted' | 'post_restored' = notificationData.type as any;
 
-            // For now, we'll just log it
-            console.log(`📨 Sending notification to user ${userId}:`, notificationData);
+            // Map specific types that don't match exactly
+            if (notificationData.type === 'claim_request') {
+                notificationType = 'claim_update';
+            }
 
-            // Use the same batch mechanism as sendNotificationToUsers for consistency
-            // This ensures real-time listeners are properly triggered
-            const notifications = [{
-                userId,
-                type: notificationData.type,
+            // Use notificationService.createNotification which enforces the 15-notification limit
+            await notificationService.createNotification({
+                userId: userId,
+                type: notificationType,
                 title: notificationData.title,
                 body: notificationData.body,
-                // Clean the notification data to remove any undefined fields
-                data: notificationData.data ? Object.fromEntries(
-                    Object.entries(notificationData.data).filter(([_, value]) => value !== undefined)
-                ) : {},
-                read: false,
-                createdAt: serverTimestamp(),
-                ...(notificationData.postId && { postId: notificationData.postId }),
-                ...(notificationData.conversationId && { conversationId: notificationData.conversationId })
-            }];
-
-            // Use Firestore batch for better performance and atomicity
-            const batch = writeBatch(db);
-            const notificationsRef = collection(db, 'notifications');
-
-            notifications.forEach((notification) => {
-                try {
-                    const docRef = doc(notificationsRef); // Auto-generated ID
-                    batch.set(docRef, notification);
-                } catch (error) {
-                    console.error(`❌ Failed to add notification to batch:`, error, notification);
-                }
+                data: notificationData.data || {},
+                postId: notificationData.postId,
+                conversationId: notificationData.conversationId
             });
 
-            await batch.commit();
-            console.log(`✅ Notification created for user ${userId} using batch write`);
+            console.log(`✅ Notification created for user ${userId} using notificationService`);
         } catch (error) {
             console.error(`❌ Failed to send notification to user ${userId}:`, error);
             // Don't throw error - notification failures shouldn't break main functionality
@@ -920,35 +901,48 @@ export class NotificationSender {
                 return notification;
             });
 
-            // Use Firestore batch for better performance
-            const batch = writeBatch(db);
-
-            notifications.forEach((notification, index) => {
+            console.log(`🔄 Creating ${notifications.length} notifications...`);
+            for (const notification of notifications) {
                 try {
-                    // Validate notification data before adding to batch
-                    if (!notification.userId || !notification.type || !notification.title) {
-                        console.error(`❌ Invalid notification data at index ${index}:`, notification);
-                        return;
+                    // Map notification types to createNotification accepted types
+                    let notificationType: 'new_post' | 'message' | 'claim_update' | 'admin_alert' | 'conversation_deleted' | 'claim_response' | 'handover_response' | 'status_change' | 'post_activated' | 'post_reverted' | 'post_deleted' | 'post_restored';
+
+                    // Map specific types that don't match exactly
+                    switch (notification.type as string) {
+                        case 'claim_request':
+                            notificationType = 'claim_update';
+                            break;
+                        case 'post_hidden':
+                            notificationType = 'post_deleted';
+                            break;
+                        case 'post_unhidden':
+                            notificationType = 'post_restored';
+                            break;
+                        case 'post_approved':
+                            notificationType = 'post_activated';
+                            break;
+                        default:
+                            notificationType = notification.type as any;
                     }
 
-                    const notificationsRef = collection(db, 'notifications');
-                    const docRef = doc(notificationsRef); // Auto-generated ID
-                    batch.set(docRef, notification);
+                    // Use notificationService.createNotification which enforces the 15-notification limit
+                    await notificationService.createNotification({
+                        userId: notification.userId,
+                        type: notificationType,
+                        title: notification.title,
+                        body: notification.body,
+                        data: notification.data,
+                        postId: notification.postId,
+                        conversationId: notification.conversationId
+                    });
 
-                    console.log(`📨 Added notification ${index + 1} to batch for user ${notification.userId}`);
+                    console.log(`📨 Created notification for user ${notification.userId}`);
                 } catch (error) {
-                    console.error(`❌ Failed to add notification ${index + 1} to batch:`, error, notification);
+                    console.error(`❌ Failed to create notification for user ${notification.userId}:`, error);
                 }
-            });
-
-            if (notifications.length === 0) {
-                console.log('⚠️ No valid notifications to send');
-                return;
             }
 
-            console.log(`🔄 Committing batch with ${notifications.length} notifications...`);
-            await batch.commit();
-            console.log(`✅ Successfully sent ${notifications.length} notifications to Firestore`);
+            console.log(`✅ Successfully created ${notifications.length} notifications using notificationService`);
 
             // Test notification click functionality (development only)
             if (process.env.NODE_ENV === 'development' && (notificationData.type === 'message' || notificationData.type === 'claim_response' || notificationData.type === 'handover_response')) {

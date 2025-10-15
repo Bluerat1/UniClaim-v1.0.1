@@ -9,6 +9,7 @@ interface MessageContextType {
   sendMessage: (conversationId: string, senderId: string, senderName: string, text: string, senderProfilePicture?: string) => Promise<void>;
   createConversation: (postId: string, postTitle: string, postOwnerId: string, currentUserId: string, currentUserData: any, postOwnerUserData?: any) => Promise<string>;
   getConversationMessages: (conversationId: string, callback: (messages: Message[]) => void) => () => void;
+  getUserConversations: (userId: string, callback: (conversations: any[]) => void) => () => void;
   markConversationAsRead: (conversationId: string) => Promise<void>;
   markMessageAsRead: (conversationId: string, messageId: string) => Promise<void>;
   markAllUnreadMessagesAsRead: (conversationId: string) => Promise<void>;
@@ -78,6 +79,10 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
 
   const getConversationMessages = (conversationId: string, callback: (messages: Message[]) => void) => {
     return messageService.getConversationMessages(conversationId, callback);
+  };
+
+  const getUserConversations = (userId: string, callback: (conversations: any[]) => void) => {
+    return messageService.getUserConversations(userId, callback);
   };
 
   const markConversationAsRead = async (conversationId: string): Promise<void> => {
@@ -242,6 +247,7 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
     sendMessage,
     createConversation,
     getConversationMessages,
+    getUserConversations,
     markConversationAsRead,
     markMessageAsRead,
     markAllUnreadMessagesAsRead,
