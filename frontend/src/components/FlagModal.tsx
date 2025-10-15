@@ -44,15 +44,15 @@ export default function FlagModal({
       onClick={handleBackdropClick}
     >
       <div className="bg-white rounded-md p-5 w-full max-w-md mx-4 z-50">
-        <h2 className="text-lg font-semibold mb-4">
+        <h2 className="text-lg font-semibold text-center mb-4">
           Why do you want to flag this post?
         </h2>
-        <p className="text-sm text-gray-600 mb-4">
+        <p className="text-sm text-gray-600 mb-3">
           Please select a reason for flagging this post:
         </p>
 
         <form onSubmit={handleSubmit}>
-          <div className="space-y-2 mb-4">
+          <div className="space-y-2 mb-5">
             {FLAG_REASONS.map((reason) => (
               <label
                 key={reason}
@@ -95,7 +95,7 @@ export default function FlagModal({
                 onClose();
               }}
               disabled={isLoading}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50"
+              className="px-4 py-2 w-full text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50"
             >
               Cancel
             </button>
@@ -107,7 +107,7 @@ export default function FlagModal({
                 (selectedReason === "Other" && !customReason.trim()) ||
                 isLoading
               }
-              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 w-full text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? "Flagging..." : "Flag Post"}
             </button>
