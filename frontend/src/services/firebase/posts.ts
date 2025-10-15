@@ -793,7 +793,7 @@ export const postService = {
     },
 
     // Update post status
-    async updatePostStatus(postId: string, status: 'pending' | 'resolved' | 'unclaimed' | 'completed', adminNotes?: string): Promise<void> {
+    async updatePostStatus(postId: string, status: 'pending' | 'resolved' | 'unclaimed' | 'completed', adminNotes?: string, revertReason?: string): Promise<void> {
         try {
             const updateData: any = {
                 status,
@@ -803,6 +803,11 @@ export const postService = {
             // Add admin notes if provided
             if (adminNotes) {
                 updateData.adminNotes = adminNotes;
+            }
+
+            // Add revert reason if provided (when reverting to pending)
+            if (revertReason && status === 'pending') {
+                updateData.revertReason = revertReason;
             }
 
             await updateDoc(doc(db, 'posts', postId), updateData);

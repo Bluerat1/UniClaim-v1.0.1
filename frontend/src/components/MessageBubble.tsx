@@ -251,6 +251,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       );
       // Call parent callback after successful confirmation
       onConfirmIdPhotoSuccess?.(message.id);
+
+      // Show success toast
+      showToast('success', 'ID Photo Confirmed', 'ID photo has been confirmed successfully!');
     } catch (error) {
       console.error("Error confirming ID photo:", error);
       showToast('error', "Failed to confirm ID photo. Please try again.");
@@ -374,6 +377,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       );
       // Call parent callback after successful confirmation
       onConfirmIdPhotoSuccess?.(message.id);
+
+      // Show success toast
+      showToast('success', 'ID Photo Confirmed', 'ID photo has been confirmed successfully!');
     } catch (error) {
       console.error("Error confirming claim ID photo:", error);
       showToast('error', "Failed to confirm claim ID photo. Please try again.");
@@ -1058,6 +1064,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         message.id,
                         currentUserId
                       );
+                      showToast('success', 'ID Photo Confirmed', 'ID photo has been confirmed successfully!');
                     } catch (error) {
                       console.error("Error confirming claim:", error);
                       showToast('error', "Failed to confirm claim. Please try again.");

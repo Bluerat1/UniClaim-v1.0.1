@@ -18,6 +18,7 @@ import { cloudinaryService } from "../utils/cloudinary";
 import { useNavigate } from "react-router-dom";
 import NoChat from "../assets/no_chat.png";
 import { InformationCircleIcon } from "@heroicons/react/24/outline";
+import { useToast } from '../context/ToastContext';
 
 interface ChatWindowProps {
   conversation: Conversation | null;
@@ -165,6 +166,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     conversations,
   } = useMessage();
   const { userData } = useAuth();
+  const { showToast } = useToast();
 
   // Auto-adjust textarea height based on content
   const adjustTextareaHeight = useCallback(() => {
@@ -771,10 +773,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       );
 
       // Show success message
-      alert("Handover request sent successfully!");
+      showToast('success', 'Handover Request Sent', 'Your handover request has been sent successfully!');
     } catch (error) {
       console.error("Failed to send handover request:", error);
-      alert("Failed to send handover request. Please try again.");
+      showToast('error', 'Handover Failed', 'Failed to send handover request. Please try again.');
     } finally {
       setIsHandoverSubmitting(false);
     }
@@ -806,13 +808,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     // For admin posts, only require ID photo, not evidence photos
     if (isAdminPost) {
       if (!idPhotoFile) {
-        alert("Please upload your ID photo");
+        showToast('error', 'Missing ID Photo', 'Please upload your ID photo');
         return;
       }
     } else {
       // For non-admin posts, require both ID photo and evidence photos
       if (!idPhotoFile || !evidencePhotos || evidencePhotos.length === 0) {
-        alert("Please upload your ID photo and at least one evidence photo");
+        showToast('error', 'Missing Evidence', 'Please upload your ID photo and at least one evidence photo');
         return;
       }
     }
@@ -991,16 +993,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       // For admin posts, show a success message with next steps
       if (isAdminPost) {
-        alert(
-          "Your claim has been submitted. Please wait for the admin to verify your ID and confirm the handover."
-        );
+        showToast('success', 'Claim Submitted', 'Your claim has been submitted. Please wait for the admin to verify your ID and confirm the handover.');
       }
 
       // Show success message - modal will be closed by onSuccess callback
-      alert("Claim request sent successfully!");
+      showToast('success', 'Claim Request Sent', 'Your claim request has been sent successfully!');
     } catch (error) {
       console.error("Failed to send claim request:", error);
-      alert("Failed to send claim request. Please try again.");
+      showToast('error', 'Claim Failed', 'Failed to send claim request. Please try again.');
     } finally {
       setIsClaimSubmitting(false);
     }

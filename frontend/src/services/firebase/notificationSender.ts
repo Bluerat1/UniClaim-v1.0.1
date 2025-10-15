@@ -488,7 +488,10 @@ export class NotificationSender {
                 type: notificationData.type,
                 title: notificationData.title,
                 body: notificationData.body,
-                data: notificationData.data,
+                // Clean the notification data to remove any undefined fields
+                data: notificationData.data ? Object.fromEntries(
+                    Object.entries(notificationData.data).filter(([_, value]) => value !== undefined)
+                ) : {},
                 read: false,
                 createdAt: serverTimestamp(),
                 ...(notificationData.postId && { postId: notificationData.postId }),
@@ -882,12 +885,22 @@ export class NotificationSender {
             }
 
             const notifications = filteredUserIds.map(userId => {
+                // Clean the notification data to remove any undefined fields
+                const cleanData: Record<string, any> = {};
+                if (notificationData.data) {
+                    Object.keys(notificationData.data).forEach(key => {
+                        if (notificationData.data[key] !== undefined) {
+                            cleanData[key] = notificationData.data[key];
+                        }
+                    });
+                }
+
                 const notification = {
                     userId,
                     type: notificationData.type,
                     title: notificationData.title,
                     body: notificationData.body,
-                    data: notificationData.data,
+                    data: cleanData,
                     read: false,
                     createdAt: serverTimestamp(),
                     // Only add optional fields if they exist

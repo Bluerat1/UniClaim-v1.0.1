@@ -511,7 +511,9 @@ export const messageService = {
             }
 
             const conversationData = conversationDoc.data();
-            const participantIds = conversationData.participants || [];
+            // Normalize participants to an array of user IDs (handles both old object and new array formats)
+            const participants = conversationData.participants || [];
+            const participantIds = Array.isArray(participants) ? participants : Object.keys(participants);
 
             // Increment unread count for all participants except the sender
             const otherParticipantIds = participantIds.filter((id: string) => id !== senderId);
@@ -685,7 +687,9 @@ export const messageService = {
             }
 
             const conversationData = conversationDoc.data();
-            const participantIds = conversationData.participants || [];
+            // Normalize participants to an array of user IDs (handles both old object and new array formats)
+            const participants = conversationData.participants || [];
+            const participantIds = Array.isArray(participants) ? participants : Object.keys(participants);
             const otherParticipantIds = participantIds.filter((id: string) => id !== senderId);
 
             // Prepare unread count updates for each receiver
@@ -1551,6 +1555,57 @@ export const messageService = {
         } catch (error: any) {
             console.error('❌ Firebase rejectClaimAfterConfirmation failed:', error);
             throw new Error(error.message || 'Failed to reject claim after confirmation');
+        }
+    },
+
+    // Delete a single message and its associated images
+    async deleteMessage(conversationId: string, messageId: string, userId: string): Promise<void> {
+        try {
+            console.log(`🗑️ [deleteMessage] Starting deletion of message ${messageId} in conversation ${conversationId}`);
+
+            // First, get the message data to extract any image URLs for cleanup
+            const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
+            const messageDoc = await getDoc(messageRef);
+
+            if (!messageDoc.exists()) {
+                throw new Error('Message not found');
+            }
+
+            const messageData = messageDoc.data();
+            console.log(`📝 [deleteMessage] Message data retrieved, type: ${messageData.messageType}`);
+
+            // Extract image URLs from the message for cleanup
+            const { extractMessageImages } = await import('../../utils/cloudinary');
+            const imageUrls = extractMessageImages(messageData);
+
+            console.log(`🖼️ [deleteMessage] Found ${imageUrls.length} images to delete from Cloudinary`);
+
+            // Delete the message from Firestore
+            await deleteDoc(messageRef);
+            console.log(`✅ [deleteMessage] Message ${messageId} deleted from Firestore`);
+
+            // Delete associated images from Cloudinary if any exist
+            if (imageUrls.length > 0) {
+                try {
+                    console.log(`🗑️ [deleteMessage] Deleting ${imageUrls.length} images from Cloudinary`);
+                    const { deleteMessageImages } = await import('../../utils/cloudinary');
+                    const result = await deleteMessageImages(imageUrls);
+                    console.log(`✅ [deleteMessage] Cloudinary cleanup result: ${result.deleted.length} deleted, ${result.failed.length} failed`);
+
+                    if (result.failed.length > 0) {
+                        console.warn(`⚠️ [deleteMessage] Some images failed to delete from Cloudinary:`, result.failed);
+                    }
+                } catch (cloudinaryError) {
+                    console.error(`❌ [deleteMessage] Failed to delete images from Cloudinary:`, cloudinaryError);
+                    // Don't throw error - message is already deleted from Firestore
+                    // This prevents the delete operation from appearing to fail when it actually succeeded
+                }
+            }
+
+            console.log(`✅ [deleteMessage] Message deletion completed successfully`);
+        } catch (error: any) {
+            console.error('❌ [deleteMessage] Failed to delete message:', error);
+            throw new Error(error.message || 'Failed to delete message');
         }
     },
 

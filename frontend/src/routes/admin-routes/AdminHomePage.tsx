@@ -76,6 +76,11 @@ export default function AdminHomePage() {
     "confirmed" | "not_received" | null
   >(null);
 
+  // Revert confirmation modal state
+  const [showRevertModal, setShowRevertModal] = useState(false);
+  const [postToRevert, setPostToRevert] = useState<Post | null>(null);
+  const [revertReason, setRevertReason] = useState<string>("");
+
   // Edit modal state
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [isUpdatingPost, setIsUpdatingPost] = useState(false);
@@ -366,22 +371,32 @@ export default function AdminHomePage() {
   // Keyboard shortcuts and accessibility for delete modal
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!showDeleteModal) return;
+      if (!showDeleteModal && !showRevertModal) return;
 
       switch (event.key) {
         case "Escape":
           event.preventDefault();
-          cancelDelete();
+          if (showDeleteModal) {
+            cancelDelete();
+          } else if (showRevertModal) {
+            handleRevertCancel();
+          }
           break;
         case "Enter":
-          if (deletingPostId !== postToDelete?.id) {
+          if (showDeleteModal && deletingPostId !== postToDelete?.id) {
             event.preventDefault();
             confirmDelete();
+          } else if (showRevertModal) {
+            event.preventDefault();
+            handleRevertConfirm();
           }
           break;
         case "Tab":
           // Prevent tabbing outside the modal
-          const focusableElements = document.querySelectorAll(
+          const modal = showDeleteModal ? document.querySelector('[role="dialog"][aria-modal="true"]') : document.querySelectorAll('[role="dialog"][aria-modal="true"]')[1];
+          if (!modal) return;
+
+          const focusableElements = modal.querySelectorAll(
             'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
           );
           const firstElement = focusableElements[0] as HTMLElement;
@@ -403,17 +418,30 @@ export default function AdminHomePage() {
       }
     };
 
-    if (showDeleteModal) {
+    if (showDeleteModal || showRevertModal) {
       document.addEventListener("keydown", handleKeyDown);
-      // Focus the delete button for better accessibility
-      const deleteButton = document.querySelector(
-        '[aria-label="Confirm deletion of post"]'
-      ) as HTMLButtonElement;
-      if (deleteButton && !deleteButton.disabled) {
-        deleteButton.focus();
-      }
+
       // Lock body scroll
       document.body.style.overflow = "hidden";
+
+      // Focus management - focus the appropriate button
+      if (showDeleteModal) {
+        // Focus the delete button for better accessibility
+        const deleteButton = document.querySelector(
+          '[aria-label="Confirm deletion of post"]'
+        ) as HTMLButtonElement;
+        if (deleteButton && !deleteButton.disabled) {
+          deleteButton.focus();
+        }
+      } else if (showRevertModal) {
+        // Focus the revert button for better accessibility
+        const revertButton = Array.from(document.querySelectorAll('button')).find(
+          btn => btn.textContent?.includes('Revert Post')
+        ) as HTMLButtonElement;
+        if (revertButton && !revertButton.disabled) {
+          revertButton.focus();
+        }
+      }
     }
 
     return () => {
@@ -421,7 +449,7 @@ export default function AdminHomePage() {
       // Restore body scroll
       document.body.style.overflow = "";
     };
-  }, [showDeleteModal, deletingPostId, postToDelete]);
+  }, [showDeleteModal, showRevertModal, deletingPostId, postToDelete]);
 
   const handleStatusChange = async (post: Post, status: string, adminNotes?: string) => {
     try {
@@ -487,98 +515,106 @@ export default function AdminHomePage() {
 
 
   const handleRevertResolution = async (post: Post) => {
-    const reason = prompt(
-      `Why are you reverting "${post.title}"? (Optional reason):`
-    );
-    if (reason === null) return; // User cancelled
+    setPostToRevert(post);
+    setRevertReason(""); // Reset reason when opening modal
+    setShowRevertModal(true);
+  };
 
-    if (
-      confirm(
-        `Are you sure you want to revert "${post.title}" back to pending status? This will reset any claim/handover requests and delete associated photos.`
-      )
-    ) {
-      try {
-        const { postService } = await import("../../utils/firebase");
+  const handleRevertConfirm = async () => {
+    if (!postToRevert) return;
 
-        let totalPhotosDeleted = 0;
-        let allErrors: string[] = [];
+    try {
+      const { postService } = await import("../../utils/firebase");
 
-        // Clean up handover details and photos
-        console.log("🧹 Starting cleanup of handover details and photos...");
-        const handoverCleanupResult =
-          await postService.cleanupHandoverDetailsAndPhotos(post.id);
-        totalPhotosDeleted += handoverCleanupResult.photosDeleted;
-        allErrors.push(...handoverCleanupResult.errors);
+      let totalPhotosDeleted = 0;
+      let allErrors: string[] = [];
 
-        // Clean up claim details and photos
-        console.log("🧹 Starting cleanup of claim details and photos...");
-        const claimCleanupResult =
-          await postService.cleanupClaimDetailsAndPhotos(post.id);
-        totalPhotosDeleted += claimCleanupResult.photosDeleted;
-        allErrors.push(...claimCleanupResult.errors);
+      // Clean up handover details and photos
+      console.log("🧹 Starting cleanup of handover details and photos...");
+      const handoverCleanupResult =
+        await postService.cleanupHandoverDetailsAndPhotos(postToRevert.id);
+      totalPhotosDeleted += handoverCleanupResult.photosDeleted;
+      allErrors.push(...handoverCleanupResult.errors);
 
-        // Then update the post status to pending
-        await postService.updatePostStatus(post.id, "pending");
+      // Clean up claim details and photos
+      console.log("🧹 Starting cleanup of claim details and photos...");
+      const claimCleanupResult =
+        await postService.cleanupClaimDetailsAndPhotos(postToRevert.id);
+      totalPhotosDeleted += claimCleanupResult.photosDeleted;
+      allErrors.push(...claimCleanupResult.errors);
 
-        // Send notification to the post creator
-        if (post.creatorId) {
-          try {
-            // Check if this post has been turned over and use the original finder instead
-            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || post.creatorId;
+      // Then update the post status to pending
+      await postService.updatePostStatus(postToRevert.id, "pending", undefined, revertReason || "Post reverted by admin");
 
-            await notificationSender.sendRevertNotification({
-              postId: post.id,
-              postTitle: post.title,
-              postType: post.type as "lost" | "found",
-              creatorId: notificationRecipientId,
-              creatorName:
-                post.turnoverDetails?.originalFinder ?
-                  `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
-                  (post.user.firstName && post.user.lastName
-                    ? `${post.user.firstName} ${post.user.lastName}`
-                    : post.user.email?.split("@")[0] || "User"),
-              adminName:
-                userData?.firstName && userData?.lastName
-                  ? `${userData.firstName} ${userData.lastName}`
-                  : userData?.email?.split("@")[0] || "Admin",
-              revertReason: reason,
-            });
-            console.log("✅ Revert notification sent to user");
-          } catch (notificationError) {
-            console.warn(
-              "⚠️ Failed to send revert notification:",
-              notificationError
-            );
-            // Don't throw - notification failures shouldn't break main functionality
-          }
+      // Send notification to the post creator
+      if (postToRevert.creatorId) {
+        try {
+          // Check if this post has been turned over and use the original finder instead
+          const notificationRecipientId = postToRevert.turnoverDetails?.originalFinder?.uid || postToRevert.creatorId;
+
+          await notificationSender.sendRevertNotification({
+            postId: postToRevert.id,
+            postTitle: postToRevert.title,
+            postType: postToRevert.type as "lost" | "found",
+            creatorId: notificationRecipientId,
+            creatorName:
+              postToRevert.turnoverDetails?.originalFinder ?
+                `${postToRevert.turnoverDetails.originalFinder.firstName} ${postToRevert.turnoverDetails.originalFinder.lastName}` :
+                (postToRevert.user.firstName && postToRevert.user.lastName
+                  ? `${postToRevert.user.firstName} ${postToRevert.user.lastName}`
+                  : postToRevert.user.email?.split("@")[0] || "User"),
+            adminName:
+              userData?.firstName && userData?.lastName
+                ? `${userData.firstName} ${userData.lastName}`
+                : userData?.email?.split("@")[0] || "Admin",
+            revertReason: revertReason || "Post reverted by admin",
+          });
+          console.log("✅ Revert notification sent to user");
+        } catch (notificationError) {
+          console.warn(
+            "⚠️ Failed to send revert notification:",
+            notificationError
+          );
+          // Don't throw - notification failures shouldn't break main functionality
         }
-
-        // Show success message with cleanup details
-        let successMessage = `"${post.title}" has been reverted back to pending status.`;
-        if (totalPhotosDeleted > 0) {
-          successMessage += ` ${totalPhotosDeleted} photos were deleted from storage.`;
-        }
-        if (allErrors.length > 0) {
-          console.warn("⚠️ Some cleanup errors occurred:", allErrors);
-          successMessage += ` Note: Some cleanup operations had issues.`;
-        }
-
-        showToast("success", "Resolution Reverted", successMessage);
-        console.log(
-          "Post resolution reverted successfully:",
-          post.title,
-          "Total photos deleted:",
-          totalPhotosDeleted
-        );
-      } catch (error: any) {
-        console.error("Failed to revert post resolution:", error);
-        showToast(
-          "error",
-          "Revert Failed",
-          error.message || "Failed to revert post resolution"
-        );
       }
+
+      // Show success message with cleanup details
+      let successMessage = `"${postToRevert.title}" has been reverted back to pending status.`;
+      if (totalPhotosDeleted > 0) {
+        successMessage += ` ${totalPhotosDeleted} photos were deleted from storage.`;
+      }
+      if (allErrors.length > 0) {
+        console.warn("⚠️ Some cleanup errors occurred:", allErrors);
+        successMessage += ` Note: Some cleanup operations had issues.`;
+      }
+
+      showToast("success", "Resolution Reverted", successMessage);
+      console.log(
+        "Post resolution reverted successfully:",
+        postToRevert.title,
+        "Total photos deleted:",
+        totalPhotosDeleted
+      );
+
+      // Close modal and reset state
+      setShowRevertModal(false);
+      setPostToRevert(null);
+      setRevertReason("");
+    } catch (error: any) {
+      console.error("Failed to revert post resolution:", error);
+      showToast(
+        "error",
+        "Revert Failed",
+        error.message || "Failed to revert post resolution"
+      );
     }
+  };
+
+  const handleRevertCancel = () => {
+    setShowRevertModal(false);
+    setPostToRevert(null);
+    setRevertReason("");
   };
 
   // Handle turnover confirmation
@@ -1400,6 +1436,89 @@ export default function AdminHomePage() {
                   disabled={!!deletingPostId}
                 >
                   Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Revert Confirmation Modal */}
+      {showRevertModal && postToRevert && (
+        <>
+          {/* Screen reader announcement */}
+          <div className="sr-only" aria-live="polite" aria-atomic="true">
+            Revert confirmation dialog opened for post: {postToRevert.title}
+          </div>
+
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="revert-modal-title"
+            aria-describedby="revert-modal-description"
+          >
+            <div
+              className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
+                  <svg
+                    className="w-8 h-8 text-orange-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                    />
+                  </svg>
+                </div>
+              </div>
+
+              <h3
+                className="text-lg font-semibold text-center mb-2"
+                id="revert-modal-title"
+              >
+                Revert "{postToRevert.title}"?
+              </h3>
+
+              <p
+                className="text-sm text-gray-600 text-center mb-4"
+                id="revert-modal-description"
+              >
+                This will change the post back to pending status, reset any claim/handover requests, and delete associated photos.
+              </p>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason for reverting (optional):
+                </label>
+                <textarea
+                  value={revertReason}
+                  onChange={(e) => setRevertReason(e.target.value)}
+                  placeholder="Optional: Enter reason for reverting this post (e.g., 'Incorrect resolution', 'Policy violation', etc.)"
+                  className="w-full p-3 border rounded-lg resize-none h-24 text-sm"
+                  maxLength={500}
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleRevertCancel}
+                  className="flex-1 px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRevertConfirm}
+                  className="flex-1 px-4 py-2 text-sm bg-orange-600 text-white rounded hover:bg-orange-700"
+                >
+                  Revert Post
                 </button>
               </div>
             </div>
