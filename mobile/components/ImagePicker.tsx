@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, Alert, Image, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, Alert, Image } from "react-native";
 import * as ExpoImagePicker from "expo-image-picker";
 
 interface ImagePickerProps {
@@ -89,60 +89,72 @@ const ImagePicker: React.FC<ImagePickerProps> = ({
   };
 
   return (
-    <View style={styles.overlay}>
-      <View style={styles.container}>
-        <Text style={styles.title}>
+    <View className="absolute inset-0 bg-black/70 justify-center items-center z-50">
+      <View className="bg-white rounded-lg p-4 mx-4 max-w-[320px] w-full">
+        <Text className="text-lg font-manrope-bold mb-2 text-center">
           Upload ID Photo
         </Text>
-        <Text style={styles.subtitle}>
+        <Text className="text-sm font-inter text-gray-500 mb-4 text-center">
           Please provide a photo of your ID as proof that you received the item.
         </Text>
 
-        {/* Action buttons */}
-        <View style={styles.buttonContainer}>
+        {/* Action Buttons */}
+        <View className="flex-col gap-3 mb-4">
           <TouchableOpacity
             onPress={handleTakePhoto}
-            style={[styles.primaryButton, isUploading && { opacity: 0.5 }]}
+            activeOpacity={0.7}
+            delayPressIn={80}
             disabled={isUploading}
+            className={`w-full rounded-lg py-3 items-center ${
+              isUploading ? "bg-blue-400 opacity-50" : "bg-blue-500"
+            }`}
           >
-            <Text style={styles.primaryButtonText}>
-              📷 Take New Photo
+            <Text className="text-white text-base font-manrope-semibold">
+              Take A Photo
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={handleChooseFromGallery}
-            style={[styles.secondaryButton, isUploading && { opacity: 0.5 }]}
+            activeOpacity={0.7}
+            delayPressIn={80}
             disabled={isUploading}
+            className={`w-full rounded-lg py-3 items-center ${
+              isUploading ? "bg-emerald-400 opacity-50" : "bg-emerald-500"
+            }`}
           >
-            <Text style={styles.secondaryButtonText}>
-              🖼️ Choose from Gallery
+            <Text className="text-white text-base font-manrope-semibold">
+              Choose from your Gallery
             </Text>
           </TouchableOpacity>
         </View>
 
         {/* Selected image preview */}
         {selectedImage && (
-          <View style={styles.imagePreview}>
-            <Text style={styles.previewText}>
+          <View className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <Text className="text-sm font-manrope-medium text-gray-700 mb-2">
               Selected Photo:
             </Text>
             <Image
               source={{ uri: selectedImage }}
-              style={styles.previewImage}
+              className="w-full h-32 rounded-lg"
               resizeMode="cover"
             />
           </View>
         )}
 
-        {/* Upload button - only show when image is selected */}
+        {/* Upload button */}
         {selectedImage && (
           <TouchableOpacity
             onPress={handleUpload}
-            style={[styles.primaryButton, { marginBottom: 12 }, isUploading && { opacity: 0.5 }]}
+            activeOpacity={0.7}
+            delayPressIn={80}
             disabled={isUploading}
+            className={`w-full rounded-lg py-3 mb-3 items-center ${
+              isUploading ? "bg-blue-400 opacity-50" : "bg-blue-500"
+            }`}
           >
-            <Text style={styles.primaryButtonText}>
+            <Text className="text-white text-base font-manrope-semibold">
               {isUploading ? "Uploading..." : "Upload Photo"}
             </Text>
           </TouchableOpacity>
@@ -151,9 +163,11 @@ const ImagePicker: React.FC<ImagePickerProps> = ({
         {/* Cancel button */}
         <TouchableOpacity
           onPress={onClose}
-          style={styles.cancelButton}
+          activeOpacity={0.7}
+          delayPressIn={80}
+          className="w-full bg-gray-200 rounded-lg py-3 items-center"
         >
-          <Text style={styles.cancelButtonText}>
+          <Text className="text-gray-800 text-base font-manrope-semibold">
             Cancel
           </Text>
         </TouchableOpacity>
@@ -161,102 +175,5 @@ const ImagePicker: React.FC<ImagePickerProps> = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 50,
-  },
-  container: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 16,
-    margin: 16,
-    maxWidth: 320,
-    width: '100%',
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  buttonContainer: {
-    flexDirection: 'column',
-    gap: 12,
-    marginBottom: 16,
-  },
-  primaryButton: {
-    width: '100%',
-    backgroundColor: '#3B82F6',
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  secondaryButton: {
-    width: '100%',
-    backgroundColor: '#10B981',
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  imagePreview: {
-    marginBottom: 16,
-    padding: 12,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  previewText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  previewImage: {
-    width: '100%',
-    height: 128,
-    borderRadius: 8,
-  },
-  cancelButton: {
-    width: '100%',
-    backgroundColor: '#9CA3AF',
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    color: '#374151',
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-});
 
 export default ImagePicker;

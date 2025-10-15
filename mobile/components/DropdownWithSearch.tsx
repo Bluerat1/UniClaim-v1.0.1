@@ -7,7 +7,6 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  StyleSheet,
 } from "react-native";
 
 type DropdownProps = {
@@ -33,24 +32,27 @@ const DropdownWithSearch = ({
   );
 
   return (
-    <View style={styles.container}>
+    <View className="mb-4 z-50">
       {label && (
-        <Text style={styles.label}>
+        <Text className="text-sm font-manrope-semibold text-black mb-2">
           {label}
         </Text>
       )}
 
+      {/* Dropdown Button */}
       <TouchableOpacity
         onPress={() => setExpanded(!expanded)}
-        style={styles.dropdownButton}
+        className="flex-row justify-between items-center bg-white border border-gray-300 rounded-md px-4 py-3"
       >
         <Text
-          style={selected ? styles.selectedText : styles.placeholderText}
+          className={`text-base font-inter flex-1 ${
+            selected ? "text-gray-800" : "text-gray-600"
+          }`}
         >
           {selected || placeholder}
         </Text>
 
-        <View style={styles.iconContainer}>
+        <View className="flex-row items-center space-x-2">
           {selected && (
             <Pressable onPress={() => setSelected(null)} hitSlop={10}>
               <Ionicons name="close" size={20} color="#4B5563" />
@@ -64,16 +66,17 @@ const DropdownWithSearch = ({
         </View>
       </TouchableOpacity>
 
+      {/* Dropdown Menu */}
       {expanded && (
-        <View style={styles.dropdownMenu}>
+        <View className="mt-2 bg-white border border-gray-300 rounded-md shadow-md max-h-60 elevation-5">
           {/* Search Input */}
-          <View style={styles.searchContainer}>
+          <View className="border-b font-inter border-gray-200 px-3 py-2">
             <TextInput
               placeholder="Search"
-              placeholderTextColor={styles.searchPlaceholder.color}
+              placeholderTextColor="#9CA3AF"
               value={search}
               onChangeText={setSearch}
-              style={styles.searchInput}
+              className="text-base text-gray-800"
             />
           </View>
 
@@ -87,15 +90,15 @@ const DropdownWithSearch = ({
                     setExpanded(false);
                     setSearch("");
                   }}
-                  style={styles.option}
+                  className="px-4 py-3 border-b border-gray-200"
                 >
-                  <Text style={styles.optionText}>
+                  <Text className="text-[13px] font-inter text-gray-800">
                     {item}
                   </Text>
                 </TouchableOpacity>
               ))
             ) : (
-              <Text style={styles.noResults}>
+              <Text className="text-center py-3 text-gray-500">
                 No results found
               </Text>
             )}
@@ -105,88 +108,5 @@ const DropdownWithSearch = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: 16,
-    zIndex: 50,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000000',
-    marginBottom: 8,
-  },
-  dropdownButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  selectedText: {
-    fontSize: 16,
-    flex: 1,
-    color: '#1F2937',
-  },
-  placeholderText: {
-    fontSize: 16,
-    flex: 1,
-    color: '#374151',
-  },
-  iconContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dropdownMenu: {
-    marginTop: 8,
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 6,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-    maxHeight: 240,
-  },
-  searchContainer: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  searchInput: {
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  searchPlaceholder: {
-    color: '#9CA3AF',
-  },
-  option: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  optionText: {
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  noResults: {
-    textAlign: 'center',
-    paddingVertical: 12,
-    color: '#6B7280',
-  },
-});
 
 export default DropdownWithSearch;

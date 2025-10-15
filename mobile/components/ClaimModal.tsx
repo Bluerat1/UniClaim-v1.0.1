@@ -228,10 +228,10 @@ export default function ClaimModal({
                 !idPhotoUri ||
                 evidencePhotoUris.length === 0
                   ? "bg-gray-200"
-                  : "bg-violet-600"
+                  : "bg-blue-500"
               }`}
             >
-              <Text className="text-gray-700 text-base font-manrope-semibold text-center">
+              <Text className="text-white text-base font-manrope-semibold text-center">
                 {isLoading || isClaimSubmitting
                   ? "Uploading & Sending..."
                   : "Send Request"}

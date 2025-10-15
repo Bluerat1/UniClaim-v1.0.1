@@ -91,7 +91,9 @@ export default function Ticket() {
             : !!post.deletedAt; // Show deleted posts in the deleted tab
       const matchesSearch =
         post.title.toLowerCase().includes(debouncedSearchText.toLowerCase()) ||
-        post.description.toLowerCase().includes(debouncedSearchText.toLowerCase());
+        post.description
+          .toLowerCase()
+          .includes(debouncedSearchText.toLowerCase());
       return matchesTab && matchesSearch;
     });
   }, [posts, activeTab, debouncedSearchText]);
@@ -206,7 +208,10 @@ export default function Ticket() {
   );
 
   // Conversation cache to reduce Firebase queries
-  const conversationCache = useMemo(() => new Map<string, { data: any[], timestamp: number }>(), []);
+  const conversationCache = useMemo(
+    () => new Map<string, { data: any[]; timestamp: number }>(),
+    []
+  );
   const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
   // Helper function to find all conversations for a post (with caching)
@@ -218,18 +223,22 @@ export default function Ticket() {
         return cached.data;
       }
 
-      const conversations = await messageService.getCurrentConversations(userData?.uid || '');
-      const postConversations = conversations.filter(conv => conv.postId === postId);
+      const conversations = await messageService.getCurrentConversations(
+        userData?.uid || ""
+      );
+      const postConversations = conversations.filter(
+        (conv) => conv.postId === postId
+      );
 
       // Cache the result
       conversationCache.set(postId, {
         data: postConversations,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
       return postConversations;
     } catch (error) {
-      console.error('Error finding conversations for post:', error);
+      console.error("Error finding conversations for post:", error);
       return [];
     }
   };
@@ -243,74 +252,97 @@ export default function Ticket() {
       for (const conversation of conversations) {
         try {
           // Use direct Firestore query instead of real-time listener to get ALL messages
-          const { collection, query, orderBy, getDocs } = await import('firebase/firestore');
-          const { db } = await import('@/utils/firebase/config');
+          const { collection, query, orderBy, getDocs } = await import(
+            "firebase/firestore"
+          );
+          const { db } = await import("@/utils/firebase/config");
 
           const messagesQuery = query(
             collection(db, `conversations/${conversation.id}/messages`),
-            orderBy('timestamp', 'asc')
+            orderBy("timestamp", "asc")
           );
           const messagesSnapshot = await getDocs(messagesQuery);
 
-          const messages = messagesSnapshot.docs.map(doc => ({
+          const messages = messagesSnapshot.docs.map((doc) => ({
             id: doc.id,
-            ...doc.data()
+            ...doc.data(),
           })) as any[];
 
           // Find pending handover or claim requests
           for (const message of messages) {
-            if (message.messageType === 'handover_request' && message.handoverData?.status === 'pending') {
+            if (
+              message.messageType === "handover_request" &&
+              message.handoverData?.status === "pending"
+            ) {
               pendingRequests.push({
-                type: 'handover',
+                type: "handover",
                 conversationId: conversation.id,
                 messageId: message.id,
-                messageData: message
+                messageData: message,
               });
-            } else if (message.messageType === 'claim_request' && message.claimData?.status === 'pending') {
+            } else if (
+              message.messageType === "claim_request" &&
+              message.claimData?.status === "pending"
+            ) {
               pendingRequests.push({
-                type: 'claim',
+                type: "claim",
                 conversationId: conversation.id,
                 messageId: message.id,
-                messageData: message
+                messageData: message,
               });
             }
           }
         } catch (error) {
-          console.error(`Error getting messages for conversation ${conversation.id}:`, error);
+          console.error(
+            `Error getting messages for conversation ${conversation.id}:`,
+            error
+          );
         }
       }
 
       return pendingRequests;
     } catch (error) {
-      console.error('Error finding pending requests:', error);
+      console.error("Error finding pending requests:", error);
       return [];
     }
   };
 
   // Helper function to auto-reject pending requests and send notifications BEFORE deleting conversations
-  const autoRejectPendingRequestsWithNotifications = async (postId: string): Promise<void> => {
+  const autoRejectPendingRequestsWithNotifications = async (
+    postId: string
+  ): Promise<void> => {
     try {
       const pendingRequests = await findPendingRequests(postId);
 
       // Collect all conversation data and participants BEFORE sending notifications
-      const conversationParticipants: { [conversationId: string]: string[] } = {};
+      const conversationParticipants: { [conversationId: string]: string[] } =
+        {};
 
       for (const request of pendingRequests) {
         if (!conversationParticipants[request.conversationId]) {
           try {
-            const { doc, getDoc } = await import('firebase/firestore');
-            const { db } = await import('@/utils/firebase/config');
+            const { doc, getDoc } = await import("firebase/firestore");
+            const { db } = await import("@/utils/firebase/config");
 
-            const conversationRef = doc(db, 'conversations', request.conversationId);
+            const conversationRef = doc(
+              db,
+              "conversations",
+              request.conversationId
+            );
             const conversationDoc = await getDoc(conversationRef);
 
             if (conversationDoc.exists()) {
               const conversationData = conversationDoc.data();
-              const participantIds = Object.keys(conversationData.participants || {});
+              const participantIds = Object.keys(
+                conversationData.participants || {}
+              );
               conversationParticipants[request.conversationId] = participantIds;
             }
           } catch (error) {
-            console.error(`Error getting conversation data for ${request.conversationId}:`, error);
+            console.error(
+              `Error getting conversation data for ${request.conversationId}:`,
+              error
+            );
           }
         }
       }
@@ -318,69 +350,85 @@ export default function Ticket() {
       // Now send notifications and reject requests
       for (const request of pendingRequests) {
         try {
-          const participants = conversationParticipants[request.conversationId] || [];
+          const participants =
+            conversationParticipants[request.conversationId] || [];
 
-          if (request.type === 'handover') {
+          if (request.type === "handover") {
             await handoverClaimService.updateHandoverResponse(
               request.conversationId,
               request.messageId,
-              'rejected',
-              userData?.uid || ''
+              "rejected",
+              userData?.uid || ""
             );
 
             // Send notification to other participants
-            const otherParticipants = participants.filter(id => id !== userData?.uid);
+            const otherParticipants = participants.filter(
+              (id) => id !== userData?.uid
+            );
             if (otherParticipants.length > 0) {
-              await notificationSender.sendNotificationToUsers(otherParticipants, {
-                type: 'handover_response',
-                title: 'Handover Request Rejected',
-                body: `${userData?.firstName || 'Someone'} rejected your handover request.`,
-                data: {
-                  conversationId: request.conversationId,
-                  messageId: request.messageId,
-                  postId: postId,
-                  status: 'rejected'
+              await notificationSender.sendNotificationToUsers(
+                otherParticipants,
+                {
+                  type: "handover_response",
+                  title: "Handover Request Rejected",
+                  body: `${userData?.firstName || "Someone"} rejected your handover request.`,
+                  data: {
+                    conversationId: request.conversationId,
+                    messageId: request.messageId,
+                    postId: postId,
+                    status: "rejected",
+                  },
                 }
-              });
+              );
             }
 
             console.log(`Auto-rejected handover request: ${request.messageId}`);
-          } else if (request.type === 'claim') {
+          } else if (request.type === "claim") {
             await handoverClaimService.updateClaimResponse(
               request.conversationId,
               request.messageId,
-              'rejected',
-              userData?.uid || ''
+              "rejected",
+              userData?.uid || ""
             );
 
             // Send notification to other participants
-            const otherParticipants = participants.filter(id => id !== userData?.uid);
+            const otherParticipants = participants.filter(
+              (id) => id !== userData?.uid
+            );
             if (otherParticipants.length > 0) {
-              await notificationSender.sendNotificationToUsers(otherParticipants, {
-                type: 'claim_response',
-                title: 'Claim Request Rejected',
-                body: `${userData?.firstName || 'Someone'} rejected your claim request.`,
-                data: {
-                  conversationId: request.conversationId,
-                  messageId: request.messageId,
-                  postId: postId,
-                  status: 'rejected'
+              await notificationSender.sendNotificationToUsers(
+                otherParticipants,
+                {
+                  type: "claim_response",
+                  title: "Claim Request Rejected",
+                  body: `${userData?.firstName || "Someone"} rejected your claim request.`,
+                  data: {
+                    conversationId: request.conversationId,
+                    messageId: request.messageId,
+                    postId: postId,
+                    status: "rejected",
+                  },
                 }
-              });
+              );
             }
 
             console.log(`Auto-rejected claim request: ${request.messageId}`);
           }
         } catch (error) {
-          console.error(`Failed to auto-reject ${request.type} request:`, error);
+          console.error(
+            `Failed to auto-reject ${request.type} request:`,
+            error
+          );
         }
       }
 
       if (pendingRequests.length > 0) {
-        console.log(`Auto-rejected ${pendingRequests.length} pending requests for post ${postId}`);
+        console.log(
+          `Auto-rejected ${pendingRequests.length} pending requests for post ${postId}`
+        );
       }
     } catch (error) {
-      console.error('Error auto-rejecting pending requests:', error);
+      console.error("Error auto-rejecting pending requests:", error);
     }
   };
 
@@ -393,9 +441,12 @@ export default function Ticket() {
         try {
           // Get all messages in the conversation
           const messages = await new Promise<any[]>((resolve) => {
-            messageService.getConversationMessages(conversation.id, (messages) => {
-              resolve(messages);
-            });
+            messageService.getConversationMessages(
+              conversation.id,
+              (messages) => {
+                resolve(messages);
+              }
+            );
           });
 
           // Collect all image URLs from messages
@@ -408,17 +459,24 @@ export default function Ticket() {
           // Delete images from Cloudinary
           if (allImageUrls.length > 0) {
             const result = await deleteMessageImages(allImageUrls);
-            console.log(`Deleted ${result.deleted.length} images for conversation ${conversation.id}`);
+            console.log(
+              `Deleted ${result.deleted.length} images for conversation ${conversation.id}`
+            );
             if (result.failed.length > 0) {
-              console.warn(`Failed to delete ${result.failed.length} images for conversation ${conversation.id}`);
+              console.warn(
+                `Failed to delete ${result.failed.length} images for conversation ${conversation.id}`
+              );
             }
           }
         } catch (error) {
-          console.error(`Error processing images for conversation ${conversation.id}:`, error);
+          console.error(
+            `Error processing images for conversation ${conversation.id}:`,
+            error
+          );
         }
       }
     } catch (error) {
-      console.error('Error deleting conversation images:', error);
+      console.error("Error deleting conversation images:", error);
     }
   };
 
@@ -430,92 +488,119 @@ export default function Ticket() {
       for (const conversation of conversations) {
         try {
           // Get all messages in the conversation using direct Firestore query
-          const messagesQuery = query(collection(db, `conversations/${conversation.id}/messages`));
+          const messagesQuery = query(
+            collection(db, `conversations/${conversation.id}/messages`)
+          );
           const messagesSnapshot = await getDocs(messagesQuery);
 
-          console.log(`🗑️ Mobile: Deleting ${messagesSnapshot.docs.length} messages from conversation ${conversation.id}`);
+          console.log(
+            `🗑️ Mobile: Deleting ${messagesSnapshot.docs.length} messages from conversation ${conversation.id}`
+          );
 
           // Delete all messages directly (bypass ownership check for admin deletion)
           for (const messageDoc of messagesSnapshot.docs) {
-            await deleteDoc(doc(db, `conversations/${conversation.id}/messages`, messageDoc.id));
+            await deleteDoc(
+              doc(
+                db,
+                `conversations/${conversation.id}/messages`,
+                messageDoc.id
+              )
+            );
           }
 
           // Then delete the conversation document
-          await deleteDoc(doc(db, 'conversations', conversation.id));
+          await deleteDoc(doc(db, "conversations", conversation.id));
 
-          console.log(`✅ Mobile: Conversation ${conversation.id} deleted for post ${postId}`);
+          console.log(
+            `✅ Mobile: Conversation ${conversation.id} deleted for post ${postId}`
+          );
         } catch (error) {
-          console.error(`Error deleting conversation ${conversation.id}:`, error);
+          console.error(
+            `Error deleting conversation ${conversation.id}:`,
+            error
+          );
         }
       }
     } catch (error) {
-      console.error('Error deleting conversations:', error);
+      console.error("Error deleting conversations:", error);
     }
   };
 
-  const handleDeletePermanently = useCallback(async (id: string) => {
-    Alert.alert(
-      "Delete Permanently",
-      "Are you sure you want to permanently delete this ticket? This will auto-reject any pending handover or claim requests and delete all associated conversations and images.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Delete Permanently",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setPermanentlyDeletingPostId(id);
-
-              // Step 1: Get all required data in parallel for better performance
-              console.log(`Starting permanent deletion for post ${id}`);
-
-              // Run all preparatory operations in parallel
-              const [pendingRequests, conversations] = await Promise.all([
-                findPendingRequests(id),
-                findConversationsForPost(id)
-              ]);
-
-              // Step 2: Auto-reject pending requests with notifications (single operation for all requests)
-              if (pendingRequests.length > 0) {
-                console.log(`Auto-rejecting ${pendingRequests.length} pending requests for post ${id}`);
-                await autoRejectPendingRequestsWithNotifications(id);
-              }
-
-              // Step 3: Delete conversation images (single operation for all conversations)
-              if (conversations.length > 0) {
-                console.log(`Deleting images for ${conversations.length} conversations for post ${id}`);
-                await deleteConversationImages(id);
-              }
-
-              // Step 4: Delete all conversations
-              if (conversations.length > 0) {
-                console.log(`Deleting ${conversations.length} conversations for post ${id}`);
-                await deleteAllConversations(id);
-              }
-
-              // Step 5: Finally delete the post
-              console.log(`Deleting post ${id}`);
-              await postService.deletePost(id);
-
-              // The post will be automatically removed from the list by the real-time listener
-              Alert.alert("Success", "Ticket and all associated data have been permanently deleted.");
-            } catch (error) {
-              console.error("Error deleting ticket permanently:", error);
-              Alert.alert(
-                "Error",
-                "Failed to delete ticket. Please try again."
-              );
-            } finally {
-              setPermanentlyDeletingPostId(null);
-            }
+  const handleDeletePermanently = useCallback(
+    async (id: string) => {
+      Alert.alert(
+        "Delete Permanently",
+        "Are you sure you want to permanently delete this ticket? This will auto-reject any pending handover or claim requests and delete all associated conversations and images.",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
           },
-        },
-      ]
-    );
-  }, [userData?.uid]);
+          {
+            text: "Delete Permanently",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                setPermanentlyDeletingPostId(id);
+
+                // Step 1: Get all required data in parallel for better performance
+                console.log(`Starting permanent deletion for post ${id}`);
+
+                // Run all preparatory operations in parallel
+                const [pendingRequests, conversations] = await Promise.all([
+                  findPendingRequests(id),
+                  findConversationsForPost(id),
+                ]);
+
+                // Step 2: Auto-reject pending requests with notifications (single operation for all requests)
+                if (pendingRequests.length > 0) {
+                  console.log(
+                    `Auto-rejecting ${pendingRequests.length} pending requests for post ${id}`
+                  );
+                  await autoRejectPendingRequestsWithNotifications(id);
+                }
+
+                // Step 3: Delete conversation images (single operation for all conversations)
+                if (conversations.length > 0) {
+                  console.log(
+                    `Deleting images for ${conversations.length} conversations for post ${id}`
+                  );
+                  await deleteConversationImages(id);
+                }
+
+                // Step 4: Delete all conversations
+                if (conversations.length > 0) {
+                  console.log(
+                    `Deleting ${conversations.length} conversations for post ${id}`
+                  );
+                  await deleteAllConversations(id);
+                }
+
+                // Step 5: Finally delete the post
+                console.log(`Deleting post ${id}`);
+                await postService.deletePost(id);
+
+                // The post will be automatically removed from the list by the real-time listener
+                Alert.alert(
+                  "Success",
+                  "Ticket and all associated data have been permanently deleted."
+                );
+              } catch (error) {
+                console.error("Error deleting ticket permanently:", error);
+                Alert.alert(
+                  "Error",
+                  "Failed to delete ticket. Please try again."
+                );
+              } finally {
+                setPermanentlyDeletingPostId(null);
+              }
+            },
+          },
+        ]
+      );
+    },
+    [userData?.uid]
+  );
 
   // Edit ticket handlers
   const handleEditPost = useCallback((post: Post) => {
@@ -786,10 +871,10 @@ const TicketCard = ({
     const firstImage = images[0];
     if (typeof firstImage === "string") {
       // If it's already a URL (Cloudinary URL), use it directly with optimization
-      const separator = firstImage.includes('?') ? '&' : '?';
+      const separator = firstImage.includes("?") ? "&" : "?";
       return {
         uri: `${firstImage}${separator}w=400&h=300&q=80&f=webp`,
-        cache: 'force-cache' as const,
+        cache: "force-cache" as const,
       };
     }
 
@@ -844,35 +929,37 @@ const TicketCard = ({
       {/* Content Section */}
       <View className="p-4">
         {/* Title, Status and Category */}
-        <View className="flex-row items-start justify-between gap-3 mb-3">
+        <View className="flex-col items-start justify-between gap-3 mb-3">
           <Text className="flex-1 font-manrope-semibold text-lg text-gray-800 leading-tight">
             {post.title}
           </Text>
-          <View className="flex-row items-center gap-2">
-            <Text
-              className={`px-3 py-1 rounded-sm text-xs font-manrope-medium ${
-                post.type === "found"
-                  ? "bg-green-100 text-green-700"
-                  : "bg-red-100 text-red-700"
-              }`}
-            >
-              {post.type === "lost" ? "Lost" : "Keep"}
-            </Text>
-            <Text
-              className={`px-3 py-1 rounded-sm text-xs font-manrope-medium ${
-                getCategoryBadgeStyle(post.category)
-              }`}
-            >
-              {post.category}
-            </Text>
-            <View
-              className={`px-2 py-1 rounded ${getStatusColor(post.status || "pending")}`}
-            >
+          <View>
+            <View className="flex-row items-center gap-2">
               <Text
-                className={`text-xs font-manrope-semibold capitalize ${getStatusTextColor(post.status || "pending")}`}
+                className={`px-3 py-1 rounded-sm text-[9px] font-manrope-medium ${
+                  post.type === "found"
+                    ? "bg-green-100 text-green-700"
+                    : "bg-red-100 text-red-700"
+                }`}
               >
-                {post.status || "pending"}
+                {post.type === "lost" ? "Lost" : "Keep"}
               </Text>
+              <Text
+                className={`px-3 py-1 rounded-sm text-[9px] font-manrope-medium ${getCategoryBadgeStyle(
+                  post.category
+                )}`}
+              >
+                {post.category}
+              </Text>
+              <View
+                className={`px-2 py-1 text-[9px] rounded ${getStatusColor(post.status || "pending")}`}
+              >
+                <Text
+                  className={`text-[9px] font-manrope-semibold capitalize ${getStatusTextColor(post.status || "pending")}`}
+                >
+                  {post.status || "pending"}
+                </Text>
+              </View>
             </View>
           </View>
         </View>

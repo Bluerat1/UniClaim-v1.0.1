@@ -37,7 +37,13 @@ interface MessageBubbleProps {
   onMessageSeen?: () => void;
   onImageClick?: (imageUrl: string, altText: string) => void;
   isConfirmationInProgress?: boolean;
-  conversationParticipants?: { [uid: string]: { profilePicture?: string; firstName: string; lastName: string; } };
+  conversationParticipants?: {
+    [uid: string]: {
+      profilePicture?: string;
+      firstName: string;
+      lastName: string;
+    };
+  };
   isLastSeenByOthers?: boolean;
 }
 
@@ -78,11 +84,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         return {
           uid,
           profilePicture: participant?.profilePicture || null,
-          firstName: participant?.firstName || 'Unknown',
-          lastName: participant?.lastName || 'User',
+          firstName: participant?.firstName || "Unknown",
+          lastName: participant?.lastName || "User",
         };
       })
-      .filter(reader => reader !== null);
+      .filter((reader) => reader !== null);
   };
 
   const handleHandoverResponse = async (status: "accepted" | "rejected") => {
@@ -254,16 +260,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       handoverData.status === "accepted" || handoverData.status === "rejected";
 
     return (
-      <View className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+      <View className="mt-3 p-3 bg-blue-50 rounded-md border border-blue-200">
         <Text className="text-sm text-blue-800 mb-2">
-          <Text className="font-bold">Handover Request:</Text>{" "}
+          <Text className="font-manrope-bold">Handover Request:</Text>{" "}
           {handoverData.postTitle}
         </Text>
 
         {/* Show ID photo if uploaded and not deleted */}
         {handoverData.idPhotoUrl && !handoverData.photosDeleted && (
           <View className="mb-3 p-2 bg-white rounded border">
-            <Text className="text-xs text-gray-600 mb-1">Finder ID Photo:</Text>
+            <Text className="text-xs font-inter text-gray-600 mb-1">
+              Finder ID Photo:
+            </Text>
             <TouchableOpacity
               onPress={() => {
                 if (handoverData.idPhotoUrl && onImageClick) {
@@ -277,7 +285,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 className="w-24 h-16 rounded"
                 resizeMode="cover"
               />
-              <Text className="text-xs text-blue-500 text-center mt-1">
+              <Text className="text-xs font-inter text-blue-500 text-center mt-1">
                 Tap to view full size
               </Text>
             </TouchableOpacity>
@@ -290,7 +298,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             <Text className="text-xs text-red-600 font-medium mb-1">
               🗑️ Photos Deleted
             </Text>
-            <Text className="text-xs text-red-500">
+            <Text className="text-xs font-inter text-red-500">
               All photos have been removed from this request
             </Text>
           </View>
@@ -313,7 +321,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 className="w-24 h-16 rounded"
                 resizeMode="cover"
               />
-              <Text className="text-xs text-blue-500 text-center mt-1">
+              <Text className="text-xs font-inter text-blue-500 text-center mt-1">
                 Tap to view full size
               </Text>
             </TouchableOpacity>
@@ -325,7 +333,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           handoverData.itemPhotos.length > 0 &&
           !handoverData.photosDeleted && (
             <View className="mb-3 p-2 bg-white rounded border">
-              <Text className="text-xs text-gray-600 mb-1 font-medium">
+              <Text className="text-xs font-inter text-gray-600 mb-1 font-medium">
                 Item Photos:
               </Text>
               <View className="gap-2">
@@ -344,10 +352,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         className="w-full h-32 rounded"
                         resizeMode="cover"
                       />
-                      <Text className="text-xs text-gray-500 mt-1">
+                      <Text className="text-xs font-inter text-gray-500 mt-1">
                         Item photo {index + 1}
                       </Text>
-                      <Text className="text-xs text-blue-500 text-center mt-1">
+                      <Text className="text-xs font-inter text-blue-500 text-center mt-1">
                         Tap to view full size
                       </Text>
                     </TouchableOpacity>
@@ -378,10 +386,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             <TouchableOpacity
               onPress={handleConfirmIdPhoto}
               disabled={isConfirmationInProgress}
-              className={`px-3 py-1 rounded-md ${isConfirmationInProgress ? 'bg-gray-400' : 'bg-blue-500'}`}
+              className={`px-3 py-1 rounded-md ${isConfirmationInProgress ? "bg-gray-400" : "bg-blue-500"}`}
             >
               <Text className="text-white text-xs">
-                {isConfirmationInProgress ? 'Confirming...' : 'Confirm ID Photo'}
+                {isConfirmationInProgress
+                  ? "Confirming..."
+                  : "Confirm ID Photo"}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -462,17 +472,17 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     return (
       <View className="mt-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
         <Text className="text-sm text-purple-800 mb-2">
-          <Text className="font-bold">Claim Request:</Text>{" "}
+          <Text className="font-manrope-bold">Claim Request:</Text>{" "}
           {claimData.postTitle}
         </Text>
 
         {/* Show claim reason if provided */}
         {claimData.claimReason && (
           <View className="mb-3 p-2 bg-white rounded border">
-            <Text className="text-xs text-gray-600 mb-1 font-medium">
+            <Text className="text-xs text-gray-600 mb-1 font-manrope-medium">
               Claim Reason:
             </Text>
-            <Text className="text-sm text-gray-800">
+            <Text className="text-sm font-inter text-gray-800">
               {claimData.claimReason}
             </Text>
           </View>
@@ -683,10 +693,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             <TouchableOpacity
               onPress={handleConfirmIdPhoto}
               disabled={isConfirmationInProgress}
-              className={`px-3 py-1 rounded-md ${isConfirmationInProgress ? 'bg-gray-400' : 'bg-blue-500'}`}
+              className={`px-3 py-1 rounded-md ${isConfirmationInProgress ? "bg-gray-400" : "bg-blue-500"}`}
             >
               <Text className="text-white text-xs">
-                {isConfirmationInProgress ? 'Confirming...' : 'Confirm ID Photo'}
+                {isConfirmationInProgress
+                  ? "Confirming..."
+                  : "Confirm ID Photo"}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity

@@ -162,7 +162,7 @@ export default function Home() {
     debouncedLocationSearch,
     categorySearch,
     activeButton,
-    isResolvedTab
+    isResolvedTab,
   ]);
 
   return (
@@ -181,6 +181,9 @@ export default function Home() {
 
         <View className="mt-4">
           <TouchableOpacity
+            activeOpacity={0.3} // Controls how transparent it gets when pressed (0 to 1)
+            delayPressIn={100} // Adds a small delay before the press effect triggers
+            delayPressOut={100} // Adds delay before it resets back
             onPress={() => setShowFilters(!showFilters)}
             className="flex-row items-center justify-between bg-navyblue px-4 py-3 rounded-md active:bg-zinc-200"
           >
