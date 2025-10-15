@@ -281,6 +281,18 @@ export default function AdminSideNav({
               </div>
               <div className="space-y-3">
                 <p className="text-base font-semibold mb-4.5">Admin Menu</p>
+
+                <NavText
+                  icon={<HiOutlineChartBar className="size-6 stroke-[1.5px]" />}
+                  label="Analytics"
+                  to="/admin/analytics"
+                  isOpen={isOpen}
+                  onClick={onMobNavClose}
+                  className="hover:bg-gray-50 rounded pl-4 justify-start"
+                  iconClassName="text-black"
+                  textClassName="font-manrope"
+                />
+
                 <NavText
                   icon={<HiOutlineUsers className="size-6 stroke-[1.5px]" />}
                   label="Manage Users"
@@ -373,17 +385,6 @@ export default function AdminSideNav({
                       ? campusSecurityPostsCount
                       : undefined
                   }
-                />
-
-                <NavText
-                  icon={<HiOutlineChartBar className="size-6 stroke-[1.5px]" />}
-                  label="Analytics"
-                  to="/admin/analytics"
-                  isOpen={isOpen}
-                  onClick={onMobNavClose}
-                  className="hover:bg-gray-50 rounded pl-4 justify-start"
-                  iconClassName="text-black"
-                  textClassName="font-manrope"
                 />
               </div>
             </div>
