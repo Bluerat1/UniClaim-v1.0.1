@@ -27,13 +27,15 @@ import { sanitizePostData } from './utils';
 
 // Message service functions
 export const messageService = {
-    // Get user's conversations (real-time listener) with pagination
-    getUserConversations(userId: string, callback: (conversations: any[]) => void, errorCallback?: (error: any) => void, pageSize: number = 50) {
+    // Get user's conversations (real-time listener) with pagination - handles both old (object) and new (array) data
+    getUserConversations(userId: string, callback: (conversations: any[]) => void, errorCallback?: (error: any) => void, pageSize: number = 20) { // Reduced default pageSize to minimize reads
+        console.log(`🔍 [getUserConversations] Querying for user: ${userId}, pageSize: ${pageSize}`);
+
         const q = query(
             collection(db, 'conversations'),
-            where(`participants.${userId}`, '!=', null),
-            orderBy('lastMessage.timestamp', 'desc'), // Sort by last message timestamp
-            limit(pageSize) // Limit to pageSize conversations for better performance
+            where('participants', 'array-contains', userId),
+            orderBy('lastMessage.timestamp', 'desc'),
+            limit(pageSize)
         );
 
         const unsubscribe = onSnapshot(
@@ -44,24 +46,57 @@ export const messageService = {
                     ...doc.data()
                 }));
 
-                // Filter out conversations where the user is the only participant
-                const validConversations = conversations.filter((conv: any) => {
-                    const participantIds = Object.keys(conv.participants || {});
-                    return participantIds.length > 1; // Must have at least 2 participants
-                });
+                console.log(`✅ [getUserConversations] Array query returned ${conversations.length} results`);
 
-                callback(validConversations);
+                // Fallback: If no results, try querying for object-based participants (for existing data)
+                if (conversations.length === 0) {
+                    console.warn(`⚠️ [getUserConversations] No array results, triggering fallback for object-based data`);
+                    const fallbackQuery = query(
+                        collection(db, 'conversations'),
+                        orderBy('lastMessage.timestamp', 'desc'),
+                        limit(pageSize) // Ensure limit is applied here too
+                    );
+                    const unsubscribeFallback = onSnapshot(fallbackQuery, (fallbackSnapshot) => {
+                        const allConversations = fallbackSnapshot.docs.map(doc => ({
+                            id: doc.id,
+                            ...doc.data()
+                        }));
+                        console.log(`📊 [getUserConversations] Fallback fetched ${allConversations.length} total conversations`);
+                        // Filter in JS for object-based participants
+                        const filteredConversations = allConversations.filter((conv: any) => {
+                            const participants = conv.participants || {};
+                            return participants[userId] !== undefined;
+                        });
+                        const validConversations = filteredConversations.filter((conv: any) => {
+                            const participantIds = Object.keys(conv.participants || {});
+                            return participantIds.length > 1;
+                        });
+                        console.log(`✅ [getUserConversations] Fallback filtered to ${validConversations.length} valid conversations`);
+                        callback(validConversations);
+                    }, (error) => {
+                        console.error(`❌ [getUserConversations] Fallback listener error:`, error);
+                        if (errorCallback) errorCallback(error);
+                    });
+                    // Note: Return a function that unsubscribes from both listeners
+                    return () => {
+                        unsubscribe();
+                        unsubscribeFallback();
+                    };
+                } else {
+                    // Filter out conversations where the user is the only participant
+                    const validConversations = conversations.filter((conv: any) => {
+                        return conv.participants && conv.participants.length > 1;
+                    });
+                    console.log(`✅ [getUserConversations] Using array results: ${validConversations.length} valid conversations`);
+                    callback(validConversations);
+                }
             },
             (error) => {
-                // Handle listener errors gracefully
-                console.log('🔧 MessageService: Listener error:', error?.message || 'Unknown error');
-                if (errorCallback) {
-                    errorCallback(error);
-                }
+                console.error(`❌ [getUserConversations] Listener error:`, error?.message || 'Unknown error');
+                if (errorCallback) errorCallback(error);
             }
         );
 
-        // Return the unsubscribe function
         return unsubscribe;
     },
     // Find an existing conversation for a specific post between two users
@@ -71,7 +106,7 @@ export const messageService = {
             const q1 = query(
                 collection(db, 'conversations'),
                 where('postId', '==', postId),
-                where(`participants.${userId1}`, '!=', null)
+                where('participants', 'array-contains', userId1)
             );
 
             const snapshot1 = await getDocs(q1);
@@ -79,7 +114,7 @@ export const messageService = {
             // Filter results in JavaScript to find conversations with both users
             for (const docSnap of snapshot1.docs) {
                 const data: any = docSnap.data();
-                if (data.participants && data.participants[userId2]) {
+                if (data.participants && data.participants.includes(userId2)) {
                     return docSnap.id;
                 }
             }
@@ -121,14 +156,10 @@ export const messageService = {
             }
 
             // Use passed post owner user data or fallback to fetching from users collection
-            let postOwnerFirstName = '';
-            let postOwnerLastName = '';
             let postOwnerProfilePicture = '';
 
             if (postOwnerUserData && postOwnerUserData.firstName && postOwnerUserData.lastName) {
                 // Use the passed user data from the post
-                postOwnerFirstName = postOwnerUserData.firstName;
-                postOwnerLastName = postOwnerUserData.lastName;
                 postOwnerProfilePicture = postOwnerUserData.profilePicture || '';
             } else {
                 // Fallback: try to fetch from users collection
@@ -136,8 +167,6 @@ export const messageService = {
                     const postOwnerDoc = await getDoc(doc(db, 'users', postOwnerId));
                     if (postOwnerDoc.exists()) {
                         const postOwnerData = postOwnerDoc.data();
-                        postOwnerFirstName = postOwnerData.firstName || '';
-                        postOwnerLastName = postOwnerData.lastName || '';
                         postOwnerProfilePicture = postOwnerData.profilePicture || '';
                     }
                 } catch (error) {
@@ -175,12 +204,12 @@ export const messageService = {
             // Simple duplicate check: get all user conversations and filter in JavaScript
             const userConversationsQuery = query(
                 collection(db, 'conversations'),
-                where(`participants.${currentUserId}`, '!=', null)
+                where('participants', 'array-contains', currentUserId)
             );
             const userConversationsSnapshot = await getDocs(userConversationsQuery);
             const existingConversation = userConversationsSnapshot.docs.find((docSnap) => {
                 const data: any = docSnap.data();
-                return data.postId === postId && data.participants && data.participants[postOwnerId];
+                return data.postId === postId && data.participants && data.participants.includes(postOwnerId);
             });
             if (existingConversation) {
                 console.log('Reusing existing conversation:', existingConversation.id);
@@ -195,22 +224,7 @@ export const messageService = {
                 postStatus,
                 postCreatorId,
                 foundAction, // Include foundAction for found items
-                participants: {
-                    [currentUserId]: {
-                        uid: currentUserId,
-                        firstName: currentUserData.firstName,
-                        lastName: currentUserData.lastName,
-                        profilePicture: currentUserProfilePicture || null,
-                        joinedAt: serverTimestamp()
-                    },
-                    [postOwnerId]: {
-                        uid: postOwnerId,
-                        firstName: postOwnerFirstName,
-                        lastName: postOwnerLastName,
-                        profilePicture: postOwnerProfilePicture || null,
-                        joinedAt: serverTimestamp()
-                    }
-                },
+                participants: [currentUserId, postOwnerId],
                 createdAt: serverTimestamp()
             };
 
@@ -248,19 +262,22 @@ export const messageService = {
             }
 
             const conversationData = conversationDoc.data();
-            const participantIds = Object.keys(conversationData.participants || {});
+            // Normalize participants to an array of user IDs (handles both old object and new array formats)
+            const participants = conversationData.participants || [];
+            const participantIds = Array.isArray(participants) ? participants : Object.keys(participants);
 
             // Increment unread count for all participants except the sender
-            const otherParticipantIds = participantIds.filter(id => id !== senderId);
+            const otherParticipantIds = participantIds.filter((id: string) => id !== senderId);
 
             // Prepare unread count updates for each receiver
             const unreadCountUpdates: { [key: string]: any } = {};
-            otherParticipantIds.forEach(participantId => {
+            otherParticipantIds.forEach((participantId: string) => {
                 unreadCountUpdates[`unreadCounts.${participantId}`] = increment(1);
             });
 
             // Update conversation with last message and increment unread counts for other participants
             const currentTimestamp = new Date();
+            console.log(`🔄 [sendMessage] Updating conversation ${conversationId} with lastMessage`);
             await updateDoc(conversationRef, {
                 lastMessage: {
                     text,
@@ -269,6 +286,7 @@ export const messageService = {
                 },
                 ...unreadCountUpdates
             });
+            console.log(`✅ [sendMessage] Conversation ${conversationId} updated successfully`);
 
             // Send notification to other participants
             try {
@@ -539,14 +557,14 @@ export const messageService = {
             }
 
             const conversationData = conversationDoc.data();
-            const participantIds = Object.keys(conversationData.participants || {});
+            const participantIds = conversationData.participants || [];
 
             // Increment unread count for all participants except the sender
-            const otherParticipantIds = participantIds.filter(id => id !== senderId);
+            const otherParticipantIds = participantIds.filter((id: string) => id !== senderId);
 
             // Prepare unread count updates for each receiver
             const unreadCountUpdates: { [key: string]: any } = {};
-            otherParticipantIds.forEach(participantId => {
+            otherParticipantIds.forEach((participantId: string) => {
                 unreadCountUpdates[`unreadCounts.${participantId}`] = increment(1);
             });
 
@@ -713,12 +731,12 @@ export const messageService = {
             }
 
             const conversationData = conversationDoc.data();
-            const participantIds = Object.keys(conversationData.participants || {});
-            const otherParticipantIds = participantIds.filter(id => id !== senderId);
+            const participantIds = conversationData.participants || [];
+            const otherParticipantIds = participantIds.filter((id: string) => id !== senderId);
 
             // Prepare unread count updates for each receiver
             const unreadCountUpdates: { [key: string]: any } = {};
-            otherParticipantIds.forEach(participantId => {
+            otherParticipantIds.forEach((participantId: string) => {
                 unreadCountUpdates[`unreadCounts.${participantId}`] = increment(1);
             });
 
@@ -962,7 +980,7 @@ export const messageService = {
                     messageTimestamp: messageData.timestamp,
                     senderId: messageData.senderId,
                     senderName: messageData.senderName || 'Unknown User',
-                    senderProfilePicture: conversationData.participants[messageData.senderId]?.profilePicture,
+                    senderProfilePicture: 'Unknown Profile Picture', // Will need to fetch from users collection if needed
                     handoverReason: messageData.handoverData?.handoverReason || '',
                     handoverRequestedAt: messageData.handoverData?.requestedAt || null,
                     handoverRespondedAt: messageData.handoverData?.respondedAt || null,
@@ -1134,7 +1152,7 @@ export const messageService = {
                     messageTimestamp: messageData.timestamp,
                     senderId: messageData.senderId,
                     senderName: messageData.senderName || 'Unknown User',
-                    senderProfilePicture: conversationData.participants[messageData.senderId]?.profilePicture,
+                    senderProfilePicture: 'Unknown Profile Picture', // Will need to fetch from users collection if needed
                     claimReason: messageData.claimData?.claimReason || '',
                     claimRequestedAt: messageData.claimData?.requestedAt || null,
                     claimRespondedAt: messageData.claimData?.respondedAt || null,
@@ -1318,7 +1336,7 @@ export const messageService = {
 
             // Filter out conversations with less than 2 participants
             const validConversations = conversations.filter((conv: any) => {
-                const participantIds = Object.keys(conv.participants || {});
+                const participantIds = conv.participants || [];
                 return participantIds.length > 1; // Must have at least 2 participants
             });
 
@@ -1472,7 +1490,7 @@ export const messageService = {
                 if (conversationData) {
                     await notificationSender.sendResponseNotification(conversationId, {
                         responderId: rejectBy,
-                        responderName: conversationData.participants[rejectBy]?.firstName + ' ' + conversationData.participants[rejectBy]?.lastName || 'Unknown User',
+                        responderName: 'Unknown User', // Will need to fetch from users collection if needed
                         responseType: 'handover_response',
                         status: 'rejected',
                         postTitle: conversationData.postTitle
