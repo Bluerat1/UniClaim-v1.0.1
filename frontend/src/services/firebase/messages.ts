@@ -27,15 +27,11 @@ import { sanitizePostData } from './utils';
 
 // Message service functions
 export const messageService = {
-    // Get user's conversations (real-time listener) with pagination - handles both old (object) and new (array) data
-    getUserConversations(userId: string, callback: (conversations: any[]) => void, errorCallback?: (error: any) => void, pageSize: number = 20) { // Reduced default pageSize to minimize reads
-        console.log(`🔍 [getUserConversations] Querying for user: ${userId}, pageSize: ${pageSize}`);
-
+    // Get user's conversations (real-time listener)
+    getUserConversations(userId: string, callback: (conversations: any[]) => void, errorCallback?: (error: any) => void) {
         const q = query(
             collection(db, 'conversations'),
-            where('participants', 'array-contains', userId),
-            orderBy('lastMessage.timestamp', 'desc'),
-            limit(pageSize)
+            where(`participants.${userId}`, '!=', null)
         );
 
         const unsubscribe = onSnapshot(
@@ -48,48 +44,8 @@ export const messageService = {
 
                 console.log(`✅ [getUserConversations] Array query returned ${conversations.length} results`);
 
-                // Fallback: If no results, try querying for object-based participants (for existing data)
-                if (conversations.length === 0) {
-                    console.warn(`⚠️ [getUserConversations] No array results, triggering fallback for object-based data`);
-                    const fallbackQuery = query(
-                        collection(db, 'conversations'),
-                        orderBy('lastMessage.timestamp', 'desc'),
-                        limit(pageSize) // Ensure limit is applied here too
-                    );
-                    const unsubscribeFallback = onSnapshot(fallbackQuery, (fallbackSnapshot) => {
-                        const allConversations = fallbackSnapshot.docs.map(doc => ({
-                            id: doc.id,
-                            ...doc.data()
-                        }));
-                        console.log(`📊 [getUserConversations] Fallback fetched ${allConversations.length} total conversations`);
-                        // Filter in JS for object-based participants
-                        const filteredConversations = allConversations.filter((conv: any) => {
-                            const participants = conv.participants || {};
-                            return participants[userId] !== undefined;
-                        });
-                        const validConversations = filteredConversations.filter((conv: any) => {
-                            const participantIds = Object.keys(conv.participants || {});
-                            return participantIds.length > 1;
-                        });
-                        console.log(`✅ [getUserConversations] Fallback filtered to ${validConversations.length} valid conversations`);
-                        callback(validConversations);
-                    }, (error) => {
-                        console.error(`❌ [getUserConversations] Fallback listener error:`, error);
-                        if (errorCallback) errorCallback(error);
-                    });
-                    // Note: Return a function that unsubscribes from both listeners
-                    return () => {
-                        unsubscribe();
-                        unsubscribeFallback();
-                    };
-                } else {
-                    // Filter out conversations where the user is the only participant
-                    const validConversations = conversations.filter((conv: any) => {
-                        return conv.participants && conv.participants.length > 1;
-                    });
-                    console.log(`✅ [getUserConversations] Using array results: ${validConversations.length} valid conversations`);
-                    callback(validConversations);
-                }
+                // Return conversations without sorting - let the UI component handle sorting
+                callback(conversations);
             },
             (error) => {
                 console.error(`❌ [getUserConversations] Listener error:`, error?.message || 'Unknown error');
@@ -302,11 +258,9 @@ export const messageService = {
             }
         } catch (error) {
             console.error('❌ [sendMessage] Error sending message:', error);
-            throw error; // Re-throw to allow caller to handle the error
+            // Removed duplicate function declaration
         }
     },
-
-    // Get user's conversations (real-time listener)
 
     // Get messages for a conversation with 50-message limit
     getConversationMessages(conversationId: string, callback: (messages: any[]) => void) {
