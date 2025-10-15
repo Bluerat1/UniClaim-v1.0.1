@@ -8,7 +8,7 @@ interface AdminPostCardProps {
   highlightText: string;
   onDelete?: (post: Post) => void;
   onEdit?: (post: Post) => void;
-  onStatusChange?: (post: Post, status: string) => void;
+  onStatusChange?: (post: Post, status: string, adminNotes?: string) => void;
   onActivateTicket?: (post: Post) => void;
   onRevertResolution?: (post: Post) => void;
   onConfirmTurnover?: (
@@ -89,6 +89,9 @@ function AdminPostCard({
   hideStatusDropdown = false, // Added to hide status dropdown for unclaimed posts
 }: AdminPostCardProps) {
   const [isTurnoverMinimized, setIsTurnoverMinimized] = useState(true);
+  const [showAdminNotesModal, setShowAdminNotesModal] = useState(false);
+  const [adminNotes, setAdminNotes] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
   const previewUrl = useMemo(() => {
     if (post.images && post.images.length > 0) {
       const firstImage = post.images[0];
@@ -125,7 +128,25 @@ function AdminPostCard({
 
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     e.stopPropagation();
-    onStatusChange?.(post, e.target.value);
+    const newStatus = e.target.value;
+    if (newStatus !== post.status) {
+      setSelectedStatus(newStatus);
+      setAdminNotes("");
+      setShowAdminNotesModal(true);
+    }
+  };
+
+  const handleAdminNotesConfirm = () => {
+    onStatusChange?.(post, selectedStatus, adminNotes.trim() || undefined);
+    setShowAdminNotesModal(false);
+    setAdminNotes("");
+    setSelectedStatus("");
+  };
+
+  const handleAdminNotesCancel = () => {
+    setShowAdminNotesModal(false);
+    setAdminNotes("");
+    setSelectedStatus("");
   };
 
   return (
@@ -592,6 +613,18 @@ function AdminPostCard({
           onClick={onClick}
         />
 
+        {/* Admin Notes Display */}
+        {post.adminNotes && (
+          <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded">
+            <div className="text-xs text-blue-800 font-medium mb-1">
+              Admin Notes:
+            </div>
+            <div className="text-xs text-blue-700">
+              {post.adminNotes}
+            </div>
+          </div>
+        )}
+
         {/* Restore and Permanently Delete buttons for deleted posts */}
         {onRestore && onPermanentDelete && (
           <div className="flex gap-2 mt-3">
@@ -618,6 +651,39 @@ function AdminPostCard({
           </div>
         )}
       </div>
+
+      {/* Admin Notes Modal */}
+      {showAdminNotesModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Admin Notes</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Adding notes for changing status from "{post.status}" to "{selectedStatus}":
+            </p>
+            <textarea
+              value={adminNotes}
+              onChange={(e) => setAdminNotes(e.target.value)}
+              placeholder="Optional notes for this status change..."
+              className="w-full p-3 border rounded-lg resize-none h-24 text-sm"
+              maxLength={500}
+            />
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={handleAdminNotesCancel}
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAdminNotesConfirm}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Confirm Status Change
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

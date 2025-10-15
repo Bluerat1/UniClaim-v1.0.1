@@ -418,7 +418,7 @@ export default function AdminHomePage() {
     };
   }, [showDeleteModal, deletingPostId, postToDelete]);
 
-  const handleStatusChange = async (post: Post, status: string) => {
+  const handleStatusChange = async (post: Post, status: string, adminNotes?: string) => {
     try {
       // Store the old status before updating
       const oldStatus = post.status;
@@ -427,7 +427,8 @@ export default function AdminHomePage() {
       const { postService } = await import("../../utils/firebase");
       await postService.updatePostStatus(
         post.id,
-        status as "pending" | "resolved" | "unclaimed"
+        status as "pending" | "resolved" | "unclaimed",
+        adminNotes
       );
 
       // Send notification to the post creator if status changed and we have creator info
