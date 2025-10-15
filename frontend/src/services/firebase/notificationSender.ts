@@ -39,6 +39,7 @@ export class NotificationSender {
         oldStatus: string;
         newStatus: string;
         adminName?: string;
+        adminNotes?: string;
     }): Promise<void> {
         try {
             console.log('🚀 Sending status change notification for post:', postData.postTitle);
@@ -58,7 +59,7 @@ export class NotificationSender {
             await this.sendNotificationToUser(notificationRecipientId, {
                 type: 'status_change',
                 title: `Post Status Updated`,
-                body: `Your ${postData.postType} post "${postData.postTitle}" status changed from ${postData.oldStatus} to ${postData.newStatus}${postData.adminName ? ` by ${postData.adminName}` : ''}`,
+                body: `Your ${postData.postType} post "${postData.postTitle}" status changed from ${postData.oldStatus} to ${postData.newStatus}${postData.adminName ? ` by ${postData.adminName}` : ''}${postData.adminNotes ? ` - ${postData.adminNotes}` : ''}`,
                 postId: postData.postId,
                 postTitle: postData.postTitle,
                 postType: postData.postType,
@@ -70,6 +71,7 @@ export class NotificationSender {
                     oldStatus: postData.oldStatus,
                     newStatus: postData.newStatus,
                     adminName: postData.adminName,
+                    adminNotes: postData.adminNotes,
                     timestamp: new Date().toISOString()
                 }
             });

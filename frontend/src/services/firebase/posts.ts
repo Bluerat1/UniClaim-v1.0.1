@@ -835,12 +835,19 @@ export const postService = {
     },
 
     // Update post status
-    async updatePostStatus(postId: string, status: 'pending' | 'resolved' | 'unclaimed' | 'completed'): Promise<void> {
+    async updatePostStatus(postId: string, status: 'pending' | 'resolved' | 'unclaimed' | 'completed', adminNotes?: string): Promise<void> {
         try {
-            await updateDoc(doc(db, 'posts', postId), {
+            const updateData: any = {
                 status,
                 updatedAt: serverTimestamp()
-            });
+            };
+
+            // Add admin notes if provided
+            if (adminNotes) {
+                updateData.adminNotes = adminNotes;
+            }
+
+            await updateDoc(doc(db, 'posts', postId), updateData);
 
             // If status is changed to 'unclaimed', 'completed', or 'resolved', automatically delete all related conversations
             if (status === 'unclaimed' || status === 'completed' || status === 'resolved') {
