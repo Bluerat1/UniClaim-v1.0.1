@@ -259,7 +259,7 @@ export default function FlaggedPostsPage() {
 
   return (
     <PageWrapper title="Flagged Posts">
-      <div className="w-full mx-auto mb-5">
+      <div className="w-full mx-auto mb-13">
         {/* Page Header */}
         <div className="hidden px-4 py-3 sm:px-6 lg:px-8 lg:flex items-center justify-between bg-gray-50 border-b border-zinc-200">
           <div className="">
@@ -287,7 +287,7 @@ export default function FlaggedPostsPage() {
         <div className="px-4 sm:px-6 lg:px-8">
           {/* Bulk Actions Bar */}
           {flaggedPosts.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-lg p-3 mb-6">
+            <div className="bg-white border border-gray-200 rounded-lg p-3 mb-6 mt-5">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <label className="flex items-center gap-3 cursor-pointer">

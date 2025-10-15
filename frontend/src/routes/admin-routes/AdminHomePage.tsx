@@ -124,24 +124,25 @@ export default function AdminHomePage() {
       if (postToDelete.creatorId) {
         try {
           // Check if this post has been turned over and use the original finder instead
-          const notificationRecipientId = postToDelete.turnoverDetails?.originalFinder?.uid || postToDelete.creatorId;
+          const notificationRecipientId =
+            postToDelete.turnoverDetails?.originalFinder?.uid ||
+            postToDelete.creatorId;
 
           await notificationSender.sendDeleteNotification({
             postId: postToDelete.id,
             postTitle: postToDelete.title,
             postType: postToDelete.type as "lost" | "found",
             creatorId: notificationRecipientId,
-            creatorName:
-              postToDelete.turnoverDetails?.originalFinder ?
-                `${postToDelete.turnoverDetails.originalFinder.firstName} ${postToDelete.turnoverDetails.originalFinder.lastName}` :
-                (postToDelete.user.firstName && postToDelete.user.lastName
-                  ? `${postToDelete.user.firstName} ${postToDelete.user.lastName}`
-                  : postToDelete.user.email?.split("@")[0] || "User"),
+            creatorName: postToDelete.turnoverDetails?.originalFinder
+              ? `${postToDelete.turnoverDetails.originalFinder.firstName} ${postToDelete.turnoverDetails.originalFinder.lastName}`
+              : postToDelete.user.firstName && postToDelete.user.lastName
+              ? `${postToDelete.user.firstName} ${postToDelete.user.lastName}`
+              : postToDelete.user.email?.split("@")[0] || "User",
             adminName:
               userData?.firstName && userData?.lastName
                 ? `${userData.firstName} ${userData.lastName}`
                 : userData?.email?.split("@")[0] || "Admin",
-            deletionType: 'soft',
+            deletionType: "soft",
           });
           console.log("✅ Delete notification sent to user");
         } catch (notificationError) {
@@ -238,7 +239,7 @@ export default function AdminHomePage() {
               userData?.firstName && userData?.lastName
                 ? `${userData.firstName} ${userData.lastName}`
                 : userData?.email?.split("@")[0] || "Admin",
-            deletionType: 'permanent',
+            deletionType: "permanent",
           });
           console.log("✅ Permanent delete notification sent to user");
         } catch (notificationError) {
@@ -305,7 +306,7 @@ export default function AdminHomePage() {
               userData?.firstName && userData?.lastName
                 ? `${userData.firstName} ${userData.lastName}`
                 : userData?.email?.split("@")[0] || "Admin",
-            deletionType: 'permanent',
+            deletionType: "permanent",
           });
           console.log("✅ Permanent delete notification sent to user");
         } catch (notificationError) {
@@ -393,7 +394,11 @@ export default function AdminHomePage() {
           break;
         case "Tab":
           // Prevent tabbing outside the modal
-          const modal = showDeleteModal ? document.querySelector('[role="dialog"][aria-modal="true"]') : document.querySelectorAll('[role="dialog"][aria-modal="true"]')[1];
+          const modal = showDeleteModal
+            ? document.querySelector('[role="dialog"][aria-modal="true"]')
+            : document.querySelectorAll(
+                '[role="dialog"][aria-modal="true"]'
+              )[1];
           if (!modal) return;
 
           const focusableElements = modal.querySelectorAll(
@@ -435,8 +440,10 @@ export default function AdminHomePage() {
         }
       } else if (showRevertModal) {
         // Focus the revert button for better accessibility
-        const revertButton = Array.from(document.querySelectorAll('button')).find(
-          btn => btn.textContent?.includes('Revert Post')
+        const revertButton = Array.from(
+          document.querySelectorAll("button")
+        ).find((btn) =>
+          btn.textContent?.includes("Revert Post")
         ) as HTMLButtonElement;
         if (revertButton && !revertButton.disabled) {
           revertButton.focus();
@@ -451,7 +458,11 @@ export default function AdminHomePage() {
     };
   }, [showDeleteModal, showRevertModal, deletingPostId, postToDelete]);
 
-  const handleStatusChange = async (post: Post, status: string, adminNotes?: string) => {
+  const handleStatusChange = async (
+    post: Post,
+    status: string,
+    adminNotes?: string
+  ) => {
     try {
       // Store the old status before updating
       const oldStatus = post.status;
@@ -468,19 +479,19 @@ export default function AdminHomePage() {
       if (oldStatus !== status && post.creatorId) {
         try {
           // Check if this post has been turned over and use the original finder instead
-          const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || post.creatorId;
+          const notificationRecipientId =
+            post.turnoverDetails?.originalFinder?.uid || post.creatorId;
 
           await notificationSender.sendStatusChangeNotification({
             postId: post.id,
             postTitle: post.title,
             postType: post.type as "lost" | "found",
             creatorId: notificationRecipientId,
-            creatorName:
-              post.turnoverDetails?.originalFinder ?
-                `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
-                (post.user.firstName && post.user.lastName
-                  ? `${post.user.firstName} ${post.user.lastName}`
-                  : post.user.email?.split("@")[0] || "User"),
+            creatorName: post.turnoverDetails?.originalFinder
+              ? `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`
+              : post.user.firstName && post.user.lastName
+              ? `${post.user.firstName} ${post.user.lastName}`
+              : post.user.email?.split("@")[0] || "User",
             oldStatus: oldStatus || "unknown",
             newStatus: status,
             adminName:
@@ -513,7 +524,6 @@ export default function AdminHomePage() {
     }
   };
 
-
   const handleRevertResolution = async (post: Post) => {
     setPostToRevert(post);
     setRevertReason(""); // Reset reason when opening modal
@@ -538,31 +548,38 @@ export default function AdminHomePage() {
 
       // Clean up claim details and photos
       console.log("🧹 Starting cleanup of claim details and photos...");
-      const claimCleanupResult =
-        await postService.cleanupClaimDetailsAndPhotos(postToRevert.id);
+      const claimCleanupResult = await postService.cleanupClaimDetailsAndPhotos(
+        postToRevert.id
+      );
       totalPhotosDeleted += claimCleanupResult.photosDeleted;
       allErrors.push(...claimCleanupResult.errors);
 
       // Then update the post status to pending
-      await postService.updatePostStatus(postToRevert.id, "pending", undefined, revertReason || "Post reverted by admin");
+      await postService.updatePostStatus(
+        postToRevert.id,
+        "pending",
+        undefined,
+        revertReason || "Post reverted by admin"
+      );
 
       // Send notification to the post creator
       if (postToRevert.creatorId) {
         try {
           // Check if this post has been turned over and use the original finder instead
-          const notificationRecipientId = postToRevert.turnoverDetails?.originalFinder?.uid || postToRevert.creatorId;
+          const notificationRecipientId =
+            postToRevert.turnoverDetails?.originalFinder?.uid ||
+            postToRevert.creatorId;
 
           await notificationSender.sendRevertNotification({
             postId: postToRevert.id,
             postTitle: postToRevert.title,
             postType: postToRevert.type as "lost" | "found",
             creatorId: notificationRecipientId,
-            creatorName:
-              postToRevert.turnoverDetails?.originalFinder ?
-                `${postToRevert.turnoverDetails.originalFinder.firstName} ${postToRevert.turnoverDetails.originalFinder.lastName}` :
-                (postToRevert.user.firstName && postToRevert.user.lastName
-                  ? `${postToRevert.user.firstName} ${postToRevert.user.lastName}`
-                  : postToRevert.user.email?.split("@")[0] || "User"),
+            creatorName: postToRevert.turnoverDetails?.originalFinder
+              ? `${postToRevert.turnoverDetails.originalFinder.firstName} ${postToRevert.turnoverDetails.originalFinder.lastName}`
+              : postToRevert.user.firstName && postToRevert.user.lastName
+              ? `${postToRevert.user.firstName} ${postToRevert.user.lastName}`
+              : postToRevert.user.email?.split("@")[0] || "User",
             adminName:
               userData?.firstName && userData?.lastName
                 ? `${userData.firstName} ${userData.lastName}`
@@ -879,19 +896,19 @@ export default function AdminHomePage() {
         if (post.creatorId) {
           try {
             // Check if this post has been turned over and use the original finder instead
-            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || post.creatorId;
+            const notificationRecipientId =
+              post.turnoverDetails?.originalFinder?.uid || post.creatorId;
 
             await notificationSender.sendRestoreNotification({
               postId: post.id,
               postTitle: post.title,
               postType: post.type as "lost" | "found",
               creatorId: notificationRecipientId,
-              creatorName:
-                post.turnoverDetails?.originalFinder ?
-                  `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
-                  (post.user.firstName && post.user.lastName
-                    ? `${post.user.firstName} ${post.user.lastName}`
-                    : post.user.email?.split("@")[0] || "User"),
+              creatorName: post.turnoverDetails?.originalFinder
+                ? `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`
+                : post.user.firstName && post.user.lastName
+                ? `${post.user.firstName} ${post.user.lastName}`
+                : post.user.email?.split("@")[0] || "User",
               adminName:
                 userData?.firstName && userData?.lastName
                   ? `${userData.firstName} ${userData.lastName}`
@@ -953,24 +970,24 @@ export default function AdminHomePage() {
         if (post.creatorId) {
           try {
             // Check if this post has been turned over and use the original finder instead
-            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || post.creatorId;
+            const notificationRecipientId =
+              post.turnoverDetails?.originalFinder?.uid || post.creatorId;
 
             await notificationSender.sendDeleteNotification({
               postId: post.id,
               postTitle: post.title,
               postType: post.type as "lost" | "found",
               creatorId: notificationRecipientId,
-              creatorName:
-                post.turnoverDetails?.originalFinder ?
-                  `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
-                  (post.user.firstName && post.user.lastName
-                    ? `${post.user.firstName} ${post.user.lastName}`
-                    : post.user.email?.split("@")[0] || "User"),
+              creatorName: post.turnoverDetails?.originalFinder
+                ? `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`
+                : post.user.firstName && post.user.lastName
+                ? `${post.user.firstName} ${post.user.lastName}`
+                : post.user.email?.split("@")[0] || "User",
               adminName:
                 userData?.firstName && userData?.lastName
                   ? `${userData.firstName} ${userData.lastName}`
                   : userData?.email?.split("@")[0] || "Admin",
-              deletionType: 'permanent',
+              deletionType: "permanent",
             });
             console.log("✅ Permanent delete notification sent to user");
           } catch (notificationError) {
@@ -1107,8 +1124,8 @@ export default function AdminHomePage() {
       </div>
 
       {/* View Type Tabs */}
-      <div className="flex flex-wrap sm:justify-center items-center gap-3 w-full px-6 lg:justify-start lg:gap-3">
-        <div className="w-full lg:w-auto text-center lg:text-left mb-2 lg:mb-0">
+      <div className="flex mt-7 flex-wrap sm:justify-center items-center gap-3 w-full px-6 lg:justify-start lg:gap-3">
+        {/* <div className="w-full lg:w-auto text-center lg:text-left mb-2 lg:mb-0">
           <span className="text-sm text-gray-600">Current View: </span>
           <span className="text-sm font-semibold text-blue-600 capitalize">
             {viewType === "unclaimed"
@@ -1121,7 +1138,7 @@ export default function AdminHomePage() {
               ? "Flagged Posts"
               : `${viewType} Item Reports`}
           </span>
-        </div>
+        </div> */}
         <button
           className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
             viewType === "all"
@@ -1491,7 +1508,8 @@ export default function AdminHomePage() {
                 className="text-sm text-gray-600 text-center mb-4"
                 id="revert-modal-description"
               >
-                This will change the post back to pending status, reset any claim/handover requests, and delete associated photos.
+                This will change the post back to pending status, reset any
+                claim/handover requests, and delete associated photos.
               </p>
 
               <div className="mb-4">
