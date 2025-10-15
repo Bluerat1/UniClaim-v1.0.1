@@ -31,7 +31,8 @@ export default function UnclaimedPostsPage() {
   // Search state with debouncing
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("All");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] =
+    useState<string>("All");
   const [rawResults, setRawResults] = useState<Post[] | null>(null);
   const [lastDescriptionKeyword, setLastDescriptionKeyword] = useState("");
 
@@ -54,13 +55,13 @@ export default function UnclaimedPostsPage() {
   // Filter posts to show only unclaimed ones
   const unclaimedPosts = useMemo(() => {
     if (rawResults) {
-      return rawResults.filter(post =>
-        post.status === 'unclaimed' || Boolean(post.movedToUnclaimed)
+      return rawResults.filter(
+        (post) => post.status === "unclaimed" || Boolean(post.movedToUnclaimed)
       );
     }
 
-    return posts.filter(post =>
-      post.status === 'unclaimed' || Boolean(post.movedToUnclaimed)
+    return posts.filter(
+      (post) => post.status === "unclaimed" || Boolean(post.movedToUnclaimed)
     );
   }, [posts, rawResults]);
 
@@ -70,20 +71,24 @@ export default function UnclaimedPostsPage() {
 
     // Apply category filter
     if (selectedCategoryFilter && selectedCategoryFilter !== "All") {
-      filtered = filtered.filter(post =>
-        post.category && post.category.toLowerCase() === selectedCategoryFilter.toLowerCase()
+      filtered = filtered.filter(
+        (post) =>
+          post.category &&
+          post.category.toLowerCase() === selectedCategoryFilter.toLowerCase()
       );
     }
 
     // Apply search filter if debounced query exists
     if (debouncedSearchQuery.trim()) {
       const query = debouncedSearchQuery.toLowerCase();
-      filtered = filtered.filter(post => {
-        return fuzzyMatch(post.title, query) ||
-               fuzzyMatch(post.description || '', query) ||
-               fuzzyMatch(post.category || '', query) ||
-               fuzzyMatch(post.location || '', query) ||
-               fuzzyMatch(`${post.user?.firstName} ${post.user?.lastName}`, query);
+      filtered = filtered.filter((post) => {
+        return (
+          fuzzyMatch(post.title, query) ||
+          fuzzyMatch(post.description || "", query) ||
+          fuzzyMatch(post.category || "", query) ||
+          fuzzyMatch(post.location || "", query) ||
+          fuzzyMatch(`${post.user?.firstName} ${post.user?.lastName}`, query)
+        );
       });
     }
 
@@ -127,8 +132,12 @@ export default function UnclaimedPostsPage() {
 
   // Handle post activation (move back from unclaimed status)
   const handleActivatePost = async (post: Post) => {
-    if (!post.movedToUnclaimed && post.status !== 'unclaimed') {
-      showToast("error", "Cannot Activate", "This post is not in unclaimed status.");
+    if (!post.movedToUnclaimed && post.status !== "unclaimed") {
+      showToast(
+        "error",
+        "Cannot Activate",
+        "This post is not in unclaimed status."
+      );
       return;
     }
 
@@ -175,10 +184,16 @@ export default function UnclaimedPostsPage() {
         showToast("success", "Post Activated", statusMessage);
 
         // Update local state to remove the activated post from unclaimed list
-        setRawResults(prev => prev ? prev.filter(p => p.id !== post.id) : null);
+        setRawResults((prev) =>
+          prev ? prev.filter((p) => p.id !== post.id) : null
+        );
       } catch (error: any) {
-        console.error('Failed to activate post:', error);
-        showToast("error", "Activation Failed", error.message || 'Failed to activate post');
+        console.error("Failed to activate post:", error);
+        showToast(
+          "error",
+          "Activation Failed",
+          error.message || "Failed to activate post"
+        );
       } finally {
         setActivatingPostId(null);
       }
@@ -203,9 +218,9 @@ export default function UnclaimedPostsPage() {
       setActivatingPostId(postId);
 
       // Find the post object to get creator information for notifications
-      const post = filteredPosts.find(p => p.id === postId);
+      const post = filteredPosts.find((p) => p.id === postId);
       if (!post) {
-        throw new Error('Post not found');
+        throw new Error("Post not found");
       }
 
       await postService.activateTicket(postId);
@@ -237,13 +252,23 @@ export default function UnclaimedPostsPage() {
         }
       }
 
-      showToast("success", "Post Activated", "Post has been activated and moved back to active status.");
+      showToast(
+        "success",
+        "Post Activated",
+        "Post has been activated and moved back to active status."
+      );
       handleCloseModal();
       // Update local state to remove the activated post from unclaimed list
-      setRawResults(prev => prev ? prev.filter(p => p.id !== postId) : null);
+      setRawResults((prev) =>
+        prev ? prev.filter((p) => p.id !== postId) : null
+      );
     } catch (error: any) {
-      console.error('Failed to activate post from modal:', error);
-      showToast("error", "Activation Failed", error.message || 'Failed to activate post');
+      console.error("Failed to activate post from modal:", error);
+      showToast(
+        "error",
+        "Activation Failed",
+        error.message || "Failed to activate post"
+      );
     } finally {
       setActivatingPostId(null);
     }
@@ -253,12 +278,12 @@ export default function UnclaimedPostsPage() {
   const handleModalDeletePost = async (postId: string) => {
     try {
       // Find the post object to get creator information for notifications
-      const post = filteredPosts.find(p => p.id === postId);
+      const post = filteredPosts.find((p) => p.id === postId);
       if (!post) {
-        throw new Error('Post not found');
+        throw new Error("Post not found");
       }
 
-      await postService.deletePost(postId, false, userData?.email || 'admin');
+      await postService.deletePost(postId, false, userData?.email || "admin");
 
       // Send notification to the post creator
       if (post.creatorId) {
@@ -276,7 +301,7 @@ export default function UnclaimedPostsPage() {
               userData?.firstName && userData?.lastName
                 ? `${userData.firstName} ${userData.lastName}`
                 : userData?.email?.split("@")[0] || "Admin",
-            deletionType: 'soft',
+            deletionType: "soft",
           });
           console.log("✅ Delete notification sent to user");
         } catch (notificationError) {
@@ -288,13 +313,23 @@ export default function UnclaimedPostsPage() {
         }
       }
 
-      showToast("success", "Post Deleted", "Post has been moved to Recently Deleted");
+      showToast(
+        "success",
+        "Post Deleted",
+        "Post has been moved to Recently Deleted"
+      );
       handleCloseModal();
       // Update local state to remove the deleted post from unclaimed list
-      setRawResults(prev => prev ? prev.filter(p => p.id !== postId) : null);
+      setRawResults((prev) =>
+        prev ? prev.filter((p) => p.id !== postId) : null
+      );
     } catch (error: any) {
-      console.error('Failed to delete post from modal:', error);
-      showToast("error", "Delete Failed", error.message || 'Failed to delete post');
+      console.error("Failed to delete post from modal:", error);
+      showToast(
+        "error",
+        "Delete Failed",
+        error.message || "Failed to delete post"
+      );
     }
   };
 
@@ -339,7 +374,8 @@ export default function UnclaimedPostsPage() {
               Unclaimed Posts Management
             </h1>
             <p className="text-sm text-gray-500 mt-1">
-              Manage posts that have been automatically or manually marked as unclaimed
+              Manage posts that have been automatically or manually marked as
+              unclaimed
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -378,7 +414,9 @@ export default function UnclaimedPostsPage() {
                 No Unclaimed Posts
               </h3>
               <p className="text-gray-500 max-w-md mx-auto">
-                All posts are currently active! Posts will appear here when they are automatically moved to unclaimed status after 30 days or manually marked as unclaimed.
+                All posts are currently active! Posts will appear here when they
+                are automatically moved to unclaimed status after 30 days or
+                manually marked as unclaimed.
               </p>
             </div>
           ) : (
@@ -406,7 +444,8 @@ export default function UnclaimedPostsPage() {
                 onClick={handleLoadMore}
                 className="px-6 py-3 bg-brand text-white rounded-lg hover:bg-teal-600 transition-colors shadow-sm"
               >
-                Load More Posts ({filteredPosts.length - totalPostsToShow} remaining)
+                Load More Posts ({filteredPosts.length - totalPostsToShow}{" "}
+                remaining)
               </button>
             </div>
           )}

@@ -155,7 +155,7 @@ function AdminPostCard({
         isSelected
           ? "border-brand ring-2 ring-brand/20 shadow-brand/10"
           : post.isFlagged
-          ? "ring-2 ring-red-500 border-red-500"
+          ? "border border-red-500"
           : ""
       }`}
     >
@@ -619,9 +619,7 @@ function AdminPostCard({
             <div className="text-xs text-blue-800 font-medium mb-1">
               Admin Notes:
             </div>
-            <div className="text-xs text-blue-700">
-              {post.adminNotes}
-            </div>
+            <div className="text-xs text-blue-700">{post.adminNotes}</div>
           </div>
         )}
 
@@ -658,7 +656,8 @@ function AdminPostCard({
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold mb-4">Admin Notes</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Adding notes for changing status from "{post.status}" to "{selectedStatus}":
+              Adding notes for changing status from "{post.status}" to "
+              {selectedStatus}":
             </p>
             <textarea
               value={adminNotes}

@@ -33,7 +33,8 @@ export default function CampusSecurityManagementPage() {
   // Search state with debouncing
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("All");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] =
+    useState<string>("All");
 
   // Debounce search text to reduce excessive filtering
   useEffect(() => {
@@ -50,7 +51,9 @@ export default function CampusSecurityManagementPage() {
   // State for campus security collection confirmation modal
   const [showCollectionModal, setShowCollectionModal] = useState(false);
   const [postToConfirm, setPostToConfirm] = useState<Post | null>(null);
-  const [allowedActions, setAllowedActions] = useState<("collected" | "not_available")[]>(["collected", "not_available"]);
+  const [allowedActions, setAllowedActions] = useState<
+    ("collected" | "not_available")[]
+  >(["collected", "not_available"]);
 
   // Handle opening AdminPostModal
   const handlePostClick = (post: Post) => {
@@ -162,20 +165,24 @@ export default function CampusSecurityManagementPage() {
 
     // Apply category filter
     if (selectedCategoryFilter && selectedCategoryFilter !== "All") {
-      filtered = filtered.filter(post =>
-        post.category && post.category.toLowerCase() === selectedCategoryFilter.toLowerCase()
+      filtered = filtered.filter(
+        (post) =>
+          post.category &&
+          post.category.toLowerCase() === selectedCategoryFilter.toLowerCase()
       );
     }
 
     // Apply search filter if debounced query exists
     if (debouncedSearchQuery.trim()) {
       const query = debouncedSearchQuery.toLowerCase();
-      filtered = filtered.filter(post => {
-        return fuzzyMatch(post.title, query) ||
-               fuzzyMatch(post.description || '', query) ||
-               fuzzyMatch(post.category || '', query) ||
-               fuzzyMatch(post.location || '', query) ||
-               fuzzyMatch(`${post.user?.firstName} ${post.user?.lastName}`, query);
+      filtered = filtered.filter((post) => {
+        return (
+          fuzzyMatch(post.title, query) ||
+          fuzzyMatch(post.description || "", query) ||
+          fuzzyMatch(post.category || "", query) ||
+          fuzzyMatch(post.location || "", query) ||
+          fuzzyMatch(`${post.user?.firstName} ${post.user?.lastName}`, query)
+        );
       });
     }
 
@@ -222,18 +229,20 @@ export default function CampusSecurityManagementPage() {
       />
 
       {/* Header Section */}
-      <div className="pt-4 px-6">
-        <div className="mb-6 hidden lg:block">
-          <h1 className="text-base lg:text-lg font-bold text-gray-800 mb-2">
-            Campus Security Management
-          </h1>
+      <div className="pt-4 border-b border-gray-300 bg-gray-50 px-6 mb-4">
+        <div className="mb-4 hidden lg:flex items-center justify-between">
+          <div className="">
+            <h1 className="text-base lg:text-lg font-bold text-gray-800 mb-2">
+              Campus Security Management
+            </h1>
+            <p className="text-gray-600 text-sm">
+              Manage all found items that have been turned over to Campus
+              Security, including collection confirmations and status updates
+            </p>
+          </div>
           <div className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
             {filteredCampusSecurityPosts.length} Campus Security Items
           </div>
-          <p className="text-gray-600 text-sm">
-            Manage all found items that have been turned over to Campus
-            Security, including collection confirmations and status updates
-          </p>
         </div>
       </div>
 
@@ -304,7 +313,8 @@ export default function CampusSecurityManagementPage() {
             onClick={handleLoadMore}
             className="px-6 py-3 bg-brand text-white rounded-lg hover:bg-teal-600 transition-colors shadow-sm"
           >
-            Load More Posts ({filteredCampusSecurityPosts.length - totalPostsToShow} remaining)
+            Load More Posts (
+            {filteredCampusSecurityPosts.length - totalPostsToShow} remaining)
           </button>
         </div>
       )}

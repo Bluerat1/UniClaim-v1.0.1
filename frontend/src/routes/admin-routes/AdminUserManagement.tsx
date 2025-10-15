@@ -14,6 +14,7 @@ import {
 import { db } from "../../utils/firebase";
 import type { User } from "../../types/User";
 import ProfilePicture from "../../components/ProfilePicture";
+import { MdClear } from "react-icons/md";
 import { useToast } from "../../context/ToastContext";
 import { useAuth } from "../../context/AuthContext";
 
@@ -69,7 +70,7 @@ const AdminUserManagement: React.FC = () => {
   const [unbanReason, setUnbanReason] = useState("");
 
   const { showToast } = useToast();
-  const { } = useAuth();
+  const {} = useAuth();
 
   // Load initial users
   useEffect(() => {
@@ -109,19 +110,21 @@ const AdminUserManagement: React.FC = () => {
 
     // Apply status filter
     if (statusFilter && statusFilter !== "All") {
-      filtered = filtered.filter(user =>
-        user.status?.toLowerCase() === statusFilter.toLowerCase()
+      filtered = filtered.filter(
+        (user) => user.status?.toLowerCase() === statusFilter.toLowerCase()
       );
     }
 
     // Apply search filter if debounced query exists
     if (debouncedSearchQuery.trim()) {
       const query = debouncedSearchQuery.toLowerCase();
-      filtered = filtered.filter(user => {
-        return fuzzyMatch(`${user.firstName} ${user.lastName}`, query) ||
-               fuzzyMatch(user.email || '', query) ||
-               fuzzyMatch(user.studentId || '', query) ||
-               fuzzyMatch(user.contactNum || '', query);
+      filtered = filtered.filter((user) => {
+        return (
+          fuzzyMatch(`${user.firstName} ${user.lastName}`, query) ||
+          fuzzyMatch(user.email || "", query) ||
+          fuzzyMatch(user.studentId || "", query) ||
+          fuzzyMatch(user.contactNum || "", query)
+        );
       });
     }
 
@@ -244,8 +247,11 @@ const AdminUserManagement: React.FC = () => {
       await loadUsers(); // Refresh the user list to show updated status
 
       // Show success toast
-      showToast("success", "User Deactivated",
-        `${banningUser.firstName} ${banningUser.lastName} has been successfully deactivated`);
+      showToast(
+        "success",
+        "User Deactivated",
+        `${banningUser.firstName} ${banningUser.lastName} has been successfully deactivated`
+      );
       console.log("User banned successfully");
     } catch (error: any) {
       showToast("error", "Error", error.message || "Failed to deactivate user");
@@ -303,8 +309,11 @@ const AdminUserManagement: React.FC = () => {
       await loadUsers(); // Refresh the user list to show updated status
 
       // Show success toast
-      showToast("success", "User Reactivated",
-        `${unbanningUser.firstName} ${unbanningUser.lastName} has been successfully reactivated`);
+      showToast(
+        "success",
+        "User Reactivated",
+        `${unbanningUser.firstName} ${unbanningUser.lastName} has been successfully reactivated`
+      );
       console.log("User unbanned and ban record deleted successfully");
     } catch (error: any) {
       showToast("error", "Error", error.message || "Failed to reactivate user");
@@ -322,7 +331,7 @@ const AdminUserManagement: React.FC = () => {
 
   return (
     <div className="p-6">
-      <h1 className="text-xl font-medium mb-6">User Management</h1>
+      <h1 className="text-lg font-medium mb-3">User Management</h1>
 
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -333,20 +342,20 @@ const AdminUserManagement: React.FC = () => {
       {/* Search and Filter Section */}
       <div className="bg-white rounded-lg mb-6 p-4 shadow-sm">
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-          <div className="flex-1">
+          <div className="w-full">
             <input
               type="text"
               placeholder="Search users by name, email, or student ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+              className="w-full px-3 py-2 text-sm md:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-brand focus:border-transparent"
             />
           </div>
           <div className="flex gap-2">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand"
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 text-sm focus:ring-brand"
             >
               <option value="All">All Status</option>
               <option value="active">Active</option>
@@ -354,9 +363,9 @@ const AdminUserManagement: React.FC = () => {
             </select>
             <button
               onClick={handleClearSearch}
-              className="px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              className="px-3 py-2 bg-red-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
             >
-              Clear
+              <MdClear className="size-5 text-red-500" />
             </button>
           </div>
         </div>
@@ -405,8 +414,7 @@ const AdminUserManagement: React.FC = () => {
                           <p className="text-sm">
                             {debouncedSearchQuery || statusFilter !== "All"
                               ? "Try adjusting your search or filter criteria"
-                              : "Users will appear here once they register"
-                            }
+                              : "Users will appear here once they register"}
                           </p>
                         </div>
                       </td>
@@ -496,7 +504,8 @@ const AdminUserManagement: React.FC = () => {
             onClick={handleLoadMore}
             className="px-6 py-3 bg-brand text-white rounded-lg hover:bg-teal-600 transition-colors shadow-sm"
           >
-            Load More Users ({filteredUsers.length - totalUsersToShow} remaining)
+            Load More Users ({filteredUsers.length - totalUsersToShow}{" "}
+            remaining)
           </button>
         </div>
       )}
@@ -553,9 +562,7 @@ const AdminUserManagement: React.FC = () => {
                     <option value="spam">Spam or Repeated Posts</option>
                     <option value="harassment">Harassment or Bullying</option>
                     <option value="fake">Fake or Misleading Posts</option>
-                    <option value="inappropriate">
-                      Inappropriate Content
-                    </option>
+                    <option value="inappropriate">Inappropriate Content</option>
                     <option value="violation">
                       Terms of Service Violation
                     </option>
