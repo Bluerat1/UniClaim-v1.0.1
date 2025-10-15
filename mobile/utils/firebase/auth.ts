@@ -178,6 +178,56 @@ export const authService = {
         }
     },
 
+    // Resend email verification
+    async resendEmailVerification(): Promise<void> {
+        try {
+            const currentUser = auth.currentUser;
+            if (!currentUser) {
+                throw new Error('No authenticated user found');
+            }
+
+            await sendEmailVerification(currentUser);
+        } catch (error: any) {
+            let errorMessage = 'Failed to resend verification email';
+
+            switch (error.code) {
+                case 'auth/too-many-requests':
+                    errorMessage = 'Too many requests. Please wait before trying again';
+                    break;
+                case 'auth/user-token-expired':
+                    errorMessage = 'User session expired. Please login again';
+                    break;
+                case 'auth/network-request-failed':
+                    errorMessage = 'Network error. Please check your internet connection';
+                    break;
+                default:
+                    errorMessage = error.message || errorMessage;
+            }
+
+            throw new Error(errorMessage);
+        }
+    },
+
+    // Handle email verification completion
+    async handleEmailVerification(userId: string): Promise<void> {
+        try {
+            // Update Firestore email verification status
+            await userService.updateUserData(userId, {
+                emailVerified: true
+            });
+
+            console.log('Email verification completed for user:', userId);
+        } catch (error: any) {
+            // Log the error but don't throw it
+            // Firebase email verification is what matters for authentication
+            // Firestore update failure shouldn't block the user
+            console.error('Error updating email verification status in Firestore:', error);
+
+            // Don't throw the error - allow the verification process to continue
+            // The user's email is verified at Firebase level, which is sufficient
+        }
+    },
+
     // Get user data by ID
     async getUserData(userId: string): Promise<UserData | null> {
         try {
@@ -241,7 +291,10 @@ export const userService = {
                 updatedAt: serverTimestamp()
             });
         } catch (error: any) {
-            throw new Error(error.message || 'Failed to update user data');
+            // Log the error but don't throw it
+            // Firestore update failures shouldn't block the user experience
+            console.error('Error updating user data in Firestore:', error);
+            // Don't throw the error - allow the process to continue
         }
     },
 

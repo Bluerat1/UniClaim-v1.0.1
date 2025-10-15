@@ -19,7 +19,7 @@ import Toast from "../../components/Toast";
 export default function Login() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { login, loading, isBanned, banInfo } = useAuth();
+  const { login, loading, isBanned, banInfo, needsEmailVerification } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -91,19 +91,15 @@ export default function Login() {
       setIsLoading(true);
       await login(email, password);
 
-      // Check if user got banned during login
-      if (isBanned) {
-        showToastMessage(
-          "This account has been banned. Please contact an administrator or try a different account.",
-          "warning"
-        );
-        return;
-      }
-
       // Navigation will be handled automatically by Navigation component based on auth state
       // No manual navigation needed - the Navigation component will show RootBottomTabs when authenticated
     } catch (error: any) {
-      setGeneralError(getFirebaseErrorMessage(error));
+      if (error.message === 'EMAIL_VERIFICATION_REQUIRED') {
+        // User needs email verification - show verification message
+        setGeneralError("Please verify your email address before logging in. Check your email for the verification link.");
+      } else {
+        setGeneralError(getFirebaseErrorMessage(error));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -120,6 +116,26 @@ export default function Login() {
           Hi, Welcome back, you've been missed
         </Text>
       </View>
+
+      {/* NEW: Email Verification Message Display */}
+      {needsEmailVerification && (
+        <View className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+          <Text className="text-lg font-manrope-bold text-orange-600 mb-2 text-center">
+            Email Verification Required
+          </Text>
+          <Text className="text-sm font-manrope-medium text-orange-700 mb-2">
+            Please check your email and click the verification link to activate your account before logging in.
+          </Text>
+          <TouchableOpacity
+            className="bg-orange-100 p-3 rounded-lg mt-2"
+            onPress={() => navigation.navigate("EmailVerification")}
+          >
+            <Text className="text-orange-600 text-sm font-manrope-medium text-center">
+              Go to Email Verification
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* NEW: Ban Message Display */}
       {isBanned && (

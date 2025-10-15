@@ -77,7 +77,7 @@ export default function Register() {
 
         Alert.alert(
           "Registration Successful",
-          "Your account has been created successfully! You can now log in.",
+          `Your account has been created successfully!\n\nPlease check your email (${email}) and click the verification link to activate your account before logging in.`,
           [
             {
               text: "OK",

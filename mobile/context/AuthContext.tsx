@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { onAuthStateChanged, User, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { auth, authService, UserData, db } from '../utils/firebase';
+import { auth, authService, UserData, db, userService } from '../utils/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { credentialStorage } from '../utils/credentialStorage';
 import { notificationService } from '../utils/firebase/notifications';
@@ -16,9 +16,11 @@ interface AuthContextType {
   banInfo: any;
   showBanNotification: boolean;
   setShowBanNotification: (show: boolean) => void;
+  needsEmailVerification: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUserData: () => Promise<void>;
+  handleEmailVerificationComplete: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,6 +34,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [banInfo, setBanInfo] = useState<any>(null);
   const [showBanNotification, setShowBanNotification] = useState(false);
+  const [needsEmailVerification, setNeedsEmailVerification] = useState(false);
   const [isAutoLogging, setIsAutoLogging] = useState(false);
 
   // Track ban listener to clean up on logout
@@ -87,7 +90,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        setIsAuthenticated(true);
+        // Don't set isAuthenticated yet - wait for verification check
 
         // Check if user is admin
         const userIsAdmin = checkIfAdmin(firebaseUser.email);
@@ -111,24 +114,119 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setIsBanned(false);
             setBanInfo(null);
           }
+
+          // Check email verification status
+          if (fetchedUserData) {
+            const needsVerification = await userService.needsEmailVerification(firebaseUser, fetchedUserData);
+            console.log('onAuthStateChanged verification check:', {
+              firebaseEmailVerified: firebaseUser.emailVerified,
+              firestoreEmailVerified: fetchedUserData.emailVerified,
+              needsVerification,
+              userId: firebaseUser.uid
+            });
+            setNeedsEmailVerification(needsVerification);
+
+            // If Firebase email is verified but Firestore is not, update Firestore
+            if (firebaseUser.emailVerified && !fetchedUserData.emailVerified) {
+              try {
+                await userService.updateUserData(firebaseUser.uid, { emailVerified: true });
+                console.log('Updated Firestore email verification status to true');
+              } catch (error) {
+                console.error('Failed to update email verification status:', error);
+              }
+            }
+
+            // Only set authenticated if user is verified
+            if (!needsVerification) {
+              console.log('onAuthStateChanged: User is verified, setting authenticated = true');
+              setIsAuthenticated(true);
+            } else {
+              console.log('onAuthStateChanged: User needs verification, setting authenticated = false');
+              // User needs verification, don't set authenticated
+              setIsAuthenticated(false);
+            }
+          } else {
+            console.log('onAuthStateChanged: No user data found, creating user document...');
+
+            // Create user document in Firestore if it doesn't exist
+            try {
+              // Get user profile data from Firebase Auth
+              const displayName = firebaseUser.displayName || '';
+              const nameParts = displayName.split(' ');
+              const firstName = nameParts[0] || '';
+              const lastName = nameParts.slice(1).join(' ') || '';
+
+              // Create user document with unverified email status
+              await userService.createUser(firebaseUser.uid, {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email || '',
+                firstName: firstName,
+                lastName: lastName,
+                contactNum: '', // Will be updated later if needed
+                studentId: '', // Will be updated later if needed
+                emailVerified: false, // New users need to verify their email
+                createdAt: new Date(),
+                updatedAt: new Date()
+              });
+
+              console.log('Created user document for new user:', firebaseUser.uid);
+              setNeedsEmailVerification(true);
+              setIsAuthenticated(false);
+
+              // Set the newly created user data
+              const newUserData = {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email || '',
+                firstName: firstName,
+                lastName: lastName,
+                contactNum: '',
+                studentId: '',
+                emailVerified: false,
+                createdAt: new Date(),
+                updatedAt: new Date()
+              };
+              setUserData(newUserData);
+
+            } catch (createError) {
+              console.error('Failed to create user document:', createError);
+              setNeedsEmailVerification(false);
+              setIsAuthenticated(false);
+            }
+          }
           
           // Set loading to false after successful authentication and data fetch
           setLoading(false);
-          
-          // Initialize notifications for authenticated user
-          try {
-            const pushToken = await notificationService.registerForPushNotifications();
-            if (pushToken) {
-              await notificationService.savePushToken(firebaseUser.uid, pushToken);
-              console.log('Push notifications initialized for user:', firebaseUser.uid);
+
+          // Initialize notifications for authenticated user (only if email is verified)
+          // For new users, fetch user data again after creating the document
+          let userDataForNotifications = fetchedUserData;
+          if (!fetchedUserData) {
+            // Try to fetch user data again after creating the document
+            try {
+              userDataForNotifications = await authService.getUserData(firebaseUser.uid);
+              setUserData(userDataForNotifications);
+            } catch (error) {
+              console.error('Failed to fetch user data after creation:', error);
             }
-          } catch (error) {
-            console.error('Error initializing notifications:', error);
+          }
+
+          if (userDataForNotifications && userDataForNotifications.emailVerified) {
+            try {
+              const pushToken = await notificationService.registerForPushNotifications();
+              if (pushToken) {
+                await notificationService.savePushToken(firebaseUser.uid, pushToken);
+                console.log('Push notifications initialized for user:', firebaseUser.uid);
+              }
+            } catch (error) {
+              console.error('Error initializing notifications:', error);
+            }
+          } else {
+            console.log('📧 User email not verified, skipping notification initialization');
           }
           
           // Start monitoring this specific user for ban status changes
           // Only set up listener if user is authenticated to prevent permission errors during logout
-          if (firebaseUser && firebaseUser.uid) {
+          if (firebaseUser && firebaseUser.uid && !needsEmailVerification) {
             const userDocRef = doc(db, 'users', firebaseUser.uid);
             const banUnsubscribe = onSnapshot(userDocRef,
               (docSnapshot: any) => {
@@ -225,19 +323,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           smartBanCheckRef.current = null;
         }
 
+        // Reset all auth state immediately when user logs out
         setUser(null);
         setUserData(null);
         setIsAuthenticated(false);
         setIsBanned(false);
         setIsAdmin(false);
         setBanInfo(null);
-        setShowBanNotification(false);
-        
+        setNeedsEmailVerification(false);
+
         // No authenticated user - try auto-login once
         if (!hasAttemptedAutoLogin) {
           hasAttemptedAutoLogin = true;
           const autoLoginSuccess = await attemptAutoLogin();
-          
+
           if (!autoLoginSuccess) {
             // Auto-login failed or no credentials - user needs to login manually
             setLoading(false);
@@ -272,42 +371,69 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string): Promise<void> => {
     try {
       setLoading(true);
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      
-      // Get user data to check ban status
-      const userData = await authService.getUserData(user.uid);
-      
-      if (userData && (userData.status === 'deactivated' || userData.status === 'banned')) {
-        // User is banned, logout immediately
-        await authService.logout();
-        setIsBanned(true);
-        setBanInfo(userData.banInfo || {});
-        setShowBanNotification(false);
-        // Don't throw error - let the component handle it
-        return;
-      }
-      
-      // User is not banned, proceed with login
-      setUser(user);
-      setUserData(userData);
-      setIsAuthenticated(true);
-      setIsBanned(false);
-      setIsAdmin(checkIfAdmin(user.email));
-      setBanInfo(null);
-      setShowBanNotification(false);
-      
-      // Save credentials for auto-login (only for successful, non-banned logins)
+      console.log('Attempting login for:', email);
+
+      // First check if user exists and get their data BEFORE Firebase login
+      // We need to check verification status before allowing Firebase Auth login
       try {
-        await credentialStorage.saveCredentials(email, password);
-        console.log('Credentials saved for auto-login');
-      } catch (saveError) {
-        console.warn('Failed to save credentials for auto-login:', saveError);
-        // Don't throw error - login was successful, credential saving is optional
+        // Try to find user document by email (this is a workaround since we can't query by email directly)
+        // For now, we'll proceed with Firebase login and check immediately after
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        console.log('Firebase login successful for user:', user.uid);
+
+        // Get user data to check verification status
+        const userData = await authService.getUserData(user.uid);
+        console.log('User data fetched:', userData ? 'found' : 'not found');
+
+        // Check email verification status and logout unverified users
+        if (userData) {
+          const needsVerification = await userService.needsEmailVerification(user, userData);
+          console.log('Verification check result:', needsVerification, {
+            firebaseEmailVerified: user.emailVerified,
+            firestoreEmailVerified: userData.emailVerified
+          });
+
+          if (needsVerification) {
+            console.log('User needs verification, keeping logged in but marking as needs verification');
+
+            // Keep user logged in but mark as needing verification
+            // Don't set isAuthenticated to true, but also don't log them out
+            setUser(user);
+            setUserData(userData);
+            setIsAuthenticated(false); // Explicitly set to false
+            setNeedsEmailVerification(true);
+
+            // Throw error to prevent normal login flow
+            throw new Error('EMAIL_VERIFICATION_REQUIRED');
+          } else {
+            console.log('User is verified, login will proceed');
+          }
+        } else {
+          console.log('No user data found, this should not happen for existing users');
+          // For safety, logout and throw error
+          await authService.logout();
+          throw new Error('User account not found. Please contact support.');
+        }
+
+        // User is verified, login will be handled by onAuthStateChanged listener
+        console.log('Login function completed, waiting for onAuthStateChanged');
+
+      } catch (verificationError: any) {
+        // If it's our verification error, re-throw it
+        if (verificationError.message.includes('Email verification required') ||
+            verificationError.message.includes('User account not found')) {
+          throw verificationError;
+        }
+        // Otherwise, it's a Firebase login error, throw it
+        throw verificationError;
       }
-      
+
     } catch (error: any) {
-      console.error('Login error:', error);
+      // Don't log EMAIL_VERIFICATION_REQUIRED as an error since it's expected behavior
+      if (!error.message || !error.message.includes('EMAIL_VERIFICATION_REQUIRED')) {
+        console.error('Login error:', error);
+      }
       throw error;
     } finally {
       setLoading(false);
@@ -363,11 +489,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const refreshUserData = async (): Promise<void> => {
-    if (user) {
+    if (user && isAuthenticated) {
       try {
         const fetchedUserData = await authService.getUserData(user.uid);
         setUserData(fetchedUserData);
-        
+
         // Update deactivation status when refreshing user data (with backward compatibility)
         if (fetchedUserData && (fetchedUserData.status === 'deactivated' || fetchedUserData.status === 'banned')) {
           setIsBanned(true);
@@ -376,11 +502,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setIsBanned(false);
           setBanInfo(null);
         }
+
+        // Check email verification status
+        if (fetchedUserData) {
+          const needsVerification = await userService.needsEmailVerification(user, fetchedUserData);
+          setNeedsEmailVerification(needsVerification);
+        }
       } catch (error: any) {
         console.error('Error refreshing user data:', error);
         setIsBanned(false);
         setBanInfo(null);
       }
+    }
+  };
+
+  const handleEmailVerificationComplete = async (): Promise<void> => {
+    if (!user || !userData) return;
+
+    try {
+      // Update Firestore email verification status
+      await userService.updateUserData(user.uid, { emailVerified: true });
+
+      // Refresh user data to get updated verification status
+      const updatedUserData = await authService.getUserData(user.uid);
+      setUserData(updatedUserData);
+
+      // Now that email is verified, save push token
+      try {
+        const pushToken = await notificationService.registerForPushNotifications();
+        if (pushToken) {
+          await notificationService.savePushToken(user.uid, pushToken);
+          console.log('Push notifications initialized after email verification for user:', user.uid);
+        }
+      } catch (notificationError) {
+        console.error('Error saving push token after verification:', notificationError);
+        // Don't fail verification if push token saving fails
+      }
+
+      console.log('Email verification completed successfully');
+    } catch (error: any) {
+      console.error('Failed to complete email verification:', error);
+      // Don't throw error - allow verification to proceed even if Firestore update fails
+      // Firebase email verification is what matters for authentication
     }
   };
 
@@ -542,9 +705,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         banInfo,
         showBanNotification,
         setShowBanNotification,
+        needsEmailVerification,
         login,
         logout,
-        refreshUserData
+        refreshUserData,
+        handleEmailVerificationComplete
       }}
     >
       {children}

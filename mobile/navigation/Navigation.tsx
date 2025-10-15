@@ -1,5 +1,6 @@
 // Navigation.tsx
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { auth, authService, UserData, db, userService } from '../utils/firebase';
 import React, { useState, useEffect, Suspense } from "react";
 import { View, ActivityIndicator } from "react-native";
 import type { RootStackParamList } from "../types/type";
@@ -18,6 +19,7 @@ import ScreenWrapper from "../components/ScreenWrapper";
 
 // Screens - keeping direct imports for React Native compatibility
 import Chat from "@/app/Chat";
+import EmailVerification from "@/app/tabs/EmailVerification";
 import ForgotPassword from "@/app/tabs/ForgotPassword";
 import Home from "../app/tabs/Home";
 import Index from "../app/tabs/index";
@@ -66,7 +68,30 @@ export default function Navigation({
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const { user, isBanned, isAuthenticated } = useAuth();
+  const { user, userData, isBanned, isAuthenticated, needsEmailVerification } = useAuth();
+
+  // Check if user needs email verification
+  const [localNeedsEmailVerification, setLocalNeedsEmailVerification] = useState(false);
+
+  // Check email verification status when user data changes
+  useEffect(() => {
+    const checkEmailVerification = async () => {
+      if (user && userData && !isBanned) {
+        try {
+          const needsVerification = await userService.needsEmailVerification(user, userData);
+          setLocalNeedsEmailVerification(needsVerification);
+        } catch (error) {
+          console.error('Error checking email verification:', error);
+          // Default to not requiring verification if there's an error
+          setLocalNeedsEmailVerification(false);
+        }
+      } else {
+        setLocalNeedsEmailVerification(false);
+      }
+    };
+
+    checkEmailVerification();
+  }, [user, userData, isBanned]);
 
   // If user is banned, redirect to login
   const shouldShowOnboarding = !hasSeenOnBoarding && !user;
@@ -74,6 +99,17 @@ export default function Navigation({
 
   // Check if user is banned and redirect to login
   const shouldRedirectToLogin = user && isBanned;
+
+  // Check if user needs email verification (show verification screen for logged-in but unverified users)
+  const shouldShowEmailVerification = user && !isBanned && needsEmailVerification;
+
+  console.log('Navigation state check:', {
+    user: user ? 'present' : 'null',
+    isAuthenticated,
+    isBanned,
+    needsEmailVerification,
+    shouldShowEmailVerification
+  });
 
   // Handle redirect when user gets banned
   useEffect(() => {
@@ -116,7 +152,9 @@ export default function Navigation({
     ? "OnBoarding"
     : shouldShowIndex
       ? "Index"
-      : "RootBottomTabs";
+      : shouldShowEmailVerification
+        ? "EmailVerification"
+        : "RootBottomTabs";
 
   return (
     <Stack.Navigator
@@ -191,6 +229,13 @@ export default function Navigation({
         {() => (
           <Suspense fallback={<ScreenLoader />}>
             <ForgotPassword />
+          </Suspense>
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="EmailVerification">
+        {() => (
+          <Suspense fallback={<ScreenLoader />}>
+            <EmailVerification />
           </Suspense>
         )}
       </Stack.Screen>

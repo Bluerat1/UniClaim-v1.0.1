@@ -30,7 +30,7 @@ interface MessageContextType {
 
 const MessageContext = createContext<MessageContextType | undefined>(undefined);
 
-export const MessageProvider = ({ children, userId }: { children: ReactNode; userId: string | null }) => {
+export const MessageProvider = ({ children, userId, isAuthenticated }: { children: ReactNode; userId: string | null; isAuthenticated: boolean }) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,7 +42,7 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
 
   // Load user conversations
   useEffect(() => {
-    if (!userId) {
+    if (!userId || !isAuthenticated) {
       setConversations([]);
       setLoading(false);
       return;
@@ -59,7 +59,7 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
     return () => {
       unsubscribe();
     };
-  }, [userId]);
+  }, [userId, isAuthenticated]);
 
 
 
@@ -187,7 +187,11 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
 
   // Simple refresh function that fetches current conversations
   const refreshConversations = async (): Promise<void> => {
-    if (!userId) return;
+    if (!userId || !isAuthenticated) {
+      setConversations([]);
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -214,7 +218,7 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
 
   // Mark conversation as read for a specific user
   const markConversationAsRead = async (conversationId: string, userId: string): Promise<void> => {
-    if (!userId) return;
+    if (!userId || !isAuthenticated) return;
 
     try {
       // Update the conversation's unread count for this user

@@ -797,6 +797,35 @@ export default function Profile() {
               AntDesign
             )}
 
+            {/* Email Verification Status */}
+            <View className="flex-row justify-between items-center w-full bg-zinc-100 p-3 rounded-md border border-zinc-300">
+              <View className="flex-row items-center gap-3">
+                <Ionicons
+                  name={userData?.emailVerified ? "checkmark-circle" : "alert-circle"}
+                  size={20}
+                  color={userData?.emailVerified ? "#10b981" : "#f59e0b"}
+                />
+                <Text className="text-[13px] font-manrope-medium">Email Verification</Text>
+              </View>
+              <View className="flex-row items-center gap-2">
+                <Text
+                  className={`font-inter text-[13px] font-medium ${
+                    userData?.emailVerified ? "text-green-600" : "text-orange-600"
+                  }`}
+                >
+                  {userData?.emailVerified ? "Verified" : "Pending"}
+                </Text>
+                {!userData?.emailVerified && (
+                  <TouchableOpacity
+                    className="bg-orange-100 px-2 py-1 rounded-full"
+                    onPress={() => navigation.navigate("EmailVerification")}
+                  >
+                    <Text className="text-orange-600 text-xs font-manrope-medium">Verify</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
             {!isEditing && (
               <>
                 <TouchableOpacity
