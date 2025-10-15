@@ -26,7 +26,8 @@ export default function UnclaimedPostsPage() {
 
   // State for search and filtering
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("All");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] =
+    useState<string>("All");
   const [rawResults, setRawResults] = useState<Post[] | null>(null);
   const [lastDescriptionKeyword, setLastDescriptionKeyword] = useState("");
 
@@ -53,8 +54,10 @@ export default function UnclaimedPostsPage() {
   // Apply category filtering
   const filteredPosts = useMemo(() => {
     if (selectedCategoryFilter && selectedCategoryFilter !== "All") {
-      return unclaimedPosts.filter(post =>
-        post.category && post.category.toLowerCase() === selectedCategoryFilter.toLowerCase()
+      return unclaimedPosts.filter(
+        (post) =>
+          post.category &&
+          post.category.toLowerCase() === selectedCategoryFilter.toLowerCase()
       );
     }
     return unclaimedPosts;
@@ -371,7 +374,7 @@ export default function UnclaimedPostsPage() {
         </div>
 
         {/* Content */}
-        <div className="px-4 sm:px-6 lg:px-8 pb-20">
+        <div className="px-4 sm:px-6 lg:px-8 mb-13">
           {filteredPosts.length === 0 ? (
             <div className="text-center py-16">
               <div className="bg-gray-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">

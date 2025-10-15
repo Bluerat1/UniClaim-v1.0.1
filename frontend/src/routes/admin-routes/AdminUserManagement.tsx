@@ -330,7 +330,7 @@ const AdminUserManagement: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-6 mb-8">
       <h1 className="text-lg font-medium mb-3">User Management</h1>
 
       {error && (
@@ -502,7 +502,7 @@ const AdminUserManagement: React.FC = () => {
         <div className="flex justify-center mt-6">
           <button
             onClick={handleLoadMore}
-            className="px-6 py-3 bg-brand text-white rounded-lg hover:bg-teal-600 transition-colors shadow-sm"
+            className="px-4 py-3 bg-brand text-white rounded-md hover:bg-yellow-600 transition-colors shadow-sm"
           >
             Load More Users ({filteredUsers.length - totalUsersToShow}{" "}
             remaining)

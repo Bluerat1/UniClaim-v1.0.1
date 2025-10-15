@@ -27,11 +27,13 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     string | null
   >(null);
 
-  const getTotalUnreadCount = useCallback((conversation: Conversation) => {
-    if (!conversation.unreadCounts || !userData?.uid) return 0;
-    return conversation.unreadCounts[userData.uid] || 0;
-  }, [userData?.uid]);
-
+  const getTotalUnreadCount = useCallback(
+    (conversation: Conversation) => {
+      if (!conversation.unreadCounts || !userData?.uid) return 0;
+      return conversation.unreadCounts[userData.uid] || 0;
+    },
+    [userData?.uid]
+  );
 
   // Filter and sort conversations
   const filteredAndSortedConversations = useMemo(() => {
@@ -43,9 +45,10 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
       filtered = filtered.filter(
         (conversation) =>
           conversation.postTitle?.toLowerCase().includes(query) ||
-          Object.values(conversation.participants || {}).some((participant) =>
-            ((participant as any).firstName?.toLowerCase().includes(query) ||
-             participant.lastName?.toLowerCase().includes(query))
+          Object.values(conversation.participants || {}).some(
+            (participant) =>
+              (participant as any).firstName?.toLowerCase().includes(query) ||
+              participant.lastName?.toLowerCase().includes(query)
           ) ||
           conversation.lastMessage?.text?.toLowerCase().includes(query)
       );
@@ -143,7 +146,6 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     }
   };
 
-
   const getParticipantNames = (conversation: Conversation) => {
     const participantIds = Object.keys(conversation.participants || {});
 
@@ -155,7 +157,9 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
 
         // If we have both first and last name, combine them
         if ((participant as any).firstName && participant.lastName) {
-          return `${(participant as any).firstName} ${participant.lastName}`.trim();
+          return `${(participant as any).firstName} ${
+            participant.lastName
+          }`.trim();
         }
 
         // If we have just first name
@@ -169,7 +173,7 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
         }
 
         // Fallback to displayName if it exists
-        if ('displayName' in participant && participant.displayName) {
+        if ("displayName" in participant && participant.displayName) {
           return participant.displayName;
         }
 
@@ -181,10 +185,13 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
   };
 
   const getProfilePictureUrl = (participant: any): string => {
-    return participant?.profilePicture || participant?.profileImageUrl || '';
+    return participant?.profilePicture || participant?.profileImageUrl || "";
   };
 
-  const getSenderName = (conversation: Conversation, senderId: string): string => {
+  const getSenderName = (
+    conversation: Conversation,
+    senderId: string
+  ): string => {
     const participant = conversation.participants?.[senderId];
     if (!participant) return "Unknown User";
 
@@ -204,7 +211,7 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     }
 
     // Fallback to displayName if it exists
-    if ('displayName' in participant && participant.displayName) {
+    if ("displayName" in participant && participant.displayName) {
       return String(participant.displayName);
     }
 
@@ -251,22 +258,22 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
       return "Just now";
     } else if (diffInMinutes < 60) {
       const minutes = Math.floor(diffInMinutes);
-      return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+      return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
     } else if (diffInHours < 24) {
       const hours = Math.floor(diffInHours);
-      return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+      return `${hours} hour${hours === 1 ? "" : "s"} ago`;
     } else if (diffInDays < 7) {
       const days = Math.floor(diffInDays);
-      return `${days} day${days === 1 ? '' : 's'} ago`;
+      return `${days} day${days === 1 ? "" : "s"} ago`;
     } else if (diffInWeeks < 4.5) {
       const weeks = Math.floor(diffInWeeks);
-      return `${weeks} week${weeks === 1 ? '' : 's'} ago`;
+      return `${weeks} week${weeks === 1 ? "" : "s"} ago`;
     } else if (diffInMonths < 12) {
       const months = Math.floor(diffInMonths);
-      return `${months} month${months === 1 ? '' : 's'} ago`;
+      return `${months} month${months === 1 ? "" : "s"} ago`;
     } else {
       const years = Math.floor(diffInYears);
-      return `${years} year${years === 1 ? '' : 's'} ago`;
+      return `${years} year${years === 1 ? "" : "s"} ago`;
     }
   };
 
@@ -281,7 +288,7 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
           <div
             key={conversation.id}
             className={`p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors ${
-              isSelected ? "bg-blue-50 border-blue-200" : ""
+              isSelected ? "bg-yellow-50 border-blue-200" : ""
             }`}
             onClick={() => onSelectConversation(conversation)}
           >
@@ -311,19 +318,29 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
                       .slice(0, 3) // Show max 3 profile pictures
                       .map((id) => {
                         const participant = conversation.participants[id];
-                        const profilePictureUrl = getProfilePictureUrl(participant);
+                        const profilePictureUrl =
+                          getProfilePictureUrl(participant);
 
                         return (
-                          <div key={id} className="w-6 h-6 rounded-full bg-gray-300 border-2 border-white overflow-hidden flex-shrink-0">
+                          <div
+                            key={id}
+                            className="w-6 h-6 rounded-full bg-gray-300 border-2 border-white overflow-hidden flex-shrink-0"
+                          >
                             {profilePictureUrl ? (
                               <img
                                 src={profilePictureUrl}
-                                alt={`${getSenderName(conversation, id)}'s profile`}
+                                alt={`${getSenderName(
+                                  conversation,
+                                  id
+                                )}'s profile`}
                                 className="w-full h-full object-cover"
                               />
                             ) : (
                               <div className="w-full h-full bg-gray-400 flex items-center justify-center text-xs text-white font-medium">
-                                {(getSenderName(conversation, id).charAt(0) || 'U').toUpperCase()}
+                                {(
+                                  getSenderName(conversation, id).charAt(0) ||
+                                  "U"
+                                ).toUpperCase()}
                               </div>
                             )}
                           </div>
@@ -340,7 +357,11 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
                   <div className="flex items-center gap-2">
                     <p className="text-sm text-gray-500 truncate flex-1">
                       <span className="font-medium">
-                        {getSenderName(conversation, conversation.lastMessage.senderId) || 'Unknown User'}:
+                        {getSenderName(
+                          conversation,
+                          conversation.lastMessage.senderId
+                        ) || "Unknown User"}
+                        :
                       </span>{" "}
                       {conversation.lastMessage.text}
                     </p>

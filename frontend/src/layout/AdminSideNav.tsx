@@ -119,7 +119,7 @@ export default function AdminSideNav({
               isOpen={isOpen}
               className={clsx(
                 "bg-brand px-4 rounded-lg hover:bg-yellow-600",
-                isOpen && "my-1 mb-3"
+                isOpen && "my-1"
               )}
               iconClassName="text-navyblue"
               textClassName="text-navyblue font-semi-bold font-albert-sans"
@@ -128,14 +128,30 @@ export default function AdminSideNav({
               hoverContainerBgClass="bg-brand"
             />
             {isOpen && (
-              <p className="text-sm font-manrope font-semibold">Admin Menu</p>
+              <p className="text-sm font-manrope font-semibold mt-2">
+                Admin Menu
+              </p>
             )}
+
+            <NavText
+              icon={<HiOutlineChartBar className="size-6 stroke-[1.5px]" />}
+              label="Analytics"
+              to="/admin/analytics"
+              isOpen={isOpen}
+              className="hover:bg-gray-100 mt-2"
+              iconClassName="text-black"
+              textClassName="text-black"
+              tooltipIconClassName="text-navyblue text-xl"
+              tooltipTextClassName="text-navyblue text-base"
+              hoverContainerBgClass="bg-gray-100"
+            />
+
             <NavText
               icon={<HiOutlineUsers className="size-6 stroke-[1.5px]" />}
               label="Manage Users"
               to="/admin/users"
               isOpen={isOpen}
-              className="mt-2 hover:bg-gray-100"
+              className=" hover:bg-gray-100"
               iconClassName="text-black"
               textClassName="text-black"
               tooltipIconClassName="text-navyblue text-xl"
@@ -228,19 +244,6 @@ export default function AdminSideNav({
                   ? campusSecurityPostsCount
                   : undefined
               }
-            />
-
-            <NavText
-              icon={<HiOutlineChartBar className="size-6 stroke-[1.5px]" />}
-              label="Analytics"
-              to="/admin/analytics"
-              isOpen={isOpen}
-              className="hover:bg-gray-100"
-              iconClassName="text-black"
-              textClassName="text-black"
-              tooltipIconClassName="text-navyblue text-xl"
-              tooltipTextClassName="text-navyblue text-base"
-              hoverContainerBgClass="bg-gray-100"
             />
           </div>
         </aside>
