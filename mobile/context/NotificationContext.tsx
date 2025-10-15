@@ -49,10 +49,13 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     // Set up real-time Firestore listener instead of polling
     const unsubscribe = notificationService.setupRealtimeListener(
       userData.uid,
-      (newNotifications) => {
+      async (newNotifications) => {
+        // Enforce 15-notification limit by deleting oldest notifications if needed
+        const enforcedNotifications = await enforceNotificationLimit(newNotifications);
+        
         // Update notifications when they change
         setNotifications(prevNotifications => {
-          const newNotificationsList = newNotifications.filter(newNotif => 
+          const newNotificationsList = enforcedNotifications.filter(newNotif => 
             !prevNotifications.some(prevNotif => prevNotif.id === newNotif.id)
           );
           
@@ -75,11 +78,11 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             });
           }
           
-          return newNotifications;
+          return enforcedNotifications;
         });
         
         // Update unread count
-        const unread = newNotifications.filter(notif => !notif.read).length;
+        const unread = enforcedNotifications.filter(notif => !notif.read).length;
         setUnreadCount(unread);
       },
       (error) => {
@@ -95,6 +98,34 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [isAuthenticated, userData?.uid]);
 
+  // Helper function to enforce 15-notification limit by deleting oldest notifications
+  const enforceNotificationLimit = async (notifications: NotificationData[]): Promise<NotificationData[]> => {
+    if (notifications.length <= 15) return notifications;
+
+    try {
+      // Sort notifications by createdAt (newest first) to maintain correct order
+      const sortedNotifications = [...notifications].sort((a, b) =>
+        new Date(b.createdAt?.seconds * 1000).getTime() - new Date(a.createdAt?.seconds * 1000).getTime()
+      );
+
+      // Identify oldest notifications to delete (keep only the latest 15)
+      const notificationsToDelete = sortedNotifications.slice(15);
+
+      // Delete excess notifications
+      const deletePromises = notificationsToDelete.map(notif => notificationService.deleteNotification(notif.id));
+      await Promise.all(deletePromises);
+
+      console.log(`Deleted ${notificationsToDelete.length} old notifications to enforce 15-limit`);
+
+      // Return only the latest 15 notifications (already in newest-first order)
+      return sortedNotifications.slice(0, 15);
+    } catch (error) {
+      console.error('Error enforcing notification limit:', error);
+      // Return original notifications if deletion fails
+      return notifications;
+    }
+  };
+
   const loadNotifications = async () => {
     if (!userData?.uid) return;
 
@@ -104,9 +135,12 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       
       const userNotifications = await notificationService.getUserNotifications(userData.uid, 50);
       
+      // Enforce 15-notification limit by deleting oldest notifications if needed
+      const enforcedNotifications = await enforceNotificationLimit(userNotifications);
+      
       // Check for new notifications and play sound
       setNotifications(prevNotifications => {
-        const newNotifications = userNotifications.filter(newNotif => 
+        const newNotifications = enforcedNotifications.filter(newNotif => 
           !prevNotifications.some(prevNotif => prevNotif.id === newNotif.id)
         );
         
@@ -129,7 +163,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
           });
         }
         
-        return userNotifications;
+        return enforcedNotifications;
       });
       
       const unread = await notificationService.getUnreadCount(userData.uid);

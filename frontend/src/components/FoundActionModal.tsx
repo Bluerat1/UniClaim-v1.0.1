@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { FiX, FiInfo } from "react-icons/fi";
 import CampusSecurityTurnoverModal from "./CampusSecurityTurnoverModal";
+import OSATurnoverModal from "./OSATurnoverModal";
 
 interface FoundActionModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export default function FoundActionModal({
   onResetSelection,
 }: FoundActionModalProps) {
   const [showTurnoverConfirmation, setShowTurnoverConfirmation] = useState(false);
+  const [showOSATurnoverConfirmation, setShowOSATurnoverConfirmation] = useState(false);
 
   if (!isOpen) return null;
 
@@ -34,6 +36,8 @@ export default function FoundActionModal({
   const handleActionSelect = (action: (typeof actions)[number]) => {
     if (action === "turnover to Campus Security") {
       setShowTurnoverConfirmation(true);
+    } else if (action === "turnover to OSA") {
+      setShowOSATurnoverConfirmation(true);
     } else {
       onActionSelect(action);
       onClose();
@@ -48,6 +52,17 @@ export default function FoundActionModal({
       onResetSelection?.();
     }
     setShowTurnoverConfirmation(false);
+    onClose();
+  };
+
+  const handleOSATurnoverConfirmation = (didTurnOver: boolean) => {
+    if (didTurnOver) {
+      onActionSelect("turnover to OSA");
+    } else {
+      // If they selected "No", reset the selection
+      onResetSelection?.();
+    }
+    setShowOSATurnoverConfirmation(false);
     onClose();
   };
 
@@ -105,6 +120,14 @@ export default function FoundActionModal({
         isOpen={showTurnoverConfirmation}
         onClose={() => setShowTurnoverConfirmation(false)}
         onConfirm={handleTurnoverConfirmation}
+        onNoClick={onResetSelection}
+      />
+
+      {/* OSA Turnover Confirmation Modal */}
+      <OSATurnoverModal
+        isOpen={showOSATurnoverConfirmation}
+        onClose={() => setShowOSATurnoverConfirmation(false)}
+        onConfirm={handleOSATurnoverConfirmation}
         onNoClick={onResetSelection}
       />
     </div>

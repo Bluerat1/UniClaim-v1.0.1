@@ -1087,14 +1087,24 @@ export const postService = {
                                 };
                             }
 
-                            // Update conversation with new post creator and admin participant data
+                            // Update conversation with new post creator and admin participant data (replace CS user)
                             const participants = conversationData.participants || {};
+
+                            // Remove the campus security user (original creator) from participants
+                            if (originalCreatorId && participants[originalCreatorId]) {
+                                delete participants[originalCreatorId];
+                                console.log(`🔄 Removed campus security user ${originalCreatorId} from conversation ${convDoc.id}`);
+                            }
+
+                            // Add admin as replacement
                             participants[confirmedBy] = adminParticipantData;
 
                             console.log(`🔄 Updating conversation ${convDoc.id}:`);
                             console.log(`  - postCreatorId: ${confirmedBy}`);
                             console.log(`  - isAdminPost: true`);
                             console.log(`  - participants[${confirmedBy}]:`, adminParticipantData);
+                            console.log(`  - Removed campus security user: ${originalCreatorId || 'none'}`);
+                            console.log(`  - Final participants count: ${Object.keys(participants).length}`);
 
                             await updateDoc(conversationRef, {
                                 postCreatorId: confirmedBy,
@@ -1103,7 +1113,7 @@ export const postService = {
                                 updatedAt: serverTimestamp()
                             });
 
-                            console.log(`✅ Updated conversation ${convDoc.id} with new post creator: ${confirmedBy} and admin participant data`);
+                            console.log(`✅ Updated conversation ${convDoc.id} with new post creator: ${confirmedBy} and admin participant data (campus security user replaced)`);
                         });
 
                         await Promise.all(updatePromises);

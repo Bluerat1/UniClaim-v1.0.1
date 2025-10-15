@@ -45,6 +45,33 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [isAuthenticated, userData?.uid, userData?.emailVerified]);
 
+  // Helper function to check if browser notification should be shown for notification type
+  const shouldShowBrowserNotification = (notificationType: string, preferences: any): boolean => {
+    switch (notificationType) {
+      case 'status_change':
+      case 'post_activated':
+      case 'post_reverted':
+      case 'post_deleted':
+      case 'post_restored':
+        return preferences.claimUpdates || preferences.adminAlerts;
+      case 'new_post':
+        return preferences.newPosts;
+      case 'message':
+        return preferences.messages;
+      case 'claim_request':
+      case 'claim_response':
+        return preferences.claimResponses || preferences.claimUpdates;
+      case 'handover_response':
+        return preferences.handoverResponses || preferences.claimUpdates;
+      case 'admin_alert':
+        return preferences.adminAlerts;
+      case 'claim_update':
+        return preferences.claimUpdates;
+      default:
+        return true; // Show by default for unknown types
+    }
+  };
+
   // Set up real-time listener for notifications
   useEffect(() => {
     if (!isAuthenticated || !userData?.uid || !userData?.emailVerified) return;
@@ -53,21 +80,24 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
     const unsubscribe = notificationService.setupRealtimeListener(
       userData.uid,
-      (newNotifications) => {
+      async (newNotifications) => {
+        
+        // Enforce 15-notification limit by deleting oldest notifications if needed
+        const enforcedNotifications = await enforceNotificationLimit(newNotifications);
         
         // Update notifications state
-        setNotifications(newNotifications);
+        setNotifications(enforcedNotifications);
 
         // Calculate unread count
-        const unread = newNotifications.filter(n => !n.read).length;
+        const unread = enforcedNotifications.filter(n => !n.read).length;
         setUnreadCount(unread);
 
         // Show browser notifications for new notifications (if permission granted)
         const previousCount = notifications.length;
-        const newCount = newNotifications.length;
+        const newCount = enforcedNotifications.length;
 
         if (newCount > previousCount) {
-          const newNotifs = newNotifications.slice(0, newCount - previousCount);
+          const newNotifs = enforcedNotifications.slice(0, newCount - previousCount);
           
           newNotifs.forEach(async (notification) => {
             try {
@@ -99,30 +129,31 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     return unsubscribe;
   }, [isAuthenticated, userData?.uid, userData?.emailVerified]);
 
-  // Helper function to check if browser notification should be shown for notification type
-  const shouldShowBrowserNotification = (notificationType: string, preferences: any): boolean => {
-    switch (notificationType) {
-      case 'status_change':
-      case 'post_activated':
-      case 'post_reverted':
-      case 'post_deleted':
-      case 'post_restored':
-        return preferences.claimUpdates || preferences.adminAlerts;
-      case 'new_post':
-        return preferences.newPosts;
-      case 'message':
-        return preferences.messages;
-      case 'claim_request':
-      case 'claim_response':
-        return preferences.claimResponses || preferences.claimUpdates;
-      case 'handover_response':
-        return preferences.handoverResponses || preferences.claimUpdates;
-      case 'admin_alert':
-        return preferences.adminAlerts;
-      case 'claim_update':
-        return preferences.claimUpdates;
-      default:
-        return true; // Show by default for unknown types
+  // Helper function to enforce 15-notification limit by deleting oldest notifications
+  const enforceNotificationLimit = async (notifications: NotificationData[]): Promise<NotificationData[]> => {
+    if (notifications.length <= 15) return notifications;
+
+    try {
+      // Sort notifications by createdAt (newest first) to maintain correct order
+      const sortedNotifications = [...notifications].sort((a, b) =>
+        new Date(b.createdAt?.seconds * 1000).getTime() - new Date(a.createdAt?.seconds * 1000).getTime()
+      );
+
+      // Identify oldest notifications to delete (keep only the latest 15)
+      const notificationsToDelete = sortedNotifications.slice(15);
+
+      // Delete excess notifications
+      const deletePromises = notificationsToDelete.map(notif => notificationService.deleteNotification(notif.id));
+      await Promise.all(deletePromises);
+
+      console.log(`Deleted ${notificationsToDelete.length} old notifications to enforce 15-limit`);
+
+      // Return only the latest 15 notifications (already in newest-first order)
+      return sortedNotifications.slice(0, 15);
+    } catch (error) {
+      console.error('Error enforcing notification limit:', error);
+      // Return original notifications if deletion fails
+      return notifications;
     }
   };
 
@@ -141,9 +172,12 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
         }
       });
       
+      // Enforce 15-notification limit by deleting oldest notifications if needed
+      const enforcedNotifications = await enforceNotificationLimit(userNotifications);
+      
       // Check for new notifications and play sound
       setNotifications(prevNotifications => {
-        const newNotifications = userNotifications.filter((newNotif: NotificationData) =>
+        const newNotifications = enforcedNotifications.filter((newNotif: NotificationData) =>
           !prevNotifications.some((prevNotif: NotificationData) => prevNotif.id === newNotif.id)
         );
         

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   FlatList,
@@ -992,7 +992,7 @@ export default function Chat() {
           {/* Message Limit Counter */}
           <View className="border-b border-gray-200 px-4 py-2 bg-gray-100 rounded-t-lg">
             <View className="flex-row justify-between items-center mb-1">
-              <Text className="text-sm text-gray-600 font-medium">
+              <Text className="text-[12px] text-gray-500 font-medium">
                 Messages in conversation
               </Text>
               <View className="flex-row items-center">
