@@ -20,6 +20,9 @@ import type { Post } from "@/types/Post";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
+// Notification limit constant - should match the limit in adminNotifications service
+const NOTIFICATION_LIMIT = 15;
+
 interface AdminHeaderProps {
   sideNavClick: () => void;
   sideBarOpen: boolean;
@@ -233,7 +236,7 @@ export default function AdminHeader({
                 Admin Notifications
               </h2>
               <span className="ml-2 text-sm text-gray-500">
-                ({notifications.length}/15)
+                ({notifications.length}/{NOTIFICATION_LIMIT})
               </span>
               {unreadCount > 0 && (
                 <span className="ml-2 bg-red-500 text-white text-[10px] rounded-full py-1 px-2">

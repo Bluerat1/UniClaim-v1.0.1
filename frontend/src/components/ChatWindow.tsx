@@ -462,7 +462,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       setNewMessage("");
     } catch (error) {
       console.error("Failed to send message:", error);
-      // You could add a toast notification here
+      showToast('error', 'Message Failed', 'Failed to send message. Please check your connection and try again.');
     } finally {
       setIsSending(false);
     }

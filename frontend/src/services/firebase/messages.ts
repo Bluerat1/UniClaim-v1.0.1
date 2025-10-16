@@ -221,8 +221,10 @@ export const messageService = {
     // Send a message
     async sendMessage(conversationId: string, senderId: string, senderName: string, text: string, senderProfilePicture?: string): Promise<void> {
         try {
+            console.log('📤 [sendMessage] Starting to send message:', { conversationId, senderId, senderName, textLength: text.length });
+
             const messagesRef = collection(db, 'conversations', conversationId, 'messages');
-            await addDoc(messagesRef, {
+            const messageData = {
                 senderId,
                 senderName,
                 senderProfilePicture: senderProfilePicture || null,
@@ -230,21 +232,30 @@ export const messageService = {
                 timestamp: serverTimestamp(),
                 readBy: [senderId],
                 messageType: "text" // Default message type
-            });
+            };
+
+            console.log('📝 [sendMessage] Message data prepared:', messageData);
+            const messageDocRef = await addDoc(messagesRef, messageData);
+            console.log('✅ [sendMessage] Message added to Firestore:', messageDocRef.id);
 
             // Get conversation data to find other participants
             const conversationRef = doc(db, 'conversations', conversationId);
             const conversationDoc = await getDoc(conversationRef);
 
             if (!conversationDoc.exists()) {
+                console.error('❌ [sendMessage] Conversation not found:', conversationId);
                 throw new Error('Conversation not found');
             }
 
             const conversationData = conversationDoc.data();
+            console.log('📋 [sendMessage] Conversation data retrieved:', { participants: conversationData.participants, unreadCounts: conversationData.unreadCounts });
+
             const participantIds = Object.keys(conversationData.participants || {});
+            console.log('👥 [sendMessage] Participant IDs:', participantIds);
 
             // Increment unread count for all participants except the sender
             const otherParticipantIds = participantIds.filter(id => id !== senderId);
+            console.log('👥 [sendMessage] Other participants (excluding sender):', otherParticipantIds);
 
             // Prepare unread count updates for each receiver
             const unreadCountUpdates: { [key: string]: any } = {};
@@ -252,12 +263,12 @@ export const messageService = {
                 unreadCountUpdates[`unreadCounts.${participantId}`] = increment(1);
             });
 
-            console.log(`📈 Web: Incrementing unread counts for ${otherParticipantIds.length} participants:`, otherParticipantIds);
-            console.log(`📈 Web: Unread count updates:`, unreadCountUpdates);
+            console.log(`📈 [sendMessage] Incrementing unread counts for ${otherParticipantIds.length} participants:`, otherParticipantIds);
+            console.log(`📈 [sendMessage] Unread count updates:`, unreadCountUpdates);
 
             // Update conversation with last message and increment unread counts for other participants
             const currentTimestamp = new Date();
-            await updateDoc(conversationRef, {
+            const updateData = {
                 lastMessage: {
                     text,
                     senderId,
@@ -265,8 +276,11 @@ export const messageService = {
                 },
                 updatedAt: serverTimestamp(),
                 ...unreadCountUpdates
-            });
-            console.log(`✅ Web: Conversation ${conversationId} updated successfully`);
+            };
+
+            console.log('🔄 [sendMessage] Updating conversation with:', updateData);
+            await updateDoc(conversationRef, updateData);
+            console.log(`✅ [sendMessage] Conversation ${conversationId} updated successfully`);
 
             // Send notification to other participants
             try {
@@ -276,13 +290,23 @@ export const messageService = {
                     text,
                     postTitle: conversationData.postTitle
                 });
+                console.log('✅ [sendMessage] Notification sent successfully');
             } catch (notificationError) {
-                console.warn('⚠️ Failed to send message notification:', notificationError);
+                console.warn('⚠️ [sendMessage] Failed to send message notification:', notificationError);
                 // Don't fail the whole operation if notification fails
             }
-        } catch (error) {
+
+            console.log('🎉 [sendMessage] Message sent successfully');
+        } catch (error: any) {
             console.error('❌ [sendMessage] Error sending message:', error);
-            // Removed duplicate function declaration
+            console.error('❌ [sendMessage] Error details:', {
+                message: error.message,
+                code: error.code,
+                name: error.name,
+                conversationId,
+                senderId
+            });
+            throw new Error(error.message || 'Failed to send message');
         }
     },
 

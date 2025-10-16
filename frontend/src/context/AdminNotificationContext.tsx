@@ -101,6 +101,25 @@ export const AdminNotificationProvider = ({ children }: { children: ReactNode })
     };
   }, [isAuthenticated, userData?.uid, userData?.role, isAdmin]);
 
+  // Enforce 15-notification limit when notifications change
+  useEffect(() => {
+    if (notifications.length > 15) {
+      console.log(`🔄 Enforcing notification limit: ${notifications.length} > 15`);
+      // Sort notifications by createdAt descending (newest first)
+      const sortedNotifications = [...notifications].sort((a, b) => {
+        const aTime = a.createdAt?.toMillis?.() || 0;
+        const bTime = b.createdAt?.toMillis?.() || 0;
+        return bTime - aTime;
+      });
+
+      // Keep only the first 15 (most recent) notifications
+      const limitedNotifications = sortedNotifications.slice(0, 15);
+      setNotifications(limitedNotifications);
+
+      console.log(`✅ Limited notifications to 15, removed ${notifications.length - 15} old notifications`);
+    }
+  }, [notifications]);
+
   const loadNotifications = async () => {
     if (!userData?.uid || !isAdmin) {
       return;
@@ -110,7 +129,7 @@ export const AdminNotificationProvider = ({ children }: { children: ReactNode })
       setLoading(true);
       setError(null);
       
-      const adminNotifications = await adminNotificationService.getAdminNotifications(userData.uid, 50);
+      const adminNotifications = await adminNotificationService.getAdminNotifications(userData.uid, 15);
       setNotifications(adminNotifications);
       
       const unread = await adminNotificationService.getUnreadCount(userData.uid);

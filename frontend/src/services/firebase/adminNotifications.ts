@@ -44,6 +44,16 @@ export class AdminNotificationService {
     }): Promise<string> {
         try {
             const adminNotificationsRef = collection(db, 'admin_notifications');
+
+            // Check current notification count before creating new one
+            const currentCount = await this.getNotificationCount(notificationData.adminId);
+
+            // If we're at or above the limit (15), delete exactly one oldest notification
+            if (currentCount >= 15) {
+                console.log(`🧹 Notification limit reached (${currentCount}), cleaning up oldest notification for admin: ${notificationData.adminId}`);
+                await this.cleanupOldNotifications(notificationData.adminId, 14); // Keep 14, delete the oldest one to make room for new one
+            }
+
             const docRef = await addDoc(adminNotificationsRef, {
                 type: notificationData.type,
                 title: notificationData.title,
@@ -118,7 +128,7 @@ export class AdminNotificationService {
     }
 
     // Get admin notifications for a specific admin
-    async getAdminNotifications(adminId: string, limitCount: number = 20): Promise<AdminNotification[]> {
+    async getAdminNotifications(adminId: string, limitCount: number = 15): Promise<AdminNotification[]> {
         try {
             console.log('🔍 Getting admin notifications for adminId:', adminId);
             const adminNotificationsRef = collection(db, 'admin_notifications');
@@ -344,14 +354,14 @@ export class AdminNotificationService {
             const broadcastQuery = query(
                 adminNotificationsRef,
                 where('adminId', '==', 'all'),
-                limit(50)
+                limit(15)
             );
 
             // Set up listener for specific admin notifications
             const specificQuery = query(
                 adminNotificationsRef,
                 where('adminId', '==', adminId),
-                limit(50)
+                limit(15)
             );
 
             // Listen to both queries
@@ -457,6 +467,99 @@ export class AdminNotificationService {
             console.error('❌ Error setting up admin notifications listener:', error);
             if (onError) onError(error as Error);
             return () => { }; // Return empty unsubscribe function
+        }
+    }
+
+    // Helper method to get notification count for an admin
+    private async getNotificationCount(adminId: string): Promise<number> {
+        try {
+            const adminNotificationsRef = collection(db, 'admin_notifications');
+
+            // Get broadcast notifications count
+            const broadcastQuery = query(
+                adminNotificationsRef,
+                where('adminId', '==', 'all')
+            );
+            const broadcastSnapshot = await getDocs(broadcastQuery);
+
+            // Get specific admin notifications count
+            const specificQuery = query(
+                adminNotificationsRef,
+                where('adminId', '==', adminId)
+            );
+            const specificSnapshot = await getDocs(specificQuery);
+
+            return broadcastSnapshot.size + specificSnapshot.size;
+        } catch (error) {
+            console.error('Error getting notification count:', error);
+            return 0;
+        }
+    }
+
+    // Helper method to cleanup old notifications
+    private async cleanupOldNotifications(adminId: string, keepCount: number): Promise<void> {
+        try {
+            if (keepCount <= 0) return;
+
+            const adminNotificationsRef = collection(db, 'admin_notifications');
+
+            // Get all notifications for this admin (both broadcast and specific)
+            const broadcastQuery = query(
+                adminNotificationsRef,
+                where('adminId', '==', 'all')
+            );
+
+            const specificQuery = query(
+                adminNotificationsRef,
+                where('adminId', '==', adminId)
+            );
+
+            const [broadcastSnapshot, specificSnapshot] = await Promise.all([
+                getDocs(broadcastQuery),
+                getDocs(specificQuery)
+            ]);
+
+            const allNotifications: Array<{id: string, createdAt: any}> = [];
+
+            // Collect all notifications with their creation times
+            broadcastSnapshot.forEach((doc) => {
+                allNotifications.push({
+                    id: doc.id,
+                    createdAt: doc.data().createdAt
+                });
+            });
+
+            specificSnapshot.forEach((doc) => {
+                allNotifications.push({
+                    id: doc.id,
+                    createdAt: doc.data().createdAt
+                });
+            });
+
+            // Sort by createdAt ascending (oldest first)
+            allNotifications.sort((a, b) => {
+                const aTime = a.createdAt?.toMillis?.() || 0;
+                const bTime = b.createdAt?.toMillis?.() || 0;
+                return aTime - bTime;
+            });
+
+            // Delete oldest notifications, keeping only the specified count
+            const notificationsToDelete = allNotifications.slice(0, allNotifications.length - keepCount);
+
+            if (notificationsToDelete.length > 0) {
+                const batch = writeBatch(db);
+
+                notificationsToDelete.forEach(({id}) => {
+                    const notificationRef = doc(db, 'admin_notifications', id);
+                    batch.delete(notificationRef);
+                });
+
+                await batch.commit();
+                console.log(`Deleted ${notificationsToDelete.length} old notifications for admin: ${adminId}`);
+            }
+        } catch (error) {
+            console.error('Error cleaning up old notifications:', error);
+            throw error;
         }
     }
 

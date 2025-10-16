@@ -224,10 +224,14 @@ export class NotificationService {
   // Get user's notification preferences
   async getNotificationPreferences(userId: string): Promise<NotificationPreferences> {
     try {
-      // Security check: ensure the requested userId matches the current authenticated user
+      // Allow the notification system to access preferences for any user (for notification filtering)
+      // This is needed when sending notifications to check if users have enabled specific notification types
       const { auth } = await import('./config');
-      if (!auth.currentUser || auth.currentUser.uid !== userId) {
-        console.warn('🔒 Security check failed: Current user does not match requested userId in getNotificationPreferences');
+
+      // For now, allow any authenticated user to check preferences for notification filtering
+      // In a production system, you might want to restrict this further
+      if (!auth.currentUser) {
+        console.warn('🔒 No authenticated user in getNotificationPreferences');
         return this.getDefaultPreferences();
       }
 
@@ -308,12 +312,7 @@ export class NotificationService {
   // Ensure user has a subscription record (for existing users)
   async ensureUserHasSubscription(userId: string): Promise<void> {
     try {
-      // Security check: ensure the requested userId matches the current authenticated user
-      const { auth } = await import('./config');
-      if (!auth.currentUser || auth.currentUser.uid !== userId) {
-        console.warn('🔒 Security check failed: Current user does not match requested userId in ensureUserHasSubscription');
-        return;
-      }
+      // Allow the notification system to create subscriptions for any user
 
       // First check if user's email is verified
       const userDoc = await getDoc(doc(db, 'users', userId));
