@@ -17,6 +17,7 @@ interface AuthContextType {
   showBanNotification: boolean;
   setShowBanNotification: (show: boolean) => void;
   needsEmailVerification: boolean;
+  loginAttemptFailed: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUserData: () => Promise<void>;
@@ -36,6 +37,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [showBanNotification, setShowBanNotification] = useState(false);
   const [needsEmailVerification, setNeedsEmailVerification] = useState(false);
   const [isAutoLogging, setIsAutoLogging] = useState(false);
+  const [loginAttemptFailed, setLoginAttemptFailed] = useState(false);
 
   // Track ban listener to clean up on logout
   const banListenerRef = useRef<(() => void) | null>(null);
@@ -117,6 +119,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
           // Check email verification status
           if (fetchedUserData) {
+            // IMPORTANT: Reload user data to get the latest email verification status from Firebase Auth
+            await firebaseUser.reload();
+
             const needsVerification = await userService.needsEmailVerification(firebaseUser, fetchedUserData);
             console.log('onAuthStateChanged verification check:', {
               firebaseEmailVerified: firebaseUser.emailVerified,
@@ -331,6 +336,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsAdmin(false);
         setBanInfo(null);
         setNeedsEmailVerification(false);
+        setLoginAttemptFailed(false);
+
+        // CRITICAL: Ensure loading state is reset when user logs out
+        setLoading(false);
 
         // No authenticated user - try auto-login once
         if (!hasAttemptedAutoLogin) {
@@ -369,6 +378,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (email: string, password: string): Promise<void> => {
+    // Reset login attempt flag and any previous auth state before attempting login
+    setLoginAttemptFailed(false);
+    setUser(null);
+    setUserData(null);
+    setIsAuthenticated(false);
+    setIsBanned(false);
+    setIsAdmin(false);
+    setBanInfo(null);
+    setNeedsEmailVerification(false);
+
     try {
       setLoading(true);
       console.log('Attempting login for:', email);
@@ -391,7 +410,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const needsVerification = await userService.needsEmailVerification(user, userData);
           console.log('Verification check result:', needsVerification, {
             firebaseEmailVerified: user.emailVerified,
-            firestoreEmailVerified: userData.emailVerified
+            firestoreEmailVerified: userData.emailVerified,
+            userDataRole: userData.role
           });
 
           if (needsVerification) {
@@ -404,16 +424,77 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setIsAuthenticated(false); // Explicitly set to false
             setNeedsEmailVerification(true);
 
+            // Store credentials for auto-login (even for unverified users)
+            try {
+              await credentialStorage.saveCredentials(email, password);
+              console.log('Credentials stored for auto-login (email verification pending)');
+            } catch (storageError) {
+              console.warn('Failed to store credentials for auto-login:', storageError);
+              // Continue with verification flow even if credential storage fails
+            }
+
+            console.log('AuthContext: Set needsEmailVerification=true, isAuthenticated=false for user:', user.uid);
             // Throw error to prevent normal login flow
             throw new Error('EMAIL_VERIFICATION_REQUIRED');
           } else {
             console.log('User is verified, login will proceed');
+
+            // Store credentials for auto-login
+            try {
+              await credentialStorage.saveCredentials(email, password);
+              console.log('Credentials stored for auto-login');
+            } catch (storageError) {
+              console.warn('Failed to store credentials for auto-login:', storageError);
+              // Continue with login even if credential storage fails
+            }
           }
         } else {
-          console.log('No user data found, this should not happen for existing users');
-          // For safety, logout and throw error
-          await authService.logout();
-          throw new Error('User account not found. Please contact support.');
+          console.log('No user data found during login, creating user document...');
+
+          // Create user document in Firestore if it doesn't exist
+          try {
+            // Get user profile data from Firebase Auth
+            const displayName = user.displayName || '';
+            const nameParts = displayName.split(' ');
+            const firstName = nameParts[0] || '';
+            const lastName = nameParts.slice(1).join(' ') || '';
+
+            // Create user document with unverified email status
+            await userService.createUser(user.uid, {
+              uid: user.uid,
+              email: user.email || '',
+              firstName: firstName,
+              lastName: lastName,
+              contactNum: '', // Will be updated later if needed
+              studentId: '', // Will be updated later if needed
+              emailVerified: false, // New users need to verify their email
+              createdAt: new Date(),
+              updatedAt: new Date()
+            });
+
+            console.log('Created user document for new user during login:', user.uid);
+            setUser(user);
+            setUserData({
+              uid: user.uid,
+              email: user.email || '',
+              firstName: firstName,
+              lastName: lastName,
+              contactNum: '',
+              studentId: '',
+              emailVerified: false,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            });
+            setNeedsEmailVerification(true);
+            setIsAuthenticated(false);
+
+            // Throw error to prevent normal login flow
+            throw new Error('EMAIL_VERIFICATION_REQUIRED');
+          } catch (createError) {
+            console.error('Failed to create user document during login:', createError);
+            setNeedsEmailVerification(false);
+            setIsAuthenticated(false);
+          }
         }
 
         // User is verified, login will be handled by onAuthStateChanged listener
@@ -430,6 +511,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
     } catch (error: any) {
+      // Only set login attempt failed flag for actual login failures, not EMAIL_VERIFICATION_REQUIRED
+      if (!error.message || !error.message.includes('EMAIL_VERIFICATION_REQUIRED')) {
+        setLoginAttemptFailed(true);
+      }
+
+      // Don't reset user/userData for EMAIL_VERIFICATION_REQUIRED errors
+      // as this state should persist to show the verification UI
+      if (!error.message || !error.message.includes('EMAIL_VERIFICATION_REQUIRED')) {
+        // Reset auth state on login failure to ensure user stays on login screen
+        setUser(null);
+        setUserData(null);
+        setIsAuthenticated(false);
+        setIsBanned(false);
+        setIsAdmin(false);
+        setBanInfo(null);
+        setNeedsEmailVerification(false);
+      } else {
+        // For EMAIL_VERIFICATION_REQUIRED, ensure needsEmailVerification is set to true
+        setNeedsEmailVerification(true);
+        setIsAuthenticated(false); // User is logged in but not verified
+      }
+
       // Don't log EMAIL_VERIFICATION_REQUIRED as an error since it's expected behavior
       if (!error.message || !error.message.includes('EMAIL_VERIFICATION_REQUIRED')) {
         console.error('Login error:', error);
@@ -481,10 +584,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       
       await authService.logout();
-      // onAuthStateChanged will handle updating the state
+      // onAuthStateChanged will handle updating the state and resetting loading
     } catch (error: any) {
+      console.error('Logout error:', error);
+      // Even if logout fails, ensure loading state is reset
       setLoading(false);
       throw new Error(error.message);
+    } finally {
+      // Ensure loading state is reset in all cases
+      setLoading(false);
     }
   };
 
@@ -507,6 +615,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (fetchedUserData) {
           const needsVerification = await userService.needsEmailVerification(user, fetchedUserData);
           setNeedsEmailVerification(needsVerification);
+
+          // If user is now verified but was not authenticated, update auth state
+          if (!needsVerification && !isAuthenticated) {
+            console.log('User is now verified, updating authentication state');
+            setIsAuthenticated(true);
+          }
         }
       } catch (error: any) {
         console.error('Error refreshing user data:', error);
@@ -527,6 +641,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const updatedUserData = await authService.getUserData(user.uid);
       setUserData(updatedUserData);
 
+      // Update authentication state since email is now verified
+      setIsAuthenticated(true);
+      setNeedsEmailVerification(false);
+
       // Now that email is verified, save push token
       try {
         const pushToken = await notificationService.registerForPushNotifications();
@@ -539,7 +657,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Don't fail verification if push token saving fails
       }
 
-      console.log('Email verification completed successfully');
+      console.log('Email verification completed successfully - user is now authenticated');
     } catch (error: any) {
       console.error('Failed to complete email verification:', error);
       // Don't throw error - allow verification to proceed even if Firestore update fails
@@ -706,6 +824,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         showBanNotification,
         setShowBanNotification,
         needsEmailVerification,
+        loginAttemptFailed,
         login,
         logout,
         refreshUserData,

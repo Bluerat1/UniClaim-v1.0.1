@@ -15,6 +15,7 @@ import {
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { RootStackParamList } from "../../types/type";
+import { useAuth } from "../../context/AuthContext";
 import { authService, getFirebaseErrorMessage } from "../../utils/firebase";
 
 const screenHeight = Dimensions.get("window").height;
@@ -22,6 +23,7 @@ const screenHeight = Dimensions.get("window").height;
 export default function Register() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { refreshUserData } = useAuth();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -75,16 +77,42 @@ export default function Register() {
           studentId
         );
 
-        Alert.alert(
-          "Registration Successful",
-          `Your account has been created successfully!\n\nPlease check your email (${email}) and click the verification link to activate your account before logging in.`,
-          [
-            {
-              text: "OK",
-              onPress: () => navigation.navigate("Login"),
-            },
-          ]
-        );
+        // After successful registration, attempt to login
+        // This will trigger the email verification flow in AuthContext
+        try {
+          // Increased delay to ensure Firestore document is fully committed
+          await new Promise(resolve => setTimeout(resolve, 2000));
+
+          console.log('Attempting login after registration...');
+          await authService.login(email, password);
+
+          // If login succeeds without throwing EMAIL_VERIFICATION_REQUIRED,
+          // the user is verified and we can navigate to main app
+          console.log('User is verified, registration and login successful');
+          // Navigation will be handled by the AuthContext/Navigation component
+
+        } catch (loginError: any) {
+          // If login throws EMAIL_VERIFICATION_REQUIRED, the AuthContext will handle it
+          // and the Navigation component will automatically show the EmailVerification screen
+          if (loginError.message === 'EMAIL_VERIFICATION_REQUIRED') {
+            console.log('Email verification required - AuthContext and Navigation will handle redirect');
+            // Don't manually navigate - let AuthContext/Navigation handle it
+            // The user state will be set correctly and Navigation will show EmailVerification
+          } else {
+            // Some other login error occurred
+            throw loginError;
+          }
+        }
+
+        // Additional check: If login succeeded but user might still need verification,
+        // the AuthContext onAuthStateChanged will handle the redirect
+        console.log('Registration process completed, waiting for AuthContext to handle verification state...');
+
+        // Force a refresh of user data to ensure Navigation component gets correct state
+        setTimeout(() => {
+          refreshUserData();
+        }, 500);
+
       } catch (error: any) {
         const errorMessage = getFirebaseErrorMessage(error);
         Alert.alert("Registration Failed", errorMessage);

@@ -16,6 +16,8 @@ import { MessageProvider } from "../context/MessageContext";
 import { NotificationProvider } from "../context/NotificationContext";
 import { CoordinatesProvider } from "../context/CoordinatesContext";
 
+import { ToastProvider } from "../context/ToastContext";
+
 // utils
 import { onboardingStorage } from "../utils/onboardingStorage";
 
@@ -139,16 +141,18 @@ export default function RootLayout() {
   }
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <CoordinatesProvider>
-          <AppContent
-            hasSeenOnBoarding={hasSeenOnBoarding}
-            setHasSeenOnBoarding={setHasSeenOnBoarding}
-            hasPassedIndex={hasPassedIndex}
-            setHasPassedIndex={setHasPassedIndex}
-          />
-        </CoordinatesProvider>
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <CoordinatesProvider>
+            <AppContent
+              hasSeenOnBoarding={hasSeenOnBoarding}
+              setHasSeenOnBoarding={setHasSeenOnBoarding}
+              hasPassedIndex={hasPassedIndex}
+              setHasPassedIndex={setHasPassedIndex}
+            />
+          </CoordinatesProvider>
+        </AuthProvider>
+      </ToastProvider>
     </SafeAreaProvider>
   );
 }

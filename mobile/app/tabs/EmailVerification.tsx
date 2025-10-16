@@ -19,7 +19,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function EmailVerification() {
   const navigation = useNavigation<NavigationProp>();
-  const { user, userData, refreshUserData } = useAuth();
+  const { user, userData, refreshUserData, isAuthenticated, handleEmailVerificationComplete, needsEmailVerification } = useAuth();
 
   const [isLoading, setIsLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
@@ -28,6 +28,35 @@ export default function EmailVerification() {
   const [isChecking, setIsChecking] = useState(false);
 
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+
+  // Monitor authentication state changes
+  useEffect(() => {
+    if (user && user.emailVerified && !isAuthenticated) {
+      // User is verified but not authenticated yet - this means verification just completed
+      console.log('Email verification detected, user should be authenticated');
+      // The AuthContext should handle navigation automatically
+      // But we can force a refresh to ensure state is updated
+      refreshUserData();
+    }
+  }, [user?.emailVerified, isAuthenticated]);
+
+  // NEW: Monitor when user becomes fully authenticated and exit this screen
+  useEffect(() => {
+    if (isAuthenticated && !needsEmailVerification) {
+      console.log('User is now fully authenticated, EmailVerification component should unmount');
+      // The Navigation component will automatically handle routing to RootBottomTabs
+      // This component will be unmounted and replaced with the main app
+    }
+  }, [isAuthenticated, needsEmailVerification]);
+
+  // Monitor user's email verification status and update local state
+  useEffect(() => {
+    if (user && user.emailVerified) {
+      setIsEmailVerified(true);
+    } else if (user && !user.emailVerified) {
+      setIsEmailVerified(false);
+    }
+  }, [user?.emailVerified]);
 
   // Only check when user manually taps the button (no automatic background checking)
   useEffect(() => {
@@ -63,7 +92,10 @@ export default function EmailVerification() {
     try {
       // If we have a user (logged in), check their verification status
       if (user) {
-        // Check Firebase Auth email verification status (without reload for now)
+        // IMPORTANT: Reload user data to get the latest email verification status
+        await user.reload();
+
+        // Check Firebase Auth email verification status after reload
         const isVerified = user.emailVerified;
         setIsEmailVerified(isVerified);
 
@@ -74,14 +106,22 @@ export default function EmailVerification() {
               // Update Firestore email verification status
               await authService.handleEmailVerification(user.uid);
               console.log('Email verification completed successfully');
+
+              // Refresh AuthContext state to ensure user is properly authenticated
+              await refreshUserData();
+
+              // Don't navigate here - let the Navigation component handle routing
+              // based on the updated authentication state
+              console.log('Email verified, AuthContext will handle navigation');
+
             } catch (updateError: any) {
               console.error('Error updating email verification status:', updateError);
               // Continue with navigation even if Firestore update fails
             }
           }
 
-          // User is verified, navigate to main app
-          (navigation as any).replace('RootBottomTabs');
+          // User is verified, but don't navigate directly
+          // The AuthContext onAuthStateChanged will detect the change and navigate appropriately
         } else {
           Alert.alert(
             'Not Verified Yet',
@@ -159,6 +199,13 @@ export default function EmailVerification() {
     }
   };
 
+  // If user is fully authenticated, don't render this component
+  // Let the Navigation component handle routing to the main app
+  if (isAuthenticated && !needsEmailVerification) {
+    console.log('EmailVerification: User is authenticated, component should unmount');
+    return null; // This will allow the Navigation component to render the main app
+  }
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -169,10 +216,56 @@ export default function EmailVerification() {
     return (
       <SafeAreaView className="flex-1 bg-white">
         <View className="flex-1 justify-center items-center px-6">
-          <ActivityIndicator size="large" color="#2563eb" />
-          <Text className="text-lg font-manrope-medium text-gray-700 mt-4">
-            Verifying...
+          <View className="w-20 h-20 bg-green-100 rounded-full items-center justify-center mb-6">
+            <Ionicons name="checkmark-circle" size={40} color="#10b981" />
+          </View>
+          <Text className="text-2xl font-albert-bold text-green-600 mb-4 text-center">
+            Email Verified!
           </Text>
+          <Text className="text-base font-manrope-medium text-gray-700 mb-8 text-center">
+            Your email has been successfully verified. You can now access all features of the app.
+          </Text>
+          <TouchableOpacity
+            className="bg-brand py-4 px-8 rounded-xl"
+            onPress={async () => {
+              try {
+                // First, check if user is actually verified
+                if (user) {
+                  await user.reload();
+                  const isVerified = user.emailVerified;
+
+                  if (!isVerified) {
+                    Alert.alert(
+                      'Email Not Verified',
+                      'Your email has not been verified yet. Please check your email and click the verification link, then try again.',
+                      [{ text: 'OK' }]
+                    );
+                    return;
+                  }
+
+                  // Use the AuthContext function to handle email verification completion
+                  await handleEmailVerificationComplete();
+
+                  console.log('Email verification completed, AuthContext will handle navigation automatically');
+
+                  // Small delay to ensure state updates are processed
+                  await new Promise(resolve => setTimeout(resolve, 100));
+                }
+
+              } catch (error) {
+                console.error('Error during Continue to App:', error);
+                Alert.alert(
+                  'Error',
+                  'Failed to verify your account. Please try again.',
+                  [{ text: 'OK' }]
+                );
+              }
+            }}
+          >
+            <Text className="text-white text-lg font-manrope-semibold text-center">
+              Continue to App
+            </Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );

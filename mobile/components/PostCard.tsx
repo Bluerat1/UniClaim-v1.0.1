@@ -5,7 +5,6 @@ import React, { useState, useCallback } from 'react';
 import { TouchableOpacity, View, Text, Image as RNImage, ActivityIndicator } from 'react-native';
 import type { Post } from "@/types/type";
 import ProfilePicture from "./ProfilePicture";
-import { usePerformanceMonitor, trackImageLoad } from '../utils/performanceMonitor';
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import PostCardMenu from "./PostCardMenu";
 
@@ -31,9 +30,6 @@ export default function PostCard({
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
 
-  // Performance monitoring hook
-  const { recordError, startTimer, endTimer } = usePerformanceMonitor('PostCard');
-
   // Fallback to individual admin status fetch if not provided
   const fallbackAdminStatuses = useAdminStatus(adminStatuses ? [] : [post]);
   const effectiveAdminStatuses = adminStatuses || fallbackAdminStatuses;
@@ -54,19 +50,16 @@ export default function PostCard({
   const handleImageLoadStart = useCallback(() => {
     setImageLoading(true);
     setImageError(false);
-    startTimer('imageLoad');
-  }, [startTimer]);
+  }, []);
 
   const handleImageLoadEnd = useCallback(() => {
     setImageLoading(false);
-    endTimer('imageLoad');
-  }, [endTimer]);
+  }, []);
 
   const handleImageError = useCallback(() => {
     setImageLoading(false);
     setImageError(true);
-    recordError(new Error('Image load failed'), 'low');
-  }, [recordError]);
+  }, []);
 
   const getOptimizedImageSource = (imageSource: string | number | File) => {
     if (typeof imageSource === "string") {

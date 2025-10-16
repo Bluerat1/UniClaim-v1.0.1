@@ -63,6 +63,26 @@ export const authService = {
 
                 // Send email verification
                 await sendEmailVerification(userCredential.user);
+
+                // Create user document in Firestore with all registration data
+                try {
+                    await userService.createUser(userCredential.user.uid, {
+                        uid: userCredential.user.uid,
+                        email: email,
+                        firstName: firstName,
+                        lastName: lastName,
+                        contactNum: contactNum,
+                        studentId: studentId,
+                        emailVerified: false, // New users need to verify their email
+                        createdAt: new Date(),
+                        updatedAt: new Date()
+                    });
+                    console.log('✅ Created Firestore user document for new user:', userCredential.user.uid);
+                } catch (firestoreError: any) {
+                    console.error('❌ Failed to create Firestore user document:', firestoreError);
+                    // Don't fail registration if Firestore creation fails
+                    // The AuthContext onAuthStateChanged listener will handle this case
+                }
             }
 
             return userCredential;
@@ -325,7 +345,10 @@ export const userService = {
                 return false;
             }
 
-            // Check Firebase Auth email verification status
+            // IMPORTANT: Reload user data to get the latest email verification status from Firebase Auth
+            await user.reload();
+
+            // Check Firebase Auth email verification status after reload
             const firebaseEmailVerified = user.emailVerified;
 
             // Check Firestore email verification status

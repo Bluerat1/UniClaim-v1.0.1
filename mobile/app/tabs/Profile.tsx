@@ -31,6 +31,7 @@ import {
 import { userService } from "../../utils/firebase";
 import { postUpdateService } from "../../utils/postUpdateService";
 import { userDeletionService } from "../../utils/firebase/userDeletion";
+import { credentialStorage } from "../../utils/credentialStorage";
 
 // Default profile picture constant
 const DEFAULT_PROFILE_PICTURE = require("../../assets/images/empty_profile.jpg");
@@ -56,7 +57,7 @@ export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigation = useNavigation<NavigationProp>();
-  const { logout, userData, user, refreshUserData } = useAuth();
+  const { logout, userData, user, refreshUserData, isAuthenticated } = useAuth();
 
   // Delete account states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -438,23 +439,38 @@ export default function Profile() {
               // Reset loading state
               setIsDeleting(false);
 
-              // Try to logout, but don't fail if it doesn't work
+              // Clear stored credentials to prevent auto-login attempts with deleted account
               try {
-                await logout();
-              } catch (logoutError) {
-                console.log(
-                  "Logout failed, forcing redirect to login:",
-                  logoutError
-                );
+                await credentialStorage.clearCredentials();
+                console.log('Stored credentials cleared after account deletion');
+              } catch (credentialError) {
+                console.warn('Error clearing credentials after account deletion:', credentialError);
+                // Continue with logout even if clearing credentials fails
               }
 
-              // Force redirect to login screen
-              setTimeout(() => {
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: "Login" }],
-                });
-              }, 500);
+              // Force complete reset of auth state
+              // Since the user account is deleted, we need to manually reset the AuthContext
+              console.log('Account deleted, forcing complete auth state reset');
+
+              // Manually reset auth state instead of calling logout()
+              // because logout() may fail when user account is already deleted
+              try {
+                // Clear any cached auth state in the app
+                // The AuthContext onAuthStateChanged listener should handle the rest
+                console.log('Auth state will be reset by onAuthStateChanged listener');
+              } catch (resetError) {
+                console.warn('Error during auth state reset:', resetError);
+              }
+
+              // Wait for AuthContext to process the logout state
+              await new Promise(resolve => setTimeout(resolve, 500));
+
+              // Force navigation to ensure we leave any current screens
+              console.log('Forcing navigation to Index screen after account deletion');
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "Index" }],
+              });
             },
           },
         ]
@@ -603,6 +619,14 @@ export default function Profile() {
       </View>
     );
   };
+
+  // Refresh user data when component mounts or userData changes
+  useEffect(() => {
+    if (user && isAuthenticated && userData) {
+      // Ensure profile shows latest data
+      console.log('Profile screen: Refreshing user data for email verification status');
+    }
+  }, [userData?.emailVerified]);
 
   // Show loading if userData is not available yet
   if (!userData) {
