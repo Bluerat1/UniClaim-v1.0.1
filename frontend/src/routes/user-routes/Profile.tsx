@@ -774,6 +774,31 @@ const Profile = () => {
                 )}
               </div>
 
+              {/* Logout Button */}
+              {!isEdit && (
+                <div className="">
+                  <button
+                    onClick={logout}
+                    className="w-full bg-navyblue hover:bg-blue-900 text-white font-medium px-4 py-2.5 rounded-md transition-colors duration-200 flex items-center justify-center gap-2 mb-3"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                      />
+                    </svg>
+                    Logout
+                  </button>
+                </div>
+              )}
+
               {/* Delete Account Button */}
               {!isEdit && (
                 <div className="">
@@ -802,94 +827,96 @@ const Profile = () => {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Delete Account Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-md max-w-md w-full p-6">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="size-8 bg-red-100 rounded-full flex items-center justify-center">
-                <svg
-                  className="size-5 text-red-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
-                  />
-                </svg>
+        {/* Delete Account Confirmation Modal */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-md max-w-md w-full p-6">
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <div className="size-8 bg-red-100 rounded-full flex items-center justify-center">
+                  <svg
+                    className="size-5 text-red-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-base font-semibold text-gray-900">
+                  Delete Account
+                </h3>
               </div>
-              <h3 className="text-base font-semibold text-gray-900">
-                Delete Account
-              </h3>
-            </div>
 
-            <div className="mb-6">
-              <p className="text-black mb-4">
-                This action cannot be undone. This will permanently delete your
-                account and remove all data from our servers, including:
-              </p>
-              <ul className="text-sm text-zinc-600 space-y-1 mb-4">
-                <li>• Your profile and personal information</li>
-                <li>• All your posts and images</li>
-                <li>• All conversations and messages</li>
-                <li>• All notifications and settings</li>
-              </ul>
-              <p className="text-red-600 font-medium">
-                Type{" "}
-                <span className="font-mono bg-red-50 px-1 rounded">DELETE</span>{" "}
-                to confirm:
-              </p>
-            </div>
+              <div className="mb-6">
+                <p className="text-black mb-4">
+                  This action cannot be undone. This will permanently delete your
+                  account and remove all data from our servers, including:
+                </p>
+                <ul className="text-sm text-zinc-600 space-y-1 mb-4">
+                  <li>• Your profile and personal information</li>
+                  <li>• All your posts and images</li>
+                  <li>• All conversations and messages</li>
+                  <li>• All notifications and settings</li>
+                </ul>
+                <p className="text-red-600 font-medium">
+                  Type{" "}
+                  <span className="font-mono bg-red-50 px-1 rounded">DELETE</span>{" "}
+                  to confirm:
+                </p>
+              </div>
 
-            <div className="space-y-4">
-              <input
-                type="text"
-                value={deleteConfirmation}
-                onChange={(e) => setDeleteConfirmation(e.target.value)}
-                placeholder="Type DELETE to confirm"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                disabled={isDeleting}
-              />
-
-              <input
-                type="password"
-                value={deletePassword}
-                onChange={(e) => setDeletePassword(e.target.value)}
-                placeholder="Enter your password to confirm"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                disabled={isDeleting}
-              />
-
-              <div className="flex gap-3">
-                <button
-                  onClick={handleCloseDeleteModal}
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  value={deleteConfirmation}
+                  onChange={(e) => setDeleteConfirmation(e.target.value)}
+                  placeholder="Type DELETE to confirm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
                   disabled={isDeleting}
-                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors duration-200 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirmDelete}
-                  disabled={
-                    isDeleting ||
-                    deleteConfirmation !== "DELETE" ||
-                    !deletePassword
-                  }
-                  className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-md transition-colors duration-200 disabled:opacity-50"
-                >
-                  {isDeleting ? "Deleting..." : "Delete Account"}
-                </button>
+                />
+
+                <input
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  placeholder="Enter your password to confirm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  disabled={isDeleting}
+                />
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleCloseDeleteModal}
+                    disabled={isDeleting}
+                    className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors duration-200 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleConfirmDelete}
+                    disabled={
+                      isDeleting ||
+                      deleteConfirmation !== "DELETE" ||
+                      !deletePassword
+                    }
+                    className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-md transition-colors duration-200 disabled:opacity-50"
+                  >
+                    {isDeleting ? "Deleting..." : "Delete Account"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
+      {/* End of JSX */}
     </>
   );
 };

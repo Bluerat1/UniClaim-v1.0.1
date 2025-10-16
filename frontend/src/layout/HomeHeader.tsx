@@ -7,7 +7,7 @@ import {
 } from "react-icons/hi";
 import { IoLogOutOutline } from "react-icons/io5";
 import Logo from "../assets/uniclaim_logo.png";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useAdminView } from "@/context/AdminViewContext";
@@ -53,6 +53,12 @@ export default function HomeHeader({
 
   const navigate = useNavigate();
 
+  // Ref for the profile dropdown menu
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  // Ref for the profile picture trigger
+  const profilePictureRef = useRef<HTMLDivElement>(null);
+
   // Check if user is admin
   useEffect(() => {
     const checkAdminStatus = async () => {
@@ -69,6 +75,29 @@ export default function HomeHeader({
 
     checkAdminStatus();
   }, [user]);
+
+  // Handle clicking outside the dropdown to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Ignore clicks on the profile picture trigger or dropdown menu
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target as Node) &&
+        profilePictureRef.current &&
+        !profilePictureRef.current.contains(event.target as Node)
+      ) {
+        setShowProfileMenu(false);
+      }
+    };
+
+    if (showProfileMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showProfileMenu]);
 
   // Handle notification clicks to open post modal or navigate to conversation
   const handleNotificationClick = async (notification: any) => {
@@ -295,7 +324,7 @@ export default function HomeHeader({
                 )}
               </button>
               {/* profile picture */}
-              <div className="">
+              <div className="" ref={profilePictureRef}>
                 <ProfilePicture
                   src={userData?.profilePicture}
                   alt="user-profile"
@@ -306,7 +335,7 @@ export default function HomeHeader({
 
               {/* profile dropdown */}
               {showProfileMenu && (
-                <div className="absolute font-manrope right-0 top-16 p-2 w-40 bg-white shadow-xs rounded-sm z-50">
+                <div ref={profileMenuRef} className="absolute font-manrope right-0 top-16 p-2 w-40 bg-white shadow-xs rounded-sm z-50">
                   <button
                     onClick={handleProfileClick}
                     className="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded w-full text-sm"

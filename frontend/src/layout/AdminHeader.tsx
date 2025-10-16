@@ -8,7 +8,7 @@ import {
 } from "react-icons/hi";
 import { IoLogOutOutline } from "react-icons/io5";
 import Logo from "../assets/uniclaim_logo.png";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useAdminView } from "@/context/AdminViewContext";
@@ -116,6 +116,35 @@ export default function AdminHeader({
   } = useAdminNotifications();
   const navigate = useNavigate();
 
+  // Ref for the profile dropdown menu
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  // Ref for the profile picture trigger
+  const profilePictureRef = useRef<HTMLDivElement>(null);
+
+  // Handle clicking outside the dropdown to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Ignore clicks on the profile picture trigger or dropdown menu
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target as Node) &&
+        profilePictureRef.current &&
+        !profilePictureRef.current.contains(event.target as Node)
+      ) {
+        setShowProfileMenu(false);
+      }
+    };
+
+    if (showProfileMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showProfileMenu]);
+
   const handleProfileClick = () => {
     setShowProfileMenu(false);
     navigate("/admin/profile");
@@ -173,7 +202,7 @@ export default function AdminHeader({
               </button>
 
               {/* profile picture */}
-              <div className="">
+              <div className="" ref={profilePictureRef}>
                 <ProfilePicture
                   src={userData?.profilePicture}
                   alt="admin-profile"
@@ -184,7 +213,7 @@ export default function AdminHeader({
 
               {/* profile dropdown */}
               {showProfileMenu && (
-                <div className="absolute font-manrope right-0 top-16 p-2 w-55 bg-white shadow-lg rounded-lg z-50 border border-gray-200">
+                <div ref={profileMenuRef} className="absolute font-manrope right-0 top-16 p-2 w-55 bg-white shadow-lg rounded-lg z-50 border border-gray-200">
                   <div className="px-3 py-2 border-b flex items-center gap-1 border-gray-100">
                     <p className="text-sm font-medium text-gray-900">
                       {userData?.firstName} {userData?.lastName}
