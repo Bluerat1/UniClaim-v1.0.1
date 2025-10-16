@@ -737,6 +737,31 @@ const Profile = () => {
                   </span>
                 )}
               </div>
+
+              {/* Logout Button */}
+              {!isEdit && (
+                <div className="">
+                  <button
+                    onClick={logout}
+                    className="w-full bg-red-100 text-red-600 hidden lg:flex border-red-600 border font-medium px-4 py-2.5 rounded-sm transition-colors duration-200 items-center justify-center gap-2 mb-3"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                      />
+                    </svg>
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-5">
@@ -774,31 +799,6 @@ const Profile = () => {
                 )}
               </div>
 
-              {/* Logout Button */}
-              {!isEdit && (
-                <div className="">
-                  <button
-                    onClick={logout}
-                    className="w-full bg-navyblue hover:bg-blue-900 text-white font-medium px-4 py-2.5 rounded-md transition-colors duration-200 flex items-center justify-center gap-2 mb-3"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                      />
-                    </svg>
-                    Logout
-                  </button>
-                </div>
-              )}
-
               {/* Delete Account Button */}
               {!isEdit && (
                 <div className="">
@@ -821,6 +821,31 @@ const Profile = () => {
                       />
                     </svg>
                     {isDeleting ? "Deleting Account..." : "Delete Account"}
+                  </button>
+                </div>
+              )}
+
+              {/* Logout Button */}
+              {!isEdit && (
+                <div className="">
+                  <button
+                    onClick={logout}
+                    className="w-full bg-red-100 text-red-600 lg:hidden border-red-600 border font-medium px-4 py-2.5 rounded-sm transition-colors duration-200 flex items-center justify-center gap-2 mb-3"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                      />
+                    </svg>
+                    Logout
                   </button>
                 </div>
               )}
@@ -855,8 +880,8 @@ const Profile = () => {
 
               <div className="mb-6">
                 <p className="text-black mb-4">
-                  This action cannot be undone. This will permanently delete your
-                  account and remove all data from our servers, including:
+                  This action cannot be undone. This will permanently delete
+                  your account and remove all data from our servers, including:
                 </p>
                 <ul className="text-sm text-zinc-600 space-y-1 mb-4">
                   <li>• Your profile and personal information</li>
@@ -866,7 +891,9 @@ const Profile = () => {
                 </ul>
                 <p className="text-red-600 font-medium">
                   Type{" "}
-                  <span className="font-mono bg-red-50 px-1 rounded">DELETE</span>{" "}
+                  <span className="font-mono bg-red-50 px-1 rounded">
+                    DELETE
+                  </span>{" "}
                   to confirm:
                 </p>
               </div>
