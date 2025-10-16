@@ -825,8 +825,8 @@ export const postService = {
         }
     },
 
-    // Update turnover confirmation status
-    async updateTurnoverStatus(postId: string, status: 'confirmed' | 'not_received', confirmedBy: string, notes?: string): Promise<void> {
+    // Update OSA turnover confirmation status (admin only)
+    async updateOSATurnoverStatus(postId: string, status: 'confirmed' | 'not_received', confirmedBy: string, notes?: string): Promise<void> {
         try {
             const updateData: any = {
                 'turnoverDetails.turnoverStatus': status,
