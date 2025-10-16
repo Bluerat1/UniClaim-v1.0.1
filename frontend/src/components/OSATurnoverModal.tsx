@@ -1,4 +1,4 @@
-import { FiX, FiUsers } from "react-icons/fi";
+import { FiUsers } from "react-icons/fi";
 
 interface OSATurnoverModalProps {
   isOpen: boolean;

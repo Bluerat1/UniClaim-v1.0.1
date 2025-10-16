@@ -1,4 +1,4 @@
-import { FiX, FiShield } from "react-icons/fi";
+import { FiShield } from "react-icons/fi";
 
 interface CampusSecurityTurnoverModalProps {
   isOpen: boolean;
