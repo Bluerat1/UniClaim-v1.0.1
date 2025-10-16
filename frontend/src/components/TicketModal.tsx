@@ -616,14 +616,16 @@ const TicketModal = ({
                               : "Turned over to Campus Security"}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-orange-800">Decision Date:</span>
-                          <span className="text-sm text-orange-700">
-                            {post.turnoverDetails.turnoverDecisionAt
-                              ? new Date(post.turnoverDetails.turnoverDecisionAt).toLocaleDateString()
-                              : "Not specified"}
-                          </span>
-                        </div>
+                        {post.turnoverDetails.turnoverAction !== "turnover to Campus Security" && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-orange-800">Decision Date:</span>
+                            <span className="text-sm text-orange-700">
+                              {post.turnoverDetails.turnoverDecisionAt
+                                ? new Date(post.turnoverDetails.turnoverDecisionAt).toLocaleDateString()
+                                : "Not specified"}
+                            </span>
+                          </div>
+                        )}
                         {post.turnoverDetails.turnoverReason && (
                           <div className="mt-2">
                             <span className="text-sm font-medium text-orange-800 block">Reason:</span>

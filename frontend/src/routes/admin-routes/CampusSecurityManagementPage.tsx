@@ -6,6 +6,7 @@ import AdminPostCard from "@/components/AdminPostCard";
 import AdminPostModal from "@/components/AdminPostModal";
 import AdminCampusSecurityTurnoverModal from "@/components/AdminCampusSecurityTurnoverModal";
 import MobileNavText from "@/components/NavHeadComp";
+import SearchBar from "@/components/SearchBar";
 import { useAdminPosts } from "@/hooks/usePosts";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
@@ -15,18 +16,41 @@ export default function CampusSecurityManagementPage() {
   const { showToast } = useToast();
   const { userData } = useAuth();
 
-  // Filter posts for campus security management
+  // State for search functionality
+  const [query, setQuery] = useState("");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("All");
+  const [description, setDescription] = useState("");
+  const [location, setLocation] = useState("");
+
+  // Filter posts for campus security management with search functionality
   const campusSecurityPosts = useMemo(() => {
     return posts.filter((post) => {
-      // Show ALL found items turned over to Campus Security (not just awaiting confirmation)
-      // This includes all turnover statuses: declared, confirmed, not_received, transferred
-      return (
+      // Base filter for campus security management
+      const isCampusSecurityPost = (
         post.type === "found" &&
         post.turnoverDetails &&
         post.turnoverDetails.turnoverAction === "turnover to Campus Security"
       );
+
+      if (!isCampusSecurityPost) return false;
+
+      // Search filter logic
+      const matchesQuery = query.trim() === "" || 
+        post.title.toLowerCase().includes(query.toLowerCase()) ||
+        post.description.toLowerCase().includes(query.toLowerCase());
+
+      const matchesCategory = selectedCategoryFilter === "All" || 
+        post.category === selectedCategoryFilter;
+
+      const matchesDescription = description.trim() === "" || 
+        post.description.toLowerCase().includes(description.toLowerCase());
+
+      const matchesLocation = location.trim() === "" || 
+        post.location?.toLowerCase().includes(location.toLowerCase());
+
+      return matchesQuery && matchesCategory && matchesDescription && matchesLocation;
     });
-  }, [posts]);
+  }, [posts, query, selectedCategoryFilter, description, location]);
 
   // State for AdminPostModal
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -46,6 +70,22 @@ export default function CampusSecurityManagementPage() {
   // Handle closing AdminPostModal
   const handleCloseModal = () => {
     setSelectedPost(null);
+  };
+
+  // Handle search functionality
+  const handleSearch = (searchQuery: string, filters: any) => {
+    setQuery(searchQuery);
+    setSelectedCategoryFilter(filters.selectedCategory || "All");
+    setDescription(filters.description || "");
+    setLocation(filters.location || "");
+  };
+
+  // Handle clear search
+  const handleClear = () => {
+    setQuery("");
+    setSelectedCategoryFilter("All");
+    setDescription("");
+    setLocation("");
   };
 
   // Handle campus security collection confirmation
@@ -146,6 +186,16 @@ export default function CampusSecurityManagementPage() {
             Security, including collection confirmations and status updates
           </p>
         </div>
+
+        {/* Search Bar */}
+        <SearchBar
+          onSearch={handleSearch}
+          onClear={handleClear}
+          query={query}
+          setQuery={setQuery}
+          selectedCategoryFilter={selectedCategoryFilter}
+          setSelectedCategoryFilter={setSelectedCategoryFilter}
+        />
       </div>
 
       {/* Posts Grid */}

@@ -178,14 +178,6 @@ const ClaimDetailsDisplay: React.FC<ClaimDetailsDisplayProps> = ({
                   </p>
                 </div>
 
-                {/* Claim Reason */}
-                {claimDetails.claimRequestDetails.claimReason && (
-                  <div className="bg-gray-50 p-2 rounded">
-                    <p className="font-medium text-gray-700 mb-1">Claim Reason:</p>
-                    <p className="text-gray-600">{claimDetails.claimRequestDetails.claimReason}</p>
-                  </div>
-                )}
-
                 {/* Claim Timeline - HIDDEN PER USER REQUEST */}
                 {/* <div className="bg-gray-50 p-2 rounded">
                   <p className="font-medium text-gray-700 mb-1">Claim Timeline:</p>

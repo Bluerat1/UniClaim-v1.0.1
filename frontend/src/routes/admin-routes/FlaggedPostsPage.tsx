@@ -1,18 +1,25 @@
-import { useState, useEffect } from "react";
-import { postService } from "../../services/firebase/posts";
+import { useState, useMemo } from "react";
+import { useAdminPosts } from "../../hooks/usePosts";
 import { useToast } from "../../context/ToastContext";
+import { postService } from "../../services/firebase/posts";
 import type { Post } from "../../types/Post";
 import PageWrapper from "../../components/PageWrapper";
 import NavHeader from "../../components/NavHeadComp";
 import AdminPostCard from "../../components/AdminPostCard";
 import AdminPostModal from "../../components/AdminPostModal";
+import SearchBar from "../../components/SearchBar";
 
 export default function FlaggedPostsPage() {
-  const [flaggedPosts, setFlaggedPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const { posts = [] } = useAdminPosts();
   const { showToast } = useToast();
+
+  console.log("FlaggedPostsPage component rendering with posts:", posts.length);
+
+  // Debug logging to see what's happening
+  console.log("FlaggedPostsPage - Total posts:", posts.length);
+  console.log("FlaggedPostsPage - Flagged posts:", posts.filter(p => p.isFlagged === true).length);
+  console.log("FlaggedPostsPage - Posts with isFlagged property:", posts.filter(p => 'isFlagged' in p).length);
+  console.log("FlaggedPostsPage - Sample posts:", posts.slice(0, 3).map(p => ({ id: p.id, isFlagged: p.isFlagged })));
 
   // Confirmation modal states
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -33,23 +40,68 @@ export default function FlaggedPostsPage() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [showPostModal, setShowPostModal] = useState(false);
 
-  // Load flagged posts on component mount
-  useEffect(() => {
-    loadFlaggedPosts();
-  }, []);
+  // State for loading actions
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const loadFlaggedPosts = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const posts = await postService.getFlaggedPosts();
-      setFlaggedPosts(posts);
-    } catch (err: any) {
-      setError(err.message || "Failed to load flagged posts");
-      showToast("error", "Error", "Failed to load flagged posts");
-    } finally {
-      setLoading(false);
-    }
+  // State for search functionality
+  const [query, setQuery] = useState("");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("All");
+  const [description, setDescription] = useState("");
+  const [location, setLocation] = useState("");
+
+  // Filter posts to show only flagged ones
+  const flaggedPosts = useMemo(() => {
+    const flagged = posts.filter((post: Post) => post.isFlagged === true);
+    const stringTrue = posts.filter((post: Post) => typeof post.isFlagged === 'string' && post.isFlagged === "true").length;
+    const booleanTrue = posts.filter((post: Post) => post.isFlagged === true).length;
+    const booleanFalse = posts.filter((post: Post) => post.isFlagged === false).length;
+    const undefinedFlagged = posts.filter((post: Post) => post.isFlagged === undefined).length;
+
+    console.log("FlaggedPostsPage - flaggedPosts computed:", flagged.length, "from", posts.length, "posts");
+    console.log("FlaggedPostsPage - isFlagged analysis:");
+    console.log("  - String 'true':", stringTrue);
+    console.log("  - Boolean true:", booleanTrue);
+    console.log("  - Boolean false:", booleanFalse);
+    console.log("  - Undefined:", undefinedFlagged);
+    console.log("  - Total with isFlagged property:", posts.filter(p => 'isFlagged' in p).length);
+
+    return flagged;
+  }, [posts]);
+
+  // Filtered flagged posts based on search criteria
+  const filteredFlaggedPosts = useMemo(() => {
+    return flaggedPosts.filter((post) => {
+      const matchesQuery = query.trim() === "" || 
+        post.title.toLowerCase().includes(query.toLowerCase()) ||
+        post.description.toLowerCase().includes(query.toLowerCase());
+
+      const matchesCategory = selectedCategoryFilter === "All" || 
+        post.category === selectedCategoryFilter;
+
+      const matchesDescription = description.trim() === "" || 
+        post.description.toLowerCase().includes(description.toLowerCase());
+
+      const matchesLocation = location.trim() === "" || 
+        post.location?.toLowerCase().includes(location.toLowerCase());
+
+      return matchesQuery && matchesCategory && matchesDescription && matchesLocation;
+    });
+  }, [flaggedPosts, query, selectedCategoryFilter, description, location]);
+
+  // Handle search functionality
+  const handleSearch = (searchQuery: string, filters: any) => {
+    setQuery(searchQuery);
+    setSelectedCategoryFilter(filters.selectedCategory || "All");
+    setDescription(filters.description || "");
+    setLocation(filters.location || "");
+  };
+
+  // Handle clear search
+  const handleClear = () => {
+    setQuery("");
+    setSelectedCategoryFilter("All");
+    setDescription("");
+    setLocation("");
   };
 
   const handleActionClick = (
@@ -70,8 +122,6 @@ export default function FlaggedPostsPage() {
       switch (type) {
         case "approve":
           await postService.unflagPost(postId);
-          // Remove the post from flagged posts list since it's no longer flagged
-          setFlaggedPosts((prev) => prev.filter((p) => p.id !== postId));
           showToast(
             "success",
             "Success",
@@ -80,10 +130,6 @@ export default function FlaggedPostsPage() {
           break;
         case "hide":
           await postService.hidePost(postId);
-          // Update the post's isHidden status instead of removing it
-          setFlaggedPosts((prev) =>
-            prev.map((p) => (p.id === postId ? { ...p, isHidden: true } : p))
-          );
           showToast(
             "success",
             "Success",
@@ -92,10 +138,6 @@ export default function FlaggedPostsPage() {
           break;
         case "unhide":
           await postService.unhidePost(postId);
-          // Update the post's isHidden status
-          setFlaggedPosts((prev) =>
-            prev.map((p) => (p.id === postId ? { ...p, isHidden: false } : p))
-          );
           showToast(
             "success",
             "Success",
@@ -104,8 +146,6 @@ export default function FlaggedPostsPage() {
           break;
         case "delete":
           await postService.deletePost(postId, true); // Hard delete instead of soft delete
-          // Only remove from list if the post is actually deleted
-          setFlaggedPosts((prev) => prev.filter((p) => p.id !== postId));
           showToast(
             "success",
             "Success",
@@ -141,10 +181,10 @@ export default function FlaggedPostsPage() {
 
   // Bulk action handlers
   const handleSelectAll = () => {
-    if (selectedPosts.size === flaggedPosts.length) {
+    if (selectedPosts.size === filteredFlaggedPosts.length) {
       setSelectedPosts(new Set());
     } else {
-      setSelectedPosts(new Set(flaggedPosts.map((post) => post.id)));
+      setSelectedPosts(new Set(filteredFlaggedPosts.map((post) => post.id)));
     }
   };
 
@@ -193,23 +233,17 @@ export default function FlaggedPostsPage() {
         }
       }
 
-      // Update the posts list
-      setFlaggedPosts((prev) =>
-        prev.filter((post) => !selectedPosts.has(post.id))
-      );
-      setSelectedPosts(new Set());
-
       if (errorCount === 0) {
         showToast(
           "success",
           "Success",
-          `Successfully permanently deleted ${successCount} posts`
+          `Successfully processed ${successCount} posts`
         );
       } else {
         showToast(
           "warning",
           "Warning",
-          `Permanently deleted ${successCount} posts successfully, ${errorCount} failed`
+          `Processed ${successCount} posts successfully, ${errorCount} failed`
         );
       }
     } catch (err: any) {
@@ -225,37 +259,6 @@ export default function FlaggedPostsPage() {
     setShowBulkConfirmModal(false);
     setBulkAction(null);
   };
-
-  if (loading) {
-    return (
-      <PageWrapper title="Flagged Posts">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading flagged posts...</p>
-          </div>
-        </div>
-      </PageWrapper>
-    );
-  }
-
-  if (error) {
-    return (
-      <PageWrapper title="Flagged Posts">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <p className="text-red-600 mb-4">{error}</p>
-            <button
-              onClick={loadFlaggedPosts}
-              className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-teal-600"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      </PageWrapper>
-    );
-  }
 
   return (
     <PageWrapper title="Flagged Posts">
@@ -283,10 +286,22 @@ export default function FlaggedPostsPage() {
           description="Review and manage posts that have been flagged by users"
         />
 
+        {/* Search Bar */}
+        <div className="px-4 sm:px-6 lg:px-8">
+          <SearchBar
+            onSearch={handleSearch}
+            onClear={handleClear}
+            query={query}
+            setQuery={setQuery}
+            selectedCategoryFilter={selectedCategoryFilter}
+            setSelectedCategoryFilter={setSelectedCategoryFilter}
+          />
+        </div>
+
         {/* Content */}
         <div className="px-4 sm:px-6 lg:px-8">
           {/* Bulk Actions Bar */}
-          {flaggedPosts.length > 0 && (
+          {filteredFlaggedPosts.length > 0 && (
             <div className="bg-white border border-gray-200 rounded-lg p-3 mb-6 mt-5">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-4">
@@ -294,15 +309,15 @@ export default function FlaggedPostsPage() {
                     <input
                       type="checkbox"
                       checked={
-                        selectedPosts.size === flaggedPosts.length &&
-                        flaggedPosts.length > 0
+                        selectedPosts.size === filteredFlaggedPosts.length &&
+                        filteredFlaggedPosts.length > 0
                       }
                       onChange={handleSelectAll}
                       className="w-5 h-5 text-brand border-gray-300 rounded focus:ring-brand"
                     />
                     <div>
                       <span className="text-sm font-semibold text-gray-900">
-                        Select All ({selectedPosts.size}/{flaggedPosts.length})
+                        Select All ({selectedPosts.size}/{filteredFlaggedPosts.length})
                       </span>
                       {selectedPosts.size > 0 && (
                         <p className="text-xs text-gray-500 mt-1">
@@ -351,7 +366,7 @@ export default function FlaggedPostsPage() {
             </div>
           )}
 
-          {flaggedPosts.length === 0 ? (
+          {filteredFlaggedPosts.length === 0 ? (
             <div className="text-center py-16">
               <div className="bg-gray-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
                 <span className="text-4xl">🚩</span>
@@ -365,7 +380,7 @@ export default function FlaggedPostsPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {flaggedPosts.map((post) => (
+              {filteredFlaggedPosts.map((post) => (
                 <AdminPostCard
                   key={post.id}
                   post={post}
@@ -611,13 +626,11 @@ export default function FlaggedPostsPage() {
             setShowPostModal(false);
             setSelectedPost(null);
           }}
-          onPostUpdate={(updatedPost) => {
-            setFlaggedPosts((prev) =>
-              prev.map((p) => (p.id === updatedPost.id ? updatedPost : p))
-            );
+          onPostUpdate={(_updatedPost) => {
+            // No need to manually update flaggedPosts since it's computed from posts
+            // The useAdminPosts hook will handle updates automatically
           }}
           onConfirmTurnover={(_post, status) => {
-            // Handle turnover confirmation - this would update the post status
             showToast(
               "success",
               "Turnover Confirmed",
@@ -625,10 +638,8 @@ export default function FlaggedPostsPage() {
                 status === "confirmed" ? "confirmed" : "marked as not received"
               }`
             );
-            // You might want to refresh the post data or update the post status here
           }}
           onConfirmCampusSecurityCollection={(_post, status) => {
-            // Handle campus security collection confirmation
             showToast(
               "success",
               "Collection Confirmed",
@@ -636,7 +647,6 @@ export default function FlaggedPostsPage() {
                 status === "collected" ? "collected" : "marked as not available"
               }`
             );
-            // You might want to refresh the post data or update the post status here
           }}
           onApprove={() => handleActionClick("approve", selectedPost)}
           onHide={() => handleActionClick("hide", selectedPost)}

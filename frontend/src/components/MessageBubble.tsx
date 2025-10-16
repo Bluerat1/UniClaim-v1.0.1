@@ -253,10 +253,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       onConfirmIdPhotoSuccess?.(message.id);
 
       // Show success toast
-      showToast('success', 'ID Photo Confirmed', 'ID photo has been confirmed successfully!');
+      showToast('success', 'Handover Confirmed', 'Handover has been successfully processed and confirmed!');
     } catch (error) {
       console.error("Error confirming ID photo:", error);
-      showToast('error', "Failed to confirm ID photo. Please try again.");
+      showToast('error', "Failed to confirm handover. Please try again.");
     }
   };
 
@@ -379,7 +379,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       onConfirmIdPhotoSuccess?.(message.id);
 
       // Show success toast
-      showToast('success', 'ID Photo Confirmed', 'ID photo has been confirmed successfully!');
+      showToast('success', 'Claim Confirmed', 'Claim has been successfully processed and confirmed!');
     } catch (error) {
       console.error("Error confirming claim ID photo:", error);
       showToast('error', "Failed to confirm claim ID photo. Please try again.");

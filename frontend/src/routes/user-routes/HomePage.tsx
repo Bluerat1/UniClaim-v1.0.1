@@ -86,6 +86,79 @@ export default function HomePage() {
     [user, postToFlag, showToast]
   );
 
+  // Turnover confirmation handler
+  const handleConfirmTurnover = useCallback(
+    async (post: Post, status: "confirmed" | "not_received", notes?: string) => {
+      try {
+        const { postService } = await import("../../services/firebase/posts");
+        // Get current user ID from auth context
+        const currentUserId = user?.uid;
+
+        if (!currentUserId) {
+          throw new Error("User ID not found. Please log in again.");
+        }
+
+        console.log(
+          `🔑 Using user ID for turnover confirmation: ${currentUserId}`
+        );
+
+        if (status === "not_received") {
+          // For regular users, mark as not received (this should probably notify admin)
+          await postService.updateTurnoverStatus(
+            post.id,
+            status,
+            currentUserId,
+            notes
+          );
+
+          const statusMessage = `Item "${post.title}" has been marked as not received by user.`;
+          showToast("success", "Turnover Status Updated", statusMessage);
+          console.log(
+            "Turnover status updated by user:",
+            post.title,
+            "Status:",
+            status
+          );
+        } else {
+          // Normal status update for confirmed items
+          await postService.updateTurnoverStatus(
+            post.id,
+            status,
+            currentUserId,
+            notes
+          );
+
+          const statusMessage = `Item receipt confirmed for "${post.title}"`;
+          showToast("success", "Turnover Status Updated", statusMessage);
+          console.log(
+            "Turnover status updated successfully:",
+            post.title,
+            "Status:",
+            status
+          );
+        }
+
+        // Refresh the posts list to ensure selectedPost has updated data
+        // This is a simple way to trigger a refresh of the posts data
+        try {
+          // Force a refresh by calling the usePosts hook's internal refresh mechanism
+          // For now, we'll just log that we need to refresh
+          console.log("🔄 Post status updated, posts list should refresh automatically via real-time updates");
+        } catch (refreshError) {
+          console.warn("Post refresh mechanism not available:", refreshError);
+        }
+      } catch (error: any) {
+        console.error("Failed to process turnover confirmation:", error);
+        const errorMessage =
+          status === "not_received"
+            ? "Failed to mark item as not received"
+            : "Failed to update turnover status";
+        showToast("error", "Operation Failed", error.message || errorMessage);
+      }
+    },
+    [user, showToast]
+  );
+
   // ✅ New state for instant category filtering
   const [selectedCategoryFilter, setSelectedCategoryFilter] =
     useState<string>("All");
@@ -96,6 +169,17 @@ export default function HomePage() {
   const [currentPage, setCurrentPage] = useState(1);
   // e change dari pila ka post mu appear pag scroll down
   const itemsPerPage = 6; // Increased from 2 to 6 for better scroll experience
+
+  // Update selectedPost when posts list is refreshed with real-time updates
+  useEffect(() => {
+    if (selectedPost && posts.length > 0) {
+      const updatedPost = posts.find(p => p.id === selectedPost.id);
+      if (updatedPost && JSON.stringify(updatedPost) !== JSON.stringify(selectedPost)) {
+        console.log("🔄 Updating selectedPost with fresh data from posts list");
+        setSelectedPost(updatedPost);
+      }
+    }
+  }, [posts, selectedPost]);
 
   const handleSearch = async (query: string, filters: any) => {
     setLastDescriptionKeyword(filters.description || "");
@@ -155,7 +239,8 @@ export default function HomePage() {
         post.turnoverDetails.turnoverStatus === "declared" &&
         post.turnoverDetails.turnoverAction === "turnover to OSA"
       ) {
-        return false;
+        // Show these posts to regular users for confirmation
+        return true;
       }
 
       return true;
@@ -345,6 +430,7 @@ export default function HomePage() {
                 highlightText={lastDescriptionKeyword}
                 adminStatuses={adminStatuses}
                 onFlag={handleFlagPost}
+                onConfirmTurnover={handleConfirmTurnover}
               />
             ))
         )}
@@ -383,6 +469,7 @@ export default function HomePage() {
           post={selectedPost}
           onClose={() => setSelectedPost(null)}
           hideSendMessage={viewType === "completed"}
+          onConfirmTurnover={handleConfirmTurnover}
         />
       )}
     </div>

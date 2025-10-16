@@ -4,7 +4,6 @@ import type { Post } from "@/types/Post";
 import { useNavigate } from "react-router-dom";
 import ProfilePicture from "./ProfilePicture";
 import HandoverDetailsDisplay from "./HandoverDetailsDisplay";
-import ClaimDetailsDisplay from "./ClaimDetailsDisplay";
 import { postService } from "@/services/firebase/posts";
 import { useToast } from "@/context/ToastContext";
 
@@ -496,12 +495,36 @@ export default function AdminPostModal({
           </div>
         </div>
 
-        {post.status === "resolved" && post.claimDetails && (
-          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-md">
-            <h3 className="font-semibold text-green-800 mb-2">Claim Details</h3>
-            <ClaimDetailsDisplay claimDetails={post.claimDetails} />
-          </div>
-        )}
+        {/* CS to OSA Conversion Info Box */}
+        {post.turnoverDetails &&
+          post.turnoverDetails.turnoverAction === "turnover to OSA" &&
+          (post.turnoverDetails.turnoverStatus === "transferred" ||
+           post.turnoverDetails.turnoverStatus === "confirmed") && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <h3 className="font-semibold text-blue-800">
+                  🔄 Item Holder Transfer
+                </h3>
+              </div>
+              <div className="text-sm text-blue-700 space-y-1">
+                <p>
+                  <strong>Status:</strong> Item has been transferred from Campus Security to OSA (Admin)
+                </p>
+                <p>
+                  <strong>Transfer Date:</strong>{" "}
+                  {post.turnoverDetails.turnoverDecisionAt
+                    ? formatDateTime(post.turnoverDetails.turnoverDecisionAt)
+                    : "N/A"}
+                </p>
+                {post.turnoverDetails.turnoverReason && (
+                  <p>
+                    <strong>Reason:</strong> {post.turnoverDetails.turnoverReason}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
         {post.handoverDetails && (
           <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">

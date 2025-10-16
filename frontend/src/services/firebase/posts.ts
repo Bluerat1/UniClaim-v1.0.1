@@ -434,7 +434,8 @@ export const postService = {
                 if (post.turnoverDetails &&
                     post.turnoverDetails.turnoverStatus === "declared" &&
                     post.turnoverDetails.turnoverAction === "turnover to OSA") {
-                    return false;
+                    // Show these posts to regular users for confirmation instead of filtering them out
+                    // return false; // Commented out to allow these posts through for user confirmation
                 }
 
                 // Check if post has expired
@@ -2359,6 +2360,55 @@ export const postService = {
         } catch (error: any) {
             console.error('❌ Failed to cleanup claim details:', error);
             return { photosDeleted: 0, errors: [error.message || 'Failed to cleanup claim details'] };
+        }
+    },
+
+    // Update turnover status for a post (with confirmation notes)
+    async updateTurnoverStatus(
+        postId: string,
+        status: "confirmed" | "not_received" | "transferred" | "declared",
+        confirmedBy: string,
+        notes?: string
+    ): Promise<void> {
+        try {
+            console.log(`🔄 Updating turnover status for post ${postId} to ${status}`);
+
+            const postRef = doc(db, 'posts', postId);
+            const postDoc = await getDoc(postRef);
+
+            if (!postDoc.exists()) {
+                throw new Error('Post not found');
+            }
+
+            const postData = postDoc.data() as Post;
+
+            // Prepare update data
+            const updateData: any = {
+                'turnoverDetails.turnoverStatus': status,
+                'turnoverDetails.confirmedBy': confirmedBy,
+                'turnoverDetails.confirmedAt': serverTimestamp(),
+                updatedAt: serverTimestamp()
+            };
+
+            // Add confirmation notes if provided
+            if (notes && notes.trim()) {
+                updateData['turnoverDetails.confirmationNotes'] = notes.trim();
+                console.log(`📝 Storing confirmation notes: ${notes.trim()}`);
+            }
+
+            // If status is "confirmed", we might want to set it to "transferred" for OSA items
+            if (status === "confirmed" && postData.turnoverDetails?.turnoverAction === "turnover to OSA") {
+                updateData['turnoverDetails.turnoverStatus'] = "transferred";
+                console.log(`🔄 Auto-updating status to "transferred" for OSA turnover item`);
+            }
+
+            await updateDoc(postRef, updateData);
+
+            console.log(`✅ Turnover status updated successfully for post ${postId}`);
+
+        } catch (error: any) {
+            console.error('❌ Failed to update turnover status:', error);
+            throw new Error(error.message || 'Failed to update turnover status');
         }
     },
 };

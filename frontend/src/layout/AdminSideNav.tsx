@@ -49,6 +49,14 @@ export default function AdminSideNav({
   // Get admin posts to count turnover items
   const { posts = [] } = useAdminPosts();
 
+  console.log("AdminSideNav component rendering with posts:", posts.length);
+
+  // Debug logging to see what's happening
+  console.log("AdminSideNav - Total posts:", posts.length);
+  console.log("AdminSideNav - Flagged posts:", posts.filter(p => p.isFlagged === true).length);
+  console.log("AdminSideNav - Posts with isFlagged property:", posts.filter(p => 'isFlagged' in p).length);
+  console.log("AdminSideNav - Sample posts:", posts.slice(0, 3).map(p => ({ id: p.id, isFlagged: p.isFlagged })));
+
   // Get total unread message count
   const { totalUnreadCount = 0 } = useMessage();
 
@@ -78,7 +86,21 @@ export default function AdminSideNav({
     }).length;
   }, [posts]);
   const flaggedPostsCount = useMemo(() => {
-    return posts.filter((post: Post) => post.isFlagged === true).length;
+    const flagged = posts.filter((post: Post) => post.isFlagged === true);
+    const stringTrue = posts.filter((post: Post) => typeof post.isFlagged === 'string' && post.isFlagged === "true").length;
+    const booleanTrue = posts.filter((post: Post) => post.isFlagged === true).length;
+    const booleanFalse = posts.filter((post: Post) => post.isFlagged === false).length;
+    const undefinedFlagged = posts.filter((post: Post) => post.isFlagged === undefined).length;
+
+    console.log("AdminSideNav - flaggedPostsCount recalculated:", flagged.length, "from", posts.length, "posts");
+    console.log("AdminSideNav - isFlagged analysis:");
+    console.log("  - String 'true':", stringTrue);
+    console.log("  - Boolean true:", booleanTrue);
+    console.log("  - Boolean false:", booleanFalse);
+    console.log("  - Undefined:", undefinedFlagged);
+    console.log("  - Total with isFlagged property:", posts.filter(p => 'isFlagged' in p).length);
+
+    return flagged.length;
   }, [posts]);
 
   // Filter posts for unclaimed posts count

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, memo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Post } from "@/types/Post";
 import ProfilePicture from "./ProfilePicture";
 import PostCardMenu from "./PostCardMenu";
+import TurnoverConfirmationModal from "./TurnoverConfirmationModal";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { usePostCreatorData } from "@/hooks/usePostCreatorData";
 
@@ -11,6 +12,11 @@ interface PostCardProps {
   highlightText: string;
   adminStatuses?: Map<string, boolean>;
   onFlag?: (post: Post) => void;
+  onConfirmTurnover?: (
+    post: Post,
+    status: "confirmed" | "not_received",
+    notes?: string
+  ) => void;
 }
 
 function formatDateTime(datetime: string | Date) {
@@ -49,6 +55,7 @@ function PostCard({
   highlightText,
   adminStatuses,
   onFlag,
+  onConfirmTurnover,
 }: PostCardProps) {
   // Fallback to individual admin status fetch if not provided
   const fallbackAdminStatuses = useAdminStatus(adminStatuses ? [] : [post]);
@@ -56,6 +63,12 @@ function PostCard({
 
   // Get real-time creator data for the current user's posts
   const creatorData = usePostCreatorData(post);
+
+  // State for turnover confirmation modal
+  const [showTurnoverModal, setShowTurnoverModal] = useState(false);
+  const [confirmationType, setConfirmationType] = useState<
+    "confirmed" | "not_received" | null
+  >(null);
 
   const previewUrl = useMemo(() => {
     if (post.images && post.images.length > 0) {
@@ -450,9 +463,80 @@ function PostCard({
               )}
             </div>
           )}
+
+          {/* Turnover Confirmation Buttons - Show only for posts awaiting OSA confirmation */}
+          {post.turnoverDetails &&
+            post.turnoverDetails.turnoverStatus === "declared" &&
+            post.turnoverDetails.turnoverAction === "turnover to OSA" && (
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-blue-600 text-lg">🔄</span>
+                  <h4 className="text-sm font-semibold text-blue-800">
+                    Confirm Item Receipt
+                  </h4>
+                </div>
+                <p className="text-xs text-blue-700 mb-3">
+                  This item has been turned over to OSA. Please confirm if you have received it.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmationType("confirmed");
+                      setShowTurnoverModal(true);
+                    }}
+                    className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
+                  >
+                    ✓ Confirm Received
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmationType("not_received");
+                      setShowTurnoverModal(true);
+                    }}
+                    className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+                  >
+                    ✗ Not Received
+                  </button>
+                </div>
+              </div>
+            )}
+
+          {/* Confirmation Notes Display - Show after item has been confirmed or transferred */}
+          {post.turnoverDetails &&
+            (post.turnoverDetails.turnoverStatus === "confirmed" ||
+             post.turnoverDetails.turnoverStatus === "transferred") &&
+            post.turnoverDetails.confirmationNotes && (
+              <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-green-600 text-sm">📝</span>
+                  <span className="text-xs font-medium text-green-800">
+                    Confirmation Notes
+                  </span>
+                </div>
+                <div className="text-xs text-green-700">
+                  {post.turnoverDetails.confirmationNotes}
+                </div>
+              </div>
+            )}
+
+      {/* Turnover Confirmation Modal */}
+      <TurnoverConfirmationModal
+        isOpen={showTurnoverModal}
+        onClose={() => {
+          setShowTurnoverModal(false);
+          setConfirmationType(null);
+        }}
+        onConfirm={(status, notes) => {
+          onConfirmTurnover?.(post, status, notes);
+        }}
+        post={post}
+        confirmationType={confirmationType}
+      />
       </div>
     </div>
   );
 }
 
-export default memo(PostCard); // ✅ React.memo to prevent re-render unless props change
+export default PostCard;

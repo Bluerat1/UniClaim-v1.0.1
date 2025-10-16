@@ -6,6 +6,7 @@ import AdminPostCard from "@/components/AdminPostCard";
 import AdminPostModal from "@/components/AdminPostModal";
 import TurnoverConfirmationModal from "@/components/TurnoverConfirmationModal";
 import MobileNavText from "@/components/NavHeadComp";
+import SearchBar from "@/components/SearchBar";
 
 // hooks
 import { useAdminPosts } from "@/hooks/usePosts";
@@ -28,6 +29,12 @@ export default function TurnoverManagementPage() {
     "confirmed" | "not_received" | null
   >(null);
 
+  // State for search functionality
+  const [query, setQuery] = useState("");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("All");
+  const [description, setDescription] = useState("");
+  const [location, setLocation] = useState("");
+
   // Handle opening admin post modal
   const handleOpenAdminPostModal = (post: Post) => {
     setSelectedPost(post);
@@ -38,6 +45,22 @@ export default function TurnoverManagementPage() {
   const handleCloseAdminPostModal = () => {
     setShowAdminPostModal(false);
     setSelectedPost(null);
+  };
+
+  // Handle search functionality
+  const handleSearch = (searchQuery: string, filters: any) => {
+    setQuery(searchQuery);
+    setSelectedCategoryFilter(filters.selectedCategory || "All");
+    setDescription(filters.description || "");
+    setLocation(filters.location || "");
+  };
+
+  // Handle clear search
+  const handleClear = () => {
+    setQuery("");
+    setSelectedCategoryFilter("All");
+    setDescription("");
+    setLocation("");
   };
 
   // Handle turnover confirmation
@@ -112,18 +135,36 @@ export default function TurnoverManagementPage() {
     }
   };
 
-  // Filter posts for turnover management (same logic as AdminHomePage)
+  // Filter posts for turnover management with search functionality
   const turnoverPosts = useMemo(() => {
     return posts.filter((post) => {
-      // Show only Found items marked for turnover to OSA that need confirmation
-      return (
+      // Base filter for turnover management
+      const isTurnoverPost = (
         post.type === "found" &&
         post.turnoverDetails &&
         post.turnoverDetails.turnoverAction === "turnover to OSA" &&
         post.turnoverDetails.turnoverStatus === "declared"
       );
+
+      if (!isTurnoverPost) return false;
+
+      // Search filter logic
+      const matchesQuery = query.trim() === "" || 
+        post.title.toLowerCase().includes(query.toLowerCase()) ||
+        post.description.toLowerCase().includes(query.toLowerCase());
+
+      const matchesCategory = selectedCategoryFilter === "All" || 
+        post.category === selectedCategoryFilter;
+
+      const matchesDescription = description.trim() === "" || 
+        post.description.toLowerCase().includes(description.toLowerCase());
+
+      const matchesLocation = location.trim() === "" || 
+        post.location?.toLowerCase().includes(location.toLowerCase());
+
+      return matchesQuery && matchesCategory && matchesDescription && matchesLocation;
     });
-  }, [posts]);
+  }, [posts, query, selectedCategoryFilter, description, location]);
   return (
     <div className="min-h-screen bg-gray-100 mb-13 font-manrope transition-colors duration-300">
       <MobileNavText
@@ -142,6 +183,16 @@ export default function TurnoverManagementPage() {
             Student Affairs)
           </p>
         </div>
+
+        {/* Search Bar */}
+        <SearchBar
+          onSearch={handleSearch}
+          onClear={handleClear}
+          query={query}
+          setQuery={setQuery}
+          selectedCategoryFilter={selectedCategoryFilter}
+          setSelectedCategoryFilter={setSelectedCategoryFilter}
+        />
       </div>
 
       {/* Posts Grid */}
