@@ -42,7 +42,8 @@ export default function OSATurnoverModal({
         {/* Question */}
         <div className="mb-6">
           <p className="text-gray-600 text-center text-base leading-relaxed">
-            Did you turn over the item to the Office of Student Affairs (OSA)?
+            Did you turn over the item to the Office of Student Affairs (OSA)
+            before creating a post or report?
           </p>
         </div>
 
@@ -50,15 +51,15 @@ export default function OSATurnoverModal({
         <div className="flex gap-2">
           <button
             onClick={handleNo}
-            className="flex-1 px-4 py-3 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-300 transition-colors font-medium"
+            className="flex-1 px-4 py-3 text-sm md:text-base text-gray-700 bg-gray-100 rounded-md hover:bg-gray-300 transition-colors font-medium"
           >
-            No
+            No, not yet
           </button>
           <button
             onClick={handleYes}
-            className="flex-1 px-4 py-3 text-white bg-navyblue rounded-md hover:bg-blue-900 transition-colors font-medium"
+            className="flex-1 px-4 py-3 text-sm md:text-base text-white bg-navyblue rounded-md hover:bg-dark-navyblue transition-colors font-medium"
           >
-            Yes
+            Yes, I turned it over
           </button>
         </div>
       </div>
