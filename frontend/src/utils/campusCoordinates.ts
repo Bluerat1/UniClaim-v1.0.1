@@ -251,7 +251,7 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
         bufferRadius: 25
     },
     {
-        name: "14",
+        name: "Finance and Accounting Building",
         coordinates: [
             [124.65646, 8.48627], // TOP-LEFT corner
             [124.65685, 8.48642], // TOP-RIGHT corner
@@ -278,7 +278,7 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
         bufferRadius: 25
     },
     {
-        name: "53",
+        name: "residences",
         coordinates: [
             [124.65723, 8.48556], // TOP-LEFT corner
             [124.65756, 8.48559], // TOP-RIGHT corner
@@ -289,7 +289,7 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
         bufferRadius: 15
     },
     {
-        name: "54",
+        name: "FIC Extension",
         coordinates: [
             [124.65763, 8.48559], // TOP-LEFT corner
             [124.65795, 8.48562], // TOP-RIGHT corner
