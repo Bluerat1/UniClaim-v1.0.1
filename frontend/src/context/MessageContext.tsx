@@ -222,17 +222,17 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
     setLoading(true);
 
     try {
+      // Create a temporary listener to get fresh data
       const unsubscribe = messageService.getUserConversations(userId, (loadedConversations) => {
         setConversations(loadedConversations);
         setLoading(false);
+        // Unsubscribe immediately after getting the data to avoid duplicate listeners
+        unsubscribe();
       }, (error) => {
         console.error('refreshConversations: Error loading conversations:', error);
         setLoading(false);
-      });
-
-      setTimeout(() => {
         unsubscribe();
-      }, 1000);
+      });
 
     } catch (error: any) {
       console.error('refreshConversations: Failed to refresh conversations:', error);

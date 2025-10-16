@@ -456,29 +456,44 @@ export default function Chat() {
     };
   }, []);
 
-  // Keyboard handling
+  // Real-time conversation existence monitor - close chat if conversation is deleted by another user/process
   useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-      (e) => {
-        setKeyboardHeight(e.endCoordinates.height);
-        setIsKeyboardVisible(true);
-      }
-    );
+    if (!conversationId) return;
 
-    const keyboardDidHideListener = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
-      () => {
-        setKeyboardHeight(0);
-        setIsKeyboardVisible(false);
+    console.log(`👀 Mobile Chat: Setting up real-time listener for conversation ${conversationId}`);
+
+    let unsubscribe: (() => void) | undefined;
+
+    const setupListener = async () => {
+      try {
+        const { doc, onSnapshot } = await import("firebase/firestore");
+        const { db } = await import("@/utils/firebase/config");
+
+        const conversationRef = doc(db, 'conversations', conversationId);
+        unsubscribe = onSnapshot(conversationRef, (docSnapshot: any) => {
+          if (!docSnapshot.exists()) {
+            console.log(`🚪 Mobile Chat: Conversation ${conversationId} was deleted - closing chat window`);
+            navigation.goBack();
+            return;
+          }
+        }, (error: any) => {
+          console.error(`❌ Mobile Chat: Error listening to conversation ${conversationId}:`, error);
+          // Don't navigate back on listener errors - could be temporary network issues
+        });
+      } catch (error) {
+        console.error(`❌ Mobile Chat: Failed to setup conversation listener for ${conversationId}:`, error);
       }
-    );
+    };
+
+    setupListener();
 
     return () => {
-      keyboardDidShowListener.remove();
-      keyboardDidHideListener.remove();
+      if (unsubscribe) {
+        console.log(`🔌 Mobile Chat: Cleaning up conversation listener for ${conversationId}`);
+        unsubscribe();
+      }
     };
-  }, []);
+  }, [conversationId, navigation]);
   const scrollToBottom = () => {
     if (flatListRef.current && messages.length > 0) {
       flatListRef.current.scrollToEnd({ animated: true });

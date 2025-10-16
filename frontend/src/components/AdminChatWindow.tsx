@@ -5,6 +5,7 @@ import MessageBubble from "./MessageBubble";
 import { useAuth } from "../context/AuthContext";
 import ProfilePicture from "./ProfilePicture";
 import { useToast } from "../context/ToastContext";
+import { useNavigate } from "react-router-dom";
 import NoChat from "../assets/no_chat.png";
 import { db } from "../utils/firebase";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
@@ -31,6 +32,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
   const { showToast } = useToast() as {
     showToast: (message: string, type: ToastType) => void;
   };
+  const navigate = useNavigate();
 
   // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = (behavior: "auto" | "smooth" = "auto") => {
@@ -71,13 +73,43 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
     return () => observer.disconnect();
   }, [messages.length]);
 
-  // Always scroll to bottom when messages change or conversation loads
-  useLayoutEffect(() => {
-    if (messages.length > 0) {
-      // Scroll immediately without delay for better UX
-      scrollToBottom("auto");
-    }
-  }, [messages, conversation]);
+  // Real-time conversation existence monitor - close chat if conversation is deleted by another user/process
+  useEffect(() => {
+    if (!conversation?.id) return;
+
+    console.log(`👀 AdminChatWindow: Setting up real-time listener for conversation ${conversation.id}`);
+
+    let unsubscribe: (() => void) | undefined;
+
+    const setupListener = async () => {
+      try {
+        const { doc, onSnapshot } = await import("firebase/firestore");
+
+        const conversationRef = doc(db, 'conversations', conversation.id);
+        unsubscribe = onSnapshot(conversationRef, (docSnapshot: any) => {
+          if (!docSnapshot.exists()) {
+            console.log(`🚪 AdminChatWindow: Conversation ${conversation.id} was deleted - redirecting to admin messages page`);
+            navigate("/admin/messages");
+            return;
+          }
+        }, (error: any) => {
+          console.error(`❌ AdminChatWindow: Error listening to conversation ${conversation.id}:`, error);
+          // Don't navigate on listener errors - could be temporary network issues
+        });
+      } catch (error) {
+        console.error(`❌ AdminChatWindow: Failed to setup conversation listener for ${conversation.id}:`, error);
+      }
+    };
+
+    setupListener();
+
+    return () => {
+      if (unsubscribe) {
+        console.log(`🔌 AdminChatWindow: Cleaning up conversation listener for ${conversation.id}`);
+        unsubscribe();
+      }
+    };
+  }, [conversation?.id, navigate]);
 
   // Handle scroll events to track position and show/hide scroll-to-bottom button
   const handleScroll = (_e: React.UIEvent<HTMLDivElement>) => {

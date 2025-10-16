@@ -34,7 +34,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSending, setIsSending] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [isClaimSubmitting, setIsClaimSubmitting] = useState(false);
@@ -163,7 +162,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     markMessageAsRead,
     markAllUnreadMessagesAsRead, // Add the new function
     sendClaimRequest,
-    conversations,
   } = useMessage();
   const { userData } = useAuth();
   const { showToast } = useToast();
@@ -335,19 +333,60 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     shouldAutoReadMessage,
   ]);
 
-  // Check if conversation still exists (wasn't deleted)
+  // Real-time conversation existence monitor - close chat if conversation is deleted by another user/process
   useEffect(() => {
-    if (!conversation) return;
+    if (!conversation?.id) return;
 
-    // Immediate check using local conversations state
-    const conversationStillExists = conversations.some(
-      (conv) => conv.id === conversation.id
-    );
-    if (!conversationStillExists) {
-      navigate("/messages"); // Redirect to messages page
-      return;
-    }
-  }, [conversation, conversations, navigate]);
+    console.log(`👀 ChatWindow: Setting up real-time listener for conversation ${conversation.id}`);
+
+    let unsubscribe: (() => void) | undefined;
+
+    const setupListener = async () => {
+      try {
+        const { doc, onSnapshot } = await import("firebase/firestore");
+        const { db } = await import("../utils/firebase");
+
+        const conversationRef = doc(db, 'conversations', conversation.id);
+        unsubscribe = onSnapshot(conversationRef, (docSnapshot: any) => {
+          if (!docSnapshot.exists()) {
+            console.log(`🚪 ChatWindow: Conversation ${conversation.id} was deleted - clearing chat window`);
+
+            // Clear local state first
+            setMessages([]);
+            setNewMessage("");
+            setShowClaimModal(false);
+            setShowHandoverModal(false);
+            setShowInfoModal(false);
+            setIsLoading(false);
+
+            // Use callback if available, otherwise navigate
+            if (onClearConversation) {
+              console.log(`🔄 ChatWindow: Using onClearConversation callback`);
+              onClearConversation();
+            } else {
+              console.log(`🔄 ChatWindow: Using navigate fallback`);
+              navigate("/messages");
+            }
+            return;
+          }
+        }, (error: any) => {
+          console.error(`❌ ChatWindow: Error listening to conversation ${conversation.id}:`, error);
+          // Don't navigate on listener errors - could be temporary network issues
+        });
+      } catch (error) {
+        console.error(`❌ ChatWindow: Failed to setup conversation listener for ${conversation.id}:`, error);
+      }
+    };
+
+    setupListener();
+
+    return () => {
+      if (unsubscribe) {
+        console.log(`🔌 ChatWindow: Cleaning up conversation listener for ${conversation.id}`);
+        unsubscribe();
+      }
+    };
+  }, [conversation?.id, navigate, onClearConversation]);
 
   // Function to auto-read new messages based on user engagement
   const autoReadNewMessages = async (newMessages: Message[]) => {
@@ -404,7 +443,24 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
         // If conversation doesn't exist, it was deleted
         if (!conversationSnap.exists()) {
-          navigate("/messages"); // Redirect to messages page
+          console.log(`🚪 ChatWindow: Conversation ${conversation.id} was deleted (backup check) - clearing chat window`);
+
+          // Clear local state first
+          setMessages([]);
+          setNewMessage("");
+          setShowClaimModal(false);
+          setShowHandoverModal(false);
+          setShowInfoModal(false);
+          setIsLoading(false);
+
+          // Use callback if available, otherwise navigate
+          if (onClearConversation) {
+            console.log(`🔄 ChatWindow: Using onClearConversation callback (backup check)`);
+            onClearConversation();
+          } else {
+            console.log(`🔄 ChatWindow: Using navigate fallback (backup check)`);
+            navigate("/messages");
+          }
         }
       } catch (error: any) {
         // If we get a permission error, the conversation was likely deleted
@@ -412,7 +468,24 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           error.message?.includes("permission") ||
           error.message?.includes("not-found")
         ) {
-          navigate("/messages"); // Redirect to messages page
+          console.log(`🚪 ChatWindow: Conversation ${conversation.id} access denied (likely deleted) - clearing chat window`);
+
+          // Clear local state first
+          setMessages([]);
+          setNewMessage("");
+          setShowClaimModal(false);
+          setShowHandoverModal(false);
+          setShowInfoModal(false);
+          setIsLoading(false);
+
+          // Use callback if available, otherwise navigate
+          if (onClearConversation) {
+            console.log(`🔄 ChatWindow: Using onClearConversation callback (permission denied)`);
+            onClearConversation();
+          } else {
+            console.log(`🔄 ChatWindow: Using navigate fallback (permission denied)`);
+            navigate("/messages");
+          }
         }
       }
     };
@@ -421,7 +494,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     const interval = setInterval(checkConversationExists, 10000);
 
     return () => clearInterval(interval);
-  }, [conversation, navigate]);
+  }, [conversation, navigate, onClearConversation]);
 
   // Update existing conversations with missing post data
   useEffect(() => {
@@ -450,21 +523,28 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
     if (!conversation || !userData || !newMessage.trim()) return;
 
-    setIsSending(true);
+    const messageToSend = newMessage.trim();
+
+    // Clear input immediately for better UX (background sending)
+    setNewMessage("");
+
+    // Send message in background without blocking UI
+    console.log('📤 ChatWindow: Sending message in background...');
+
     try {
       await sendMessage(
         conversation.id,
         userData.uid,
         `${userData.firstName} ${userData.lastName}`,
-        newMessage.trim(),
+        messageToSend,
         userData.profilePicture || userData.profileImageUrl
       );
-      setNewMessage("");
+      console.log('✅ ChatWindow: Message sent successfully in background');
     } catch (error) {
-      console.error("Failed to send message:", error);
-      showToast('error', 'Message Failed', 'Failed to send message. Please check your connection and try again.');
-    } finally {
-      setIsSending(false);
+      console.error("❌ ChatWindow: Failed to send message in background:", error);
+      // Restore the message to input if sending failed
+      setNewMessage(messageToSend);
+      showToast('error', 'Message Failed', 'Failed to send message. Please try again.');
     }
   };
 
@@ -1389,7 +1469,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     e.preventDefault();
                     if (
                       newMessage.trim() &&
-                      !isSending &&
                       newMessage.length <= 200
                     ) {
                       handleSendMessage(e as any);
@@ -1413,7 +1492,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                       : "border-yellow-300 focus:ring-yellow-500"
                     : "border-gray-300"
                 }`}
-                disabled={isSending}
+                disabled={false}
               />
               <div className="absolute bottom-1 right-2 text-xs text-gray-400">
                 {newMessage.length}/200
@@ -1423,15 +1502,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             <button
               type="submit"
               disabled={
-                !newMessage.trim() || isSending || newMessage.length > 200
+                !newMessage.trim() || newMessage.length > 200
               }
               className="h-10 px-4 bg-navyblue text-white rounded-lg hover:bg-blue-900 focus:outline-none focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSending ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                "Send"
-              )}
+              Send
             </button>
           </form>
         </div>

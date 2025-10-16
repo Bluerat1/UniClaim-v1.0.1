@@ -474,48 +474,11 @@ export class NotificationService {
         conversationId: notificationData.conversationId || null
       });
 
-      // Enforce 15-notification limit per user
-      await this.enforceNotificationLimit(notificationData.userId, 15);
-
       console.log('Successfully created notification:', docRef.id);
       return docRef.id;
     } catch (error) {
       console.error('Error creating notification:', error);
       throw error;
-    }
-  }
-
-  // Helper to enforce notification limit per user
-  private async enforceNotificationLimit(userId: string, maxLimit: number): Promise<void> {
-    try {
-      const notificationsRef = collection(db, 'notifications');
-      const q = query(
-        notificationsRef,
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc')
-      );
-
-      const snapshot = await getDocs(q);
-      const totalNotifications = snapshot.size;
-
-      if (totalNotifications > maxLimit) {
-        const excessCount = totalNotifications - maxLimit;
-        const excessDocs = snapshot.docs.slice(maxLimit); // Get the oldest ones to delete
-
-        console.log(`User ${userId} has ${totalNotifications} notifications, deleting ${excessCount} oldest.`);
-
-        // Delete excess notifications in a batch
-        const batch = writeBatch(db);
-        excessDocs.forEach(doc => {
-          batch.delete(doc.ref);
-        });
-        await batch.commit();
-
-        console.log(`Deleted ${excessCount} old notifications for user ${userId}.`);
-      }
-    } catch (error) {
-      console.error('Error enforcing notification limit:', error);
-      // Don't throw to avoid blocking notification creation
     }
   }
 
@@ -641,6 +604,62 @@ export class NotificationService {
     } catch (error) {
       console.error('Error deleting all system notifications:', error);
       throw error;
+    }
+  }
+
+  // Cleanup old notifications for a specific user (separate from message sending)
+  async cleanupOldUserNotifications(userId: string, keepCount: number = 14): Promise<void> {
+    try {
+      if (keepCount <= 0) return;
+
+      const notificationsRef = collection(db, 'notifications');
+
+      // Get all notifications for this user
+      const userQuery = query(
+        notificationsRef,
+        where('userId', '==', userId),
+        orderBy('createdAt', 'asc')
+      );
+
+      const snapshot = await getDocs(userQuery);
+
+      if (snapshot.size <= keepCount) {
+        console.log(`No cleanup needed for user ${userId} - only ${snapshot.size} notifications`);
+        return;
+      }
+
+      const notificationsToDelete = snapshot.docs.slice(0, snapshot.size - keepCount);
+
+      if (notificationsToDelete.length > 0) {
+        const batch = writeBatch(db);
+
+        notificationsToDelete.forEach((doc) => {
+          batch.delete(doc.ref);
+        });
+
+        await batch.commit();
+        console.log(`🧹 Cleaned up ${notificationsToDelete.length} old notifications for user ${userId}`);
+      }
+    } catch (error) {
+      console.error(`Error cleaning up old notifications for user ${userId}:`, error);
+      // Don't throw to avoid breaking other operations
+    }
+  }
+
+  // Cleanup old notifications for multiple users (can be called periodically)
+  async cleanupOldNotificationsForUsers(userIds: string[], keepCount: number = 14): Promise<void> {
+    try {
+      console.log(`🧹 Starting cleanup for ${userIds.length} users`);
+
+      const cleanupPromises = userIds.map(userId =>
+        this.cleanupOldUserNotifications(userId, keepCount)
+      );
+
+      await Promise.allSettled(cleanupPromises);
+
+      console.log('✅ Completed notification cleanup for all users');
+    } catch (error) {
+      console.error('Error during bulk notification cleanup:', error);
     }
   }
 }
