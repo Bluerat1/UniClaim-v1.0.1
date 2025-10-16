@@ -188,7 +188,7 @@ export default function Login() {
                 <button
                   className={`w-full py-2.5 text-white rounded-lg transition-all duration-200 ${
                     loading
-                      ? "bg-gray-400 cursor-not-allowed"
+                      ? "bg-brand cursor-not-allowed"
                       : "bg-brand hover:bg-yellow-600 hover:cursor-pointer"
                   }`}
                   type="submit"
