@@ -209,7 +209,8 @@ export default function MyTicket() {
     if (activeTab === "all_tickets") return true;
     if (activeTab === "active_tickets")
       return post.status === "pending" || post.status === "unclaimed";
-    if (activeTab === "completed_tickets") return post.status === "resolved" || post.status === "completed";
+    if (activeTab === "completed_tickets")
+      return post.status === "resolved" || post.status === "completed";
     if (activeTab === "deleted_tickets") return post.deletedAt; // Only show posts with deletedAt timestamp
     return false;
   });
@@ -275,7 +276,7 @@ export default function MyTicket() {
                 ${
                   activeTab === tab.key
                     ? "bg-navyblue text-white"
-                    : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
+                    : "bg-gray-200 text-gray-700 hover:bg-dark-navyblue/15 border-gray-300"
                 }`}
             >
               {tab.label}

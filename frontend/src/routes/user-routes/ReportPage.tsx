@@ -17,18 +17,25 @@ import successPic from "@/assets/success.png";
 import { detectLocationFromCoordinates } from "@/utils/locationDetection";
 
 // Import Firebase config for database access
-import { getFirestore } from 'firebase/firestore';
-import { getApps, getApp, initializeApp } from 'firebase/app';
+import { getFirestore } from "firebase/firestore";
+import { getApps, getApp, initializeApp } from "firebase/app";
 
 // Firebase configuration (same as in config.ts)
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCgN70CTX2wQpcgoSZF6AK0fuq7ikcQgNs",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "uniclaim2.firebaseapp.com",
+  apiKey:
+    import.meta.env.VITE_FIREBASE_API_KEY ||
+    "AIzaSyCgN70CTX2wQpcgoSZF6AK0fuq7ikcQgNs",
+  authDomain:
+    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "uniclaim2.firebaseapp.com",
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "uniclaim2",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "uniclaim2.appspot.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "38339063459",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:38339063459:web:3b5650ebe6fabd352b1916",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-E693CKMPSY"
+  storageBucket:
+    import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "uniclaim2.appspot.com",
+  messagingSenderId:
+    import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "38339063459",
+  appId:
+    import.meta.env.VITE_FIREBASE_APP_ID ||
+    "1:38339063459:web:3b5650ebe6fabd352b1916",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-E693CKMPSY",
 };
 
 // Initialize Firebase
@@ -95,7 +102,7 @@ export default function ReportPage() {
     const newValidFiles: File[] = [];
     files.forEach((file) => {
       // Check if file is a GIF
-      if (file.type === 'image/gif') {
+      if (file.type === "image/gif") {
         showToast(
           "error",
           "Unsupported Format",
@@ -106,7 +113,7 @@ export default function ReportPage() {
       }
 
       // Check if file is an image (JPG, PNG, etc.)
-      if (!file.type.startsWith('image/')) {
+      if (!file.type.startsWith("image/")) {
         showToast(
           "error",
           "Invalid File Type",
@@ -245,28 +252,39 @@ export default function ReportPage() {
       if (shouldTransferToCampusSecurity) {
         try {
           // Query for Campus Security user by role instead of hardcoded ID
-          const { collection, query, where, limit, getDocs } = await import('firebase/firestore');
+          const { collection, query, where, limit, getDocs } = await import(
+            "firebase/firestore"
+          );
 
-          const usersRef = collection(db, 'users');
-          const q = query(usersRef, where('role', '==', 'campus_security'), limit(1));
+          const usersRef = collection(db, "users");
+          const q = query(
+            usersRef,
+            where("role", "==", "campus_security"),
+            limit(1)
+          );
           const querySnapshot = await getDocs(q);
 
           if (!querySnapshot.empty) {
             const doc = querySnapshot.docs[0];
             const userDataFromDb = doc.data();
             campusSecurityData = {
-              firstName: userDataFromDb.firstName || 'Campus',
-              lastName: userDataFromDb.lastName || 'Security',
-              email: userDataFromDb.email || 'cs@uniclaim.com',
-              contactNum: userDataFromDb.contactNum || '',
-              studentId: userDataFromDb.studentId || '',
+              firstName: userDataFromDb.firstName || "Campus",
+              lastName: userDataFromDb.lastName || "Security",
+              email: userDataFromDb.email || "cs@uniclaim.com",
+              contactNum: userDataFromDb.contactNum || "",
+              studentId: userDataFromDb.studentId || "",
               profilePicture: userDataFromDb.profilePicture || null,
-              role: userDataFromDb.role || 'campus_security',
+              role: userDataFromDb.role || "campus_security",
             };
             campusSecurityUserId = doc.id;
-            console.log('✅ Campus Security user data fetched from database:', campusSecurityData);
+            console.log(
+              "✅ Campus Security user data fetched from database:",
+              campusSecurityData
+            );
           } else {
-            console.warn('⚠️ No Campus Security user found in database, using fallback data');
+            console.warn(
+              "⚠️ No Campus Security user found in database, using fallback data"
+            );
             // Fallback to hardcoded data if no Campus Security user found
             campusSecurityData = {
               firstName: "Campus",
@@ -279,7 +297,7 @@ export default function ReportPage() {
             campusSecurityUserId = "hedUWuv96VWQek5OucPzXTCkpQU2";
           }
         } catch (error) {
-          console.error('❌ Error fetching Campus Security user data:', error);
+          console.error("❌ Error fetching Campus Security user data:", error);
           // Fallback to hardcoded data on error
           campusSecurityData = {
             firstName: "Campus",
@@ -363,38 +381,50 @@ export default function ReportPage() {
 
         // Send notification to original founder that their item has been turned over
         try {
-          const notificationTitle = 'Item Turned Over';
-          const turnoverTarget = selectedFoundAction === "turnover to OSA" ? "OSA" : "Campus Security";
+          const notificationTitle = "Item Turned Over";
+          const turnoverTarget =
+            selectedFoundAction === "turnover to OSA"
+              ? "OSA"
+              : "Campus Security";
           const notificationBody = `Your found item "${title}" has been turned over to ${turnoverTarget}. You will be notified when ${turnoverTarget} confirms receipt.`;
 
           // Import notification service here to avoid circular dependency
-          const { notificationService } = await import("../../services/firebase/notifications");
+          const { notificationService } = await import(
+            "../../services/firebase/notifications"
+          );
 
           // Show the notification immediately
-          await notificationService.showNotification(notificationTitle, notificationBody, {
-            type: 'status_change',
-            postId: 'pending', // We'll get the real ID after creation
-            action: 'item_turned_over',
-            turnoverAction: selectedFoundAction
-          });
+          await notificationService.showNotification(
+            notificationTitle,
+            notificationBody,
+            {
+              type: "status_change",
+              postId: "pending", // We'll get the real ID after creation
+              action: "item_turned_over",
+              turnoverAction: selectedFoundAction,
+            }
+          );
 
           // Also create a notification record in the database (will be updated with real post ID)
           await notificationService.createNotification({
             userId: userData.uid,
-            type: 'status_change',
+            type: "status_change",
             title: notificationTitle,
             body: notificationBody,
             data: {
-              action: 'item_turned_over',
+              action: "item_turned_over",
               turnoverAction: selectedFoundAction,
               postTitle: title,
-              timestamp: new Date().toISOString()
-            }
+              timestamp: new Date().toISOString(),
+            },
           });
 
           console.log(`📬 Sent turnover notification to user ${userData.uid}`);
         } catch (notificationError) {
-          console.error('Failed to send turnover notification:', notificationError);
+          console.error(
+            "Failed to send turnover notification:",
+            notificationError
+          );
           // Don't fail the whole operation if notification fails
         }
       }
@@ -408,20 +438,27 @@ export default function ReportPage() {
 
       // Use Firebase service to create post (with admin notifications)
       const { postService } = await import("../../services/firebase/posts");
-      const { notificationSender } = await import("../../services/firebase/notificationSender");
-      const { adminNotificationService } = await import("../../services/firebase/adminNotifications");
+      const { notificationSender } = await import(
+        "../../services/firebase/notificationSender"
+      );
+      const { adminNotificationService } = await import(
+        "../../services/firebase/adminNotifications"
+      );
 
       // Prepare post data with images for upload
       const postDataWithImages = {
         ...createdPost,
-        images: selectedFiles // Pass files directly for concurrent upload
+        images: selectedFiles, // Pass files directly for concurrent upload
       };
 
-      const creatorId = shouldTransferToCampusSecurity ? campusSecurityUserId! : userData.uid;
-      const creatorName = shouldTransferToCampusSecurity 
-        ? 'Campus Security' 
-        : `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() || 'Someone';
-      const creatorEmail = userData?.email || 'Unknown';
+      const creatorId = shouldTransferToCampusSecurity
+        ? campusSecurityUserId!
+        : userData.uid;
+      const creatorName = shouldTransferToCampusSecurity
+        ? "Campus Security"
+        : `${userData?.firstName || ""} ${userData?.lastName || ""}`.trim() ||
+          "Someone";
+      const creatorEmail = userData?.email || "Unknown";
 
       // Create post with concurrent image upload
       const postId = await postService.createPostWithConcurrentUpload(
@@ -430,11 +467,19 @@ export default function ReportPage() {
         {
           onProgress: (progress: any[]) => {
             setUploadProgress(progress);
-            const completed = progress.filter(p => p.status === 'completed').length;
+            const completed = progress.filter(
+              (p) => p.status === "completed"
+            ).length;
             const total = progress.length;
-            const avgProgress = progress.reduce((sum: number, p: any) => sum + p.percentage, 0) / total;
+            const avgProgress =
+              progress.reduce((sum: number, p: any) => sum + p.percentage, 0) /
+              total;
 
-            setSubmitProgress(`Uploading images... (${completed}/${total} completed, ${avgProgress.toFixed(0)}% avg)`);
+            setSubmitProgress(
+              `Uploading images... (${completed}/${total} completed, ${avgProgress.toFixed(
+                0
+              )}% avg)`
+            );
           },
           onSuccess: async (postId: string, post: any) => {
             try {
@@ -448,9 +493,9 @@ export default function ReportPage() {
                   location: post.location,
                   type: post.type,
                   creatorId: creatorId,
-                  creatorName: creatorName
+                  creatorName: creatorName,
                 }),
-                
+
                 // Send notification to admins about the new post
                 adminNotificationService.notifyAdminsNewPost({
                   postId: postId,
@@ -460,15 +505,20 @@ export default function ReportPage() {
                   postLocation: post.location,
                   creatorId: creatorId,
                   creatorName: creatorName,
-                  creatorEmail: creatorEmail
-                })
+                  creatorEmail: creatorEmail,
+                }),
               ]);
-              
-              console.log("✅ [UI] Notifications sent successfully after post creation");
+
+              console.log(
+                "✅ [UI] Notifications sent successfully after post creation"
+              );
             } catch (error) {
-              console.error("❌ [UI] Error sending notifications after post creation:", error);
+              console.error(
+                "❌ [UI] Error sending notifications after post creation:",
+                error
+              );
             }
-          }
+          },
         }
       );
 
@@ -487,7 +537,7 @@ export default function ReportPage() {
       setWasSubmitted(false);
       setSubmitProgress("");
       setUploadProgress([]);
-      
+
       // Show success modal - notifications will be sent in the background
       setShowSuccessModal(true);
 
@@ -566,7 +616,7 @@ export default function ReportPage() {
               className={`p-2 w-full lg:max-w-[12rem] rounded text-md font-medium transition-colors duration-200 ${
                 selectedReport === "lost"
                   ? "bg-navyblue text-white"
-                  : "bg-gray-200 text-black hover:bg-blue-300 hover:text-black"
+                  : "bg-gray-200 text-black hover:bg-dark-navyblue/15 hover:text-black"
               }`}
               onClick={() => handleReportClick("lost")}
             >
@@ -583,7 +633,7 @@ export default function ReportPage() {
               className={`p-2 w-full lg:max-w-[12rem] rounded text-md font-medium transition-colors duration-200 ${
                 selectedReport === "found"
                   ? "bg-navyblue text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-blue-300 hover:text-black"
+                  : "bg-gray-200 text-gray-700 hover:bg-dark-navyblue/15 hover:text-black"
               }`}
               onClick={() => handleReportClick("found")}
             >
@@ -696,7 +746,11 @@ export default function ReportPage() {
                 </div>
                 {uploadProgress.length > 0 && (
                   <div className="text-xs mt-1 text-gray-200">
-                    {uploadProgress.filter(p => p.status === 'completed').length}/{uploadProgress.length} images uploaded
+                    {
+                      uploadProgress.filter((p) => p.status === "completed")
+                        .length
+                    }
+                    /{uploadProgress.length} images uploaded
                   </div>
                 )}
               </div>

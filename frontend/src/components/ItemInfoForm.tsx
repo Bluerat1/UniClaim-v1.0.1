@@ -83,7 +83,7 @@ export default function ItemInfoForm({
               className={`w-full p-2 rounded font-medium transition-all duration-300 ${
                 activeCategory === category
                   ? "bg-navyblue text-white"
-                  : "bg-gray-200 text-gray-800 hover:bg-blue-300"
+                  : "bg-gray-200 text-gray-800 hover:bg-dark-navyblue/15"
               }`}
             >
               <span className="flex items-center justify-center gap-1">
