@@ -232,14 +232,14 @@ export const postService = {
     async createPostWithConcurrentUpload(
         postData: Omit<Post, 'id' | 'createdAt' | 'creatorId'>,
         creatorId: string,
-        uploadOptions?: { 
+        uploadOptions?: {
             onProgress?: (progress: any[]) => void,
             onSuccess?: (postId: string, post: Post) => Promise<void> | void
         }
     ): Promise<string> {
         const startTime = performance.now();
         let postId = ''; // Track the post ID for error handling
-        
+
         console.log(`🚀 [CONCURRENT] Starting concurrent post creation for user ${creatorId}`);
 
         try {
@@ -343,7 +343,7 @@ export const postService = {
             const endTime = performance.now();
             const totalTime = endTime - startTime;
             console.error(`❌ [CONCURRENT] Post creation failed after ${totalTime.toFixed(2)}ms:`, error);
-            
+
             // Clean up any uploaded images if the post creation failed
             if (postId) {
                 try {
@@ -354,7 +354,7 @@ export const postService = {
                     console.error('❌ [CLEANUP] Error during cleanup:', cleanupError);
                 }
             }
-            
+
             throw new Error(error.message || 'Failed to create post');
         }
     },
@@ -1301,10 +1301,10 @@ export const postService = {
 
             // Get post data
             const postData = postSnap.data() as Post;
-            
+
             // Add original post images to delete list
             const allImagesToDelete: string[] = [];
-            
+
             if (postData.images && postData.images.length > 0) {
                 allImagesToDelete.push(...postData.images as string[]);
             }
