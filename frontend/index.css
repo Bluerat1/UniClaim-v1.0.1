@@ -40,7 +40,6 @@ body {
 
 @layer utilities {
   @keyframes soft-blink {
-
     0%,
     100% {
       opacity: 1;
@@ -108,6 +107,7 @@ body {
   --color-brand: #eab308;
   --color-success-green: #39b54a;
   --color-navyblue: #0a193a;
+  --color-dark-navyblue: #05112b;
 
   /* - background colors */
   --color-primary-bg: #ebebeb;

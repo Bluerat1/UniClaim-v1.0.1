@@ -260,7 +260,7 @@ export default function Register() {
             {/* Submit Button */}
             <button
               type="submit"
-              className={`w-full mt-4 text-white py-2 rounded-lg transition-all ${
+              className={`w-full mt-4 text-white py-2.5 rounded-lg transition-all ${
                 loading
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-brand hover:bg-yellow-600"

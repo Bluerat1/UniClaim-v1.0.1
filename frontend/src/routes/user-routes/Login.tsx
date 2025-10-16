@@ -21,10 +21,12 @@ export default function Login() {
       if (user && isAuthenticated) {
         try {
           const isAdmin = await authService.isAdmin(user.uid);
-          
+
           // If user is admin, redirect them to admin login page
           if (isAdmin) {
-            console.log("Admin detected on user login page - redirecting to admin login");
+            console.log(
+              "Admin detected on user login page - redirecting to admin login"
+            );
             navigate("/adminlogin", { replace: true });
             return;
           }
@@ -56,9 +58,10 @@ export default function Login() {
 
     // Prevent login if user is already authenticated
     if (isAuthenticated && user) {
-      setError((prev) => ({ 
-        ...prev, 
-        general: "You are already logged in. Please logout first if you want to login with a different account." 
+      setError((prev) => ({
+        ...prev,
+        general:
+          "You are already logged in. Please logout first if you want to login with a different account.",
       }));
       return;
     }
@@ -125,7 +128,9 @@ export default function Login() {
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3">
                 <div className="flex items-center justify-center space-x-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-                  <span className="text-sm text-gray-600">Checking authentication status...</span>
+                  <span className="text-sm text-gray-600">
+                    Checking authentication status...
+                  </span>
                 </div>
               </div>
             )}
@@ -170,7 +175,6 @@ export default function Login() {
                 </p>
               )}
 
-
               <div className="flex justify-end">
                 <Link
                   to="/reset-password"
@@ -182,7 +186,7 @@ export default function Login() {
 
               <div className="space-y-5">
                 <button
-                  className={`w-full py-2 text-white rounded-lg transition-all duration-200 ${
+                  className={`w-full py-2.5 text-white rounded-lg transition-all duration-200 ${
                     loading
                       ? "bg-gray-400 cursor-not-allowed"
                       : "bg-brand hover:bg-yellow-600 hover:cursor-pointer"
@@ -202,7 +206,7 @@ export default function Login() {
 
                 <Link
                   to="/adminlogin"
-                  className="block w-full border text-center text-brand hover:text-yellow-600 hover:border-yellow-600 py-2 border-brand rounded-lg"
+                  className="block w-full border text-center text-brand hover:text-yellow-600 hover:border-yellow-600 py-2.5 border-brand rounded-lg"
                 >
                   Login as admin
                 </Link>
