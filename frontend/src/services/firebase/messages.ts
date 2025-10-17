@@ -42,7 +42,7 @@ export const messageService = {
                     ...doc.data()
                 }));
 
-                console.log(`✅ [getUserConversations] Array query returned ${conversations.length} results`);
+                // console.log(`✅ [getUserConversations] Array query returned ${conversations.length} results`);
 
                 // Return conversations without sorting - let the UI component handle sorting
                 callback(conversations);

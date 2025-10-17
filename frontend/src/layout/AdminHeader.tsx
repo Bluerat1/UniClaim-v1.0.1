@@ -371,9 +371,27 @@ export default function AdminHeader({
                               "📊 Activity Summary"}
                           </span>
                           <span className="text-xs text-gray-500">
-                            {notification.createdAt
-                              ?.toDate?.()
-                              ?.toLocaleDateString() || "Recently"}
+                            {(() => {
+                              const date = notification.createdAt?.toDate?.();
+                              if (!date) return "Recently";
+                              const now = new Date();
+                              const diffMs = now.getTime() - date.getTime();
+                              const diffSeconds = Math.floor(diffMs / 1000);
+                              const diffMinutes = Math.floor(diffSeconds / 60);
+                              const diffHours = Math.floor(diffMinutes / 60);
+                              const diffDays = Math.floor(diffHours / 24);
+                              const diffWeeks = Math.floor(diffDays / 7);
+                              const diffMonths = Math.floor(diffDays / 30);
+                              const diffYears = Math.floor(diffDays / 365);
+
+                              if (diffSeconds < 60) return `${diffSeconds}s`;
+                              if (diffMinutes < 60) return `${diffMinutes}m`;
+                              if (diffHours < 24) return `${diffHours}h`;
+                              if (diffDays < 7) return `${diffDays}d`;
+                              if (diffWeeks < 4) return `${diffWeeks}w`;
+                              if (diffMonths < 12) return `${diffMonths}mth`;
+                              return `${diffYears}y`;
+                            })()}
                           </span>
                         </div>
                         {notification.relatedEntity && (

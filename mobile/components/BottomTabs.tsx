@@ -180,11 +180,13 @@ export default function CustomTabs() {
         }
       } catch (error) {
         console.log("Failed to load saved tab:", error);
+      } finally {
+        // Always set initialized to true, even if AsyncStorage fails
+        setIsInitialized(true);
       }
     };
 
     loadSavedTab();
-    setIsInitialized(true);
   }, []);
 
   // Save tab state when it changes

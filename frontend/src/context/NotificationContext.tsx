@@ -189,9 +189,8 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
               const userPreferences = await notificationService.getNotificationPreferences(userData.uid);
               if (userPreferences.soundEnabled && newNotifications.length > 0) {
                 // Play sound only for the most recent notification to avoid spam
-                const latestNotification = newNotifications[newNotifications.length - 1];
                 try {
-                  await SoundUtils.playNotificationSoundByType(latestNotification.type);
+                  await SoundUtils.playNotificationSoundByType();
                 } catch (error) {
                   // Silent fail for sound errors
                 }

@@ -340,27 +340,41 @@ export const userService = {
     // Check if user needs email verification
     async needsEmailVerification(user: any, userData: UserData): Promise<boolean> {
         try {
-            // Admin and campus security users don't need email verification
-            if (userData.role === 'admin' || userData.role === 'campus_security') {
-                return false;
-            }
+          // Admin and campus security users don't need email verification
+          if (userData.role === 'admin' || userData.role === 'campus_security') {
+            return false;
+          }
 
-            // IMPORTANT: Reload user data to get the latest email verification status from Firebase Auth
-            await user.reload();
+          // IMPORTANT: Reload user data to get the latest email verification status from Firebase Auth
+          await user.reload();
 
-            // Check Firebase Auth email verification status after reload
-            const firebaseEmailVerified = user.emailVerified;
+          // Add a small delay to ensure the reload is complete
+          await new Promise(resolve => setTimeout(resolve, 200));
 
-            // Check Firestore email verification status
-            // If emailVerified field is missing, assume true (grandfathered user)
-            const firestoreEmailVerified = userData.emailVerified !== undefined ? userData.emailVerified : true;
+          // Check Firebase Auth email verification status after reload
+          const firebaseEmailVerified = user.emailVerified;
 
-            // User needs verification if either Firebase or Firestore shows unverified
-            return !firebaseEmailVerified || !firestoreEmailVerified;
+          // Check Firestore email verification status
+          // If emailVerified field is missing, assume true (grandfathered user)
+          const firestoreEmailVerified = userData.emailVerified !== undefined ? userData.emailVerified : true;
+
+          console.log('🔍 Verification check details:', {
+            firebaseEmailVerified,
+            firestoreEmailVerified,
+            userId: user.uid,
+            userDataRole: userData.role,
+            timestamp: new Date().toISOString()
+          });
+
+          // User needs verification if either Firebase or Firestore shows unverified
+          return !firebaseEmailVerified || !firestoreEmailVerified;
         } catch (error: any) {
-            console.error('Error checking email verification status:', error);
-            // Default to requiring verification if there's an error
-            return true;
+          console.error('Error checking email verification status:', error);
+
+          // If there's an error checking verification status, default to requiring verification
+          // This is safer than allowing potentially unverified users through
+          console.warn('Defaulting to requiring verification due to error:', error.message);
+          return true;
         }
     }
 };

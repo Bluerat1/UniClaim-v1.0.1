@@ -31,12 +31,12 @@ export const AdminNotificationProvider = ({ children }: { children: ReactNode })
 
   // Debug logging - only log when state actually changes
   useEffect(() => {
-    console.log('🔍 AdminNotificationProvider state:', {
-      isAuthenticated,
-      userId: userData?.uid,
-      userRole: userData?.role,
-      isAdmin,
-    });
+    // console.log('🔍 AdminNotificationProvider state:', {
+    //   isAuthenticated,
+    //   userId: userData?.uid,
+    //   userRole: userData?.role,
+    //   isAdmin,
+    // });
   }, [isAuthenticated, userData?.uid, userData?.role, isAdmin]);
 
   // Load notifications when user is authenticated and is admin
@@ -53,7 +53,7 @@ export const AdminNotificationProvider = ({ children }: { children: ReactNode })
       
       return () => clearTimeout(timer);
     } else {
-      console.log('❌ Admin notification conditions not met');
+      // console.log('❌ Admin notification conditions not met');
       setNotifications([]);
       setUnreadCount(0);
     }

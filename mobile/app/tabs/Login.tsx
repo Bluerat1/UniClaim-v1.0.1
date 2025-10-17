@@ -92,10 +92,15 @@ export default function Login() {
       console.log('Error code:', error.code);
 
       if (error.message === 'EMAIL_VERIFICATION_REQUIRED') {
-        // User needs email verification - show verification message
-        console.log('Email verification required - showing warning toast');
-        setGeneralError("Please verify your email address before logging in. Check your email for the verification link.");
+        // User needs email verification - redirect to verification screen
+        console.log('Email verification required - redirecting to EmailVerification screen');
+        setGeneralError("Please verify your email address before logging in.");
         showToastMessage("Email verification required. Please check your email for the verification link.", "warning");
+
+        // Navigate to email verification screen
+        setTimeout(() => {
+          navigation.navigate("EmailVerification");
+        }, 2000); // Small delay to let user see the message
       } else {
         const errorMessage = getFirebaseErrorMessage(error);
         console.log('Login error - showing error toast:', errorMessage);

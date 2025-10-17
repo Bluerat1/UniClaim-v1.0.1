@@ -27,23 +27,86 @@ export default function EmailVerification() {
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
 
-  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [continueLoading, setContinueLoading] = useState(false);
 
-  // Monitor authentication state changes
+  const handleContinueToApp = async () => {
+    if (continueLoading) return; // Prevent multiple rapid clicks
+
+    setContinueLoading(true);
+
+    try {
+      console.log('🔄 Continue to App button pressed');
+
+      // Since we're already in the verified state (isEmailVerified === true),
+      // we can be confident the user is verified. Just complete the process.
+      if (!user) {
+        console.error('❌ No user found when Continue pressed');
+        Alert.alert(
+          'Error',
+          'User session not found. Please log in again.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      console.log('✅ Completing verification process...');
+
+      // Use the AuthContext function to handle email verification completion
+      await handleEmailVerificationComplete();
+
+      console.log('✅ Email verification completed, AuthContext will handle navigation automatically');
+
+      // Additional refresh to ensure everything is synchronized
+      await refreshUserData();
+
+      // The handleEmailVerificationComplete() already sets isAuthenticated to true
+      // The useEffect monitoring isAuthenticated and needsEmailVerification will handle unmounting this component
+
+    } catch (error: any) {
+      console.error('❌ Error during Continue to App:', error);
+
+      // Provide specific error messages based on error type
+      let errorMessage = 'Failed to complete verification. Please try again.';
+
+      if (error.message?.includes('verification failed')) {
+        errorMessage = 'Email verification failed. Please make sure you clicked the verification link in your email.';
+      } else if (error.message?.includes('network') || error.message?.includes('connection')) {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (error.message?.includes('permission') || error.message?.includes('forbidden')) {
+        errorMessage = 'Permission error. Please try logging out and back in.';
+      }
+
+      Alert.alert(
+        'Verification Error',
+        errorMessage,
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setContinueLoading(false);
+    }
+  };
+
+  // Monitor authentication state changes more carefully
   useEffect(() => {
     if (user && user.emailVerified && !isAuthenticated) {
       // User is verified but not authenticated yet - this means verification just completed
-      console.log('Email verification detected, user should be authenticated');
-      // The AuthContext should handle navigation automatically
-      // But we can force a refresh to ensure state is updated
-      refreshUserData();
-    }
-  }, [user?.emailVerified, isAuthenticated]);
+      console.log('🔄 Email verification detected, user should be authenticated');
 
-  // NEW: Monitor when user becomes fully authenticated and exit this screen
+      // Add a small delay to ensure state is properly synchronized
+      const timeout = setTimeout(() => {
+        refreshUserData();
+      }, 1000);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [user?.emailVerified, isAuthenticated, refreshUserData]);
+
+  // Monitor when user becomes fully authenticated and exit this screen
   useEffect(() => {
     if (isAuthenticated && !needsEmailVerification) {
-      console.log('User is now fully authenticated, EmailVerification component should unmount');
+      console.log('✅ User is now fully authenticated, EmailVerification component should unmount');
+      // Reset loading state before unmounting
+      setContinueLoading(false);
       // The Navigation component will automatically handle routing to RootBottomTabs
       // This component will be unmounted and replaced with the main app
     }
@@ -83,7 +146,7 @@ export default function EmailVerification() {
     };
   }, [resendCooldown]);
 
-  const checkVerificationStatus = async () => {
+  const checkVerificationStatus = async (retryCount = 0) => {
     if (isChecking) return;
 
     setIsChecking(true);
@@ -92,14 +155,21 @@ export default function EmailVerification() {
     try {
       // If we have a user (logged in), check their verification status
       if (user) {
+        console.log(`🔍 Checking verification status (attempt ${retryCount + 1})`);
+
         // IMPORTANT: Reload user data to get the latest email verification status
         await user.reload();
+
+        // Add a small delay to ensure Firebase Auth state is fully updated
+        await new Promise(resolve => setTimeout(resolve, 300));
 
         // Check Firebase Auth email verification status after reload
         const isVerified = user.emailVerified;
         setIsEmailVerified(isVerified);
 
         if (isVerified) {
+          console.log('✅ Email verified in Firebase Auth, updating Firestore...');
+
           // Ensure user is properly authenticated before Firestore update
           if (user && user.emailVerified) {
             try {
@@ -117,17 +187,29 @@ export default function EmailVerification() {
             } catch (updateError: any) {
               console.error('Error updating email verification status:', updateError);
               // Continue with navigation even if Firestore update fails
+              // Firebase email verification is what matters for authentication
             }
           }
 
           // User is verified, but don't navigate directly
           // The AuthContext onAuthStateChanged will detect the change and navigate appropriately
         } else {
-          Alert.alert(
-            'Not Verified Yet',
-            'Your email has not been verified yet. Please check your email and click the verification link, then try again.',
-            [{ text: 'OK' }]
-          );
+          console.log('❌ Email not yet verified in Firebase Auth');
+
+          // If this is the first attempt and email is not verified, show a helpful message
+          if (retryCount === 0) {
+            Alert.alert(
+              'Not Verified Yet',
+              'Your email has not been verified yet. Please check your email and click the verification link, then try again.',
+              [{ text: 'OK' }]
+            );
+          } else {
+            Alert.alert(
+              'Still Not Verified',
+              'Please make sure you clicked the verification link in your email and try again.',
+              [{ text: 'OK' }]
+            );
+          }
         }
       } else {
         // If no user is logged in, we can't check verification status
@@ -137,11 +219,22 @@ export default function EmailVerification() {
           [{ text: 'OK' }]
         );
       }
-    } catch (error) {
-      console.error('Error checking verification status:', error);
+    } catch (error: any) {
+      console.error(`Error checking verification status (attempt ${retryCount + 1}):`, error);
+
+      // If this is not the last retry attempt, try again
+      if (retryCount < 2) {
+        console.log(`🔄 Retrying verification check in 2 seconds... (attempt ${retryCount + 2})`);
+        setTimeout(() => {
+          checkVerificationStatus(retryCount + 1);
+        }, 2000);
+        return;
+      }
+
+      // Final failure after retries
       Alert.alert(
         'Error',
-        'Failed to check verification status. Please try again.',
+        'Failed to check verification status after multiple attempts. Please check your internet connection and try again.',
         [{ text: 'OK' }]
       );
     } finally {
@@ -226,45 +319,19 @@ export default function EmailVerification() {
             Your email has been successfully verified. You can now access all features of the app.
           </Text>
           <TouchableOpacity
-            className="bg-brand py-4 px-8 rounded-xl"
-            onPress={async () => {
-              try {
-                // First, check if user is actually verified
-                if (user) {
-                  await user.reload();
-                  const isVerified = user.emailVerified;
-
-                  if (!isVerified) {
-                    Alert.alert(
-                      'Email Not Verified',
-                      'Your email has not been verified yet. Please check your email and click the verification link, then try again.',
-                      [{ text: 'OK' }]
-                    );
-                    return;
-                  }
-
-                  // Use the AuthContext function to handle email verification completion
-                  await handleEmailVerificationComplete();
-
-                  console.log('Email verification completed, AuthContext will handle navigation automatically');
-
-                  // Small delay to ensure state updates are processed
-                  await new Promise(resolve => setTimeout(resolve, 100));
-                }
-
-              } catch (error) {
-                console.error('Error during Continue to App:', error);
-                Alert.alert(
-                  'Error',
-                  'Failed to verify your account. Please try again.',
-                  [{ text: 'OK' }]
-                );
-              }
-            }}
+            className={`py-4 px-8 rounded-xl ${
+              continueLoading ? 'bg-gray-400' : 'bg-brand'
+            }`}
+            onPress={handleContinueToApp}
+            disabled={continueLoading}
           >
-            <Text className="text-white text-lg font-manrope-semibold text-center">
-              Continue to App
-            </Text>
+            {continueLoading ? (
+              <ActivityIndicator color="white" size="small" />
+            ) : (
+              <Text className="text-white text-lg font-manrope-semibold text-center">
+                Continue to App
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -325,7 +392,7 @@ export default function EmailVerification() {
           className={`py-4 rounded-xl mb-4 ${
             isLoading ? 'bg-gray-300' : 'bg-brand'
           }`}
-          onPress={checkVerificationStatus}
+          onPress={() => checkVerificationStatus()}
           disabled={isLoading}
         >
           {isLoading ? (

@@ -131,13 +131,11 @@ export class NotificationService {
         if (userId) {
           const userPreferences = await this.getNotificationPreferences(userId);
           if (userPreferences.soundEnabled) {
-            const notificationType = data?.type || 'new_post';
-            await SoundUtils.playNotificationSoundByType(notificationType);
+            await SoundUtils.playNotificationSoundByType();
           }
         } else {
           // Fallback: play sound if no userId provided
-          const notificationType = data?.type || 'new_post';
-          await SoundUtils.playNotificationSoundByType(notificationType);
+          await SoundUtils.playNotificationSoundByType();
         }
       } catch (error) {
         console.error('Error playing notification sound:', error);

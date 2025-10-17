@@ -88,7 +88,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Listen for authentication state changes
   useEffect(() => {
     let hasAttemptedAutoLogin = false;
-    
+    let isProcessingAutoLogin = false;
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
       if (firebaseUser) {
         setUser(firebaseUser);
@@ -101,10 +102,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
           const fetchedUserData = await authService.getUserData(firebaseUser.uid);
           setUserData(fetchedUserData);
-          
+
           // Update admin status based on role data (includes campus_security)
-          const isAdminOrCampusSecurity = userIsAdmin || 
-            fetchedUserData?.role === 'admin' || 
+          const isAdminOrCampusSecurity = userIsAdmin ||
+            fetchedUserData?.role === 'admin' ||
             fetchedUserData?.role === 'campus_security';
           setIsAdmin(isAdminOrCampusSecurity);
 
@@ -119,15 +120,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
           // Check email verification status
           if (fetchedUserData) {
-            // IMPORTANT: Reload user data to get the latest email verification status from Firebase Auth
+            // IMPORTANT: Add a small delay to ensure Firebase Auth state is fully updated
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Reload user data to get the latest email verification status from Firebase Auth
             await firebaseUser.reload();
 
             const needsVerification = await userService.needsEmailVerification(firebaseUser, fetchedUserData);
-            console.log('onAuthStateChanged verification check:', {
+            console.log('🔍 onAuthStateChanged verification check:', {
               firebaseEmailVerified: firebaseUser.emailVerified,
               firestoreEmailVerified: fetchedUserData.emailVerified,
               needsVerification,
-              userId: firebaseUser.uid
+              userId: firebaseUser.uid,
+              email: firebaseUser.email
             });
             setNeedsEmailVerification(needsVerification);
 
@@ -143,10 +148,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             // Only set authenticated if user is verified
             if (!needsVerification) {
-              console.log('onAuthStateChanged: User is verified, setting authenticated = true');
+              console.log('✅ User is verified, setting authenticated = true');
               setIsAuthenticated(true);
             } else {
-              console.log('onAuthStateChanged: User needs verification, setting authenticated = false');
+              console.log('⏳ User needs verification, setting authenticated = false');
               // User needs verification, don't set authenticated
               setIsAuthenticated(false);
             }
@@ -198,7 +203,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               setIsAuthenticated(false);
             }
           }
-          
+
           // Set loading to false after successful authentication and data fetch
           setLoading(false);
 
@@ -228,7 +233,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           } else {
             console.log('📧 User email not verified, skipping notification initialization');
           }
-          
+
           // Start monitoring this specific user for ban status changes
           // Only set up listener if user is authenticated to prevent permission errors during logout
           if (firebaseUser && firebaseUser.uid && !needsEmailVerification) {
@@ -256,7 +261,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     // User was unbanned
                     setIsBanned(false);
                     setBanInfo(null);
-                    
+
                     // Deactivate periodic checks since real-time listener is working
                     if (smartBanCheckRef.current) {
                       smartBanCheckRef.current.deactivatePeriodicChecks();
@@ -295,13 +300,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             // Store the unsubscribe function for cleanup on logout
             banListenerRef.current = banUnsubscribe;
-            
+
             // Deactivate periodic checks since real-time listener is working
             if (smartBanCheckRef.current) {
               smartBanCheckRef.current.deactivatePeriodicChecks();
             }
           }
-          
+
         } catch (error: any) {
           console.error('Error fetching user data:', error);
           setUserData(null);
@@ -342,16 +347,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setLoading(false);
 
         // No authenticated user - try auto-login once
-        if (!hasAttemptedAutoLogin) {
+        if (!hasAttemptedAutoLogin && !isProcessingAutoLogin) {
+          console.log('🔄 Starting auto-login attempt...');
           hasAttemptedAutoLogin = true;
-          const autoLoginSuccess = await attemptAutoLogin();
+          isProcessingAutoLogin = true;
 
-          if (!autoLoginSuccess) {
-            // Auto-login failed or no credentials - user needs to login manually
+          try {
+            const autoLoginSuccess = await attemptAutoLogin();
+
+            if (autoLoginSuccess) {
+              console.log('✅ Auto-login successful, waiting for onAuthStateChanged to be called with user');
+              // If auto-login succeeds, onAuthStateChanged will be called again with the user
+              // We don't need to do anything here - the next call will handle the authenticated state
+            } else {
+              console.log('❌ Auto-login failed or no credentials found');
+              // Auto-login failed or no credentials - user needs to login manually
+              setLoading(false);
+            }
+          } catch (error) {
+            console.error('❌ Auto-login error:', error);
             setLoading(false);
+          } finally {
+            isProcessingAutoLogin = false;
           }
-          // If auto-login succeeds, onAuthStateChanged will be called again with the user
         } else {
+          console.log('ℹ️ Auto-login already attempted or in progress, user is not authenticated');
           // Already attempted auto-login, user is truly not authenticated
           setLoading(false);
         }
@@ -613,6 +633,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // Check email verification status
         if (fetchedUserData) {
+          // Add a small delay to ensure Firebase Auth state is fully updated
+          await new Promise(resolve => setTimeout(resolve, 300));
+
+          await user.reload();
           const needsVerification = await userService.needsEmailVerification(user, fetchedUserData);
           setNeedsEmailVerification(needsVerification);
 
@@ -631,9 +655,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const handleEmailVerificationComplete = async (): Promise<void> => {
-    if (!user || !userData) return;
+    if (!user || !userData) {
+      console.error('handleEmailVerificationComplete: No user or userData available');
+      return;
+    }
 
     try {
+      console.log('🔄 Starting email verification completion process...');
+
       // Update Firestore email verification status
       await userService.updateUserData(user.uid, { emailVerified: true });
 
@@ -644,6 +673,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Update authentication state since email is now verified
       setIsAuthenticated(true);
       setNeedsEmailVerification(false);
+
+      // CRITICAL: Ensure loading state is reset after verification
+      setLoading(false);
 
       // Now that email is verified, save push token
       try {
@@ -657,11 +689,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Don't fail verification if push token saving fails
       }
 
-      console.log('Email verification completed successfully - user is now authenticated');
+      console.log('✅ Email verification completed successfully - user is now authenticated');
     } catch (error: any) {
-      console.error('Failed to complete email verification:', error);
-      // Don't throw error - allow verification to proceed even if Firestore update fails
-      // Firebase email verification is what matters for authentication
+      console.error('❌ Failed to complete email verification:', error);
+
+      // If Firestore update fails, check if Firebase Auth is actually verified
+      try {
+        await user.reload();
+        if (user.emailVerified) {
+          console.log('🔄 Firebase Auth shows verified, but Firestore update failed. Proceeding anyway...');
+
+          // Still set authenticated since Firebase verification is what matters
+          setIsAuthenticated(true);
+          setNeedsEmailVerification(false);
+          setLoading(false);
+
+          // Try to update Firestore again in background
+          userService.updateUserData(user.uid, { emailVerified: true }).catch(updateError => {
+            console.error('Background Firestore update also failed:', updateError);
+          });
+
+          console.log('✅ User authenticated despite Firestore error');
+        } else {
+          console.error('❌ Firebase Auth still shows unverified');
+          setIsAuthenticated(false);
+          setNeedsEmailVerification(true);
+          setLoading(false);
+          throw new Error('Email verification failed - please try again');
+        }
+      } catch (reloadError) {
+        console.error('❌ Error reloading user after verification failure:', reloadError);
+        setIsAuthenticated(false);
+        setNeedsEmailVerification(true);
+        setLoading(false);
+        throw new Error('Verification check failed - please try again');
+      }
     }
   };
 

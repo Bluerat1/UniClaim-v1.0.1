@@ -19,7 +19,7 @@ class ExpirationService {
             return;
         }
 
-        console.log('ExpirationService: Starting automatic post expiration management');
+        // console.log('ExpirationService: Starting automatic post expiration management');
         this.isRunning = true;
 
         // Check immediately when starting
@@ -59,7 +59,7 @@ class ExpirationService {
             const now = new Date();
             this.lastCheckTime = now;
 
-            console.log(`ExpirationService: Checking for expired posts at ${now.toISOString()}`);
+            // console.log(`ExpirationService: Checking for expired posts at ${now.toISOString()}`);
 
             // Get all posts to check for expiration
             // Note: We use a callback approach to avoid blocking the main thread

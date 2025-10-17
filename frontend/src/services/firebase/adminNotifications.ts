@@ -130,11 +130,11 @@ export class AdminNotificationService {
     // Get admin notifications for a specific admin
     async getAdminNotifications(adminId: string, limitCount: number = 15): Promise<AdminNotification[]> {
         try {
-            console.log('🔍 Getting admin notifications for adminId:', adminId);
+            // console.log('🔍 Getting admin notifications for adminId:', adminId);
             const adminNotificationsRef = collection(db, 'admin_notifications');
 
             // Get broadcast notifications (adminId: 'all')
-            console.log('📋 Querying broadcast notifications...');
+            // console.log('📋 Querying broadcast notifications...');
             const broadcastQuery = query(
                 adminNotificationsRef,
                 where('adminId', '==', 'all'),
@@ -145,7 +145,7 @@ export class AdminNotificationService {
             const notifications: AdminNotification[] = [];
 
             broadcastSnapshot.forEach((doc) => {
-                console.log('📄 Found broadcast notification:', doc.id, doc.data());
+                // console.log('📄 Found broadcast notification:', doc.id, doc.data());
                 notifications.push({
                     id: doc.id,
                     ...doc.data()
@@ -153,7 +153,7 @@ export class AdminNotificationService {
             });
 
             // Get specific admin notifications
-            console.log('📋 Querying specific admin notifications...');
+            // console.log('📋 Querying specific admin notifications...');
             const specificQuery = query(
                 adminNotificationsRef,
                 where('adminId', '==', adminId),
@@ -162,7 +162,7 @@ export class AdminNotificationService {
 
             const specificSnapshot = await getDocs(specificQuery);
             specificSnapshot.forEach((doc) => {
-                console.log('📄 Found specific notification:', doc.id, doc.data());
+                // console.log('📄 Found specific notification:', doc.id, doc.data());
                 notifications.push({
                     id: doc.id,
                     ...doc.data()
@@ -179,7 +179,7 @@ export class AdminNotificationService {
             // Limit to requested count
             const limitedNotifications = notifications.slice(0, limitCount);
 
-            console.log('✅ Retrieved admin notifications:', limitedNotifications.length);
+            // console.log('✅ Retrieved admin notifications:', limitedNotifications.length);
             return limitedNotifications;
         } catch (error) {
             console.error('❌ Error getting admin notifications:', error);
@@ -190,7 +190,7 @@ export class AdminNotificationService {
     // Get unread count for admin
     async getUnreadCount(adminId: string): Promise<number> {
         try {
-            console.log('🔢 Getting unread count for adminId:', adminId);
+            // console.log('🔢 Getting unread count for adminId:', adminId);
             const adminNotificationsRef = collection(db, 'admin_notifications');
 
             // Get broadcast unread notifications
@@ -210,7 +210,7 @@ export class AdminNotificationService {
             const specificSnapshot = await getDocs(specificQuery);
 
             const totalUnread = broadcastSnapshot.size + specificSnapshot.size;
-            console.log('🔢 Total unread notifications:', totalUnread, `(broadcast: ${broadcastSnapshot.size}, specific: ${specificSnapshot.size})`);
+            // console.log('🔢 Total unread notifications:', totalUnread, `(broadcast: ${broadcastSnapshot.size}, specific: ${specificSnapshot.size})`);
             return totalUnread;
         } catch (error) {
             console.error('❌ Error getting unread count:', error);
@@ -367,7 +367,7 @@ export class AdminNotificationService {
             // Listen to both queries
             const unsubscribeBroadcast = onSnapshot(broadcastQuery,
                 (broadcastSnapshot) => {
-                    console.log('🔄 Broadcast notifications update:', broadcastSnapshot.size);
+                    // console.log('🔄 Broadcast notifications update:', broadcastSnapshot.size);
 
                     // Also get specific admin notifications
                     getDocs(specificQuery).then(specificSnapshot => {
@@ -375,7 +375,7 @@ export class AdminNotificationService {
 
                         // Add broadcast notifications
                         broadcastSnapshot.forEach((doc) => {
-                            console.log('📄 Broadcast notification:', doc.id, doc.data());
+                            // console.log('📄 Broadcast notification:', doc.id, doc.data());
                             allNotifications.push({
                                 id: doc.id,
                                 ...doc.data()
@@ -384,7 +384,7 @@ export class AdminNotificationService {
 
                         // Add specific admin notifications
                         specificSnapshot.forEach((doc) => {
-                            console.log('📄 Specific admin notification:', doc.id, doc.data());
+                            // console.log('📄 Specific admin notification:', doc.id, doc.data());
                             allNotifications.push({
                                 id: doc.id,
                                 ...doc.data()
@@ -398,7 +398,7 @@ export class AdminNotificationService {
                             return bTime - aTime;
                         });
 
-                        console.log('🔄 Total notifications after merge:', allNotifications.length);
+                        // console.log('🔄 Total notifications after merge:', allNotifications.length);
                         onNotificationsChange(allNotifications);
                     }).catch(error => {
                         console.error('❌ Error getting specific admin notifications:', error);
@@ -414,7 +414,7 @@ export class AdminNotificationService {
             // Also listen to specific admin notifications for real-time updates
             const unsubscribeSpecific = onSnapshot(specificQuery,
                 (specificSnapshot) => {
-                    console.log('🔄 Specific admin notifications update:', specificSnapshot.size);
+                    // console.log('🔄 Specific admin notifications update:', specificSnapshot.size);
 
                     // Get broadcast notifications too
                     getDocs(broadcastQuery).then(broadcastSnapshot => {
@@ -445,7 +445,7 @@ export class AdminNotificationService {
                             return bTime - aTime;
                         });
 
-                        console.log('🔄 Total notifications after merge:', allNotifications.length);
+                        // console.log('🔄 Total notifications after merge:', allNotifications.length);
                         onNotificationsChange(allNotifications);
                     }).catch(error => {
                         console.error('❌ Error getting broadcast notifications:', error);

@@ -14,6 +14,7 @@ export class SoundUtils {
         requiresUserGesture: boolean;
         supportsAudioContext: boolean;
     } | null = null;
+    private static isPlaying: boolean = false;
 
     // Detect browser capabilities and autoplay policies
     private static detectBrowser(): {
@@ -238,9 +239,19 @@ export class SoundUtils {
 
     // Play a simple notification beep sound
     static async playNotificationSound(): Promise<void> {
+        // Prevent overlapping sounds
+        if (this.isPlaying) {
+            return;
+        }
+        this.isPlaying = true;
+
         // Check if audio is ready to play
         if (!this.isAudioReady()) {
             this.playFallbackSound();
+            // Reset flag after a short delay for fallback
+            setTimeout(() => {
+                this.isPlaying = false;
+            }, 300);
             return;
         }
 
@@ -261,7 +272,7 @@ export class SoundUtils {
             gainNode.connect(audioContext.destination);
 
             // Configure the sound
-            oscillator.frequency.setValueAtTime(800, audioContext.currentTime); // 800Hz frequency
+            oscillator.frequency.setValueAtTime(1000, audioContext.currentTime); // 1000Hz frequency
             oscillator.type = 'sine';
 
             // Configure volume envelope (fade in/out)
@@ -272,10 +283,19 @@ export class SoundUtils {
             // Play the sound
             oscillator.start(audioContext.currentTime);
             oscillator.stop(audioContext.currentTime + 0.3);
+
+            // Reset flag after sound completes
+            setTimeout(() => {
+                this.isPlaying = false;
+            }, 300);
         } catch (error) {
             this.handleAudioError(error);
             // Fallback: try to play a simple beep using HTML5 Audio
             this.playFallbackSound();
+            // Reset flag after fallback attempt
+            setTimeout(() => {
+                this.isPlaying = false;
+            }, 300);
         }
     }
 
@@ -591,20 +611,9 @@ export class SoundUtils {
     }
 
     // Play a different sound for different notification types
-    static async playNotificationSoundByType(type: string): Promise<void> {
-        switch (type) {
-            case 'new_post':
-                await this.playNotificationSound();
-                break;
-            case 'message':
-                await this.playMessageSound();
-                break;
-            case 'claim':
-                await this.playClaimSound();
-                break;
-            default:
-                await this.playNotificationSound();
-        }
+    static async playNotificationSoundByType(): Promise<void> {
+        // Use the same sound for all types to match the test sound
+        await this.playNotificationSound();
     }
 
     // Play a message notification sound (slightly different frequency)
@@ -628,8 +637,8 @@ export class SoundUtils {
             oscillator.connect(gainNode);
             gainNode.connect(audioContext.destination);
 
-            // Different frequency for messages (600Hz)
-            oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+            // Different frequency for messages (1000Hz to match general notifications)
+            oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
             oscillator.type = 'sine';
 
             gainNode.gain.setValueAtTime(0, audioContext.currentTime);

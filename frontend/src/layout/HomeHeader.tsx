@@ -441,10 +441,27 @@ export default function HomeHeader({
                           {notification.body}
                         </p>
                         <p className="text-gray-400 text-xs mt-2">
-                          {new Date(
-                            notification.createdAt?.toDate?.() ||
-                              notification.createdAt
-                          ).toLocaleString()}
+                          {(() => {
+                            const date = notification.createdAt?.toDate?.() || new Date(notification.createdAt);
+                            if (!date || isNaN(date.getTime())) return "Recently";
+                            const now = new Date();
+                            const diffMs = now.getTime() - date.getTime();
+                            const diffSeconds = Math.floor(diffMs / 1000);
+                            const diffMinutes = Math.floor(diffSeconds / 60);
+                            const diffHours = Math.floor(diffMinutes / 60);
+                            const diffDays = Math.floor(diffHours / 24);
+                            const diffWeeks = Math.floor(diffDays / 7);
+                            const diffMonths = Math.floor(diffDays / 30);
+                            const diffYears = Math.floor(diffDays / 365);
+
+                            if (diffSeconds < 60) return `${diffSeconds}s`;
+                            if (diffMinutes < 60) return `${diffMinutes}m`;
+                            if (diffHours < 24) return `${diffHours}h`;
+                            if (diffDays < 7) return `${diffDays}d`;
+                            if (diffWeeks < 4) return `${diffWeeks}w`;
+                            if (diffMonths < 12) return `${diffMonths}mth`;
+                            return `${diffYears}y`;
+                          })()}
                         </p>
                       </div>
                       <div className="flex items-center ml-2">
