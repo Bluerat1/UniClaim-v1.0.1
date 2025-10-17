@@ -76,8 +76,6 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!isAuthenticated || !userData?.uid || !userData?.emailVerified) return;
 
-    console.log('🔄 Setting up real-time notification listener for user:', userData.uid);
-
     const unsubscribe = notificationService.setupRealtimeListener(
       userData.uid,
       async (newNotifications) => {
@@ -113,16 +111,15 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
                     type: notification.type
                   }
                 );
-                console.log('✅ Browser notification shown for:', notification.title);
               }
             } catch (error) {
-              console.error('❌ Error showing browser notification:', error);
+              // Silent error handling for browser notifications
             }
           });
         }
       },
-      (error) => {
-        console.error('❌ Real-time notification listener error:', error);
+      (_error) => {
+        // Silent error handling for listener errors
       }
     );
 
@@ -146,12 +143,9 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       const deletePromises = notificationsToDelete.map(notif => notificationService.deleteNotification(notif.id));
       await Promise.all(deletePromises);
 
-      console.log(`Deleted ${notificationsToDelete.length} old notifications to enforce 15-limit`);
-
       // Return only the latest 15 notifications (already in newest-first order)
       return sortedNotifications.slice(0, 15);
     } catch (error) {
-      console.error('Error enforcing notification limit:', error);
       // Return original notifications if deletion fails
       return notifications;
     }
@@ -165,12 +159,6 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       setError(null);
       
       const userNotifications = await notificationService.getUserNotifications(userData.uid, 50);
-      
-            userNotifications.forEach(notif => {
-        if (notif.type === 'claim_update' && notif.data?.notificationType === 'claim_confirmed') {
-          console.log(`🎉 Found claim confirmation notification:`, notif);
-        }
-      });
       
       // Enforce 15-notification limit by deleting oldest notifications if needed
       const enforcedNotifications = await enforceNotificationLimit(userNotifications);
@@ -208,7 +196,6 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       setUnreadCount(unread);
     } catch (err: any) {
       setError(err.message || 'Failed to load notifications');
-      console.error('Error loading notifications:', err);
     } finally {
       setLoading(false);
     }
@@ -234,7 +221,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       // Update unread count
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (err: any) {
-      console.error('Error marking notification as read:', err);
+      // Silent error handling for mark as read
     }
   };
 
@@ -251,7 +238,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       
       setUnreadCount(0);
     } catch (err: any) {
-      console.error('Error marking all notifications as read:', err);
+      // Silent error handling for mark all as read
     }
   };
 
@@ -259,7 +246,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     try {
       await notificationService.showNotification(title, body, data);
     } catch (err: any) {
-      console.error('Error showing notification:', err);
+      // Silent error handling for show notification
     }
   };
 
@@ -276,7 +263,6 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
         setUnreadCount(prev => Math.max(0, prev - 1));
       }
     } catch (err: any) {
-      console.error('Error deleting notification:', err);
       setError('Failed to delete notification');
     }
   };
@@ -291,7 +277,6 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       setNotifications([]);
       setUnreadCount(0);
     } catch (err: any) {
-      console.error('Error deleting all notifications:', err);
       setError('Failed to delete all notifications');
     }
   };

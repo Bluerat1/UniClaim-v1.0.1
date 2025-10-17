@@ -106,11 +106,6 @@ export class SoundUtils {
             supportsAudioContext
         };
 
-        console.log(`🔊 Browser detected: ${name} ${version}`);
-        console.log(`🔊 Web Audio API: ${supportsWebAudio ? 'Supported' : 'Not Supported'}`);
-        console.log(`🔊 Autoplay Policy: ${autoplayPolicy}`);
-        console.log(`🔊 Requires User Gesture: ${requiresUserGesture}`);
-
         return this.browserInfo;
     }
 
@@ -123,7 +118,6 @@ export class SoundUtils {
         try {
             // Browser-specific initialization
             if (browser.name === 'Safari' && !browser.supportsAudioContext) {
-                console.log('🔊 Safari detected with limited Web Audio API support - using fallback');
                 this.audioPermissionStatus = 'granted';
                 this.isInitialized = true;
                 return;
@@ -136,17 +130,13 @@ export class SoundUtils {
             if (browser.name === 'Safari') {
                 // Safari requires immediate resume
                 this.audioContext.resume().then(() => {
-                    console.log('🔊 Safari audio context resumed');
-                }).catch(error => {
-                    console.warn('🔊 Safari audio context resume failed:', error);
+                }).catch(() => {
                 });
             }
 
             this.isInitialized = true;
             this.audioPermissionStatus = 'granted';
-            console.log(`🔊 Audio context initialized successfully on ${browser.name} ${browser.version}`);
         } catch (error) {
-            console.error('Failed to initialize audio context:', error);
             this.audioPermissionStatus = 'blocked';
         }
     }
@@ -161,7 +151,6 @@ export class SoundUtils {
         if (!this.hasUserInteracted) {
             this.hasUserInteracted = true;
             this.initializeAudioContext();
-            console.log('🔊 User interaction detected, audio system ready');
         }
     }
 
@@ -221,10 +210,8 @@ export class SoundUtils {
     public static async testNotificationSound(): Promise<boolean> {
         try {
             await this.playNotificationSound();
-            console.log('🔊 Test notification sound played successfully');
             return true;
         } catch (error) {
-            console.error('Test notification sound failed:', error);
             return false;
         }
     }
@@ -366,18 +353,13 @@ export class SoundUtils {
 
     // Handle audio errors with specific user-friendly messages
     private static handleAudioError(error: any): void {
-        let errorMessage = 'Audio playback failed';
-
         if (error.name === 'NotAllowedError') {
-            errorMessage = 'Audio is blocked by browser autoplay policy';
             this.audioPermissionStatus = 'blocked';
         } else if (error.name === 'NotSupportedError') {
-            errorMessage = 'Audio format not supported by browser';
+            // Audio format not supported by browser
         } else if (error.name === 'AbortError') {
-            errorMessage = 'Audio playback was interrupted';
+            // Audio playback was interrupted
         }
-
-        console.warn(`🔊 ${errorMessage}:`, error);
     }
 
     // Fallback Strategy 1: Data URL beep (original method)
@@ -431,8 +413,7 @@ export class SoundUtils {
 
         // Safari-specific event handling
         audio.addEventListener('canplaythrough', () => {
-            audio.play().catch(error => {
-                console.warn('Safari audio play failed:', error);
+            audio.play().catch(() => {
             });
         });
 
@@ -440,7 +421,6 @@ export class SoundUtils {
         try {
             await audio.play();
         } catch (error) {
-            console.warn('Safari immediate play failed:', error);
         }
     }
 

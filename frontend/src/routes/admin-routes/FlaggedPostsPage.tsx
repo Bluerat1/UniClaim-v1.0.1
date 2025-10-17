@@ -13,14 +13,6 @@ export default function FlaggedPostsPage() {
   const { posts = [] } = useAdminPosts();
   const { showToast } = useToast();
 
-  console.log("FlaggedPostsPage component rendering with posts:", posts.length);
-
-  // Debug logging to see what's happening
-  console.log("FlaggedPostsPage - Total posts:", posts.length);
-  console.log("FlaggedPostsPage - Flagged posts:", posts.filter(p => p.isFlagged === true).length);
-  console.log("FlaggedPostsPage - Posts with isFlagged property:", posts.filter(p => 'isFlagged' in p).length);
-  console.log("FlaggedPostsPage - Sample posts:", posts.slice(0, 3).map(p => ({ id: p.id, isFlagged: p.isFlagged })));
-
   // Confirmation modal states
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
@@ -43,6 +35,9 @@ export default function FlaggedPostsPage() {
   // State for loading actions
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  // State for view type filtering (similar to AdminHomePage)
+  const [viewType, setViewType] = useState<"all" | "lost" | "found">("all");
+
   // State for search functionality
   const [query, setQuery] = useState("");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("All");
@@ -51,26 +46,24 @@ export default function FlaggedPostsPage() {
 
   // Filter posts to show only flagged ones
   const flaggedPosts = useMemo(() => {
-    const flagged = posts.filter((post: Post) => post.isFlagged === true);
-    const stringTrue = posts.filter((post: Post) => typeof post.isFlagged === 'string' && post.isFlagged === "true").length;
-    const booleanTrue = posts.filter((post: Post) => post.isFlagged === true).length;
-    const booleanFalse = posts.filter((post: Post) => post.isFlagged === false).length;
-    const undefinedFlagged = posts.filter((post: Post) => post.isFlagged === undefined).length;
-
-    console.log("FlaggedPostsPage - flaggedPosts computed:", flagged.length, "from", posts.length, "posts");
-    console.log("FlaggedPostsPage - isFlagged analysis:");
-    console.log("  - String 'true':", stringTrue);
-    console.log("  - Boolean true:", booleanTrue);
-    console.log("  - Boolean false:", booleanFalse);
-    console.log("  - Undefined:", undefinedFlagged);
-    console.log("  - Total with isFlagged property:", posts.filter(p => 'isFlagged' in p).length);
-
-    return flagged;
+    return posts.filter((post: Post) => post.isFlagged === true);
   }, [posts]);
 
-  // Filtered flagged posts based on search criteria
+  // Filtered flagged posts based on search criteria and viewType
   const filteredFlaggedPosts = useMemo(() => {
     return flaggedPosts.filter((post) => {
+      // Apply viewType filtering first
+      let shouldShow = false;
+
+      if (viewType === "all") {
+        shouldShow = true; // Show all flagged posts
+      } else {
+        shouldShow = post.type.toLowerCase() === viewType;
+      }
+
+      if (!shouldShow) return false;
+
+      // Then apply search criteria
       const matchesQuery = query.trim() === "" || 
         post.title.toLowerCase().includes(query.toLowerCase()) ||
         post.description.toLowerCase().includes(query.toLowerCase());
@@ -86,7 +79,7 @@ export default function FlaggedPostsPage() {
 
       return matchesQuery && matchesCategory && matchesDescription && matchesLocation;
     });
-  }, [flaggedPosts, query, selectedCategoryFilter, description, location]);
+  }, [flaggedPosts, query, selectedCategoryFilter, description, location, viewType]);
 
   // Handle search functionality
   const handleSearch = (searchQuery: string, filters: any) => {
@@ -298,6 +291,48 @@ export default function FlaggedPostsPage() {
           />
         </div>
 
+        {/* Filter Buttons */}
+        <div className="flex mt-7 flex-wrap sm:justify-center items-center gap-3 w-full px-4 sm:px-6 lg:px-8 lg:justify-start lg:gap-3">
+          <button
+            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+              viewType === "all"
+                ? "bg-navyblue text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
+            }`}
+            onClick={() => {
+              setViewType("all");
+            }}
+          >
+            All Item Reports
+          </button>
+
+          <button
+            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+              viewType === "lost"
+                ? "bg-navyblue text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
+            }`}
+            onClick={() => {
+              setViewType("lost");
+            }}
+          >
+            Lost Item Reports
+          </button>
+
+          <button
+            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+              viewType === "found"
+                ? "bg-navyblue text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
+            }`}
+            onClick={() => {
+              setViewType("found");
+            }}
+          >
+            Found Item Reports
+          </button>
+        </div>
+
         {/* Content */}
         <div className="px-4 sm:px-6 lg:px-8">
           {/* Bulk Actions Bar */}
@@ -375,7 +410,11 @@ export default function FlaggedPostsPage() {
                 No Flagged Posts
               </h3>
               <p className="text-gray-500 max-w-md mx-auto">
-                All posts are clean! No flagged content to review at this time.
+                {viewType === "all"
+                  ? "No flagged posts found."
+                  : viewType === "lost"
+                  ? "No flagged lost item reports found."
+                  : "No flagged found item reports found."}
               </p>
             </div>
           ) : (

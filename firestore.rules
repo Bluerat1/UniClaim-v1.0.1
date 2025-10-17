@@ -221,7 +221,17 @@ service cloud.firestore {
       allow read, write: if request.auth != null && isAdmin();
     }
     
-    // Helper functions
+    // Analytics collection rules - allow authenticated users to read analytics data
+    match /analytics/{analyticsId} {
+      // Allow authenticated users to read analytics data
+      allow read: if request.auth != null;
+
+      // Allow creating analytics data (for post creation logging)
+      allow create: if request.auth != null;
+
+      // Allow updating analytics data (for incrementing counters)
+      allow update: if request.auth != null;
+    }
     function isValidPost(data) {
       return data.keys().hasAll(['title', 'description', 'category', 'location', 'type', 'user', 'status'])
         && data.type in ['lost', 'found']

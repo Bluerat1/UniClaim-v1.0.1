@@ -83,6 +83,7 @@ import { notificationService } from './notifications';
 import { adminNotificationService } from './adminNotifications';
 import { cacheInvalidation, cacheKeys, userCache, postCache } from '../../utils/advancedCache';
 import { notificationSender } from './notificationSender';
+import { analyticsService } from './analytics';
 export const postService = {
     // Create a new post
     async createPost(postData: Omit<Post, 'id' | 'createdAt' | 'creatorId'>, creatorId: string): Promise<string> {
@@ -148,6 +149,10 @@ export const postService = {
             // Invalidate relevant caches after successful post creation
             cacheInvalidation.invalidatePostsByType('all');
             console.log(`🔄 [CACHE] Invalidated post caches after creating post ${postId}`);
+
+            // Log analytics for the new post creation
+            await analyticsService.logPostCreation(post.type);
+            console.log(`📊 [ANALYTICS] Logged ${post.type} post creation for analytics`);
 
             const endTime = performance.now();
             const totalTime = endTime - startTime;
@@ -326,6 +331,10 @@ export const postService = {
                     console.error('Error executing onSuccess callback:', error);
                 }
             }
+
+            // Log analytics for the new post creation
+            await analyticsService.logPostCreation(post.type);
+            console.log(`📊 [CONCURRENT] Logged ${post.type} post creation for analytics`);
 
             const endTime = performance.now();
             const totalTime = endTime - startTime;

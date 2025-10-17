@@ -573,15 +573,19 @@ export default function PostModal({
                     </button>
                   )}
                 </div>
-                <div>
-                  <span className="font-medium">Student ID:</span>{" "}
-                  {post.turnoverDetails.originalFinder.studentId || "N/A"}
-                </div>
-                <div>
-                  <span className="font-medium">Email:</span>{" "}
-                  {post.turnoverDetails.originalFinder.email}
-                </div>
-                {post.turnoverDetails.originalFinder.contactNum && (
+                {isAdmin && (
+                  <div>
+                    <span className="font-medium">Student ID:</span>{" "}
+                    {post.turnoverDetails.originalFinder.studentId || "N/A"}
+                  </div>
+                )}
+                {isAdmin && (
+                  <div>
+                    <span className="font-medium">Email:</span>{" "}
+                    {post.turnoverDetails.originalFinder.email}
+                  </div>
+                )}
+                {isAdmin && post.turnoverDetails.originalFinder.contactNum && (
                   <div>
                     <span className="font-medium">Contact:</span>{" "}
                     {post.turnoverDetails.originalFinder.contactNum}

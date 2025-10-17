@@ -4,51 +4,12 @@ import { db } from "@/services/firebase/config";
 import type { Post } from "@/types/Post";
 // AdminLayout is used by the router, no need to import it here
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-// Simple Tabs implementation
-interface TabComponentProps {
-  children: React.ReactNode;
-  className?: string;
-  [key: string]: any;
-}
-
-const Tabs = ({ children, className = "" }: TabComponentProps) => (
-  <div className={`tabs ${className}`} data-tabs>
-    {children}
-  </div>
-);
-
-const TabsList = ({ children, className = "" }: TabComponentProps) => (
-  <div className={`flex border-b mb-4 ${className}`}>{children}</div>
-);
-
-const TabsTrigger = ({
-  value,
-  children,
-  className = "",
-  ...props
-}: TabComponentProps & { value: string }) => (
-  <button
-    className={`px-4 py-2 font-medium text-sm border-b-2 border-transparent hover:border-gray-300 ${className}`}
-    data-tab-trigger={value}
-    {...props}
-  >
-    {children}
-  </button>
-);
-
-const TabsContent = ({
-  value,
-  children,
-  className = "",
-}: TabComponentProps & { value: string }) => (
-  <div data-tab-content={value} className={`mt-4 ${className}`}>
-    {children}
-  </div>
-);
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import PostsOverTimeChart from "@/components/analytics/PostsOverTimeChart";
 import CategoryDistributionChart from "@/components/analytics/CategoryDistributionChart";
 import StatusDistributionChart from "@/components/analytics/StatusDistributionChart";
 import DateRangeSelector from "@/components/analytics/DateRangeSelector";
+import PostCreationLogbook from "@/components/analytics/PostCreationLogbook";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 
 const AdminAnalyticsPage: React.FC = () => {
@@ -317,6 +278,7 @@ const AdminAnalyticsPage: React.FC = () => {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="categories">Categories</TabsTrigger>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
+            <TabsTrigger value="logbook">Logbook</TabsTrigger>
             <TabsTrigger value="locations">Locations</TabsTrigger>
           </TabsList>
 
@@ -416,6 +378,10 @@ const AdminAnalyticsPage: React.FC = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="logbook" className="space-y-4">
+            <PostCreationLogbook posts={displayPosts} />
           </TabsContent>
 
           <TabsContent value="locations" className="space-y-4">

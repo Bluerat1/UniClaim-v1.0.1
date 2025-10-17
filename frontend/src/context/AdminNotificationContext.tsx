@@ -42,10 +42,6 @@ export const AdminNotificationProvider = ({ children }: { children: ReactNode })
   // Load notifications when user is authenticated and is admin
   useEffect(() => {
     if (isAuthenticated && userData?.uid && isAdmin && userData?.role) {
-      console.log('✅ Admin/Campus Security conditions met, loading admin notifications...');
-      if (!userData?.emailVerified) {
-        console.log('⚠️ Email not verified, but proceeding for testing purposes');
-      }
       // Add a small delay to ensure authentication is fully processed
       const timer = setTimeout(() => {
         loadNotifications();
@@ -53,7 +49,6 @@ export const AdminNotificationProvider = ({ children }: { children: ReactNode })
       
       return () => clearTimeout(timer);
     } else {
-      // console.log('❌ Admin notification conditions not met');
       setNotifications([]);
       setUnreadCount(0);
     }
@@ -69,16 +64,13 @@ export const AdminNotificationProvider = ({ children }: { children: ReactNode })
       (newNotifications) => {
         // Update notifications when they change
         setNotifications(prevNotifications => {
-          const newNotificationsList = newNotifications.filter(newNotif => 
+          // Filter out any existing notifications to avoid duplicates
+          const filteredNotifications = newNotifications.filter(newNotif => 
             !prevNotifications.some(prevNotif => prevNotif.id === newNotif.id)
           );
           
-          // Log new notifications for debugging
-          if (newNotificationsList.length > 0) {
-            console.log(`Received ${newNotificationsList.length} new admin notifications`);
-          }
-          
-          return newNotifications;
+          // Return combined notifications (existing + new)
+          return [...prevNotifications, ...filteredNotifications];
         });
         
         // Update unread count
@@ -87,8 +79,7 @@ export const AdminNotificationProvider = ({ children }: { children: ReactNode })
         setLoading(false);
         setError(null);
       },
-      (error) => {
-        console.error('Admin notification listener error:', error);
+      () => {
         setError('Failed to load admin notifications');
         setLoading(false);
       }
@@ -104,7 +95,6 @@ export const AdminNotificationProvider = ({ children }: { children: ReactNode })
   // Enforce 15-notification limit when notifications change
   useEffect(() => {
     if (notifications.length > 15) {
-      console.log(`🔄 Enforcing notification limit: ${notifications.length} > 15`);
       // Sort notifications by createdAt descending (newest first)
       const sortedNotifications = [...notifications].sort((a, b) => {
         const aTime = a.createdAt?.toMillis?.() || 0;
@@ -115,8 +105,6 @@ export const AdminNotificationProvider = ({ children }: { children: ReactNode })
       // Keep only the first 15 (most recent) notifications
       const limitedNotifications = sortedNotifications.slice(0, 15);
       setNotifications(limitedNotifications);
-
-      console.log(`✅ Limited notifications to 15, removed ${notifications.length - 15} old notifications`);
     }
   }, [notifications]);
 

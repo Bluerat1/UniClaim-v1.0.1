@@ -422,7 +422,6 @@ export class AdminNotificationService {
 
                         // Add specific admin notifications
                         specificSnapshot.forEach((doc) => {
-                            console.log('📄 Specific notification:', doc.id, doc.data());
                             allNotifications.push({
                                 id: doc.id,
                                 ...doc.data()
@@ -431,7 +430,6 @@ export class AdminNotificationService {
 
                         // Add broadcast notifications
                         broadcastSnapshot.forEach((doc) => {
-                            console.log('📄 Broadcast notification:', doc.id, doc.data());
                             allNotifications.push({
                                 id: doc.id,
                                 ...doc.data()

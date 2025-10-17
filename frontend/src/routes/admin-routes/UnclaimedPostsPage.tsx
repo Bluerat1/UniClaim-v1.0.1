@@ -34,6 +34,9 @@ export default function UnclaimedPostsPage() {
   // State for activation
   const [activatingPostId, setActivatingPostId] = useState<string | null>(null);
 
+  // State for view type filtering (similar to AdminHomePage)
+  const [viewType, setViewType] = useState<"all" | "lost" | "found">("all");
+
   // State for modal
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,17 +54,26 @@ export default function UnclaimedPostsPage() {
     );
   }, [posts, rawResults]);
 
-  // Apply category filtering
+  // Apply category filtering and viewType filtering
   const filteredPosts = useMemo(() => {
+    let filtered = unclaimedPosts;
+
+    // Apply viewType filtering
+    if (viewType !== "all") {
+      filtered = filtered.filter((post) => post.type.toLowerCase() === viewType);
+    }
+
+    // Apply category filtering
     if (selectedCategoryFilter && selectedCategoryFilter !== "All") {
-      return unclaimedPosts.filter(
+      filtered = filtered.filter(
         (post) =>
           post.category &&
           post.category.toLowerCase() === selectedCategoryFilter.toLowerCase()
       );
     }
-    return unclaimedPosts;
-  }, [unclaimedPosts, selectedCategoryFilter]);
+
+    return filtered;
+  }, [unclaimedPosts, selectedCategoryFilter, viewType]);
 
   // Handle search
   const handleSearch = (query: string, filters: any) => {
@@ -373,6 +385,48 @@ export default function UnclaimedPostsPage() {
           />
         </div>
 
+        {/* Filter Buttons */}
+        <div className="flex mb-5 flex-wrap sm:justify-center items-center gap-3 w-full px-4 sm:px-6 lg:px-8 lg:justify-start lg:gap-3">
+          <button
+            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+              viewType === "all"
+                ? "bg-navyblue text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
+            }`}
+            onClick={() => {
+              setViewType("all");
+            }}
+          >
+            All Item Reports
+          </button>
+
+          <button
+            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+              viewType === "lost"
+                ? "bg-navyblue text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
+            }`}
+            onClick={() => {
+              setViewType("lost");
+            }}
+          >
+            Lost Item Reports
+          </button>
+
+          <button
+            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+              viewType === "found"
+                ? "bg-navyblue text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
+            }`}
+            onClick={() => {
+              setViewType("found");
+            }}
+          >
+            Found Item Reports
+          </button>
+        </div>
+
         {/* Content */}
         <div className="px-4 sm:px-6 lg:px-8 mb-13">
           {filteredPosts.length === 0 ? (
@@ -384,9 +438,11 @@ export default function UnclaimedPostsPage() {
                 No Unclaimed Posts
               </h3>
               <p className="text-gray-500 max-w-md mx-auto">
-                All posts are currently active! Posts will appear here when they
-                are automatically moved to unclaimed status after 30 days or
-                manually marked as unclaimed.
+                {viewType === "all"
+                  ? "No unclaimed posts found."
+                  : viewType === "lost"
+                  ? "No unclaimed lost item reports found."
+                  : "No unclaimed found item reports found."}
               </p>
             </div>
           ) : (
