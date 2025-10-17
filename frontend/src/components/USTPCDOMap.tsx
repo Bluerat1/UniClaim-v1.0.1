@@ -139,10 +139,10 @@ const USTPLocationPicker: React.FC<Props> = ({
       updateWhileInteracting: true,
       style: new Style({
         fill: new Fill({
-          color: 'rgba(76, 175, 80, 0.3)' // More visible semi-transparent green fill
+          color: 'rgba(76, 175, 80, 0.0)' // More visible semi-transparent green fill
         }),
         stroke: new Stroke({
-          color: '#1B5E20', // Darker green border for better contrast
+          color: 'transparent', // Darker green border for better contrast
           width: 3,
           lineDash: [5, 5] // Dashed line for buffer
         })
