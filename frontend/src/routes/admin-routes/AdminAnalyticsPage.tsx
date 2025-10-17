@@ -247,7 +247,8 @@ const AdminAnalyticsPage: React.FC = () => {
                 strokeWidth="2"
                 className="h-4 w-4 text-muted-foreground"
               >
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35" />
               </svg>
             </CardHeader>
             <CardContent>

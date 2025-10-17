@@ -4,7 +4,7 @@ import {
   HiOutlineUser,
   HiOutlineX,
   HiOutlineShieldCheck,
-  HiOutlineTrash,
+  HiOutlineCog,
 } from "react-icons/hi";
 import { IoLogOutOutline } from "react-icons/io5";
 import Logo from "../assets/uniclaim_logo.png";
@@ -14,9 +14,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useAdminView } from "@/context/AdminViewContext";
 import { useAdminNotifications } from "@/context/AdminNotificationContext";
 import ProfilePicture from "@/components/ProfilePicture";
-import AdminPostModal from "@/components/AdminPostModal";
+import NotificationPreferencesModal from "@/components/NotificationPreferences";
 import { postService } from "@/services/firebase/posts";
-import type { Post } from "@/types/Post";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -34,7 +33,7 @@ export default function AdminHeader({
 }: AdminHeaderProps) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotif, setShowNotif] = useState(false);
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [showPreferences, setShowPreferences] = useState(false);
 
   const toggleProfileMenu = () => setShowProfileMenu((prev) => !prev);
   const toggleNotif = () => setShowNotif((prev) => !prev);
@@ -70,7 +69,16 @@ export default function AdminHeader({
         try {
           const post = await postService.getPostById(postId);
           if (post) {
-            setSelectedPost(post);
+            // Show toast for post found
+            toast.success("Post loaded successfully.", {
+              position: "top-right",
+              autoClose: 3000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+              progress: undefined,
+            });
             setShowNotif(false); // Close notification panel
           } else {
             // Show toast message for deleted post
@@ -273,12 +281,21 @@ export default function AdminHeader({
                 </span>
               )}
             </div>
-            <button
-              onClick={toggleNotif}
-              className="text-lg lg:text-gray-500 lg:hover:text-gray-800"
-            >
-              <HiOutlineX className="size-6 stroke-[1.5px]" />
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setShowPreferences(true)}
+                className="text-gray-500 hover:text-gray-800 p-1"
+                title="Notification Settings"
+              >
+                <HiOutlineCog className="size-5" />
+              </button>
+              <button
+                onClick={toggleNotif}
+                className="text-lg lg:text-gray-500 lg:hover:text-gray-800"
+              >
+                <HiOutlineX className="size-6 stroke-[1.5px]" />
+              </button>
+            </div>
           </div>
 
           {/* Scrollable Content */}
@@ -290,130 +307,65 @@ export default function AdminHeader({
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="p-2">
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    onClick={() => handleNotificationClick(notification)}
-                    className={`p-4 hover:bg-yellow-100 transition-colors cursor-pointer ${
-                      !notification.read
-                        ? "bg-blue/10 border-l-4 border-yellow-500"
-                        : ""
+                    className={`p-3 mb-2 rounded-lg border-l-4 cursor-pointer transition-colors ${
+                      notification.read
+                        ? "bg-gray-50 border-gray-200"
+                        : "bg-yellow-50 border-yellow-500"
                     }`}
+                    onClick={() => handleNotificationClick(notification)}
                   >
                     <div className="flex justify-between items-start">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <h3
-                            className={`text-sm font-medium ${
-                              !notification.read
-                                ? "text-blue-900"
-                                : "text-gray-900"
-                            }`}
-                          >
-                            {notification.title}
-                          </h3>
-                          <div className="flex items-center space-x-1">
-                            {notification.priority === "high" && (
-                              <span
-                                className="inline-block w-2 h-2 bg-orange-500 rounded-full"
-                                title="High priority"
-                              ></span>
-                            )}
-                            {notification.priority === "critical" && (
-                              <span
-                                className="inline-block w-2 h-2 bg-red-500 rounded-full"
-                                title="Critical"
-                              ></span>
-                            )}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation(); // Prevent the click from reaching the parent
-                                deleteNotification(notification.id);
-                              }}
-                              className="text-gray-400 hover:text-red-600 p-1"
-                              title="Delete notification"
-                            >
-                              <HiOutlineTrash className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                        <p
-                          className={`text-sm mt-1 ${
-                            !notification.read
-                              ? "text-blue-800"
-                              : "text-gray-600"
-                          }`}
-                        >
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900 text-sm">
+                          {notification.title}
+                        </h3>
+                        <p className="text-gray-600 text-xs mt-1">
                           {notification.message}
                         </p>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-xs text-gray-500">
-                            {notification.type === "new_post" && "📝 New Post"}
-                            {notification.type === "flagged_post" &&
-                              "🚩 Flagged Post"}
-                            {notification.type === "user_report" &&
-                              "👤 User Report"}
-                            {notification.type === "system_alert" &&
-                              `${
-                                notification.data?.adminNotificationType ===
-                                "admin_message"
-                                  ? "💬"
-                                  : notification.data?.adminNotificationType ===
-                                    "admin_handover"
-                                  ? "🔄"
-                                  : notification.data?.adminNotificationType ===
-                                    "admin_claim"
-                                  ? "📋"
-                                  : "⚠️"
-                              } System Alert`}
-                            {notification.type === "activity_summary" &&
-                              "📊 Activity Summary"}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {(() => {
-                              const date = notification.createdAt?.toDate?.();
-                              if (!date) return "Recently";
-                              const now = new Date();
-                              const diffMs = now.getTime() - date.getTime();
-                              const diffSeconds = Math.floor(diffMs / 1000);
-                              const diffMinutes = Math.floor(diffSeconds / 60);
-                              const diffHours = Math.floor(diffMinutes / 60);
-                              const diffDays = Math.floor(diffHours / 24);
-                              const diffWeeks = Math.floor(diffDays / 7);
-                              const diffMonths = Math.floor(diffDays / 30);
-                              const diffYears = Math.floor(diffDays / 365);
+                        <p className="text-gray-400 text-xs mt-2">
+                          {(() => {
+                            const date = notification.createdAt?.toDate?.();
+                            if (!date) return "Recently";
+                            const now = new Date();
+                            const diffMs = now.getTime() - date.getTime();
+                            const diffSeconds = Math.floor(diffMs / 1000);
+                            const diffMinutes = Math.floor(diffSeconds / 60);
+                            const diffHours = Math.floor(diffMinutes / 60);
+                            const diffDays = Math.floor(diffHours / 24);
+                            const diffWeeks = Math.floor(diffDays / 7);
+                            const diffMonths = Math.floor(diffDays / 30);
+                            const diffYears = Math.floor(diffDays / 365);
 
-                              if (diffSeconds < 60) return `${diffSeconds}s`;
-                              if (diffMinutes < 60) return `${diffMinutes}m`;
-                              if (diffHours < 24) return `${diffHours}h`;
-                              if (diffDays < 7) return `${diffDays}d`;
-                              if (diffWeeks < 4) return `${diffWeeks}w`;
-                              if (diffMonths < 12) return `${diffMonths}mth`;
-                              return `${diffYears}y`;
-                            })()}
-                          </span>
-                        </div>
-                        {notification.relatedEntity && (
-                          <div className="mt-2">
-                            <span className="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">
-                              {notification.relatedEntity.type}:{" "}
-                              {notification.relatedEntity.name}
-                            </span>
-                          </div>
-                        )}
+                            if (diffSeconds < 60) return `${diffSeconds}s`;
+                            if (diffMinutes < 60) return `${diffMinutes}m`;
+                            if (diffHours < 24) return `${diffHours}h`;
+                            if (diffDays < 7) return `${diffDays}d`;
+                            if (diffWeeks < 4) return `${diffWeeks}w`;
+                            if (diffMonths < 12) return `${diffMonths}mth`;
+                            return `${diffYears}y`;
+                          })()}
+                        </p>
                       </div>
-                    </div>
-                    {!notification.read && (
-                      <div className="mt-2">
+                      <div className="flex items-center ml-2">
+                        {!notification.read && (
+                          <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+                        )}
                         <button
-                          onClick={() => markAsRead(notification.id)}
-                          className="text-xs text-blue-600 hover:text-blue-800"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteNotification(notification.id);
+                          }}
+                          className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                          title="Delete notification"
                         >
-                          Mark as read
+                          <HiOutlineX className="w-4 h-4" />
                         </button>
                       </div>
-                    )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -446,16 +398,10 @@ export default function AdminHeader({
           />
         )}
 
-        {/* Admin Post Modal */}
-        {selectedPost && (
-          <AdminPostModal
-            post={selectedPost}
-            onClose={() => setSelectedPost(null)}
-            onPostUpdate={(updatedPost) => {
-              // Update the post in the notifications if needed
-              setSelectedPost(updatedPost);
-            }}
-            showDeleteButton={false}
+        {/* Notification Preferences Modal */}
+        {showPreferences && (
+          <NotificationPreferencesModal
+            onClose={() => setShowPreferences(false)}
           />
         )}
       </div>
