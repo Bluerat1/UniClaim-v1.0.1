@@ -131,22 +131,21 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     if (notifications.length <= 15) return notifications;
 
     try {
-      // Sort notifications by createdAt (newest first) to maintain correct order
+      // Instead of deleting notifications (which causes permission errors),
+      // we'll just return the latest 15 and log that we're limiting them
       const sortedNotifications = [...notifications].sort((a, b) =>
         new Date(b.createdAt?.seconds * 1000).getTime() - new Date(a.createdAt?.seconds * 1000).getTime()
       );
 
-      // Identify oldest notifications to delete (keep only the latest 15)
-      const notificationsToDelete = sortedNotifications.slice(15);
+      const limitedNotifications = sortedNotifications.slice(0, 15);
 
-      // Delete excess notifications
-      const deletePromises = notificationsToDelete.map(notif => notificationService.deleteNotification(notif.id));
-      await Promise.all(deletePromises);
+      // Log that we're limiting notifications without deleting them
+      console.log(`📋 Notification limit enforced: showing ${limitedNotifications.length} of ${notifications.length} notifications (oldest ${notifications.length - limitedNotifications.length} hidden due to limit)`);
 
-      // Return only the latest 15 notifications (already in newest-first order)
-      return sortedNotifications.slice(0, 15);
+      return limitedNotifications;
     } catch (error) {
-      // Return original notifications if deletion fails
+      console.error('Error enforcing notification limit:', error);
+      // Return original notifications if enforcement fails
       return notifications;
     }
   };
@@ -253,17 +252,19 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const deleteNotification = async (notificationId: string) => {
     try {
       await notificationService.deleteNotification(notificationId);
-      
+
       // Update local state - remove the deleted notification
       setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
-      
+
       // Update unread count if the deleted notification was unread
       const deletedNotification = notifications.find(notif => notif.id === notificationId);
       if (deletedNotification && !deletedNotification.read) {
         setUnreadCount(prev => Math.max(0, prev - 1));
       }
     } catch (err: any) {
-      setError('Failed to delete notification');
+      console.warn('Failed to delete notification (likely due to permissions):', err.message);
+      // Don't set error state for individual notification deletion failures
+      // The notification will remain in the UI but won't cause the app to break
     }
   };
 
@@ -272,12 +273,14 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       await notificationService.deleteAllNotifications(userData.uid);
-      
+
       // Update local state - clear all notifications
       setNotifications([]);
       setUnreadCount(0);
     } catch (err: any) {
-      setError('Failed to delete all notifications');
+      console.warn('Failed to delete all notifications (likely due to permissions):', err.message);
+      // Don't set error state for bulk notification deletion failures
+      // The notifications will remain in the UI but won't cause the app to break
     }
   };
 

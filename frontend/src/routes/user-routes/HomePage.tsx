@@ -232,15 +232,15 @@ export default function HomePage() {
       // Filter out hidden posts (flagged posts that admin chose to hide)
       if (post.isHidden === true) return false;
 
-      // Filter out items with turnoverStatus: "declared" ONLY for OSA turnover (awaiting OSA confirmation)
-      // Campus Security items with "transferred" status should be visible
+      // Hide items with turnoverStatus: "declared" for OSA turnover (awaiting OSA confirmation)
+      // These posts should only be visible after admin confirms receipt
       if (
         post.turnoverDetails &&
         post.turnoverDetails.turnoverStatus === "declared" &&
         post.turnoverDetails.turnoverAction === "turnover to OSA"
       ) {
-        // Show these posts to regular users for confirmation
-        return true;
+        // Hide these posts from homepage until admin confirms receipt
+        return false;
       }
 
       return true;

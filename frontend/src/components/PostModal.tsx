@@ -492,11 +492,12 @@ export default function PostModal({
               />
             )}
 
-          {/* CS to OSA Conversion Info Box */}
+          {/* Campus Security to OSA Transfer Info Box - Show only for posts that were originally Campus Security but collected by admin */}
           {post.turnoverDetails &&
             post.turnoverDetails.turnoverAction === "turnover to OSA" &&
-            (post.turnoverDetails.turnoverStatus === "transferred" ||
-             post.turnoverDetails.turnoverStatus === "confirmed") && (
+            post.turnoverDetails.turnoverStatus === "transferred" &&
+            post.turnoverDetails.originalTurnoverAction &&
+            post.turnoverDetails.originalTurnoverAction === "turnover to Campus Security" && (
               <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -596,6 +597,12 @@ export default function PostModal({
                   {post.turnoverDetails.turnoverAction === "turnover to OSA"
                     ? "OSA"
                     : "Campus Security"}
+                </div>
+                <div>
+                  <span className="font-medium">Turned over Date:</span>{" "}
+                  {post.turnoverDetails.turnoverDecisionAt
+                    ? formatDateTime(post.turnoverDetails.turnoverDecisionAt)
+                    : "N/A"}
                 </div>
                 {post.turnoverDetails.confirmationNotes && (
                   <div>

@@ -957,257 +957,6 @@ export const postService = {
         }
     },
 
-    // Update campus security collection status
-    async updateCampusSecurityTurnoverStatus(postId: string, status: 'collected' | 'not_available', confirmedBy: string, notes?: string): Promise<void> {
-        try {
-            const updateData: any = {
-                'turnoverDetails.turnoverStatus': status === 'collected' ? 'transferred' : 'not_received',
-                'turnoverDetails.confirmedBy': confirmedBy,
-                'turnoverDetails.confirmedAt': serverTimestamp(),
-                updatedAt: serverTimestamp()
-            };
-
-            // Add notes if provided
-            if (notes) {
-                updateData['turnoverDetails.confirmationNotes'] = notes;
-            }
-
-            // Get the post data before updating to get the original creator
-            const postDoc = await getDoc(doc(db, 'posts', postId));
-            const postData = postDoc.data();
-            const originalCreatorId = postDoc.data()?.creatorId;
-
-            // Check if this post has been turned over and use the original finder instead
-            const notificationRecipientId = postData?.turnoverDetails?.originalFinder?.uid || originalCreatorId;
-
-            // When admin confirms collection, change the creator to the admin
-            if (status === 'collected') {
-                // Fetch real admin user data using the confirmedBy parameter (actual admin user ID)
-                const adminUserId = confirmedBy;
-                console.log(`🔍 Fetching admin data for user ID: ${adminUserId}`);
-
-                const adminDocRef = doc(db, 'users', adminUserId);
-                const adminDoc = await getDoc(adminDocRef);
-
-                let adminData;
-                if (adminDoc.exists()) {
-                    const adminUserData = adminDoc.data();
-                    console.log(`✅ Admin data found:`, {
-                        firstName: adminUserData.firstName,
-                        lastName: adminUserData.lastName,
-                        email: adminUserData.email,
-                        profilePicture: adminUserData.profilePicture,
-                        profileImageUrl: adminUserData.profileImageUrl
-                    });
-
-                    adminData = {
-                        firstName: adminUserData.firstName || "System",
-                        lastName: adminUserData.lastName || "Administrator",
-                        email: adminUserData.email || "admin@uniclaim.com",
-                        contactNum: "", // Don't show admin contact
-                        studentId: "", // Don't show admin ID
-                        profilePicture: adminUserData.profilePicture || adminUserData.profileImageUrl || DEFAULT_PROFILE_PICTURE,
-                        role: "admin" // Ensure role is set to admin
-                    };
-
-                    console.log(`📸 Final profile picture URL: ${adminData.profilePicture}`);
-                } else {
-                    console.warn(`⚠️ Admin document not found for user ID: ${adminUserId}`);
-                    // Fallback if admin data not found
-                    adminData = {
-                        firstName: "System",
-                        lastName: "Administrator",
-                        email: "admin@uniclaim.com",
-                        contactNum: "",
-                        studentId: "",
-                        profilePicture: DEFAULT_PROFILE_PICTURE,
-                        role: "admin" // Ensure role is set to admin
-                    };
-                }
-
-                // Update ownership fields
-                updateData.creatorId = confirmedBy;
-                updateData.postedById = confirmedBy;
-                updateData.user = adminData;
-
-                // Change turnover action from Campus Security to OSA
-                updateData['turnoverDetails.turnoverAction'] = 'turnover to OSA';
-
-                // Update foundAction to reflect OSA turnover
-                updateData.foundAction = 'turnover to OSA';
-
-                // Update created date to now so it appears at top of homepage
-                updateData.createdAt = serverTimestamp();
-                updateData.updatedAt = serverTimestamp();
-
-                // Update conversations with the new post creator
-                try {
-                    console.log(`🔄 Starting conversation update for post ${postId} with status ${status}`);
-                    // Find all conversations for this post
-                    const conversationsQuery = query(
-                        collection(db, 'conversations'),
-                        where('postId', '==', postId)
-                    );
-
-                    const conversationsSnapshot = await getDocs(conversationsQuery);
-                    console.log(`🔍 Found ${conversationsSnapshot.docs.length} conversations for post ${postId}`);
-
-                    if (!conversationsSnapshot.empty) {
-                        console.log(`🔄 Updating ${conversationsSnapshot.docs.length} conversations with new post creator`);
-
-                        // Update each conversation's postCreatorId
-                        const updatePromises = conversationsSnapshot.docs.map(async (convDoc) => {
-                            const conversationRef = convDoc.ref;
-                            const conversationData = convDoc.data();
-
-                            console.log(`🔍 Processing conversation ${convDoc.id}`);
-                            console.log(`  - Current postCreatorId: ${conversationData.postCreatorId}`);
-                            console.log(`  - Current participants keys:`, Object.keys(conversationData.participants || {}));
-
-                            // Get admin user data to add to participants
-                            console.log(`🔍 Fetching admin data for user ID: ${confirmedBy}`);
-                            const adminDoc = await getDoc(doc(db, 'users', confirmedBy));
-                            const adminUserData = adminDoc.data();
-
-                            let adminParticipantData;
-                            if (adminDoc.exists() && adminUserData) {
-                                console.log(`✅ Admin document exists for ${confirmedBy}`);
-                                console.log(`🔍 Admin user data keys:`, Object.keys(adminUserData));
-                                console.log(`🔍 Admin user data:`, adminUserData);
-
-                                adminParticipantData = {
-                                    firstName: adminUserData.firstName || "System",
-                                    lastName: adminUserData.lastName || "Administrator",
-                                    email: adminUserData.email || "admin@uniclaim.com",
-                                    profilePicture: adminUserData.profilePicture || adminUserData.profileImageUrl || DEFAULT_PROFILE_PICTURE,
-                                    profileImageUrl: adminUserData.profilePicture || adminUserData.profileImageUrl || DEFAULT_PROFILE_PICTURE,
-                                    role: "admin"
-                                };
-                                console.log(`✅ Created admin participant data:`, adminParticipantData);
-                            } else {
-                                console.warn(`⚠️ Admin user document not found for ${confirmedBy} (exists: ${adminDoc.exists()}, hasData: ${!!adminUserData})`);
-                                // Fallback if admin data not found
-                                adminParticipantData = {
-                                    firstName: "System",
-                                    lastName: "Administrator",
-                                    email: "admin@uniclaim.com",
-                                    profilePicture: DEFAULT_PROFILE_PICTURE,
-                                    profileImageUrl: DEFAULT_PROFILE_PICTURE,
-                                    role: "admin"
-                                };
-                            }
-
-                            // Update conversation with new post creator and admin participant data (replace CS user)
-                            const participants = conversationData.participants || {};
-
-                            // Remove the campus security user (original creator) from participants
-                            if (originalCreatorId && participants[originalCreatorId]) {
-                                delete participants[originalCreatorId];
-                                console.log(`🔄 Removed campus security user ${originalCreatorId} from conversation ${convDoc.id}`);
-                            }
-
-                            // Add admin as replacement
-                            participants[confirmedBy] = adminParticipantData;
-
-                            console.log(`🔄 Updating conversation ${convDoc.id}:`);
-                            console.log(`  - postCreatorId: ${confirmedBy}`);
-                            console.log(`  - isAdminPost: true`);
-                            console.log(`  - participants[${confirmedBy}]:`, adminParticipantData);
-                            console.log(`  - Removed campus security user: ${originalCreatorId || 'none'}`);
-                            console.log(`  - Final participants count: ${Object.keys(participants).length}`);
-
-                            await updateDoc(conversationRef, {
-                                postCreatorId: confirmedBy,
-                                isAdminPost: true,
-                                participants: participants,
-                                updatedAt: serverTimestamp()
-                            });
-
-                            console.log(`✅ Updated conversation ${convDoc.id} with new post creator: ${confirmedBy} and admin participant data (campus security user replaced)`);
-                        });
-
-                        await Promise.all(updatePromises);
-                    } else {
-                        console.log(`ℹ️ No conversations found for post ${postId}`);
-                    }
-                } catch (conversationError) {
-                    console.error('❌ Failed to update conversations with new post creator:', conversationError);
-                    // Don't fail the whole operation if conversation update fails
-                }
-            }
-
-            // Update the document
-            await updateDoc(doc(db, 'posts', postId), updateData);
-
-            // Verify the update was successful
-            const verifyDoc = await getDoc(doc(db, 'posts', postId));
-            const updatedData = verifyDoc.data();
-
-            console.log(`✅ Verification - Post ${postId} updated successfully`);
-            console.log(`🔍 Updated creatorId: ${updatedData?.creatorId}`);
-            console.log(`🔍 Updated user: ${updatedData?.user?.firstName} ${updatedData?.user?.lastName}`);
-            console.log(`🔍 Updated turnoverStatus: ${updatedData?.turnoverDetails?.turnoverStatus}`);
-            console.log(`🔍 Updated turnoverAction: ${updatedData?.turnoverDetails?.turnoverAction}`);
-            console.log(`🔍 Updated createdAt: ${updatedData?.createdAt?.toDate?.() || updatedData?.createdAt}`);
-
-            if (status === 'collected') {
-                console.log(`✅ Creator changed to admin: ${confirmedBy}`);
-                console.log(`✅ User field updated to admin data`);
-                console.log(`✅ Turnover status set to: transferred`);
-                console.log(`🔍 Update data being sent:`, {
-                    creatorId: updateData.creatorId,
-                    postedById: updateData.postedById,
-                    user: updateData.user,
-                    turnoverStatus: updateData['turnoverDetails.turnoverStatus'],
-                    turnoverAction: updateData['turnoverDetails.turnoverAction'],
-                    createdAt: 'Set to current timestamp'
-                });
-
-                // Send notification to the original creator (campus security)
-                if (notificationRecipientId && notificationRecipientId !== confirmedBy) {
-                    try {
-                        const adminDoc = await getDoc(doc(db, 'users', confirmedBy));
-                        const adminUserData = adminDoc.data();
-                        const adminName = adminUserData ?
-                            `${adminUserData.firstName || ''} ${adminUserData.lastName || ''}`.trim() || 'an administrator' :
-                            'an administrator';
-
-                        const notificationTitle = 'Item Collected';
-                        const notificationBody = `Your item "${postDoc.data()?.title || 'item'}" has been collected from Campus Security by ${adminName}.`;
-                        const notificationData = {
-                            userId: notificationRecipientId,
-                            type: 'claim_update',
-                            postId: postId,
-                            action: 'item_collected',
-                            adminId: confirmedBy
-                        };
-
-                        // Show the notification
-                        await notificationService.showNotification(notificationTitle, notificationBody, notificationData);
-
-                        // Also create a notification record in the database
-                        await notificationService.createNotification({
-                            userId: notificationRecipientId,
-                            type: 'claim_update',
-                            title: notificationTitle,
-                            body: notificationBody,
-                            data: notificationData,
-                            postId: postId
-                        });
-
-                        console.log(`📬 Sent collection confirmation notification to user ${notificationRecipientId}`);
-                    } catch (notifError) {
-                        console.error('Failed to send collection confirmation notification:', notifError);
-                        // Don't fail the whole operation if notification fails
-                    }
-                }
-            }
-        } catch (error: any) {
-            console.error('Error updating campus security collection status:', error);
-            throw new Error(error.message || 'Failed to update campus security collection status');
-        }
-    },
-
     // Update post
     async updatePost(postId: string, updates: Partial<Post>): Promise<void> {
         try {
@@ -2405,10 +2154,68 @@ export const postService = {
                 console.log(`📝 Storing confirmation notes: ${notes.trim()}`);
             }
 
-            // If status is "confirmed", we might want to set it to "transferred" for OSA items
+            // If status is "confirmed" and it's an OSA turnover, update post creator to the admin
             if (status === "confirmed" && postData.turnoverDetails?.turnoverAction === "turnover to OSA") {
+                // Get the admin's user data
+                const adminRef = doc(db, 'users', confirmedBy);
+                const adminDoc = await getDoc(adminRef);
+
+                if (adminDoc.exists()) {
+                    const adminData = adminDoc.data();
+                    // Update the post creator information to the admin who confirmed
+                    updateData.creatorId = confirmedBy;
+                    updateData.user = {
+                        firstName: adminData.firstName || '',
+                        lastName: adminData.lastName || '',
+                        email: adminData.email || '',
+                        contactNum: adminData.contactNum || '',
+                        studentId: adminData.studentId || '',
+                        profilePicture: adminData.profilePicture || null,
+                        profileImageUrl: adminData.profileImageUrl || null,
+                        role: adminData.role || 'admin'
+                    };
+
+                    console.log(`👤 Updating post creator to admin: ${adminData.firstName} ${adminData.lastName}`);
+                }
+
+                // Set status to "transferred" for OSA items after confirmation
                 updateData['turnoverDetails.turnoverStatus'] = "transferred";
                 console.log(`🔄 Auto-updating status to "transferred" for OSA turnover item`);
+            }
+
+            // If this is a Campus Security post being transferred to OSA, store the original action
+            if (status === "confirmed" && postData.turnoverDetails?.turnoverAction === "turnover to Campus Security") {
+                // Store the original turnover action before changing it
+                updateData['turnoverDetails.originalTurnoverAction'] = "turnover to Campus Security";
+
+                // Change the action to OSA since admin is collecting it
+                updateData['turnoverDetails.turnoverAction'] = "turnover to OSA";
+
+                // Get the admin's user data for creator update
+                const adminRef = doc(db, 'users', confirmedBy);
+                const adminDoc = await getDoc(adminRef);
+
+                if (adminDoc.exists()) {
+                    const adminData = adminDoc.data();
+                    // Update the post creator information to the admin who confirmed
+                    updateData.creatorId = confirmedBy;
+                    updateData.user = {
+                        firstName: adminData.firstName || '',
+                        lastName: adminData.lastName || '',
+                        email: adminData.email || '',
+                        contactNum: adminData.contactNum || '',
+                        studentId: adminData.studentId || '',
+                        profilePicture: adminData.profilePicture || null,
+                        profileImageUrl: adminData.profileImageUrl || null,
+                        role: adminData.role || 'admin'
+                    };
+
+                    console.log(`👤 Campus Security post collected by admin: ${adminData.firstName} ${adminData.lastName}`);
+                }
+
+                // Set status to "transferred" for Campus Security items collected by admin
+                updateData['turnoverDetails.turnoverStatus'] = "transferred";
+                console.log(`🔄 Campus Security item transferred to OSA by admin`);
             }
 
             await updateDoc(postRef, updateData);
@@ -2418,6 +2225,32 @@ export const postService = {
         } catch (error: any) {
             console.error('❌ Failed to update turnover status:', error);
             throw new Error(error.message || 'Failed to update turnover status');
+        }
+    },
+
+    // Update Campus Security turnover status (used when admin collects item from Campus Security)
+    async updateCampusSecurityTurnoverStatus(
+        postId: string,
+        status: "collected" | "not_available",
+        collectedBy: string,
+        notes?: string
+    ): Promise<void> {
+        try {
+            console.log(`🔄 Campus Security: Updating status for post ${postId} to ${status}`);
+
+            if (status === "collected") {
+                // For collected items, call updateTurnoverStatus with "confirmed" status
+                // This will handle the Campus Security to OSA transfer logic
+                await this.updateTurnoverStatus(postId, "confirmed", collectedBy, notes);
+            } else if (status === "not_available") {
+                // For not available items, delete the post
+                await this.deletePost(postId);
+                console.log(`🗑️ Campus Security: Post ${postId} deleted as item was not available`);
+            }
+
+        } catch (error: any) {
+            console.error('❌ Campus Security: Failed to update status:', error);
+            throw new Error(error.message || 'Failed to update Campus Security status');
         }
     },
 };

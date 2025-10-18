@@ -201,6 +201,7 @@ export interface Post {
     confirmedBy?: string;             // OSA admin user ID who confirmed receipt
     confirmedAt?: any;                // When OSA confirmed receipt (Firebase timestamp)
     confirmationNotes?: string;       // Optional notes from OSA about the item condition
+    originalTurnoverAction?: "turnover to Campus Security"; // Track original action for Campus Security to OSA transfers
   };
 }
 

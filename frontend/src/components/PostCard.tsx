@@ -17,6 +17,7 @@ interface PostCardProps {
     status: "confirmed" | "not_received",
     notes?: string
   ) => void;
+  currentUser?: any;
 }
 
 function formatDateTime(datetime: string | Date) {
