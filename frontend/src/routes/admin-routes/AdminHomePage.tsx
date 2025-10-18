@@ -1272,7 +1272,7 @@ export default function AdminHomePage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 mx-6 mt-7 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 mx-6 mt-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {/* ✅ Handle loading state */}
         {loading ||
         resolvedLoading ||

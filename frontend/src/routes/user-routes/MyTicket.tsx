@@ -285,7 +285,7 @@ export default function MyTicket() {
         </div>
 
         {/* Posts Section */}
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
           {postsLoading ? (
             <div className="flex h-90 items-center justify-center col-span-full">
               <p className="text-gray-500 text-sm">Loading tickets...</p>

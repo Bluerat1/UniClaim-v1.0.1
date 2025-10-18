@@ -64,22 +64,35 @@ export default function FlaggedPostsPage() {
       if (!shouldShow) return false;
 
       // Then apply search criteria
-      const matchesQuery = query.trim() === "" || 
+      const matchesQuery =
+        query.trim() === "" ||
         post.title.toLowerCase().includes(query.toLowerCase()) ||
         post.description.toLowerCase().includes(query.toLowerCase());
 
-      const matchesCategory = selectedCategoryFilter === "All" || 
+      const matchesCategory =
+        selectedCategoryFilter === "All" ||
         post.category === selectedCategoryFilter;
 
-      const matchesDescription = description.trim() === "" || 
+      const matchesDescription =
+        description.trim() === "" ||
         post.description.toLowerCase().includes(description.toLowerCase());
 
-      const matchesLocation = location.trim() === "" || 
+      const matchesLocation =
+        location.trim() === "" ||
         post.location?.toLowerCase().includes(location.toLowerCase());
 
-      return matchesQuery && matchesCategory && matchesDescription && matchesLocation;
+      return (
+        matchesQuery && matchesCategory && matchesDescription && matchesLocation
+      );
     });
-  }, [flaggedPosts, query, selectedCategoryFilter, description, location, viewType]);
+  }, [
+    flaggedPosts,
+    query,
+    selectedCategoryFilter,
+    description,
+    location,
+    viewType,
+  ]);
 
   // Handle search functionality
   const handleSearch = (searchQuery: string, filters: any) => {
@@ -352,7 +365,8 @@ export default function FlaggedPostsPage() {
                     />
                     <div>
                       <span className="text-sm font-semibold text-gray-900">
-                        Select All ({selectedPosts.size}/{filteredFlaggedPosts.length})
+                        Select All ({selectedPosts.size}/
+                        {filteredFlaggedPosts.length})
                       </span>
                       {selectedPosts.size > 0 && (
                         <p className="text-xs text-gray-500 mt-1">
@@ -418,7 +432,7 @@ export default function FlaggedPostsPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredFlaggedPosts.map((post) => (
                 <AdminPostCard
                   key={post.id}

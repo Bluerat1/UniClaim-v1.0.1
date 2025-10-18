@@ -88,7 +88,11 @@ export default function HomePage() {
 
   // Turnover confirmation handler
   const handleConfirmTurnover = useCallback(
-    async (post: Post, status: "confirmed" | "not_received", notes?: string) => {
+    async (
+      post: Post,
+      status: "confirmed" | "not_received",
+      notes?: string
+    ) => {
       try {
         const { postService } = await import("../../services/firebase/posts");
         // Get current user ID from auth context
@@ -143,7 +147,9 @@ export default function HomePage() {
         try {
           // Force a refresh by calling the usePosts hook's internal refresh mechanism
           // For now, we'll just log that we need to refresh
-          console.log("🔄 Post status updated, posts list should refresh automatically via real-time updates");
+          console.log(
+            "🔄 Post status updated, posts list should refresh automatically via real-time updates"
+          );
         } catch (refreshError) {
           console.warn("Post refresh mechanism not available:", refreshError);
         }
@@ -173,8 +179,11 @@ export default function HomePage() {
   // Update selectedPost when posts list is refreshed with real-time updates
   useEffect(() => {
     if (selectedPost && posts.length > 0) {
-      const updatedPost = posts.find(p => p.id === selectedPost.id);
-      if (updatedPost && JSON.stringify(updatedPost) !== JSON.stringify(selectedPost)) {
+      const updatedPost = posts.find((p) => p.id === selectedPost.id);
+      if (
+        updatedPost &&
+        JSON.stringify(updatedPost) !== JSON.stringify(selectedPost)
+      ) {
         console.log("🔄 Updating selectedPost with fresh data from posts list");
         setSelectedPost(updatedPost);
       }
@@ -394,7 +403,7 @@ export default function HomePage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 mx-4 mt-7 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 mx-4 mt-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {/* ✅ Handle Firebase loading state */}
         {loading || resolvedLoading || isLoading ? (
           <div className="col-span-full flex items-center justify-center h-80">
