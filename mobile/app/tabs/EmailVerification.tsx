@@ -27,86 +27,23 @@ export default function EmailVerification() {
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
 
-  const [continueLoading, setContinueLoading] = useState(false);
 
-  const handleContinueToApp = async () => {
-    if (continueLoading) return; // Prevent multiple rapid clicks
 
-    setContinueLoading(true);
-
-    try {
-      console.log('🔄 Continue to App button pressed');
-
-      // Since we're already in the verified state (isEmailVerified === true),
-      // we can be confident the user is verified. Just complete the process.
-      if (!user) {
-        console.error('❌ No user found when Continue pressed');
-        Alert.alert(
-          'Error',
-          'User session not found. Please log in again.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
-      console.log('✅ Completing verification process...');
-
-      // Use the AuthContext function to handle email verification completion
-      await handleEmailVerificationComplete();
-
-      console.log('✅ Email verification completed, AuthContext will handle navigation automatically');
-
-      // Additional refresh to ensure everything is synchronized
-      await refreshUserData();
-
-      // The handleEmailVerificationComplete() already sets isAuthenticated to true
-      // The useEffect monitoring isAuthenticated and needsEmailVerification will handle unmounting this component
-
-    } catch (error: any) {
-      console.error('❌ Error during Continue to App:', error);
-
-      // Provide specific error messages based on error type
-      let errorMessage = 'Failed to complete verification. Please try again.';
-
-      if (error.message?.includes('verification failed')) {
-        errorMessage = 'Email verification failed. Please make sure you clicked the verification link in your email.';
-      } else if (error.message?.includes('network') || error.message?.includes('connection')) {
-        errorMessage = 'Network error. Please check your internet connection and try again.';
-      } else if (error.message?.includes('permission') || error.message?.includes('forbidden')) {
-        errorMessage = 'Permission error. Please try logging out and back in.';
-      }
-
-      Alert.alert(
-        'Verification Error',
-        errorMessage,
-        [{ text: 'OK' }]
-      );
-    } finally {
-      setContinueLoading(false);
-    }
-  };
-
-  // Monitor authentication state changes more carefully
+  // Monitor when user is verified and authenticated to navigate to main app
   useEffect(() => {
-    if (user && user.emailVerified && !isAuthenticated) {
-      // User is verified but not authenticated yet - this means verification just completed
-      console.log('🔄 Email verification detected, user should be authenticated');
-
-      // Add a small delay to ensure state is properly synchronized
+    if (isEmailVerified && isAuthenticated && !needsEmailVerification) {
+      console.log('🔄 Email verified and user authenticated, navigating to main app');
       const timeout = setTimeout(() => {
-        refreshUserData();
-      }, 1000);
-
+        navigation.navigate('RootBottomTabs' as never);
+      }, 500);
       return () => clearTimeout(timeout);
     }
-  }, [user?.emailVerified, isAuthenticated, refreshUserData]);
+  }, [isEmailVerified, isAuthenticated, needsEmailVerification, navigation]);
 
   // Monitor when user becomes fully authenticated and exit this screen
   useEffect(() => {
     if (isAuthenticated && !needsEmailVerification) {
       console.log('✅ User is now fully authenticated, EmailVerification component should unmount');
-      // Reset loading state before unmounting
-      setContinueLoading(false);
       // The Navigation component will automatically handle routing to RootBottomTabs
       // This component will be unmounted and replaced with the main app
     }
@@ -179,6 +116,15 @@ export default function EmailVerification() {
 
               // Refresh AuthContext state to ensure user is properly authenticated
               await refreshUserData();
+
+              // Call handleEmailVerificationComplete to update authentication state
+              await handleEmailVerificationComplete();
+
+              // Navigate to the main app after a short delay to ensure state is updated
+              setTimeout(() => {
+                console.log('🔄 Navigating to main app after verification');
+                navigation.navigate('RootBottomTabs' as never);
+              }, 500);
 
               // Don't navigate here - let the Navigation component handle routing
               // based on the updated authentication state
@@ -306,36 +252,8 @@ export default function EmailVerification() {
   };
 
   if (isEmailVerified) {
-    return (
-      <SafeAreaView className="flex-1 bg-white">
-        <View className="flex-1 justify-center items-center px-6">
-          <View className="w-20 h-20 bg-green-100 rounded-full items-center justify-center mb-6">
-            <Ionicons name="checkmark-circle" size={40} color="#10b981" />
-          </View>
-          <Text className="text-2xl font-albert-bold text-green-600 mb-4 text-center">
-            Email Verified!
-          </Text>
-          <Text className="text-base font-manrope-medium text-gray-700 mb-8 text-center">
-            Your email has been successfully verified. You can now access all features of the app.
-          </Text>
-          <TouchableOpacity
-            className={`py-4 px-8 rounded-xl ${
-              continueLoading ? 'bg-gray-400' : 'bg-brand'
-            }`}
-            onPress={handleContinueToApp}
-            disabled={continueLoading}
-          >
-            {continueLoading ? (
-              <ActivityIndicator color="white" size="small" />
-            ) : (
-              <Text className="text-white text-lg font-manrope-semibold text-center">
-                Continue to App
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
+    // Email is verified, AuthContext will handle automatic navigation
+    return null;
   }
 
   return (
