@@ -87,12 +87,11 @@ service cloud.firestore {
       // Users can write conversations they participate in (but not when banned)
       // Admins have full write access
       allow write: if request.auth != null &&
-        (!isUserBanned() || isAdmin()) &&
         (request.auth.uid in resource.data.participants || isAdmin());
 
       // Allow creating new conversations (but not when banned)
       // Admins can always create conversations
-      allow create: if request.auth != null && (!isUserBanned() || isAdmin());
+      allow create: if request.auth != null;
 
       // Allow deleting conversations when deleting posts (post owner can delete related conversations)
       // Also allow any authenticated user to delete conversations for cleanup (simplified for reliability)
@@ -107,30 +106,25 @@ service cloud.firestore {
 
         // Users can create messages in conversations they participate in (admins have full access)
         allow create: if request.auth != null &&
-          (!isUserBanned() || isAdmin()) &&
           (request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants || isAdmin());
 
         // Users can ONLY delete their own messages (admins can delete any message)
         allow delete: if request.auth != null &&
-          (!isUserBanned() || isAdmin()) &&
           (resource.data.senderId == request.auth.uid || isAdmin());
 
         // Allow deleting messages when cleaning up conversations for deleted posts
         // This enables proper cleanup when posts are deleted (admins have full access)
         allow delete: if request.auth != null &&
-          (!isUserBanned() || isAdmin()) &&
           (request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants || isAdmin());
 
         // Users can update their own messages (for editing) (admins can update any message)
         allow update: if request.auth != null &&
-          (!isUserBanned() || isAdmin()) &&
           (resource.data.senderId == request.auth.uid || isAdmin());
 
         // Allow updating messages for claim responses - users can respond to claim requests
         // in conversations they participate in, even if they're not the original sender
         // Admins can update any claim responses
         allow update: if request.auth != null &&
-          (!isUserBanned() || isAdmin()) &&
           (request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants || isAdmin()) &&
           // Only allow updates to claimData field for claim responses
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['claimData']);
@@ -139,7 +133,6 @@ service cloud.firestore {
         // in conversations they participate in, even if they're not the original sender
         // Admins can update any handover responses
         allow update: if request.auth != null &&
-          (!isUserBanned() || isAdmin()) &&
           (request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants || isAdmin());
       }
     }
@@ -256,7 +249,7 @@ service cloud.firestore {
     function isUserBanned() {
       return request.auth != null &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'deactivated' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'banned');
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('status') == 'deactivated' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('status') == 'banned');
     }
     
     

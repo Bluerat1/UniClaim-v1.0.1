@@ -526,11 +526,34 @@ export default function Chat() {
 
   // Send message
   const handleSendMessage = async () => {
-    if (!conversationId || !newMessage.trim() || !userData) return;
+    if (!conversationId || !newMessage.trim() || !userData) {
+      console.log('❌ Chat: Cannot send message - missing required data:', {
+        conversationId,
+        hasMessage: !!newMessage.trim(),
+        userData: !!userData
+      });
+      return;
+    }
 
     const messageText = newMessage.trim();
 
     try {
+      console.log('🔄 Chat: Sending message:', {
+        conversationId,
+        messageLength: messageText.length,
+        senderId: userData.uid
+      });
+
+      // Verify conversation exists before sending message
+      console.log('🔄 Chat: Verifying conversation exists...');
+      const conversation = await getConversation(conversationId);
+      if (!conversation) {
+        console.error('❌ Chat: Conversation not found, cannot send message');
+        Alert.alert("Error", "Conversation not found. Please try again.");
+        return;
+      }
+      console.log('✅ Chat: Conversation verified, proceeding with message send');
+
       setNewMessage("");
 
       await sendMessage(
@@ -541,8 +564,10 @@ export default function Chat() {
         userData.profilePicture
       );
 
+      console.log('✅ Chat: Message sent successfully');
       scrollToBottom();
     } catch (error: any) {
+      console.error('❌ Chat: Failed to send message:', error);
       Alert.alert("Error", "Failed to send message. Please try again.");
       setNewMessage(messageText); // Restore message on error
     }

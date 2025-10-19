@@ -3,14 +3,10 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useState, useCallback } from 'react';
 import { TouchableOpacity, View, Text, Image as RNImage, ActivityIndicator } from 'react-native';
-import type { Post } from "@/types/type";
+import type { Post, RootStackParamList } from "@/types/type";
 import ProfilePicture from "./ProfilePicture";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import PostCardMenu from "./PostCardMenu";
-
-type RootStackParamList = {
-  PostDetails: { post: Post };
-};
 
 type Props = {
   post: Post;
@@ -23,8 +19,15 @@ export default function PostCard({
   descriptionSearch = "",
   adminStatuses,
 }: Props) {
-  const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  // Get navigation if available (handle cases where navigation context doesn't exist)
+  let navigation: NativeStackNavigationProp<RootStackParamList> | undefined;
+  try {
+    navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  } catch (error) {
+    // Navigation context not available - this happens when PostCard is used outside of React Navigation
+    console.log('Navigation context not available in PostCard');
+    navigation = undefined;
+  }
 
   // Image optimization state
   const [imageLoading, setImageLoading] = useState(true);
@@ -156,18 +159,23 @@ export default function PostCard({
     <TouchableOpacity
       className="border border-zinc-200 rounded-md mb-4"
       activeOpacity={0.1}
-      onPress={() =>
-        navigation.navigate("PostDetails", {
-          post: {
-            ...post,
-            images: post.images.map((img) =>
-              typeof img === "number"
-                ? RNImage.resolveAssetSource(img).uri
-                : img
-            ),
-          },
-        })
-      }
+      onPress={() => {
+        if (navigation) {
+          navigation.navigate("PostDetails", {
+            post: {
+              ...post,
+              images: post.images.map((img) =>
+                typeof img === "number"
+                  ? RNImage.resolveAssetSource(img).uri
+                  : img
+              ),
+            },
+          });
+        } else {
+          console.log('Navigation not available - cannot navigate to PostDetails');
+          // TODO: Show a message to the user that navigation is not available
+        }
+      }}
     >
       <View className="relative">
         {renderImage()}

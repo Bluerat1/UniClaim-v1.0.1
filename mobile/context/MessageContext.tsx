@@ -65,8 +65,15 @@ export const MessageProvider = ({ children, userId, isAuthenticated }: { childre
 
   const sendMessage = async (conversationId: string, senderId: string, senderName: string, text: string, senderProfilePicture?: string): Promise<void> => {
     try {
+      console.log('🔄 MessageContext: Sending message:', {
+        conversationId,
+        senderId,
+        textLength: text.length
+      });
       await messageService.sendMessage(conversationId, senderId, senderName, text, senderProfilePicture);
+      console.log('✅ MessageContext: Message sent successfully');
     } catch (error: any) {
+      console.error('❌ MessageContext: Failed to send message:', error);
       throw new Error(error.message || 'Failed to send message');
     }
   };

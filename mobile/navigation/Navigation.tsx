@@ -194,6 +194,71 @@ export default function Navigation({
             </Suspense>
           )}
         </Stack.Screen>
+        {/* Add screens that need to be accessible from tab screens */}
+        <Stack.Screen name="PostDetails">
+          {() => (
+            <Suspense fallback={<ScreenLoader />}>
+              <PostDetails />
+            </Suspense>
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="Chat">
+          {() => (
+            <Suspense fallback={<ScreenLoader />}>
+              <Chat />
+            </Suspense>
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="ClaimFormScreen">
+          {() => (
+            <Suspense fallback={<ScreenLoader />}>
+              <ClaimFormScreen />
+            </Suspense>
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="PhotoCaptureScreen">
+          {() => (
+            <Suspense fallback={<ScreenLoader />}>
+              <PhotoCaptureScreen />
+            </Suspense>
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="ItemDetails">
+          {(props) => (
+            <ScreenWrapper statusBarStyle="dark-content" statusBarBg="#fff">
+              <ItemDetails
+                {...props}
+                images={images}
+                setImages={setImages}
+                showLostInfo={showLostInfo}
+                showFoundInfo={showFoundInfo}
+                setShowLostInfo={setShowLostInfo}
+                setShowFoundInfo={setShowFoundInfo}
+                title={title}
+                setTitle={setTitle}
+                description={description}
+                setDescription={setDescription}
+                reportType={reportType}
+                setReportType={setReportType}
+                foundAction={foundAction}
+                setFoundAction={setFoundAction}
+                selectedDate={selectedDate}
+                setSelectedDate={setSelectedDate}
+                selectedLocation={selectedLocation}
+                setSelectedLocation={setSelectedLocation}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+              />
+            </ScreenWrapper>
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="USTPMapScreen">
+          {() => (
+            <Suspense fallback={<ScreenLoader />}>
+              <USTPMapScreen />
+            </Suspense>
+          )}
+        </Stack.Screen>
       </Stack.Navigator>
     );
   }

@@ -311,23 +311,25 @@ export default function PostDetailsScreen() {
           </View>
         </View>
 
-        <View className="mt-1 mb-3">
+        {/* Contact number hidden for mobile as requested */}
+        {/* <View className="mt-1 mb-3">
           <Text className="mb-2 font-manrope-semibold">Contact Number</Text>
           <View className="bg-zinc-100 justify-center w-full p-3 h-[3.5rem] border border-zinc-200 rounded-md">
             <Text className="text-base capitalize font-manrope-medium text-black">
               {post.user.contactNum || "Not provided"}
             </Text>
           </View>
-        </View>
+        </View> */}
 
-        <View className="mt-1 mb-3">
+        {/* Email address hidden for mobile as requested */}
+        {/* <View className="mt-1 mb-3">
           <Text className="mb-2 font-manrope-semibold">Email</Text>
           <View className="bg-zinc-100 justify-center w-full p-3 h-[3.5rem] border border-zinc-200 rounded-md">
             <Text className="text-base font-manrope-medium text-black">
               {post.user.email}
             </Text>
           </View>
-        </View>
+        </View> */}
 
         {/* Claim and Handover information sections have been hidden as requested */}
         {/* Show claim information if this post has a resolved claim */}
