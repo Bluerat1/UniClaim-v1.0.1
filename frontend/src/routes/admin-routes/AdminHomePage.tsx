@@ -45,7 +45,6 @@ export default function AdminHomePage() {
   const [deletedPostsError, setDeletedPostsError] = useState<string | null>(
     null
   );
-  const [deletedPostsCount, setDeletedPostsCount] = useState(0);
 
   const [viewType, setViewType] = useState<
     | "all"
@@ -158,9 +157,6 @@ export default function AdminHomePage() {
       if (viewType === "deleted") {
         fetchDeletedPosts();
       }
-
-      // Update the deleted posts count (always update, regardless of current view)
-      fetchDeletedPostsCount();
     } catch (error: any) {
       console.error("Error moving post to deleted:", error);
       showToast(
@@ -172,18 +168,6 @@ export default function AdminHomePage() {
       setDeletingPostId(null);
     }
   }, [postToDelete, userData?.email, viewType, showToast]);
-
-  // Fetch deleted posts count only (more efficient for counter)
-  const fetchDeletedPostsCount = useCallback(async () => {
-    try {
-      const { postService } = await import("../../services/firebase/posts");
-      const count = await postService.getDeletedPostsCount();
-      setDeletedPostsCount(count);
-    } catch (error: any) {
-      console.error("Error fetching deleted posts count:", error);
-      // Don't show toast for count errors as it's not critical
-    }
-  }, []);
 
   // Fetch deleted posts
   const fetchDeletedPosts = useCallback(async () => {
@@ -348,11 +332,6 @@ export default function AdminHomePage() {
       );
     }
   };
-
-  // Initial load of deleted posts count
-  useEffect(() => {
-    fetchDeletedPostsCount();
-  }, [fetchDeletedPostsCount]);
 
   // Load deleted posts when the deleted tab is active
   useEffect(() => {
@@ -674,9 +653,6 @@ export default function AdminHomePage() {
           postToConfirm.title,
           "Reason: Not received by OSA"
         );
-
-        // Update the deleted posts count when a post is deleted via turnover
-        fetchDeletedPostsCount();
       } else {
         // Normal status update for confirmed items
         await postService.updateTurnoverStatus(
@@ -883,9 +859,6 @@ export default function AdminHomePage() {
         // Update the UI by removing the restored post from the list
         setDeletedPosts((prev) => prev.filter((p) => p.id !== post.id));
 
-        // Update the deleted posts count (always update, regardless of current view)
-        fetchDeletedPostsCount();
-
         showToast(
           "success",
           "Post Restored",
@@ -956,9 +929,6 @@ export default function AdminHomePage() {
 
         // Update the UI by removing the deleted post from the list
         setDeletedPosts((prev) => prev.filter((p) => p.id !== post.id));
-
-        // Update the deleted posts count (always update, regardless of current view)
-        fetchDeletedPostsCount();
 
         showToast(
           "success",
@@ -1051,75 +1021,6 @@ export default function AdminHomePage() {
           <p className="text-xs text-gray-600">
             Manage all lost and found items here
           </p>
-        </div>
-      </div>
-
-      {/* Admin Quick Stats */}
-      <div className="px-6 mb-4">
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold text-gray-800">
-            Dashboard Overview
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-2xl font-bold text-blue-600">
-              {posts?.length || 0}
-            </div>
-            <div className="text-sm text-gray-600">Total Posts</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-2xl font-bold text-red-600">
-              {posts?.filter((p) => p.type === "lost").length || 0}
-            </div>
-            <div className="text-sm text-gray-600">Lost Items</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-2xl font-bold text-green-600">
-              {posts?.filter((p) => p.type === "found").length || 0}
-            </div>
-            <div className="text-sm text-gray-600">Found Items</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-2xl font-bold text-yellow-600">
-              {posts?.filter((p) => p.status === "pending").length || 0}
-            </div>
-            <div className="text-sm text-gray-600">Pending</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-2xl font-bold text-orange-600">
-              {posts?.filter(
-                (p) => p.status === "unclaimed" || p.movedToUnclaimed
-              ).length || 0}
-            </div>
-            <div className="text-sm text-gray-600">Unclaimed</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-2xl font-bold text-purple-600">
-              {resolvedPosts?.length || 0}
-            </div>
-            <div className="text-sm text-gray-600">Completed</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-2xl font-bold text-indigo-600">
-              {posts?.filter(
-                (p) =>
-                  p.type === "found" &&
-                  p.turnoverDetails &&
-                  p.turnoverDetails.turnoverAction === "turnover to OSA"
-              ).length || 0}
-            </div>
-            <div className="text-sm text-gray-600">OSA Turnover</div>
-          </div>
-
-          {/* Recently Deleted Items */}
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="text-2xl font-bold text-red-600">
-              {deletedPostsCount}
-            </div>
-            <div className="text-sm text-gray-600">Recently Deleted</div>
-          </div>
         </div>
       </div>
 

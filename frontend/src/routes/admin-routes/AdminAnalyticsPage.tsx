@@ -97,8 +97,6 @@ const AdminAnalyticsPage: React.FC = () => {
   const resolvedItems = displayPosts.filter(
     (post) => post.status === "resolved"
   ).length;
-  const resolutionRate =
-    totalPosts > 0 ? Math.round((resolvedItems / totalPosts) * 100) : 0;
 
   // Date range display text
   const dateRangeText =
@@ -167,109 +165,79 @@ const AdminAnalyticsPage: React.FC = () => {
           <DateRangeSelector onDateRangeChange={handleDateRangeChange} />
         </div>
 
-        {/* Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Posts</CardTitle>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                className="h-4 w-4 text-muted-foreground"
-              >
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalPosts}</div>
-              <p className="text-xs text-muted-foreground">
-                Total items reported
-              </p>
-            </CardContent>
-          </Card>
+        {/* Dashboard Overview */}
+        <div className="mb-8">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-gray-800">
+              Dashboard Overview
+            </h2>
+          </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Lost Items</CardTitle>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                className="h-4 w-4 text-muted-foreground"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <path d="M21 21l-4.35-4.35" />
-              </svg>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{lostItems}</div>
-              <p className="text-xs text-muted-foreground">
-                Items reported as lost
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Found Items</CardTitle>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                className="h-4 w-4 text-muted-foreground"
-              >
-                <rect width="20" height="14" x="2" y="5" rx="2" />
-                <path d="M2 10h20" />
-              </svg>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{foundItems}</div>
-              <p className="text-xs text-muted-foreground">
-                Items reported as found
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Resolution Rate
-              </CardTitle>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                className="h-4 w-4 text-muted-foreground"
-              >
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-              </svg>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{resolutionRate}%</div>
-              <p className="text-xs text-muted-foreground">
-                Of items successfully resolved
-              </p>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-4 md:grid-cols-3 lg:grid-cols-7 gap-4">
+            <Card className="shadow">
+              <CardContent className="p-4">
+                <div className="text-2xl font-bold text-blue-600 mt-5">
+                  {totalPosts}
+                </div>
+                <div className="text-sm text-gray-600">Total Posts</div>
+              </CardContent>
+            </Card>
+            <Card className="shadow">
+              <CardContent className="p-4">
+                <div className="text-2xl font-bold text-red-600 mt-5">
+                  {lostItems}
+                </div>
+                <div className="text-sm text-gray-600">Lost Items</div>
+              </CardContent>
+            </Card>
+            <Card className="shadow">
+              <CardContent className="p-4">
+                <div className="text-2xl font-bold text-green-600 mt-5">
+                  {foundItems}
+                </div>
+                <div className="text-sm text-gray-600">Found Items</div>
+              </CardContent>
+            </Card>
+            <Card className="shadow">
+              <CardContent className="p-4">
+                <div className="text-2xl font-bold text-yellow-600 mt-5">
+                  {displayPosts.filter((p) => p.status === "pending").length}
+                </div>
+                <div className="text-sm text-gray-600">Pending</div>
+              </CardContent>
+            </Card>
+            <Card className="shadow">
+              <CardContent className="p-4">
+                <div className="text-2xl font-bold text-orange-600 mt-5">
+                  {displayPosts.filter(
+                    (p) => p.status === "unclaimed" || p.movedToUnclaimed
+                  ).length}
+                </div>
+                <div className="text-sm text-gray-600">Unclaimed</div>
+              </CardContent>
+            </Card>
+            <Card className="shadow">
+              <CardContent className="p-4">
+                <div className="text-2xl font-bold text-purple-600 mt-5">
+                  {resolvedItems}
+                </div>
+                <div className="text-sm text-gray-600">Completed</div>
+              </CardContent>
+            </Card>
+            <Card className="shadow">
+              <CardContent className="p-4">
+                <div className="text-2xl font-bold text-indigo-600 mt-5">
+                  {displayPosts.filter(
+                    (p) =>
+                      p.type === "found" &&
+                      p.turnoverDetails &&
+                      p.turnoverDetails.turnoverAction === "turnover to OSA"
+                  ).length}
+                </div>
+                <div className="text-sm text-gray-600">OSA Turnover</div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Tabs for different analytics views */}
