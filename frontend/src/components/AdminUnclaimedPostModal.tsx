@@ -429,42 +429,44 @@ export default function AdminUnclaimedPostModal({
           </div>
         </div>
 
-        {/* Unclaimed Status Information */}
-        <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-md">
-          <h3 className="font-semibold text-orange-800 mb-2">
-            Unclaimed Status
-          </h3>
-          <div className="text-sm text-orange-700 space-y-1">
-            {post.movedToUnclaimed ? (
-              <>
-                <p>
-                  This post has expired and was automatically moved to unclaimed
-                  status after 30 days.
-                </p>
-                <p className="font-medium">
-                  Activating this post will restore it with a new 30-day period.
-                </p>
-              </>
-            ) : (
-              <>
-                <p>
-                  This post was manually marked as unclaimed by an
-                  administrator.
-                </p>
-                <p className="font-medium">
-                  Activating this post will restore it to active status.
-                </p>
-              </>
-            )}
+        {/* Admin Notes Display */}
+        {post.adminNotes && (
+          <div className="mt-3">
+            <p className="text-[13px] mb-1 font-medium text-blue-800">Admin Notes</p>
+            <div className="bg-blue-50 border border-blue-200 rounded py-2 px-3">
+              <p className="text-[13px] text-blue-700">{post.adminNotes}</p>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Admin Notes Section */}
-        <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-md">
-          <h3 className="font-semibold text-gray-800 mb-2">Admin Notes</h3>
-          <p className="text-sm text-gray-600">
-            {post.description || "No admin notes available."}
-          </p>
+        {/* Unclaimed Status Information */}
+        <div className="mt-3">
+          <p className="text-[13px] mb-1 font-medium text-orange-800">Unclaimed Status</p>
+          <div className="bg-orange-50 border border-orange-200 rounded py-2 px-3">
+            <div className="text-[13px] text-orange-700 space-y-1">
+              {post.movedToUnclaimed ? (
+                <>
+                  <p>
+                    This post has expired and was automatically moved to unclaimed
+                    status after 30 days.
+                  </p>
+                  <p className="font-medium">
+                    Activating this post will restore it with a new 30-day period.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p>
+                    This post was manually marked as unclaimed by an
+                    administrator.
+                  </p>
+                  <p className="font-medium">
+                    Activating this post will restore it to active status.
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

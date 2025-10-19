@@ -7,7 +7,6 @@ interface AdminPostCardProps {
   onClick: () => void;
   highlightText: string;
   onDelete?: (post: Post) => void;
-  onEdit?: (post: Post) => void;
   onStatusChange?: (post: Post, status: string, adminNotes?: string) => void;
   onActivateTicket?: (post: Post) => void;
   onRevertResolution?: (post: Post) => void;
@@ -16,12 +15,15 @@ interface AdminPostCardProps {
   onRestore?: (post: Post) => void;
   onPermanentDelete?: (post: Post) => void;
   onApprove?: (post: Post) => void; // Added for flagged posts approve action
+  onConfirmTurnover?: (post: Post, status: "confirmed" | "not_received") => void; // Added for turnover management
+  onConfirmCampusSecurityCollection?: (post: Post, status: "collected" | "not_available") => void; // Added for campus security collection
   hideDeleteButton?: boolean;
   isDeleting?: boolean;
   showUnclaimedMessage?: boolean;
   isSelected?: boolean; // Added for selection styling
   onSelectionChange?: (post: Post, selected: boolean) => void; // Added for selection functionality
   hideStatusDropdown?: boolean; // Added to hide status dropdown for unclaimed posts
+  showCampusSecurityButtons?: boolean; // Added to show campus security specific buttons
 }
 
 import { formatDateTime } from "@/utils/dateUtils";
@@ -60,7 +62,6 @@ function AdminPostCard({
   onClick,
   highlightText,
   onDelete,
-  onEdit,
   onStatusChange,
   onActivateTicket,
   onRevertResolution,
@@ -69,12 +70,15 @@ function AdminPostCard({
   onRestore,
   onPermanentDelete,
   onApprove, // Added for flagged posts approve action
+  onConfirmTurnover, // Added for turnover management
+  onConfirmCampusSecurityCollection, // Added for campus security collection
   hideDeleteButton = false,
   isDeleting = false,
   showUnclaimedMessage = true,
   isSelected = false, // Added for selection styling
   onSelectionChange, // Added for selection functionality
   hideStatusDropdown = false, // Added to hide status dropdown for unclaimed posts
+  showCampusSecurityButtons = false, // Added to show campus security specific buttons
 }: AdminPostCardProps) {
   const [showAdminNotesModal, setShowAdminNotesModal] = useState(false);
   const [adminNotes, setAdminNotes] = useState("");
@@ -162,19 +166,43 @@ function AdminPostCard({
       )}
 
       {previewUrl ? (
-        <img
-          src={previewUrl}
-          alt="post"
-          className="w-full h-85 object-cover cursor-pointer lg:h-70"
-          onClick={onClick}
-        />
+        <div className="relative overflow-hidden">
+          <img
+            src={previewUrl}
+            alt="post"
+            className="w-full h-85 object-cover cursor-pointer lg:h-70"
+            onClick={onClick}
+          />
+
+          {/* Red Flag Icon - Top Right */}
+          {post.isFlagged && (
+            <div className="absolute top-2 right-2 text-2xl drop-shadow-lg z-10">🚩</div>
+          )}
+
+          {/* Unclaimed Badge - Top Left */}
+          {(post.status === "unclaimed" || post.movedToUnclaimed) && (
+            <div className="absolute top-2 left-2 z-10">
+              <div className="relative group">
+                <div className="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded drop-shadow-lg flex items-center gap-1">
+                  UNCLAIMED
+                  <div className="w-3 h-3 rounded-full bg-orange-600 text-white text-[10px] flex items-center justify-center cursor-help hover:bg-orange-700 transition-colors">
+                    i
+                  </div>
+                </div>
+
+                {/* Tooltip */}
+                <div className="absolute top-full left-0 mt-1 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
+                  {post.movedToUnclaimed
+                    ? "This post expired after 30 days and was automatically moved to unclaimed status"
+                    : "This post was manually marked as unclaimed by an administrator"}
+                  <div className="absolute -top-1 left-4 w-0 h-0 border-l-2 border-r-2 border-b-2 border-transparent border-b-gray-900"></div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       ) : (
         <div className="bg-gray-300 h-60 w-full" onClick={onClick} />
-      )}
-
-      {/* Red Flag Icon - Top Right */}
-      {post.isFlagged && (
-        <div className="absolute top-2 right-2 text-2xl drop-shadow-lg">🚩</div>
       )}
 
       <div className="p-3">
@@ -212,33 +240,59 @@ function AdminPostCard({
                   Revert
                 </button>
               )}
-            {/* Show activate button for any post that can be reactivated */}
-            {(post.status === "unclaimed" || post.movedToUnclaimed) &&
-              onActivateTicket && (
+
+            {/* Turnover confirmation button - for turnover management */}
+            {onConfirmTurnover && post.turnoverDetails?.turnoverStatus === "declared" && (
+              <>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onActivateTicket(post);
+                    onConfirmTurnover(post, "confirmed");
                   }}
-                  className="px-3 py-2 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
-                  title="Activate - Move back to active status"
+                  className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
+                  title="Confirm Receipt - Mark as successfully received"
                 >
-                  Activate
+                  Confirm Receipt
                 </button>
-              )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onConfirmTurnover(post, "not_received");
+                  }}
+                  className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition"
+                  title="Mark as Not Received - Item was not turned over"
+                >
+                  Not Received
+                </button>
+              </>
+            )}
 
-            {/* Edit button - only show for confirmed turnover items */}
-            {post.turnoverDetails?.turnoverStatus === "confirmed" && onEdit && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(post);
-                }}
-                className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-                title="Edit Post - Modify title, description, or images"
-              >
-                Edit
-              </button>
+            {/* Campus Security Collection buttons */}
+            {showCampusSecurityButtons && onConfirmCampusSecurityCollection &&
+             post.turnoverDetails?.turnoverAction === "turnover to Campus Security" &&
+             post.turnoverDetails?.turnoverStatus === "confirmed" && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onConfirmCampusSecurityCollection(post, "collected");
+                  }}
+                  className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                  title="Mark as Collected - Item has been collected by owner"
+                >
+                  Collected
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onConfirmCampusSecurityCollection(post, "not_available");
+                  }}
+                  className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition"
+                  title="Mark as Not Available - Item was not collected"
+                >
+                  Not Available
+                </button>
+              </>
             )}
 
             {/* Approve button - for flagged posts */}
@@ -278,43 +332,6 @@ function AdminPostCard({
                 title="Unhide Post - Make visible to public"
               >
                 Unhide
-              </button>
-            )}
-
-            {!onPermanentDelete && !onRestore && !hideDeleteButton && (
-              <button
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className={`px-2 py-1 text-xs rounded transition ${
-                  isDeleting
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-red-500 hover:bg-red-600 text-white"
-                }`}
-                title={isDeleting ? "Deleting..." : "Delete Post"}
-              >
-                {isDeleting ? (
-                  <span className="flex items-center gap-1">
-                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                        fill="none"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
-                    Deleting...
-                  </span>
-                ) : (
-                  "Delete"
-                )}
               </button>
             )}
 
@@ -362,7 +379,7 @@ function AdminPostCard({
               className="size-5"
               priority={false}
             />
-            <div>
+            <div className="flex-1">
               <p className="text-xs text-blue-800 font-medium">
                 {post.user?.firstName && post.user?.lastName
                   ? `${post.user.firstName} ${post.user.lastName}`
@@ -377,6 +394,60 @@ function AdminPostCard({
                 Contact: {post.user?.contactNum || "N/A"}
               </p>
             </div>
+          </div>
+          {/* Action buttons moved below contact info */}
+          <div className="flex gap-1 mt-2">
+            {/* Show activate button for any post that can be reactivated */}
+            {(post.status === "unclaimed" || post.movedToUnclaimed) &&
+              onActivateTicket && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onActivateTicket(post);
+                }}
+                className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
+                title="Activate - Move back to active status"
+              >
+                Activate
+              </button>
+            )}
+
+            {!onPermanentDelete && !onRestore && !hideDeleteButton && (
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className={`px-2 py-1 text-xs rounded transition ${
+                  isDeleting
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-red-500 hover:bg-red-600 text-white"
+                }`}
+                title={isDeleting ? "Deleting..." : "Delete Post"}
+              >
+                {isDeleting ? (
+                  <span className="flex items-center gap-1">
+                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        fill="none"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    Deleting...
+                  </span>
+                ) : (
+                  "Delete"
+                )}
+              </button>
+            )}
           </div>
         </div>
 
@@ -436,16 +507,6 @@ function AdminPostCard({
           }}
           onClick={onClick}
         />
-
-        {/* Admin Notes Display */}
-        {post.adminNotes && (
-          <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded">
-            <div className="text-xs text-blue-800 font-medium mb-1">
-              Admin Notes:
-            </div>
-            <div className="text-xs text-blue-700">{post.adminNotes}</div>
-          </div>
-        )}
 
         {/* Revert Reason Display - show for admins when post has been reverted */}
         {post.revertReason && (

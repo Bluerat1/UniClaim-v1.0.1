@@ -613,16 +613,6 @@ export default function AdminHomePage() {
     setRevertReason("");
   };
 
-  // Handle turnover confirmation
-  const handleConfirmTurnover = (
-    post: Post,
-    status: "confirmed" | "not_received"
-  ) => {
-    setPostToConfirm(post);
-    setConfirmationType(status);
-    setShowTurnoverModal(true);
-  };
-
   const handleTurnoverConfirmation = async (
     status: "confirmed" | "not_received",
     notes?: string
@@ -683,11 +673,6 @@ export default function AdminHomePage() {
       setPostToConfirm(null);
       setConfirmationType(null);
     }
-  };
-
-  // Handle edit post
-  const handleEditPost = (post: Post) => {
-    setEditingPost(post);
   };
 
   // Handle update post (for TicketModal)
@@ -1223,7 +1208,6 @@ export default function AdminHomePage() {
               onClick={() => setSelectedPost(post)}
               highlightText={lastDescriptionKeyword}
               onDelete={viewType === "deleted" ? undefined : handleDeletePost}
-              onEdit={viewType === "deleted" ? undefined : handleEditPost}
               onStatusChange={
                 viewType === "deleted" ? undefined : handleStatusChange
               }

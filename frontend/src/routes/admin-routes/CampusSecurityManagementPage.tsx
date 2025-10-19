@@ -235,7 +235,6 @@ export default function CampusSecurityManagementPage() {
               highlightText=""
               hideDeleteButton={true}
               // Hide admin controls that aren't relevant for campus security management
-              onEdit={undefined}
               onDelete={undefined}
               onStatusChange={undefined}
               onActivateTicket={undefined}

@@ -456,7 +456,7 @@ export default function UnclaimedPostsPage() {
                   onActivateTicket={handleActivatePost}
                   onDelete={(post) => handleModalDeletePost(post.id)}
                   isDeleting={activatingPostId === post.id}
-                  showUnclaimedMessage={true}
+                  showUnclaimedMessage={false}
                   hideStatusDropdown={true}
                 />
               ))}
