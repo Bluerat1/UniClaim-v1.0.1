@@ -1231,9 +1231,6 @@ export default function AdminHomePage() {
               onRevertResolution={
                 viewType === "deleted" ? undefined : handleRevertResolution
               }
-              onConfirmTurnover={
-                viewType === "deleted" ? undefined : handleConfirmTurnover
-              }
               onHidePost={undefined}
               onUnhidePost={
                 viewType === "deleted" ? undefined : handleUnhidePost

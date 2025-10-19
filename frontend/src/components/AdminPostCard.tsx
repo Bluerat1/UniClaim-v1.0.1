@@ -11,14 +11,6 @@ interface AdminPostCardProps {
   onStatusChange?: (post: Post, status: string, adminNotes?: string) => void;
   onActivateTicket?: (post: Post) => void;
   onRevertResolution?: (post: Post) => void;
-  onConfirmTurnover?: (
-    post: Post,
-    status: "confirmed" | "not_received"
-  ) => void;
-  onConfirmCampusSecurityCollection?: (
-    post: Post,
-    status: "collected" | "not_available"
-  ) => void;
   onHidePost?: (post: Post) => void;
   onUnhidePost?: (post: Post) => void;
   onRestore?: (post: Post) => void;
@@ -27,7 +19,6 @@ interface AdminPostCardProps {
   hideDeleteButton?: boolean;
   isDeleting?: boolean;
   showUnclaimedMessage?: boolean;
-  showCampusSecurityButtons?: boolean;
   isSelected?: boolean; // Added for selection styling
   onSelectionChange?: (post: Post, selected: boolean) => void; // Added for selection functionality
   hideStatusDropdown?: boolean; // Added to hide status dropdown for unclaimed posts
@@ -80,15 +71,11 @@ function AdminPostCard({
   onApprove, // Added for flagged posts approve action
   hideDeleteButton = false,
   isDeleting = false,
-  onConfirmTurnover,
-  onConfirmCampusSecurityCollection,
   showUnclaimedMessage = true,
-  showCampusSecurityButtons = false,
   isSelected = false, // Added for selection styling
   onSelectionChange, // Added for selection functionality
   hideStatusDropdown = false, // Added to hide status dropdown for unclaimed posts
 }: AdminPostCardProps) {
-  const [isTurnoverMinimized, setIsTurnoverMinimized] = useState(true);
   const [showAdminNotesModal, setShowAdminNotesModal] = useState(false);
   const [adminNotes, setAdminNotes] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
@@ -393,170 +380,7 @@ function AdminPostCard({
           </div>
         </div>
 
-        {/* Turnover Information for Admin */}
-        {post.turnoverDetails && (
-          <div
-            className="bg-blue-50 p-2 rounded mb-3 border border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsTurnoverMinimized(!isTurnoverMinimized);
-            }}
-            title={
-              isTurnoverMinimized
-                ? "Click to expand turnover details"
-                : "Click to minimize turnover details"
-            }
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-blue-600 text-sm">🔄</span>
-                <h4 className="text-xs font-semibold text-blue-800">
-                  Turnover Details
-                </h4>
-              </div>
-              <span className="text-blue-600 text-xs">
-                {isTurnoverMinimized ? "▼" : "▲"}
-              </span>
-            </div>
-            {!isTurnoverMinimized && (
-              <div className="text-xs text-blue-700 space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Original Finder:</span>
-                  <ProfilePicture
-                    src={post.turnoverDetails.originalFinder.profilePicture}
-                    alt={`${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`}
-                    className="border-blue-300 size-5"
-                  />
-                  <span>
-                    {post.turnoverDetails.originalFinder.firstName}{" "}
-                    {post.turnoverDetails.originalFinder.lastName}
-                  </span>
-                </div>
-                <p>
-                  <span className="font-medium">Student ID:</span>{" "}
-                  {post.turnoverDetails.originalFinder.studentId || "N/A"}
-                </p>
-                <p>
-                  <span className="font-medium">Email:</span>{" "}
-                  {post.turnoverDetails.originalFinder.email}
-                </p>
-                <p>
-                  <span className="font-medium">Contact:</span>{" "}
-                  {post.turnoverDetails.originalFinder.contactNum || "N/A"}
-                </p>
-                <p>
-                  <span className="font-medium">Turned over to:</span>{" "}
-                  {post.turnoverDetails.turnoverAction === "turnover to OSA"
-                    ? "OSA"
-                    : "Campus Security"}
-                </p>
-                <p>
-                  <span className="font-medium">Status:</span>{" "}
-                  <span
-                    className={`px-2 py-1 rounded text-xs font-medium ${
-                      post.turnoverDetails.turnoverStatus === "declared"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : post.turnoverDetails.turnoverStatus === "confirmed"
-                        ? "bg-green-100 text-green-800"
-                        : post.turnoverDetails.turnoverStatus === "transferred"
-                        ? "bg-blue-100 text-blue-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    {post.turnoverDetails.turnoverStatus === "declared"
-                      ? "Awaiting Confirmation"
-                      : post.turnoverDetails.turnoverStatus === "confirmed"
-                      ? "Confirmed Received"
-                      : post.turnoverDetails.turnoverStatus === "transferred"
-                      ? "Transferred"
-                      : "Not Received"}
-                  </span>
-                </p>
-                {post.turnoverDetails.confirmedAt && (
-                  <p>
-                    <span className="font-medium">Confirmed:</span>{" "}
-                    {new Date(
-                      post.turnoverDetails.confirmedAt.seconds * 1000
-                    ).toLocaleDateString()}
-                  </p>
-                )}
-                {post.turnoverDetails.confirmationNotes && (
-                  <p>
-                    <span className="font-medium">Notes:</span>{" "}
-                    {post.turnoverDetails.confirmationNotes}
-                  </p>
-                )}
-              </div>
-            )}
-            {isTurnoverMinimized && (
-              <div className="text-xs text-blue-600 italic">
-                Click to view turnover details
-              </div>
-            )}
-
-            {/* Turnover Confirmation Buttons - Only for OSA items awaiting confirmation */}
-            {!isTurnoverMinimized &&
-              post.turnoverDetails.turnoverStatus === "declared" &&
-              post.turnoverDetails.turnoverAction === "turnover to OSA" && (
-                <div className="mt-3 flex gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onConfirmTurnover?.(post, "confirmed");
-                    }}
-                    className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
-                  >
-                    ✓ Confirm Received
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onConfirmTurnover?.(post, "not_received");
-                    }}
-                    className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
-                  >
-                    ✗ Not Received
-                  </button>
-                </div>
-              )}
-
-            {/* Campus Security Collection Buttons - Show only when explicitly enabled */}
-            {!isTurnoverMinimized &&
-              showCampusSecurityButtons &&
-              post.turnoverDetails.turnoverAction ===
-                "turnover to Campus Security" && (
-                <div className="mt-3 flex gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onConfirmCampusSecurityCollection?.(post, "collected");
-                    }}
-                    className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
-                  >
-                    ✓ Item Collected
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onConfirmCampusSecurityCollection?.(
-                        post,
-                        "not_available"
-                      );
-                    }}
-                    className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
-                  >
-                    ✗ Not Available
-                  </button>
-                </div>
-              )}
-          </div>
-        )}
-        {post.status === "pending" &&
-          !(
-            post.turnoverDetails &&
-            post.turnoverDetails.turnoverStatus === "declared"
-          ) &&
-          !hideStatusDropdown && (
+        {post.status === "pending" && !hideStatusDropdown && (
             <div className="mb-3">
               <label className="text-xs text-gray-600 block mb-1">
                 Status:
