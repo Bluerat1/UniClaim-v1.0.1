@@ -383,31 +383,31 @@ export default function FlaggedPostsPage() {
                     <button
                       onClick={() => handleBulkActionClick("approve")}
                       disabled={actionLoading === "bulk"}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors shadow-sm"
+                      className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium transition-colors shadow-sm"
                     >
                       {actionLoading === "bulk"
                         ? "Processing..."
-                        : `✓ Approve (${selectedPosts.size})`}
+                        : `Approve (${selectedPosts.size})`}
                     </button>
 
                     <button
                       onClick={() => handleBulkActionClick("hide")}
                       disabled={actionLoading === "bulk"}
-                      className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors shadow-sm"
+                      className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium transition-colors shadow-sm"
                     >
                       {actionLoading === "bulk"
                         ? "Processing..."
-                        : `👁️ Hide (${selectedPosts.size})`}
+                        : `Hide (${selectedPosts.size})`}
                     </button>
 
                     <button
                       onClick={() => handleBulkActionClick("delete")}
                       disabled={actionLoading === "bulk"}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors shadow-sm"
+                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium transition-colors shadow-sm"
                     >
                       {actionLoading === "bulk"
                         ? "Processing..."
-                        : `🗑️ Delete (${selectedPosts.size})`}
+                        : `Delete (${selectedPosts.size})`}
                     </button>
                   </div>
                 )}

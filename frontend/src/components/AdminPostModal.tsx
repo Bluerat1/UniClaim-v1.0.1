@@ -249,7 +249,7 @@ export default function AdminPostModal({
               {showDeleteButton && onDelete && (
                 <button
                   onClick={() => onDelete(post)}
-                  className="px-3 py-1.5 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition"
+                  className="px-2 py-1 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition"
                   title="Delete Post"
                 >
                   Delete
@@ -259,30 +259,30 @@ export default function AdminPostModal({
               {post.isFlagged && onApprove && (
                 <button
                   onClick={() => onApprove(post)}
-                  className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1"
+                  className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1"
                   title="Approve Post"
                 >
-                  ✓
+                  Approve
                 </button>
               )}
 
               {post.isFlagged && !post.isHidden && onHide && (
                 <button
                   onClick={() => onHide(post)}
-                  className="px-3 py-1 text-sm bg-yellow-600 text-white rounded hover:bg-yellow-700 flex items-center gap-1"
+                  className="px-2 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700 flex items-center gap-1"
                   title="Hide Post"
                 >
-                  👁️
+                  Hide
                 </button>
               )}
 
               {post.isFlagged && post.isHidden && onUnhide && (
                 <button
                   onClick={() => onUnhide(post)}
-                  className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1"
+                  className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1"
                   title="Unhide Post"
                 >
-                  👁️
+                  Unhide
                 </button>
               )}
             </div>
@@ -535,13 +535,6 @@ export default function AdminPostModal({
           </div>
         )}
 
-        {/* Admin Notes Section */}
-        <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-md">
-          <h3 className="font-semibold text-gray-800 mb-2">Admin Notes</h3>
-          <p className="text-sm text-gray-600">
-            {post.description || "No admin notes available."}
-          </p>
-        </div>
       </div>
     </div>
   );
