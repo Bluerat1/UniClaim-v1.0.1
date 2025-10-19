@@ -26,29 +26,34 @@ export default function CampusSecurityManagementPage() {
   const campusSecurityPosts = useMemo(() => {
     return posts.filter((post) => {
       // Base filter for campus security management
-      const isCampusSecurityPost = (
+      const isCampusSecurityPost =
         post.type === "found" &&
         post.turnoverDetails &&
-        post.turnoverDetails.turnoverAction === "turnover to Campus Security"
-      );
+        post.turnoverDetails.turnoverAction === "turnover to Campus Security";
 
       if (!isCampusSecurityPost) return false;
 
       // Search filter logic
-      const matchesQuery = query.trim() === "" || 
+      const matchesQuery =
+        query.trim() === "" ||
         post.title.toLowerCase().includes(query.toLowerCase()) ||
         post.description.toLowerCase().includes(query.toLowerCase());
 
-      const matchesCategory = selectedCategoryFilter === "All" || 
+      const matchesCategory =
+        selectedCategoryFilter === "All" ||
         post.category === selectedCategoryFilter;
 
-      const matchesDescription = description.trim() === "" || 
+      const matchesDescription =
+        description.trim() === "" ||
         post.description.toLowerCase().includes(description.toLowerCase());
 
-      const matchesLocation = location.trim() === "" || 
+      const matchesLocation =
+        location.trim() === "" ||
         post.location?.toLowerCase().includes(location.toLowerCase());
 
-      return matchesQuery && matchesCategory && matchesDescription && matchesLocation;
+      return (
+        matchesQuery && matchesCategory && matchesDescription && matchesLocation
+      );
     });
   }, [posts, query, selectedCategoryFilter, description, location]);
 
@@ -199,7 +204,7 @@ export default function CampusSecurityManagementPage() {
       </div>
 
       {/* Posts Grid */}
-      <div className="grid grid-cols-1 gap-5 mx-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 mx-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {loading ? (
           <div className="col-span-full flex items-center justify-center h-80">
             <span className="text-gray-400">
