@@ -451,23 +451,30 @@ function AdminPostCard({
           </div>
         </div>
 
-        {post.status === "pending" && !hideStatusDropdown && (
-            <div className="mb-3">
-              <label className="text-xs text-gray-600 block mb-1">
-                Status:
-              </label>
-              <select
-                value={post.status || "pending"}
-                onChange={handleStatusChange}
-                className="text-xs p-1 border rounded bg-white"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <option value="pending">Pending</option>
-                <option value="unclaimed">Unclaimed</option>
-                <option value="resolved">Resolved</option>
-              </select>
-            </div>
-          )}
+        {!hideStatusDropdown && (
+          <div className="mb-3">
+            <label className="text-xs text-gray-600 block mb-1">
+              Status: {post.status} {/* Debug: show current status */}
+            </label>
+            <select
+              value={post.status || "pending"}
+              onChange={handleStatusChange}
+              className="text-xs p-1 border rounded bg-white"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Show all available options, excluding current status */}
+              <option value="pending" disabled={post.status === "pending"}>
+                Pending
+              </option>
+              <option value="unclaimed" disabled={post.status === "unclaimed"}>
+                Unclaimed
+              </option>
+              <option value="resolved" disabled={post.status === "resolved"}>
+                Resolved
+              </option>
+            </select>
+          </div>
+        )}
 
         {/* Show activation status for posts that can be activated */}
         {(post.status === "unclaimed" || post.movedToUnclaimed) &&

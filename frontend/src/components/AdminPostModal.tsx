@@ -589,6 +589,16 @@ export default function AdminPostModal({
               <p className="text-sm text-gray-700">{post.location}</p>
             </div>
 
+            {/* Admin Notes Display - show in right column when post has admin notes */}
+            {post.adminNotes && (
+              <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <div className="text-sm text-blue-800 font-medium mb-2">
+                  Admin Notes:
+                </div>
+                <div className="text-sm text-blue-700">{post.adminNotes}</div>
+              </div>
+            )}
+
             {post.coordinates && (
               <div className="w-full h-60 mb-3">
                 <iframe

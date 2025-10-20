@@ -426,6 +426,21 @@ export default function PostModal({
                 <p className="text-[13px] text-gray-600">{post.description}</p>
               </div>
 
+              {/* Revert Reason - show for all users when post has been reverted */}
+              {post.revertReason && (
+                <div className="mt-3 p-3 bg-orange-50 border-l-4 border-orange-400 rounded-r-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-orange-600 text-sm">🔄</span>
+                    <span className="text-sm font-medium text-orange-800">
+                      Reverted by Admin
+                    </span>
+                  </div>
+                  <div className="text-orange-700 text-sm">
+                    {post.revertReason}
+                  </div>
+                </div>
+              )}
+
               {/* Found Action Information - only show for found items */}
               {post.type === "found" && post.foundAction && (
                 <>

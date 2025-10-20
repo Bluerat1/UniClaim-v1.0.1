@@ -7,7 +7,7 @@ import type { Post } from "../../types/Post";
 import PageWrapper from "../../components/PageWrapper";
 import NavHeader from "../../components/NavHeadComp";
 import AdminPostCard from "../../components/AdminPostCard";
-import AdminUnclaimedPostModal from "../../components/AdminUnclaimedPostModal";
+import AdminPostModal from "../../components/AdminPostModal";
 import SearchBar from "../../components/SearchBar";
 import { useAuth } from "../../context/AuthContext";
 
@@ -467,11 +467,12 @@ export default function UnclaimedPostsPage() {
 
       {/* Unclaimed Post Modal */}
       {isModalOpen && selectedPost && (
-        <AdminUnclaimedPostModal
+        <AdminPostModal
           post={selectedPost}
           onClose={handleCloseModal}
-          onPostActivate={handleModalActivatePost}
-          onPostDelete={handleModalDeletePost}
+          showUnclaimedFeatures={true}
+          onActivatePost={handleModalActivatePost}
+          onDelete={(post) => handleModalDeletePost(post.id)}
         />
       )}
     </PageWrapper>
