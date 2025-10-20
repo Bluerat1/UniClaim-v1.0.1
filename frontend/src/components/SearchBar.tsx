@@ -56,7 +56,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
   // useEffect removed to prevent automatic filtering while typing
 
   return (
-    <div className="w-full mb-6">
+    <div className="w-full">
       <div className="flex gap-3 md:flex md:justify-center md:items-center lg:justify-start lg:items-center">
         <input
           type="text"

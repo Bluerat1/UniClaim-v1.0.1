@@ -293,7 +293,7 @@ export default function FlaggedPostsPage() {
         />
 
         {/* Search Bar */}
-        <div className="px-4 sm:px-6 lg:px-8">
+        <div className="px-4 mt-4 sm:px-6 lg:px-8">
           <SearchBar
             onSearch={handleSearch}
             onClear={handleClear}
@@ -305,7 +305,7 @@ export default function FlaggedPostsPage() {
         </div>
 
         {/* Filter Buttons */}
-        <div className="flex mt-7 flex-wrap sm:justify-center items-center gap-3 w-full px-4 sm:px-6 lg:px-8 lg:justify-start lg:gap-3">
+        <div className="flex mt-5 flex-wrap sm:justify-center items-center gap-3 w-full px-4 sm:px-6 lg:px-8 lg:justify-start lg:gap-3">
           <button
             className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
               viewType === "all"
@@ -350,7 +350,7 @@ export default function FlaggedPostsPage() {
         <div className="px-4 sm:px-6 lg:px-8">
           {/* Bulk Actions Bar */}
           {filteredFlaggedPosts.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-lg p-3 mb-6 mt-5">
+            <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6 mt-5">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <label className="flex items-center gap-3 cursor-pointer">
@@ -363,7 +363,7 @@ export default function FlaggedPostsPage() {
                       onChange={handleSelectAll}
                       className="w-5 h-5 text-brand border-gray-300 rounded focus:ring-brand"
                     />
-                    <div>
+                    <div className="flex items-center gap-3">
                       <span className="text-sm font-semibold text-gray-900">
                         Select All ({selectedPosts.size}/
                         {filteredFlaggedPosts.length})
