@@ -6,7 +6,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useMessage } from "@/context/MessageContext";
 import ProfilePicture from "./ProfilePicture";
-import HandoverDetailsDisplay from "./HandoverDetailsDisplay";
 import ClaimDetailsDisplay from "./ClaimDetailsDisplay";
 import FlagButton from "./FlagButton";
 import TurnoverConfirmationModal from "./TurnoverConfirmationModal";
