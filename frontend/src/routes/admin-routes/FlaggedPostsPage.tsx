@@ -706,6 +706,7 @@ export default function FlaggedPostsPage() {
           onUnhide={() => handleActionClick("unhide", selectedPost)}
           onDelete={() => handleActionClick("delete", selectedPost)}
           showDeleteButton={true}
+          showFlaggedPostActions={true}
         />
       )}
     </PageWrapper>

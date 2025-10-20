@@ -174,7 +174,7 @@ export default function HomePage() {
 
   const [currentPage, setCurrentPage] = useState(1);
   // e change dari pila ka post mu appear pag scroll down
-  const itemsPerPage = 6; // Increased from 2 to 6 for better scroll experience
+  const itemsPerPage = 8; // Increased from 2 to 6 for better scroll experience
 
   // Update selectedPost when posts list is refreshed with real-time updates
   useEffect(() => {

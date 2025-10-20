@@ -1,5 +1,6 @@
 // src/components/ItemInfoForm.tsx
 import { FiX, FiUpload, FiEye } from "react-icons/fi";
+import { useState, useRef, useEffect } from "react";
 
 interface Props {
   titleError: boolean;
@@ -47,6 +48,28 @@ export default function ItemInfoForm({
   description,
   setDescription,
 }: Props) {
+  const dateTimeInputRef = useRef<HTMLInputElement>(null);
+  const [isDateTimeFocused, setIsDateTimeFocused] = useState(false);
+
+  // Handle clicking outside to close the date/time picker
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dateTimeInputRef.current &&
+        !dateTimeInputRef.current.contains(event.target as Node)
+      ) {
+        setIsDateTimeFocused(false);
+      }
+    };
+
+    if (isDateTimeFocused) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isDateTimeFocused]);
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
       {/* Left column */}
@@ -103,17 +126,33 @@ export default function ItemInfoForm({
               <span className="text-red-500 ml-1">*</span>
             </label>
             <div
-              className={`w-full flex items-center rounded px-4 py-3 focus-within:ring-2 focus-within:ring-blue-500 ${
+              className={`w-full flex items-center rounded px-4 py-3 cursor-pointer focus-within:ring-2 focus-within:ring-blue-500 ${
                 dateTimeError
                   ? "border-2 border-red-500"
                   : "border border-gray-500"
               }`}
+              onClick={() => {
+                if (!isDateTimeFocused) {
+                  // Open the picker if not already focused
+                  if (dateTimeInputRef.current) {
+                    if (dateTimeInputRef.current.showPicker) {
+                      dateTimeInputRef.current.showPicker();
+                    } else {
+                      dateTimeInputRef.current.click();
+                    }
+                  }
+                }
+                setIsDateTimeFocused(!isDateTimeFocused);
+              }}
             >
               <input
+                ref={dateTimeInputRef}
                 type="datetime-local"
                 value={selectedDateTime}
                 onChange={(e) => setSelectedDateTime(e.target.value)}
-                className="w-full cursor-pointer outline-none bg-transparent text-sm text-gray-700"
+                onFocus={() => setIsDateTimeFocused(true)}
+                onBlur={() => setIsDateTimeFocused(false)}
+                className="w-full outline-none bg-transparent text-sm text-gray-700"
               />
             </div>
           </div>
@@ -159,7 +198,7 @@ export default function ItemInfoForm({
                   }}
                 />
               ) : (
-                <FiUpload className="side-4 text-black stroke-[2px]" />
+                <FiUpload className="w-5 h-5 text-black stroke-[2px]" />
               )}
             </div>
 

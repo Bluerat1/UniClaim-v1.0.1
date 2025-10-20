@@ -36,6 +36,33 @@ body {
       /* Dynamic viewport height for mobile */
     }
   }
+
+  /* Custom scrollbar styling for modals */
+  .modal-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+  }
+
+  .modal-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .modal-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .modal-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(156, 163, 175, 0.5);
+    border-radius: 3px;
+  }
+
+  .modal-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(156, 163, 175, 0.7);
+  }
+
+  .modal-scrollbar::-webkit-scrollbar-button {
+    display: none;
+  }
 }
 
 @layer utilities {

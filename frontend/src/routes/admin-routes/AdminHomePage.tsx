@@ -64,6 +64,10 @@ export default function AdminHomePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
 
+  // Multi-select state for bulk operations
+  const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
   // Delete confirmation modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [postToDelete, setPostToDelete] = useState<Post | null>(null);
@@ -89,7 +93,68 @@ export default function AdminHomePage() {
 
   const [currentPage, setCurrentPage] = useState(1);
   // e change dari pila ka post mu appear pag scroll down
-  const itemsPerPage = 6; // Increased from 2 to 6 for better scroll experience
+  const itemsPerPage = 8; // Increased from 6 to 8 for better scroll experience
+
+  // Multi-select handlers
+  const handlePostSelectionChange = (post: Post, selected: boolean) => {
+    setSelectedPosts(prev => {
+      const newSet = new Set(prev);
+      if (selected) {
+        newSet.add(post.id);
+      } else {
+        newSet.delete(post.id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedPosts.size === postsToDisplay.length) {
+      setSelectedPosts(new Set());
+    } else {
+      setSelectedPosts(new Set(postsToDisplay.map(post => post.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedPosts.size === 0) {
+      showToast("warning", "No Selection", "Please select posts to delete");
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete ${selectedPosts.size} selected posts? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setIsBulkDeleting(true);
+      const { postService } = await import("../../services/firebase/posts");
+
+      // Delete all selected posts
+      for (const postId of selectedPosts) {
+        await postService.deletePost(postId, false, userData?.email || "admin");
+      }
+
+      showToast("success", "Bulk Delete Complete", `Successfully deleted ${selectedPosts.size} posts`);
+
+      // Clear selection and refresh
+      setSelectedPosts(new Set());
+
+      // Refresh the posts list
+      if (viewType === "deleted") {
+        fetchDeletedPosts();
+      }
+    } catch (error: any) {
+      console.error("Error during bulk delete:", error);
+      showToast("error", "Bulk Delete Failed", error.message || "Failed to delete selected posts");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedPosts(new Set());
+  };
 
   // Admin functionality handlers
   const handleDeletePost = (post: Post) => {
@@ -332,13 +397,6 @@ export default function AdminHomePage() {
       );
     }
   };
-
-  // Load deleted posts when the deleted tab is active
-  useEffect(() => {
-    if (viewType === "deleted") {
-      fetchDeletedPosts();
-    }
-  }, [viewType, fetchDeletedPosts]);
 
   // Initial load of deleted posts
   useEffect(() => {
@@ -822,6 +880,11 @@ export default function AdminHomePage() {
       : viewFilteredPosts;
   }, [viewType, deletedPosts, selectedCategoryFilter, viewFilteredPosts]);
 
+  // Clear selection when posts list changes due to filtering or search
+  useEffect(() => {
+    setSelectedPosts(new Set());
+  }, [postsToDisplay]);
+
   // Check if there are more posts to load
   const hasMorePosts = postsToDisplay.length > currentPage * itemsPerPage;
 
@@ -1010,156 +1073,242 @@ export default function AdminHomePage() {
       </div>
 
       {/* View Type Tabs */}
-      <div className="flex mt-7 flex-wrap sm:justify-center items-center gap-3 w-full px-6 lg:justify-start lg:gap-3">
-        {/* <div className="w-full lg:w-auto text-center lg:text-left mb-2 lg:mb-0">
-          <span className="text-sm text-gray-600">Current View: </span>
-          <span className="text-sm font-semibold text-blue-600 capitalize">
-            {viewType === "unclaimed"
-              ? "Unclaimed Items"
-              : viewType === "completed"
-              ? "Resolved Reports"
-              : viewType === "turnover"
-              ? "Turnover Management"
-              : viewType === "flagged"
-              ? "Flagged Posts"
-              : `${viewType} Item Reports`}
-          </span>
-        </div> */}
-        <button
-          className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
-            viewType === "all"
-              ? "bg-navyblue text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
-          }`}
-          onClick={() => {
-            setIsLoading(true);
-            setViewType("all");
-            setCurrentPage(1); // Reset pagination when switching views
-            setTimeout(() => setIsLoading(false), 200);
-          }}
-        >
-          All Item Reports
-        </button>
+      <div className="flex mt-7 flex-wrap sm:justify-center items-center gap-3 w-full px-6 lg:justify-between lg:gap-3">
+        <div className="flex items-center gap-3 flex-wrap sm:justify-center lg:justify-start">
+          {/* <div className="w-full lg:w-auto text-center lg:text-left mb-2 lg:mb-0">
+            <span className="text-sm text-gray-600">Current View: </span>
+            <span className="text-sm font-semibold text-blue-600 capitalize">
+              {viewType === "unclaimed"
+                ? "Unclaimed Items"
+                : viewType === "completed"
+                ? "Resolved Reports"
+                : viewType === "turnover"
+                ? "Turnover Management"
+                : viewType === "flagged"
+                ? "Flagged Posts"
+                : `${viewType} Item Reports`}
+            </span>
+          </div> */}
+          <button
+            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+              viewType === "all"
+                ? "bg-navyblue text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
+            }`}
+            onClick={() => {
+              setIsLoading(true);
+              setViewType("all");
+              setCurrentPage(1); // Reset pagination when switching views
+              setTimeout(() => setIsLoading(false), 200);
+            }}
+          >
+            All Item Reports
+          </button>
 
-        <button
-          className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
-            viewType === "lost"
-              ? "bg-navyblue text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
-          }`}
-          onClick={() => {
-            setIsLoading(true);
-            setViewType("lost");
-            setCurrentPage(1); // Reset pagination when switching views
-            setTimeout(() => setIsLoading(false), 200);
-          }}
-        >
-          Lost Item Reports
-        </button>
+          <button
+            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+              viewType === "lost"
+                ? "bg-navyblue text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
+            }`}
+            onClick={() => {
+              setIsLoading(true);
+              setViewType("lost");
+              setCurrentPage(1); // Reset pagination when switching views
+              setTimeout(() => setIsLoading(false), 200);
+            }}
+          >
+            Lost Item Reports
+          </button>
 
-        <button
-          className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
-            viewType === "found"
-              ? "bg-navyblue text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
-          }`}
-          onClick={() => {
-            setIsLoading(true);
-            setViewType("found");
-            setCurrentPage(1); // Reset pagination when switching views
-            setTimeout(() => setIsLoading(false), 200);
-          }}
-        >
-          Found Item Reports
-        </button>
+          <button
+            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+              viewType === "found"
+                ? "bg-navyblue text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
+            }`}
+            onClick={() => {
+              setIsLoading(true);
+              setViewType("found");
+              setCurrentPage(1); // Reset pagination when switching views
+              setTimeout(() => setIsLoading(false), 200);
+            }}
+          >
+            Found Item Reports
+          </button>
 
-        {/* Unclaimed Items Button - Hidden as requested */}
-        {/* <button
-          className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
-            viewType === "unclaimed"
-              ? "bg-navyblue text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
-          }`}
-          onClick={() => {
-            setIsLoading(true);
-            setViewType("unclaimed");
-            setCurrentPage(1); // Reset pagination when switching views
-            setTimeout(() => setIsLoading(false), 200);
-          }}
-        >
-          Unclaimed Items
-        </button> */}
+          {/* Unclaimed Items Button - Hidden as requested */}
+          {/* <button
+            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+              viewType === "unclaimed"
+                ? "bg-navyblue text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
+            }`}
+            onClick={() => {
+              setIsLoading(true);
+              setViewType("unclaimed");
+              setCurrentPage(1); // Reset pagination when switching views
+              setTimeout(() => setIsLoading(false), 200);
+            }}
+          >
+            Unclaimed Items
+          </button> */}
 
-        <button
-          className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
-            viewType === "completed"
-              ? "bg-navyblue text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
-          }`}
-          onClick={() => {
-            setIsLoading(true);
-            setViewType("completed");
-            setCurrentPage(1); // Reset pagination when switching views
-            setTimeout(() => setIsLoading(false), 200);
-          }}
-        >
-          Completed Reports
-        </button>
+          <button
+            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+              viewType === "completed"
+                ? "bg-navyblue text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
+            }`}
+            onClick={() => {
+              setIsLoading(true);
+              setViewType("completed");
+              setCurrentPage(1); // Reset pagination when switching views
+              setTimeout(() => setIsLoading(false), 200);
+            }}
+          >
+            Completed Reports
+          </button>
 
-        {/* Turnover Management Button - Hidden as requested */}
-        {/* <button
-          className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
-            viewType === "turnover"
-              ? "bg-navyblue text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
-          }`}
-          onClick={() => {
-            setIsLoading(true);
-            setViewType("turnover");
-            setCurrentPage(1); // Reset pagination when switching views
-            setTimeout(() => setIsLoading(false), 200);
-          }}
-        >
-          Turnover Management
-        </button> */}
+          {/* Turnover Management Button - Hidden as requested */}
+          {/* <button
+            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+              viewType === "turnover"
+                ? "bg-navyblue text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
+            }`}
+            onClick={() => {
+              setIsLoading(true);
+              setViewType("turnover");
+              setCurrentPage(1); // Reset pagination when switching views
+              setTimeout(() => setIsLoading(false), 200);
+            }}
+          >
+            Turnover Management
+          </button> */}
 
-        {/* Flagged Posts Button - Hidden as requested */}
-        {/* <button
-          className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
-            viewType === "flagged"
-              ? "bg-navyblue text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
-          }`}
-          onClick={() => {
-            setIsLoading(true);
-            setViewType("flagged");
-            setCurrentPage(1); // Reset pagination when switching views
-            setTimeout(() => setIsLoading(false), 200);
-          }}
-        >
-          Flagged Posts
-        </button> */}
+          {/* Flagged Posts Button - Hidden as requested */}
+          {/* <button
+            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+              viewType === "flagged"
+                ? "bg-navyblue text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
+            }`}
+            onClick={() => {
+              setIsLoading(true);
+              setViewType("flagged");
+              setCurrentPage(1); // Reset pagination when switching views
+              setTimeout(() => setIsLoading(false), 200);
+            }}
+          >
+            Flagged Posts
+          </button> */}
 
-        <button
-          className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
-            viewType === "deleted"
-              ? "bg-red-600 text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-red-100 border-gray-300"
-          }`}
-          onClick={() => {
-            setIsLoading(true);
-            setViewType("deleted");
-            setCurrentPage(1);
-            fetchDeletedPosts(); // Make sure to fetch deleted posts when this tab is selected
-            setTimeout(() => setIsLoading(false), 200);
-          }}
-        >
-          Recently Deleted
-        </button>
+          <button
+            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+              viewType === "deleted"
+                ? "bg-red-600 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-red-100 border-gray-300"
+            }`}
+            onClick={() => {
+              setIsLoading(true);
+              setViewType("deleted");
+              setCurrentPage(1);
+              fetchDeletedPosts(); // Make sure to fetch deleted posts when this tab is selected
+              setTimeout(() => setIsLoading(false), 200);
+            }}
+          >
+            Recently Deleted
+          </button>
+        </div>
+
+        {/* Multi-select controls - only show when not in deleted view */}
+        {viewType !== "deleted" && (
+          <div className="flex items-center justify-end">
+            <div className="flex items-center gap-2 bg-white rounded-lg border border-gray-200 px-3 py-2 shadow-sm min-w-[200px]">
+              {/* Select All/Deselect All Icon Button */}
+              <button
+                onClick={handleSelectAll}
+                className={`p-1.5 rounded transition-colors ${
+                  selectedPosts.size === postsToDisplay.length && postsToDisplay.length > 0
+                    ? "text-blue-600 hover:bg-blue-50"
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+                title={selectedPosts.size === postsToDisplay.length && postsToDisplay.length > 0 ? "Deselect All" : "Select All"}
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill={selectedPosts.size === postsToDisplay.length && postsToDisplay.length > 0 ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  {selectedPosts.size === postsToDisplay.length && postsToDisplay.length > 0 ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  ) : (
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" strokeWidth={2} />
+                  )}
+                </svg>
+              </button>
+
+              {/* Select All Message - shows when no posts selected */}
+              {(!selectedPosts.size || selectedPosts.size === 0) && (
+                <span className="text-sm text-gray-600">
+                  Select All
+                </span>
+              )}
+
+              {/* Selection Counter with Text */}
+              {selectedPosts.size > 0 && (
+                <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-opacity bg-blue-50 text-blue-700 opacity-100`}>
+                  Selected ({selectedPosts.size})
+                </div>
+              )}
+
+              {/* Delete Selected Icon Button */}
+              <button
+                onClick={handleBulkDelete}
+                disabled={isBulkDeleting || selectedPosts.size === 0}
+                className={`p-1.5 rounded transition-all ${
+                  selectedPosts.size > 0
+                    ? isBulkDeleting
+                      ? "text-gray-400 cursor-not-allowed"
+                      : "text-red-600 hover:bg-red-50"
+                    : "text-gray-400 cursor-not-allowed"
+                }`}
+                title="Delete Selected"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              </button>
+
+              {/* Clear Icon Button */}
+              <button
+                onClick={handleClearSelection}
+                disabled={selectedPosts.size === 0}
+                className={`p-1.5 rounded transition-all ${
+                  selectedPosts.size > 0
+                    ? "text-gray-600 hover:bg-gray-50"
+                    : "text-gray-400 cursor-not-allowed"
+                }`}
+                title="Clear Selection"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-5 mx-6 mt-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {/* ✅ Handle loading state */}
+        {/* Handle loading state */}
         {loading ||
         resolvedLoading ||
         isLoading ||
@@ -1226,6 +1375,9 @@ export default function AdminHomePage() {
                 viewType === "deleted" ? handlePermanentDeletePost : undefined
               }
               showUnclaimedMessage={false}
+              // Multi-select props
+              isSelected={selectedPosts.has(post.id)}
+              onSelectionChange={handlePostSelectionChange}
             />
           ))
         )}

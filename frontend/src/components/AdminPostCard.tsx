@@ -241,100 +241,6 @@ function AdminPostCard({
                 </button>
               )}
 
-            {/* Turnover confirmation button - for turnover management */}
-            {onConfirmTurnover && post.turnoverDetails?.turnoverStatus === "declared" && (
-              <>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onConfirmTurnover(post, "confirmed");
-                  }}
-                  className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
-                  title="Confirm Receipt - Mark as successfully received"
-                >
-                  Confirm Receipt
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onConfirmTurnover(post, "not_received");
-                  }}
-                  className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition"
-                  title="Mark as Not Received - Item was not turned over"
-                >
-                  Not Received
-                </button>
-              </>
-            )}
-
-            {/* Campus Security Collection buttons */}
-            {showCampusSecurityButtons && onConfirmCampusSecurityCollection &&
-             post.turnoverDetails?.turnoverAction === "turnover to Campus Security" &&
-             post.turnoverDetails?.turnoverStatus === "confirmed" && (
-              <>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onConfirmCampusSecurityCollection(post, "collected");
-                  }}
-                  className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-                  title="Mark as Collected - Item has been collected by owner"
-                >
-                  Collected
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onConfirmCampusSecurityCollection(post, "not_available");
-                  }}
-                  className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition"
-                  title="Mark as Not Available - Item was not collected"
-                >
-                  Not Available
-                </button>
-              </>
-            )}
-
-            {/* Approve button - for flagged posts */}
-            {onApprove && post.isFlagged && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onApprove(post);
-                }}
-                className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
-                title="Approve Post - Remove flag and make visible"
-              >
-                Approve
-              </button>
-            )}
-
-            {post.isFlagged && !post.isHidden && onHidePost && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onHidePost(post);
-                }}
-                className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition"
-                title="Hide Post - Hide from public view"
-              >
-                Hide
-              </button>
-            )}
-
-            {post.isHidden && onUnhidePost && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onUnhidePost(post);
-                }}
-                className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
-                title="Unhide Post - Make visible to public"
-              >
-                Unhide
-              </button>
-            )}
-
             {/* Restore and Permanently Delete buttons for deleted posts */}
             {/* {onRestore && onPermanentDelete && (
               <div className="flex gap-2">
@@ -397,6 +303,99 @@ function AdminPostCard({
           </div>
           {/* Action buttons moved below contact info */}
           <div className="flex gap-1 mt-2">
+            {/* Turnover confirmation button - for turnover management */}
+            {onConfirmTurnover && post.turnoverDetails?.turnoverStatus === "declared" && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onConfirmTurnover(post, "confirmed");
+                  }}
+                  className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition flex items-center gap-1"
+                  title="Confirm Received - Mark as successfully received"
+                >
+                  ✓ Confirm Received
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onConfirmTurnover(post, "not_received");
+                  }}
+                  className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition flex items-center gap-1"
+                  title="Mark as Not Received - Item was not turned over"
+                >
+                  ✗ Not Received
+                </button>
+              </>
+            )}
+
+            {/* Approve button - for flagged posts */}
+            {onApprove && post.isFlagged && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onApprove(post);
+                }}
+                className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
+                title="Approve Post - Remove flag and make visible"
+              >
+                Approve
+              </button>
+            )}
+
+            {post.isFlagged && !post.isHidden && onHidePost && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onHidePost(post);
+                }}
+                className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition"
+                title="Hide Post - Hide from public view"
+              >
+                Hide
+              </button>
+            )}
+
+            {post.isHidden && onUnhidePost && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUnhidePost(post);
+                }}
+                className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
+                title="Unhide Post - Make visible to public"
+              >
+                Unhide
+              </button>
+            )}
+
+            {/* Campus Security Collection buttons */}
+            {showCampusSecurityButtons && onConfirmCampusSecurityCollection &&
+             post.turnoverDetails?.turnoverAction === "turnover to Campus Security" && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onConfirmCampusSecurityCollection(post, "collected");
+                  }}
+                  className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition flex items-center gap-1"
+                  title="Mark as Collected - Item has been collected by owner"
+                >
+                  ✓ Collected
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onConfirmCampusSecurityCollection(post, "not_available");
+                  }}
+                  className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition flex items-center gap-1"
+                  title="Mark as Not Available - Item was not collected"
+                >
+                  ✗ Not Available
+                </button>
+              </>
+            )}
+
             {/* Show activate button for any post that can be reactivated */}
             {(post.status === "unclaimed" || post.movedToUnclaimed) &&
               onActivateTicket && (

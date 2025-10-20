@@ -21,6 +21,7 @@ interface PostCardMenuProps {
   onFlagSuccess?: () => void;
   className?: string;
   onFlag?: (post: any) => void;
+  postStatus?: string;
 }
 
 export default function PostCardMenu({
@@ -33,6 +34,7 @@ export default function PostCardMenu({
   onFlagSuccess,
   className = "",
   onFlag,
+  postStatus,
 }: PostCardMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showFlagModal, setShowFlagModal] = useState(false);
@@ -182,13 +184,13 @@ export default function PostCardMenu({
               <button
                 onClick={handleSendMessage}
                 disabled={
-                  isCreatingConversation || postOwnerId === userData?.uid
+                  isCreatingConversation || postOwnerId === userData?.uid || postStatus === "resolved"
                 }
                 className={`
                   w-full px-4 py-2 text-left text-sm flex items-center gap-2
                   transition-colors duration-200
                   ${
-                    isCreatingConversation || postOwnerId === userData?.uid
+                    isCreatingConversation || postOwnerId === userData?.uid || postStatus === "resolved"
                       ? "text-gray-400 cursor-not-allowed"
                       : "text-gray-700 hover:bg-blue-50 hover:text-blue-700"
                   }
@@ -204,7 +206,8 @@ export default function PostCardMenu({
                 disabled={
                   isAlreadyFlaggedByUser ||
                   isLoading ||
-                  postOwnerId === user?.uid
+                  postOwnerId === user?.uid ||
+                  postStatus === "resolved"
                 }
                 className={`
                   w-full px-4 py-2 text-left text-sm flex items-center gap-2
@@ -212,7 +215,8 @@ export default function PostCardMenu({
                   ${
                     isAlreadyFlaggedByUser ||
                     isLoading ||
-                    postOwnerId === user?.uid
+                    postOwnerId === user?.uid ||
+                    postStatus === "resolved"
                       ? "text-gray-400 cursor-not-allowed"
                       : "text-gray-700 hover:bg-red-50 hover:text-red-700"
                   }
@@ -222,6 +226,8 @@ export default function PostCardMenu({
                     ? "You cannot flag your own post"
                     : isAlreadyFlaggedByUser
                     ? "You've already flagged this post"
+                    : postStatus === "resolved"
+                    ? "Cannot flag resolved posts"
                     : "Flag this post"
                 }
               >
@@ -230,6 +236,8 @@ export default function PostCardMenu({
                   ? "Already Flagged"
                   : postOwnerId === user?.uid
                   ? "Can't Flag Own Post"
+                  : postStatus === "resolved"
+                  ? "Post Resolved"
                   : "Flag this post"}
               </button>
             </div>

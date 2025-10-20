@@ -11,6 +11,7 @@ interface FlagButtonProps {
   flaggedBy?: string;
   onFlagSuccess?: () => void;
   className?: string;
+  postStatus?: string;
 }
 
 export default function FlagButton({
@@ -19,6 +20,7 @@ export default function FlagButton({
   flaggedBy,
   onFlagSuccess,
   className = "",
+  postStatus,
 }: FlagButtonProps) {
   const [showFlagModal, setShowFlagModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -58,12 +60,12 @@ export default function FlagButton({
     <>
       <button
         onClick={handleFlagClick}
-        disabled={isAlreadyFlaggedByUser || isLoading}
+        disabled={isAlreadyFlaggedByUser || isLoading || postStatus === "resolved"}
         className={`
           flex items-center justify-center p-2 rounded
           transition-colors duration-200
           ${
-            isAlreadyFlaggedByUser
+            isAlreadyFlaggedByUser || postStatus === "resolved"
               ? "bg-gray-100 text-gray-500 cursor-not-allowed"
               : "bg-red-500 text-white hover:bg-red-700"
           }
@@ -72,6 +74,8 @@ export default function FlagButton({
         title={
           isAlreadyFlaggedByUser
             ? "You have already flagged this post"
+            : postStatus === "resolved"
+            ? "Cannot flag resolved posts"
             : "Flag this post"
         }
       >

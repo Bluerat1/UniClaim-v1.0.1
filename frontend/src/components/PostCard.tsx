@@ -119,6 +119,7 @@ function PostCard({
             console.log("Post flagged successfully");
           }}
           onFlag={onFlag}
+          postStatus={post.status}
         />
       </div>
 
@@ -126,10 +127,81 @@ function PostCard({
         <img
           src={previewUrl}
           alt="post"
-          className="w-full h-85 object-cover lg:h-70"
+          className="w-full h-85 object-cover lg:h-70 relative"
         />
       ) : (
         <div className="bg-gray-300 h-60 w-full" />
+      )}
+
+      {/* Expiry Countdown Badge - positioned on photo */}
+      {post.expiryDate && (
+        <div className="absolute top-2 left-2 z-10">
+          {(() => {
+            try {
+              const now = new Date();
+              let expiry: Date;
+
+              if (
+                post.expiryDate &&
+                typeof post.expiryDate === "object" &&
+                "seconds" in post.expiryDate
+              ) {
+                expiry = new Date(post.expiryDate.seconds * 1000);
+              } else if (post.expiryDate instanceof Date) {
+                expiry = post.expiryDate;
+              } else if (post.expiryDate) {
+                expiry = new Date(post.expiryDate);
+              } else {
+                return null;
+              }
+
+              if (isNaN(expiry.getTime())) return null;
+
+              const daysLeft = Math.ceil(
+                (expiry.getTime() - now.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
+
+              if (daysLeft <= 0) {
+                return (
+                  <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-red-100 text-red-700 text-xs">
+                    ⚠️ EXPIRED
+                  </span>
+                );
+              } else if (daysLeft <= 3) {
+                return (
+                  <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-red-100 text-red-700 text-xs">
+                    ⚠️ {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
+                  </span>
+                );
+              } else if (daysLeft <= 7) {
+                return (
+                  <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-orange-100 text-orange-700 text-xs">
+                    ⚠️ {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
+                  </span>
+                );
+              } else {
+                return (
+                  <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-green-100 text-green-700 text-xs">
+                    {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
+                  </span>
+                );
+              }
+            } catch (error) {
+              console.error("Error calculating days left:", error);
+              return null;
+            }
+          })()}
+        </div>
+      )}
+
+      {/* Resolved Badge - positioned on photo */}
+      {(post.status === "resolved" || post.status === "completed") && (
+        <div className="absolute top-2 left-24 z-10">
+          <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-green-100 text-green-700 text-xs">
+            ✅ RESOLVED
+          </span>
+        </div>
       )}
 
       <div className="p-3">
@@ -165,74 +237,7 @@ function PostCard({
                 </span>
               )}
 
-              {/* Expiry Countdown Badge */}
-              {post.expiryDate && (
-                <>
-                  {(() => {
-                    try {
-                      const now = new Date();
-                      let expiry: Date;
-
-                      if (
-                        post.expiryDate &&
-                        typeof post.expiryDate === "object" &&
-                        "seconds" in post.expiryDate
-                      ) {
-                        expiry = new Date(post.expiryDate.seconds * 1000);
-                      } else if (post.expiryDate instanceof Date) {
-                        expiry = post.expiryDate;
-                      } else if (post.expiryDate) {
-                        expiry = new Date(post.expiryDate);
-                      } else {
-                        return null;
-                      }
-
-                      if (isNaN(expiry.getTime())) return null;
-
-                      const daysLeft = Math.ceil(
-                        (expiry.getTime() - now.getTime()) /
-                          (1000 * 60 * 60 * 24)
-                      );
-
-                      if (daysLeft <= 0) {
-                        return (
-                          <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-red-100 text-red-700">
-                            ⚠️ EXPIRED
-                          </span>
-                        );
-                      } else if (daysLeft <= 3) {
-                        return (
-                          <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-red-100 text-red-700">
-                            ⚠️ {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
-                          </span>
-                        );
-                      } else if (daysLeft <= 7) {
-                        return (
-                          <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-orange-100 text-orange-700">
-                            ⚠️ {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
-                          </span>
-                        );
-                      } else {
-                        return (
-                          <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-green-100 text-green-700">
-                            {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
-                          </span>
-                        );
-                      }
-                    } catch (error) {
-                      console.error("Error calculating days left:", error);
-                      return null;
-                    }
-                  })()}
-                </>
-              )}
-
               {/* Status Badge */}
-              {(post.status === "resolved" || post.status === "completed") && (
-                <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-green-100 text-green-700 text-[11px]">
-                  ✅ RESOLVED
-                </span>
-              )}
               {post.status === "unclaimed" && (
                 <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-orange-100 text-orange-700 text-[11px]">
                   ⏰ UNCLAIMED

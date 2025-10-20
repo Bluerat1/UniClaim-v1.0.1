@@ -260,8 +260,16 @@ export default function PostModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-        <div className="bg-white rounded p-4 shadow w-[30rem] sm:w-[35rem] md:w-[40rem] lg:w-[42rem] xl:w-[60rem] max-w-full max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        onClick={(e) => {
+          // Close modal when clicking on the backdrop (outside the modal content)
+          if (e.target === e.currentTarget) {
+            onClose();
+          }
+        }}
+      >
+        <div className="bg-white rounded p-4 shadow w-[30rem] sm:w-[35rem] md:w-[40rem] lg:w-[42rem] xl:w-[60rem] max-w-full max-h-[90vh] overflow-y-auto modal-scrollbar">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <ProfilePicture
@@ -282,7 +290,7 @@ export default function PostModal({
               {!isCurrentUserCreator && !hideSendMessage && (
                 <button
                   onClick={handleSendMessage}
-                  disabled={isCreatingConversation}
+                  disabled={isCreatingConversation || post.status === "resolved"}
                   className="text-[12px] bg-brand py-2 px-3 rounded cursor-pointer hover:bg-yellow-600 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors duration-300"
                 >
                   {isCreatingConversation ? (
@@ -300,6 +308,7 @@ export default function PostModal({
                   postId={post.id}
                   isFlagged={post.isFlagged}
                   flaggedBy={post.flaggedBy}
+                  postStatus={post.status}
                 />
               )}
               <button className="" onClick={onClose}>
@@ -421,7 +430,7 @@ export default function PostModal({
                 )}
               </div>
               <p className="text-[13px] mt-3 mb-2">Item Description</p>
-              <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2 h-52 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
+              <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2 h-52 overflow-y-auto modal-scrollbar">
                 <p className="text-[13px] text-gray-600">{post.description}</p>
               </div>
 
@@ -554,7 +563,7 @@ export default function PostModal({
                       {!isCurrentUserCreator && userData?.uid !== post.turnoverDetails.originalFinder.uid && (
                         <button
                           onClick={() => handleSendMessageToOriginalFinder()}
-                          disabled={isCreatingConversation}
+                          disabled={isCreatingConversation || post.status === "resolved"}
                           className="text-[10px] bg-brand py-1 px-2 rounded cursor-pointer hover:bg-yellow-600 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 transition-colors duration-300 ml-2"
                           title="Send message to original finder"
                         >

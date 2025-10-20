@@ -10,6 +10,7 @@ import AdminPostCard from "../../components/AdminPostCard";
 import AdminPostModal from "../../components/AdminPostModal";
 import SearchBar from "../../components/SearchBar";
 import { useAuth } from "../../context/AuthContext";
+import ActivationModal from "../../components/ActivationModal";
 
 function fuzzyMatch(text: string, query: string): boolean {
   const cleanedText = text.toLowerCase();
@@ -40,6 +41,10 @@ export default function UnclaimedPostsPage() {
   // State for modal
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // State for activation modal
+  const [isActivationModalOpen, setIsActivationModalOpen] = useState(false);
+  const [postToActivate, setPostToActivate] = useState<Post | null>(null);
 
   // Filter posts to show only unclaimed ones
   const unclaimedPosts = useMemo(() => {
@@ -112,8 +117,8 @@ export default function UnclaimedPostsPage() {
     setSelectedCategoryFilter("All");
   };
 
-  // Handle post activation (move back from unclaimed status)
-  const handleActivatePost = async (post: Post) => {
+  // Handle post activation (move back from unclaimed status) - opens activation modal
+  const handleActivatePost = (post: Post) => {
     if (!post.movedToUnclaimed && post.status !== "unclaimed") {
       showToast(
         "error",
@@ -123,102 +128,34 @@ export default function UnclaimedPostsPage() {
       return;
     }
 
-    const confirmMessage = post.movedToUnclaimed
-      ? `Are you sure you want to activate "${post.title}"? This will move it back to active status with a new 30-day period.`
-      : `Are you sure you want to activate "${post.title}"? This will move it back to active status with a new 30-day period.`;
-
-    if (confirm(confirmMessage)) {
-      try {
-        setActivatingPostId(post.id);
-        await postService.activateTicket(post.id);
-
-        // Send notification to the post creator
-        if (post.creatorId) {
-          try {
-            await notificationSender.sendActivateNotification({
-              postId: post.id,
-              postTitle: post.title,
-              postType: post.type as "lost" | "found",
-              creatorId: post.creatorId,
-              creatorName:
-                post.user.firstName && post.user.lastName
-                  ? `${post.user.firstName} ${post.user.lastName}`
-                  : post.user.email?.split("@")[0] || "User",
-              adminName:
-                userData?.firstName && userData?.lastName
-                  ? `${userData.firstName} ${userData.lastName}`
-                  : userData?.email?.split("@")[0] || "Admin",
-            });
-            console.log("✅ Activate notification sent to user");
-          } catch (notificationError) {
-            console.warn(
-              "⚠️ Failed to send activate notification:",
-              notificationError
-            );
-            // Don't throw - notification failures shouldn't break main functionality
-          }
-        }
-
-        const statusMessage = post.movedToUnclaimed
-          ? `"${post.title}" has been activated from expired status and moved back to active status.`
-          : `"${post.title}" has been activated and moved back to active status.`;
-
-        showToast("success", "Post Activated", statusMessage);
-
-        // Update local state to remove the activated post from unclaimed list
-        setRawResults((prev) =>
-          prev ? prev.filter((p) => p.id !== post.id) : null
-        );
-      } catch (error: any) {
-        console.error("Failed to activate post:", error);
-        showToast(
-          "error",
-          "Activation Failed",
-          error.message || "Failed to activate post"
-        );
-      } finally {
-        setActivatingPostId(null);
-      }
-    }
+    // Open activation modal instead of using confirm dialog
+    setPostToActivate(post);
+    setIsActivationModalOpen(true);
   };
 
-  // Handle modal open
-  const handleOpenModal = (post: Post) => {
-    setSelectedPost(post);
-    setIsModalOpen(true);
-  };
+  // Handle activation confirmation from modal
+  const handleActivationConfirm = async (adminNotes?: string) => {
+    if (!postToActivate) return;
 
-  // Handle modal close
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedPost(null);
-  };
-
-  // Handle post activation from modal
-  const handleModalActivatePost = async (postId: string) => {
     try {
-      setActivatingPostId(postId);
+      setActivatingPostId(postToActivate.id);
 
-      // Find the post object to get creator information for notifications
-      const post = filteredPosts.find((p) => p.id === postId);
-      if (!post) {
-        throw new Error("Post not found");
-      }
-
-      await postService.activateTicket(postId);
+      // Use updatePostStatus instead of activateTicket to support admin notes
+      const originalStatus = postToActivate.originalStatus || 'pending';
+      await postService.updatePostStatus(postToActivate.id, originalStatus, adminNotes);
 
       // Send notification to the post creator
-      if (post.creatorId) {
+      if (postToActivate.creatorId) {
         try {
           await notificationSender.sendActivateNotification({
-            postId: post.id,
-            postTitle: post.title,
-            postType: post.type as "lost" | "found",
-            creatorId: post.creatorId,
+            postId: postToActivate.id,
+            postTitle: postToActivate.title,
+            postType: postToActivate.type as "lost" | "found",
+            creatorId: postToActivate.creatorId,
             creatorName:
-              post.user.firstName && post.user.lastName
-                ? `${post.user.firstName} ${post.user.lastName}`
-                : post.user.email?.split("@")[0] || "User",
+              postToActivate.user.firstName && postToActivate.user.lastName
+                ? `${postToActivate.user.firstName} ${postToActivate.user.lastName}`
+                : postToActivate.user.email?.split("@")[0] || "User",
             adminName:
               userData?.firstName && userData?.lastName
                 ? `${userData.firstName} ${userData.lastName}`
@@ -234,18 +171,22 @@ export default function UnclaimedPostsPage() {
         }
       }
 
-      showToast(
-        "success",
-        "Post Activated",
-        "Post has been activated and moved back to active status."
-      );
-      handleCloseModal();
+      const statusMessage = postToActivate.movedToUnclaimed
+        ? `"${postToActivate.title}" has been activated from expired status and moved back to active status.`
+        : `"${postToActivate.title}" has been activated and moved back to active status.`;
+
+      showToast("success", "Post Activated", statusMessage);
+
+      // Close modal and update local state
+      setIsActivationModalOpen(false);
+      setPostToActivate(null);
+
       // Update local state to remove the activated post from unclaimed list
       setRawResults((prev) =>
-        prev ? prev.filter((p) => p.id !== postId) : null
+        prev ? prev.filter((p) => p.id !== postToActivate.id) : null
       );
     } catch (error: any) {
-      console.error("Failed to activate post from modal:", error);
+      console.error("Failed to activate post:", error);
       showToast(
         "error",
         "Activation Failed",
@@ -254,6 +195,24 @@ export default function UnclaimedPostsPage() {
     } finally {
       setActivatingPostId(null);
     }
+  };
+
+  // Handle modal close
+  const handleCloseActivationModal = () => {
+    setIsActivationModalOpen(false);
+    setPostToActivate(null);
+  };
+
+  // Handle modal open
+  const handleOpenModal = (post: Post) => {
+    setSelectedPost(post);
+    setIsModalOpen(true);
+  };
+
+  // Handle modal close
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedPost(null);
   };
 
   // Handle post deletion from modal
@@ -446,7 +405,7 @@ export default function UnclaimedPostsPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredPosts.map((post) => (
                 <AdminPostCard
                   key={post.id}
@@ -471,10 +430,18 @@ export default function UnclaimedPostsPage() {
           post={selectedPost}
           onClose={handleCloseModal}
           showUnclaimedFeatures={true}
-          onActivatePost={handleModalActivatePost}
           onDelete={(post) => handleModalDeletePost(post.id)}
         />
       )}
+
+      {/* Activation Modal */}
+      <ActivationModal
+        post={postToActivate}
+        isOpen={isActivationModalOpen}
+        onClose={handleCloseActivationModal}
+        onConfirm={handleActivationConfirm}
+        isActivating={activatingPostId === postToActivate?.id}
+      />
     </PageWrapper>
   );
 }

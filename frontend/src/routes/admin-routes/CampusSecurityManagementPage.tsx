@@ -263,6 +263,7 @@ export default function CampusSecurityManagementPage() {
             }
           }}
           onConfirmCampusSecurityCollection={handleConfirmCollection}
+          showCampusSecurityActions={true}
         />
       )}
 

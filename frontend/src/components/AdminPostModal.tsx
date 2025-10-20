@@ -6,6 +6,7 @@ import ProfilePicture from "./ProfilePicture";
 import HandoverDetailsDisplay from "./HandoverDetailsDisplay";
 import { postService } from "@/services/firebase/posts";
 import { useToast } from "@/context/ToastContext";
+import ActivationModal from "./ActivationModal";
 
 interface AdminPostModalProps {
   post: Post;
@@ -27,8 +28,10 @@ interface AdminPostModalProps {
   showCampusSecurityButtons?: boolean; // Controls whether Campus Security buttons are visible
   // Unclaimed post specific props
   showUnclaimedFeatures?: boolean; // Controls whether unclaimed-specific features are shown
-  onActivatePost?: (postId: string) => void; // For unclaimed post activation
   isActivating?: boolean; // Loading state for activation
+  showFlaggedPostActions?: boolean; // Controls whether flagged post management buttons are shown
+  showCampusSecurityActions?: boolean; // Controls whether campus security management buttons are shown
+  onActivatePost?: (postId: string) => void; // Callback for when post is activated
 }
 
 function formatDateTime(
@@ -69,8 +72,10 @@ export default function AdminPostModal({
   showDeleteButton = false,
   showCampusSecurityButtons = true,
   showUnclaimedFeatures = false,
-  onActivatePost,
   isActivating = false,
+  showFlaggedPostActions = false,
+  showCampusSecurityActions = false,
+  onActivatePost,
 }: AdminPostModalProps) {
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -82,6 +87,7 @@ export default function AdminPostModal({
   const [imageLoadingError, setImageLoadingError] = useState<string | null>(
     null
   );
+  const [isActivationModalOpen, setIsActivationModalOpen] = useState(false);
   const inactivityIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastInteractionTimeRef = useRef<number>(Date.now());
 
@@ -170,6 +176,41 @@ export default function AdminPostModal({
     }
   };
 
+  const handleActivationConfirm = async (adminNotes?: string) => {
+    try {
+      // Use updatePostStatus instead of activateTicket to support admin notes
+      const originalStatus = post.originalStatus || 'pending';
+      await postService.updatePostStatus(post.id, originalStatus, adminNotes);
+
+      showToast(
+        "success",
+        "Post Activated",
+        "Post has been activated and moved back to active status."
+      );
+
+      // Close modal and refresh the post data
+      setIsActivationModalOpen(false);
+
+      // Call onPostUpdate if provided to refresh the parent component
+      if (onPostUpdate) {
+        const updatedPost = { ...post, status: originalStatus, adminNotes };
+        onPostUpdate(updatedPost);
+      }
+
+      // Notify parent component about activation
+      onActivatePost?.(post.id);
+
+      onClose(); // Close the main modal after successful activation
+    } catch (error: any) {
+      console.error("Failed to activate post:", error);
+      showToast(
+        "error",
+        "Activation Failed",
+        error.message || "Failed to activate post"
+      );
+    }
+  };
+
   const handleViewUser = () => {
     if (post.creatorId) {
       navigate(`/admin/users/${post.creatorId}`);
@@ -178,8 +219,8 @@ export default function AdminPostModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-white rounded p-4 shadow w-[40rem] sm:w-[43rem] md:w-[45rem] lg:w-[50rem] xl:w-[55rem] max-w-full h-auto max-h-[95vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div className="bg-white rounded p-4 shadow w-[40rem] sm:w-[43rem] md:w-[45rem] lg:w-[50rem] xl:w-[55rem] max-w-full h-auto max-h-[95vh] overflow-y-auto modal-scrollbar" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <ProfilePicture
@@ -230,7 +271,8 @@ export default function AdminPostModal({
             {post.turnoverDetails &&
               post.turnoverDetails.turnoverAction ===
                 "turnover to Campus Security" &&
-              showCampusSecurityButtons && (
+              showCampusSecurityButtons &&
+              showCampusSecurityActions && (
                 <>
                   <button
                     onClick={() => {
@@ -260,7 +302,7 @@ export default function AdminPostModal({
               {showUnclaimedFeatures && (post.status === "unclaimed" || post.movedToUnclaimed) && (
                 <>
                   <button
-                    onClick={() => onActivatePost?.(post.id)}
+                    onClick={() => setIsActivationModalOpen(true)}
                     disabled={isActivating}
                     className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
                     title="Activate - Move back to active status"
@@ -300,17 +342,7 @@ export default function AdminPostModal({
                 </>
               )}
 
-              {showDeleteButton && onDelete && !showUnclaimedFeatures && (
-                <button
-                  onClick={() => onDelete(post)}
-                  className="px-2 py-1 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition"
-                  title="Delete Post"
-                >
-                  Delete
-                </button>
-              )}
-
-              {post.isFlagged && onApprove && (
+              {post.isFlagged && onApprove && showFlaggedPostActions && (
                 <button
                   onClick={() => onApprove(post)}
                   className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1"
@@ -320,7 +352,7 @@ export default function AdminPostModal({
                 </button>
               )}
 
-              {post.isFlagged && !post.isHidden && onHide && (
+              {post.isFlagged && !post.isHidden && onHide && showFlaggedPostActions && (
                 <button
                   onClick={() => onHide(post)}
                   className="px-2 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700 flex items-center gap-1"
@@ -330,13 +362,23 @@ export default function AdminPostModal({
                 </button>
               )}
 
-              {post.isFlagged && post.isHidden && onUnhide && (
+              {post.isFlagged && post.isHidden && onUnhide && showFlaggedPostActions && (
                 <button
                   onClick={() => onUnhide(post)}
                   className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1"
                   title="Unhide Post"
                 >
                   Unhide
+                </button>
+              )}
+
+              {showDeleteButton && onDelete && !showUnclaimedFeatures && (
+                <button
+                  onClick={() => onDelete?.(post)}
+                  className="px-2 py-1 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition"
+                  title="Delete Post"
+                >
+                  Delete
                 </button>
               )}
             </div>
@@ -704,6 +746,15 @@ export default function AdminPostModal({
         )}
 
       </div>
+
+      {/* Activation Modal */}
+      <ActivationModal
+        post={post}
+        isOpen={isActivationModalOpen}
+        onClose={() => setIsActivationModalOpen(false)}
+        onConfirm={handleActivationConfirm}
+        isActivating={isActivating}
+      />
     </div>
   );
 }
