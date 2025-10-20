@@ -25,6 +25,10 @@ interface AdminPostModalProps {
   onDelete?: (post: Post) => void; // Uses confirmation modal system
   showDeleteButton?: boolean; // Controls whether delete button is visible
   showCampusSecurityButtons?: boolean; // Controls whether Campus Security buttons are visible
+  // Unclaimed post specific props
+  showUnclaimedFeatures?: boolean; // Controls whether unclaimed-specific features are shown
+  onActivatePost?: (postId: string) => void; // For unclaimed post activation
+  isActivating?: boolean; // Loading state for activation
 }
 
 function formatDateTime(
@@ -64,6 +68,9 @@ export default function AdminPostModal({
   onDelete,
   showDeleteButton = false,
   showCampusSecurityButtons = true,
+  showUnclaimedFeatures = false,
+  onActivatePost,
+  isActivating = false,
 }: AdminPostModalProps) {
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -172,7 +179,7 @@ export default function AdminPostModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-white rounded p-4 shadow w-[40rem] sm:w-[43rem] md:w-[45rem] lg:w-[50rem] xl:w-[55rem] max-w-full max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
+      <div className="bg-white rounded p-4 shadow w-[40rem] sm:w-[43rem] md:w-[45rem] lg:w-[50rem] xl:w-[55rem] max-w-full h-auto max-h-[95vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <ProfilePicture
@@ -249,7 +256,51 @@ export default function AdminPostModal({
 
             {/* Admin Action Buttons - Top Right */}
             <div className="flex items-center gap-2">
-              {showDeleteButton && onDelete && (
+              {/* Unclaimed Post Actions */}
+              {showUnclaimedFeatures && (post.status === "unclaimed" || post.movedToUnclaimed) && (
+                <>
+                  <button
+                    onClick={() => onActivatePost?.(post.id)}
+                    disabled={isActivating}
+                    className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
+                    title="Activate - Move back to active status"
+                  >
+                    {isActivating ? (
+                      <span className="flex items-center gap-1">
+                        <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                            fill="none"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          />
+                        </svg>
+                        Activating...
+                      </span>
+                    ) : (
+                      "Activate"
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => onDelete?.(post)}
+                    className="px-2 py-1 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition"
+                    title="Delete Post"
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
+
+              {showDeleteButton && onDelete && !showUnclaimedFeatures && (
                 <button
                   onClick={() => onDelete(post)}
                   className="px-2 py-1 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition"
@@ -301,7 +352,7 @@ export default function AdminPostModal({
         </div>
 
         {/* Admin Actions */}
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap gap-2">
           {/* Show regular status button for non-turnover items or turnover items that don't need confirmation */}
           {!(
             (post.turnoverDetails?.turnoverStatus === "declared" &&
@@ -337,7 +388,7 @@ export default function AdminPostModal({
         </div>
 
         {imageUrls.length > 0 && (
-          <div className="mt-4 flex items-center justify-center">
+          <div className="mt-3 flex items-center justify-center">
             <div className="relative group w-full max-w-md">
               <img
                 src={imageUrls[currentIndex]}
@@ -385,8 +436,8 @@ export default function AdminPostModal({
           </div>
         )}
 
-        <div className="my-3 lg:flex lg:items-center lg:justify-between">
-          <h2 className="text-xl font-semibold my-3">{post.title}</h2>
+        <div className="my-2 lg:flex lg:items-center lg:justify-between">
+          <h2 className="text-xl font-semibold my-2">{post.title}</h2>
 
           <div className="flex items-center gap-2 text-[12px]">
             <span
@@ -428,7 +479,7 @@ export default function AdminPostModal({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 lg:gap-5 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:gap-4 lg:grid-cols-2">
           <div>
             <p className="text-[13px] mb-2">Date and Time</p>
             <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2">
@@ -439,9 +490,36 @@ export default function AdminPostModal({
               )}
             </div>
             <p className="text-[13px] mt-3 mb-2">Item Description</p>
-            <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2 h-52 overflow-y-auto">
+            <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2 h-48 overflow-y-auto">
               <p className="text-[13px] text-gray-600">{post.description}</p>
             </div>
+
+            {/* Unclaimed Status - show when post is unclaimed */}
+            {post.status === "unclaimed" && (
+              <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                <div className="text-sm text-orange-800 font-medium mb-2">
+                  Unclaimed Status
+                </div>
+                <div className="text-sm text-orange-700 space-y-2">
+                  <p>
+                    This post has expired and was automatically moved to unclaimed status after 30 days.
+                  </p>
+                  <p className="font-medium">
+                    Activating this post will restore it with a new 30-day period.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Revert Reason Display - show for admins when post has been reverted */}
+            {post.revertReason && (
+              <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                <div className="text-sm text-orange-800 font-medium mb-2">
+                  Revert Reason:
+                </div>
+                <div className="text-sm text-orange-700">{post.revertReason}</div>
+              </div>
+            )}
 
             {post.type === "found" && post.foundAction && (
               <>
@@ -465,12 +543,42 @@ export default function AdminPostModal({
             {post.coordinates && (
               <>
                 <p className="text-[13px] mt-3 mb-2">Pinned Coordinates</p>
-                <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2">
+                <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2 mb-3">
                   <p className="text-[13px] text-gray-600">
                     {post.coordinates.lat.toFixed(5)},{" "}
                     {post.coordinates.lng.toFixed(5)}
                   </p>
                 </div>
+
+                {/* Item Holder Transfer - show under coordinates in left column */}
+                {post.turnoverDetails &&
+                  post.turnoverDetails.originalTurnoverAction === "turnover to Campus Security" &&
+                  post.turnoverDetails.turnoverAction === "turnover to OSA" && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <h3 className="font-semibold text-blue-800 text-sm">
+                          🔄 Item Holder Transfer
+                        </h3>
+                      </div>
+                      <div className="text-sm text-blue-700 space-y-1 text-xs">
+                        <p>
+                          <strong>Status:</strong> Item has been transferred from Campus Security to OSA (Admin)
+                        </p>
+                        <p>
+                          <strong>Collection Date:</strong>{" "}
+                          {post.turnoverDetails.confirmedAt
+                            ? formatDateTime(post.turnoverDetails.confirmedAt)
+                            : "N/A"}
+                        </p>
+                        {post.turnoverDetails.turnoverReason && (
+                          <p>
+                            <strong>Reason:</strong> {post.turnoverDetails.turnoverReason}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
               </>
             )}
           </div>
@@ -482,7 +590,7 @@ export default function AdminPostModal({
             </div>
 
             {post.coordinates && (
-              <div className="w-full h-64">
+              <div className="w-full h-60 mb-3">
                 <iframe
                   title="Map location preview"
                   width="100%"
@@ -499,129 +607,89 @@ export default function AdminPostModal({
                 />
               </div>
             )}
+
+            {/* Turnover Details - show under map in right column */}
+            {post.turnoverDetails && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <h3 className="font-semibold text-blue-800 mb-2 text-sm">
+                  Turnover Details
+                </h3>
+                <div className="text-sm text-blue-700 space-y-1">
+                  {/* Original Finder Information */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-medium text-blue-800 text-xs">Originally found by:</span>
+                    <ProfilePicture
+                      src={post.turnoverDetails.originalFinder.profilePicture}
+                      alt={`${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`}
+                      className="size-5 border-blue-300"
+                    />
+                    <span className="text-blue-700 text-xs">
+                      {post.turnoverDetails.originalFinder.firstName}{" "}
+                      {post.turnoverDetails.originalFinder.lastName}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <span className="font-medium">Student ID:</span>{" "}
+                      {post.turnoverDetails.originalFinder.studentId || "N/A"}
+                    </div>
+                    <div>
+                      <span className="font-medium">Email:</span>{" "}
+                      {post.turnoverDetails.originalFinder.email}
+                    </div>
+                    {post.turnoverDetails.originalFinder.contactNum && (
+                      <div className="col-span-2">
+                        <span className="font-medium">Contact:</span>{" "}
+                        {post.turnoverDetails.originalFinder.contactNum}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t border-blue-200 pt-2 mt-2 text-xs">
+                    <p>
+                      <strong>Status:</strong>{" "}
+                      {post.turnoverDetails.turnoverStatus === "declared"
+                        ? "Declared - Awaiting Confirmation"
+                        : post.turnoverDetails.turnoverStatus === "confirmed"
+                        ? "Confirmed - Item Received"
+                        : post.turnoverDetails.turnoverStatus === "not_received"
+                        ? "Not Received - Item Deleted"
+                        : post.turnoverDetails.turnoverAction === "turnover to Campus Security"
+                        ? "Turned over to Campus Security"
+                        : post.turnoverDetails.turnoverAction === "turnover to OSA"
+                        ? "Turned over to OSA"
+                        : post.turnoverDetails.turnoverStatus}
+                    </p>
+                    {post.turnoverDetails.turnoverReason && (
+                      <p>
+                        <strong>Reason:</strong> {post.turnoverDetails.turnoverReason}
+                      </p>
+                    )}
+                    {post.turnoverDetails.confirmationNotes && (
+                      <p>
+                        <strong>Item Condition Notes:</strong> {post.turnoverDetails.confirmationNotes}
+                      </p>
+                    )}
+                    {post.turnoverDetails.confirmedAt && (
+                      <p>
+                        <strong>Confirmed At:</strong>{" "}
+                        {formatDateTime(post.turnoverDetails.confirmedAt)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Turnover Details - show for all posts with turnover information */}
-        {post.turnoverDetails && (
-          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
-            <h3 className="font-semibold text-blue-800 mb-2">
-              Turnover Details
-            </h3>
-            <div className="text-sm text-blue-700 space-y-2">
-              {/* Original Finder Information */}
-              <div className="flex items-center gap-2 mb-2">
-                <span className="font-medium text-blue-800">Originally found by:</span>
-                <ProfilePicture
-                  src={post.turnoverDetails.originalFinder.profilePicture}
-                  alt={`${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`}
-                  className="size-6 border-blue-300"
-                />
-                <span className="text-blue-700">
-                  {post.turnoverDetails.originalFinder.firstName}{" "}
-                  {post.turnoverDetails.originalFinder.lastName}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 text-xs">
-                <div>
-                  <span className="font-medium">Student ID:</span>{" "}
-                  {post.turnoverDetails.originalFinder.studentId || "N/A"}
-                </div>
-                <div>
-                  <span className="font-medium">Email:</span>{" "}
-                  {post.turnoverDetails.originalFinder.email}
-                </div>
-                {post.turnoverDetails.originalFinder.contactNum && (
-                  <div className="col-span-2">
-                    <span className="font-medium">Contact:</span>{" "}
-                    {post.turnoverDetails.originalFinder.contactNum}
-                  </div>
-                )}
-              </div>
-
-              <div className="border-t border-blue-200 pt-2 mt-2">
-                <p>
-                  <strong>Status:</strong>{" "}
-                  {post.turnoverDetails.turnoverStatus === "declared"
-                    ? "Declared - Awaiting Confirmation"
-                    : post.turnoverDetails.turnoverStatus === "confirmed"
-                    ? "Confirmed - Item Received"
-                    : post.turnoverDetails.turnoverStatus === "not_received"
-                    ? "Not Received - Item Deleted"
-                    : post.turnoverDetails.turnoverAction === "turnover to Campus Security"
-                    ? "Turned over to Campus Security"
-                    : post.turnoverDetails.turnoverAction === "turnover to OSA"
-                    ? "Turned over to OSA"
-                    : post.turnoverDetails.turnoverStatus}
-                </p>
-                {post.turnoverDetails.turnoverReason && (
-                  <p>
-                    <strong>Reason:</strong> {post.turnoverDetails.turnoverReason}
-                  </p>
-                )}
-                {post.turnoverDetails.confirmationNotes && (
-                  <p>
-                    <strong>Item Condition Notes:</strong> {post.turnoverDetails.confirmationNotes}
-                  </p>
-                )}
-                {post.turnoverDetails.confirmedAt && (
-                  <p>
-                    <strong>Confirmed At:</strong>{" "}
-                    {formatDateTime(post.turnoverDetails.confirmedAt)}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* CS to OSA Conversion Info Box - show only for items originally turned over to Campus Security and then transferred to OSA */}
-        {post.turnoverDetails &&
-          post.turnoverDetails.originalTurnoverAction === "turnover to Campus Security" &&
-          post.turnoverDetails.turnoverAction === "turnover to OSA" && (
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <h3 className="font-semibold text-blue-800">
-                  🔄 Item Holder Transfer
-                </h3>
-              </div>
-              <div className="text-sm text-blue-700 space-y-1">
-                <p>
-                  <strong>Status:</strong> Item has been transferred from Campus Security to OSA (Admin)
-                </p>
-                <p>
-                  <strong>Collection Date:</strong>{" "}
-                  {post.turnoverDetails.confirmedAt
-                    ? formatDateTime(post.turnoverDetails.confirmedAt)
-                    : "N/A"}
-                </p>
-                {post.turnoverDetails.turnoverReason && (
-                  <p>
-                    <strong>Reason:</strong> {post.turnoverDetails.turnoverReason}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
         {post.handoverDetails && (
-          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
-            <h3 className="font-semibold text-blue-800 mb-2">
+          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <h3 className="font-semibold text-blue-800 mb-2 text-sm">
               Handover Details
             </h3>
             <HandoverDetailsDisplay handoverDetails={post.handoverDetails} />
-          </div>
-        )}
-
-        {/* Revert Reason Display - show for admins when post has been reverted */}
-        {post.revertReason && (
-          <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-md">
-            <div className="text-sm text-orange-800 font-medium mb-2">
-              Revert Reason:
-            </div>
-            <div className="text-sm text-orange-700">{post.revertReason}</div>
           </div>
         )}
 

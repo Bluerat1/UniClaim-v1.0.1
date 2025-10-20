@@ -450,12 +450,44 @@ export default function PostModal({
                 {post.coordinates && (
                   <>
                     <p className="text-[13px] mt-3 mb-2">Pinned Coordinates</p>
-                    <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2">
+                    <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2 mb-3">
                       <p className="text-[13px] text-gray-600">
                         {post.coordinates.lat.toFixed(5)}{" "}
                         {post.coordinates.lng.toFixed(5)}
                       </p>
                     </div>
+
+                    {/* Item Holder Transfer - show under coordinates in left column */}
+                    {post.turnoverDetails &&
+                      post.turnoverDetails.turnoverAction === "turnover to OSA" &&
+                      post.turnoverDetails.turnoverStatus === "transferred" &&
+                      post.turnoverDetails.originalTurnoverAction &&
+                      post.turnoverDetails.originalTurnoverAction === "turnover to Campus Security" && (
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                            <h3 className="font-semibold text-blue-800 text-sm">
+                              🔄 Item Holder Transfer
+                            </h3>
+                          </div>
+                          <div className="text-sm text-blue-700 space-y-1 text-xs">
+                            <p>
+                              <strong>Status:</strong> Item has been transferred from Campus Security to OSA (Admin)
+                            </p>
+                            <p>
+                              <strong>Transfer Date:</strong>{" "}
+                              {post.turnoverDetails.turnoverDecisionAt
+                                ? formatDateTime(post.turnoverDetails.turnoverDecisionAt)
+                                : "N/A"}
+                            </p>
+                            {post.turnoverDetails.turnoverReason && (
+                              <p>
+                                <strong>Reason:</strong> {post.turnoverDetails.turnoverReason}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
                   </>
                 )}
               </div>
@@ -468,7 +500,7 @@ export default function PostModal({
               </div>
               <p className="text-[13px] mt-3 mb-2">Location</p>
               {post.coordinates && (
-                <div className="relative rounded-md overflow-hidden border border-gray-300">
+                <div className="relative rounded-md overflow-hidden border border-gray-300 mb-3">
                   <LocationMap
                     coordinates={post.coordinates}
                     location={post.location}
@@ -480,6 +512,107 @@ export default function PostModal({
                       {post.coordinates.lat.toFixed(6)},{" "}
                       {post.coordinates.lng.toFixed(6)}
                     </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Turnover Details - show under map in right column */}
+              {post.turnoverDetails && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-blue-600 text-lg">🔄</span>
+                    <h4 className="text-sm font-semibold text-blue-800">
+                      Turnover Information
+                    </h4>
+                  </div>
+                  <div className="text-sm text-blue-700 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Originally found by:</span>
+                      <ProfilePicture
+                        src={post.turnoverDetails.originalFinder.profilePicture}
+                        alt={`${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`}
+                        className="border-blue-300 size-5"
+                      />
+                      <span>
+                        {post.turnoverDetails.originalFinder.firstName}{" "}
+                        {post.turnoverDetails.originalFinder.lastName}
+                      </span>
+                      {!isCurrentUserCreator && userData?.uid !== post.turnoverDetails.originalFinder.uid && (
+                        <button
+                          onClick={() => handleSendMessageToOriginalFinder()}
+                          disabled={isCreatingConversation}
+                          className="text-[10px] bg-brand py-1 px-2 rounded cursor-pointer hover:bg-yellow-600 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 transition-colors duration-300 ml-2"
+                          title="Send message to original finder"
+                        >
+                          {isCreatingConversation ? (
+                            <>
+                              <div className="w-2 h-2 border border-white border-t-transparent rounded-full animate-spin"></div>
+                              ...
+                            </>
+                          ) : (
+                            "Message"
+                          )}
+                        </button>
+                      )}
+                    </div>
+                    {isAdmin && (
+                      <div>
+                        <span className="font-medium">Student ID:</span>{" "}
+                        {post.turnoverDetails.originalFinder.studentId || "N/A"}
+                      </div>
+                    )}
+                    {isAdmin && (
+                      <div>
+                        <span className="font-medium">Email:</span>{" "}
+                        {post.turnoverDetails.originalFinder.email}
+                      </div>
+                    )}
+                    {isAdmin && post.turnoverDetails.originalFinder.contactNum && (
+                      <div>
+                        <span className="font-medium">Contact:</span>{" "}
+                        {post.turnoverDetails.originalFinder.contactNum}
+                      </div>
+                    )}
+                    <div>
+                      <span className="font-medium">Status:</span>{" "}
+                      {post.turnoverDetails.turnoverStatus === "declared"
+                        ? "Declared - Awaiting Confirmation"
+                        : post.turnoverDetails.turnoverStatus === "confirmed"
+                        ? "Confirmed - Item Received"
+                        : post.turnoverDetails.turnoverStatus === "not_received"
+                        ? "Not Received - Item Deleted"
+                        : post.turnoverDetails.turnoverAction === "turnover to Campus Security"
+                        ? "Turned over to Campus Security"
+                        : post.turnoverDetails.turnoverAction === "turnover to OSA"
+                        ? "Turned over to OSA"
+                        : post.turnoverDetails.turnoverStatus}
+                    </div>
+                    <div>
+                      <span className="font-medium">Turned over to:</span>{" "}
+                      {post.turnoverDetails.turnoverAction === "turnover to OSA"
+                        ? "OSA"
+                        : post.turnoverDetails.originalTurnoverAction === "turnover to Campus Security"
+                        ? "Campus Security"
+                        : "Campus Security"}
+                    </div>
+                    <div>
+                      <span className="font-medium">Turned over Date:</span>{" "}
+                      {post.turnoverDetails.turnoverDecisionAt
+                        ? formatDateTime(post.turnoverDetails.turnoverDecisionAt)
+                        : "N/A"}
+                    </div>
+                    {post.turnoverDetails.turnoverReason && (
+                      <div>
+                        <span className="font-medium">Reason:</span>{" "}
+                        {post.turnoverDetails.turnoverReason}
+                      </div>
+                    )}
+                    {post.turnoverDetails.confirmationNotes && (
+                      <div>
+                        <span className="font-medium">Item Condition Notes:</span>{" "}
+                        {post.turnoverDetails.confirmationNotes}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -495,150 +628,6 @@ export default function PostModal({
                 conversationData={post.conversationData}
               />
             )}
-
-          {/* Campus Security to OSA Transfer Info Box - Show only for posts that were originally Campus Security but collected by admin */}
-          {post.turnoverDetails &&
-            post.turnoverDetails.turnoverAction === "turnover to OSA" &&
-            post.turnoverDetails.turnoverStatus === "transferred" &&
-            post.turnoverDetails.originalTurnoverAction &&
-            post.turnoverDetails.originalTurnoverAction === "turnover to Campus Security" && (
-              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <h3 className="font-semibold text-blue-800">
-                    🔄 Item Holder Transfer
-                  </h3>
-                </div>
-                <div className="text-sm text-blue-700 space-y-1">
-                  <p>
-                    <strong>Status:</strong> Item has been transferred from Campus Security to OSA (Admin)
-                  </p>
-                  <p>
-                    <strong>Transfer Date:</strong>{" "}
-                    {post.turnoverDetails.turnoverDecisionAt
-                      ? formatDateTime(post.turnoverDetails.turnoverDecisionAt)
-                      : "N/A"}
-                  </p>
-                  {post.turnoverDetails.turnoverReason && (
-                    <p>
-                      <strong>Reason:</strong> {post.turnoverDetails.turnoverReason}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-          {/* Show handover details if post is resolved or completed, has handover details, no claim details, and user is admin */}
-          {(post.status === "resolved" || post.status === "completed") &&
-            post.handoverDetails &&
-            !post.claimDetails &&
-            isAdmin && (
-              <HandoverDetailsDisplay
-                handoverDetails={post.handoverDetails}
-                conversationData={post.conversationData}
-              />
-            )}
-
-          {/* Show turnover information if this post was turned over */}
-          {post.turnoverDetails && (
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-blue-600 text-lg">🔄</span>
-                <h4 className="text-sm font-semibold text-blue-800">
-                  Turnover Information
-                </h4>
-              </div>
-              <div className="text-sm text-blue-700 space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Originally found by:</span>
-                  <ProfilePicture
-                    src={post.turnoverDetails.originalFinder.profilePicture}
-                    alt={`${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`}
-                    className="border-blue-300 size-6"
-                  />
-                  <span>
-                    {post.turnoverDetails.originalFinder.firstName}{" "}
-                    {post.turnoverDetails.originalFinder.lastName}
-                  </span>
-                  {!isCurrentUserCreator && userData?.uid !== post.turnoverDetails.originalFinder.uid && (
-                    <button
-                      onClick={() => handleSendMessageToOriginalFinder()}
-                      disabled={isCreatingConversation}
-                      className="text-[10px] bg-brand py-1 px-2 rounded cursor-pointer hover:bg-yellow-600 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 transition-colors duration-300 ml-2"
-                      title="Send message to original finder"
-                    >
-                      {isCreatingConversation ? (
-                        <>
-                          <div className="w-2 h-2 border border-white border-t-transparent rounded-full animate-spin"></div>
-                          ...
-                        </>
-                      ) : (
-                        "Message"
-                      )}
-                    </button>
-                  )}
-                </div>
-                {isAdmin && (
-                  <div>
-                    <span className="font-medium">Student ID:</span>{" "}
-                    {post.turnoverDetails.originalFinder.studentId || "N/A"}
-                  </div>
-                )}
-                {isAdmin && (
-                  <div>
-                    <span className="font-medium">Email:</span>{" "}
-                    {post.turnoverDetails.originalFinder.email}
-                  </div>
-                )}
-                {isAdmin && post.turnoverDetails.originalFinder.contactNum && (
-                  <div>
-                    <span className="font-medium">Contact:</span>{" "}
-                    {post.turnoverDetails.originalFinder.contactNum}
-                  </div>
-                )}
-                <div>
-                  <span className="font-medium">Status:</span>{" "}
-                  {post.turnoverDetails.turnoverStatus === "declared"
-                    ? "Declared - Awaiting Confirmation"
-                    : post.turnoverDetails.turnoverStatus === "confirmed"
-                    ? "Confirmed - Item Received"
-                    : post.turnoverDetails.turnoverStatus === "not_received"
-                    ? "Not Received - Item Deleted"
-                    : post.turnoverDetails.turnoverAction === "turnover to Campus Security"
-                    ? "Turned over to Campus Security"
-                    : post.turnoverDetails.turnoverAction === "turnover to OSA"
-                    ? "Turned over to OSA"
-                    : post.turnoverDetails.turnoverStatus}
-                </div>
-                <div>
-                  <span className="font-medium">Turned over to:</span>{" "}
-                  {post.turnoverDetails.turnoverAction === "turnover to OSA"
-                    ? "OSA"
-                    : post.turnoverDetails.originalTurnoverAction === "turnover to Campus Security"
-                    ? "Campus Security"
-                    : "Campus Security"}
-                </div>
-                <div>
-                  <span className="font-medium">Turned over Date:</span>{" "}
-                  {post.turnoverDetails.turnoverDecisionAt
-                    ? formatDateTime(post.turnoverDetails.turnoverDecisionAt)
-                    : "N/A"}
-                </div>
-                {post.turnoverDetails.turnoverReason && (
-                  <div>
-                    <span className="font-medium">Reason:</span>{" "}
-                    {post.turnoverDetails.turnoverReason}
-                  </div>
-                )}
-                {post.turnoverDetails.confirmationNotes && (
-                  <div>
-                    <span className="font-medium">Item Condition Notes:</span>{" "}
-                    {post.turnoverDetails.confirmationNotes}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Turnover Confirmation Buttons - Show only for posts awaiting OSA confirmation */}
           {post.turnoverDetails &&
