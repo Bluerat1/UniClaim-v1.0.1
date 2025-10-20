@@ -24,6 +24,7 @@ interface AdminPostModalProps {
   onUnhide?: (post: Post) => void;
   onDelete?: (post: Post) => void; // Uses confirmation modal system
   showDeleteButton?: boolean; // Controls whether delete button is visible
+  showCampusSecurityButtons?: boolean; // Controls whether Campus Security buttons are visible
 }
 
 function formatDateTime(
@@ -62,6 +63,7 @@ export default function AdminPostModal({
   onUnhide,
   onDelete,
   showDeleteButton = false,
+  showCampusSecurityButtons = true,
 }: AdminPostModalProps) {
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -220,7 +222,8 @@ export default function AdminPostModal({
 
             {post.turnoverDetails &&
               post.turnoverDetails.turnoverAction ===
-                "turnover to Campus Security" && (
+                "turnover to Campus Security" &&
+              showCampusSecurityButtons && (
                 <>
                   <button
                     onClick={() => {
@@ -447,8 +450,12 @@ export default function AdminPostModal({
                   <p className="text-[13px] text-blue-700 font-medium">
                     {post.foundAction === "keep"
                       ? "The finder will keep this item and return it themselves"
+                      : post.turnoverDetails &&
+                        post.turnoverDetails.originalTurnoverAction === "turnover to Campus Security" &&
+                        post.turnoverDetails.turnoverAction === "turnover to OSA"
+                      ? "This item was transferred to OSA"
                       : post.foundAction === "turnover to OSA"
-                      ? "This item will be turned over to the OSA office"
+                      ? "This item was turned over to OSA office"
                       : "This item was turned over to Campus Security"}
                   </p>
                 </div>
@@ -495,11 +502,84 @@ export default function AdminPostModal({
           </div>
         </div>
 
-        {/* CS to OSA Conversion Info Box */}
+        {/* Turnover Details - show for all posts with turnover information */}
+        {post.turnoverDetails && (
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+            <h3 className="font-semibold text-blue-800 mb-2">
+              Turnover Details
+            </h3>
+            <div className="text-sm text-blue-700 space-y-2">
+              {/* Original Finder Information */}
+              <div className="flex items-center gap-2 mb-2">
+                <span className="font-medium text-blue-800">Originally found by:</span>
+                <ProfilePicture
+                  src={post.turnoverDetails.originalFinder.profilePicture}
+                  alt={`${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`}
+                  className="size-6 border-blue-300"
+                />
+                <span className="text-blue-700">
+                  {post.turnoverDetails.originalFinder.firstName}{" "}
+                  {post.turnoverDetails.originalFinder.lastName}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <span className="font-medium">Student ID:</span>{" "}
+                  {post.turnoverDetails.originalFinder.studentId || "N/A"}
+                </div>
+                <div>
+                  <span className="font-medium">Email:</span>{" "}
+                  {post.turnoverDetails.originalFinder.email}
+                </div>
+                {post.turnoverDetails.originalFinder.contactNum && (
+                  <div className="col-span-2">
+                    <span className="font-medium">Contact:</span>{" "}
+                    {post.turnoverDetails.originalFinder.contactNum}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-blue-200 pt-2 mt-2">
+                <p>
+                  <strong>Status:</strong>{" "}
+                  {post.turnoverDetails.turnoverStatus === "declared"
+                    ? "Declared - Awaiting Confirmation"
+                    : post.turnoverDetails.turnoverStatus === "confirmed"
+                    ? "Confirmed - Item Received"
+                    : post.turnoverDetails.turnoverStatus === "not_received"
+                    ? "Not Received - Item Deleted"
+                    : post.turnoverDetails.turnoverAction === "turnover to Campus Security"
+                    ? "Turned over to Campus Security"
+                    : post.turnoverDetails.turnoverAction === "turnover to OSA"
+                    ? "Turned over to OSA"
+                    : post.turnoverDetails.turnoverStatus}
+                </p>
+                {post.turnoverDetails.turnoverReason && (
+                  <p>
+                    <strong>Reason:</strong> {post.turnoverDetails.turnoverReason}
+                  </p>
+                )}
+                {post.turnoverDetails.confirmationNotes && (
+                  <p>
+                    <strong>Item Condition Notes:</strong> {post.turnoverDetails.confirmationNotes}
+                  </p>
+                )}
+                {post.turnoverDetails.confirmedAt && (
+                  <p>
+                    <strong>Confirmed At:</strong>{" "}
+                    {formatDateTime(post.turnoverDetails.confirmedAt)}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CS to OSA Conversion Info Box - show only for items originally turned over to Campus Security and then transferred to OSA */}
         {post.turnoverDetails &&
-          post.turnoverDetails.turnoverAction === "turnover to OSA" &&
-          (post.turnoverDetails.turnoverStatus === "transferred" ||
-           post.turnoverDetails.turnoverStatus === "confirmed") && (
+          post.turnoverDetails.originalTurnoverAction === "turnover to Campus Security" &&
+          post.turnoverDetails.turnoverAction === "turnover to OSA" && (
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -512,9 +592,9 @@ export default function AdminPostModal({
                   <strong>Status:</strong> Item has been transferred from Campus Security to OSA (Admin)
                 </p>
                 <p>
-                  <strong>Transfer Date:</strong>{" "}
-                  {post.turnoverDetails.turnoverDecisionAt
-                    ? formatDateTime(post.turnoverDetails.turnoverDecisionAt)
+                  <strong>Collection Date:</strong>{" "}
+                  {post.turnoverDetails.confirmedAt
+                    ? formatDateTime(post.turnoverDetails.confirmedAt)
                     : "N/A"}
                 </p>
                 {post.turnoverDetails.turnoverReason && (
@@ -532,6 +612,16 @@ export default function AdminPostModal({
               Handover Details
             </h3>
             <HandoverDetailsDisplay handoverDetails={post.handoverDetails} />
+          </div>
+        )}
+
+        {/* Revert Reason Display - show for admins when post has been reverted */}
+        {post.revertReason && (
+          <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-md">
+            <div className="text-sm text-orange-800 font-medium mb-2">
+              Revert Reason:
+            </div>
+            <div className="text-sm text-orange-700">{post.revertReason}</div>
           </div>
         )}
 

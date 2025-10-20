@@ -504,24 +504,6 @@ function PostCard({
               </div>
             )}
 
-          {/* Confirmation Notes Display - Show after item has been confirmed or transferred */}
-          {post.turnoverDetails &&
-            (post.turnoverDetails.turnoverStatus === "confirmed" ||
-             post.turnoverDetails.turnoverStatus === "transferred") &&
-            post.turnoverDetails.confirmationNotes && (
-              <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-green-600 text-sm">📝</span>
-                  <span className="text-xs font-medium text-green-800">
-                    Confirmation Notes
-                  </span>
-                </div>
-                <div className="text-xs text-green-700">
-                  {post.turnoverDetails.confirmationNotes}
-                </div>
-              </div>
-            )}
-
       {/* Turnover Confirmation Modal */}
       <TurnoverConfirmationModal
         isOpen={showTurnoverModal}

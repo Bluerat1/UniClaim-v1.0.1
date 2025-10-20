@@ -3,7 +3,7 @@ import type { Post } from "@/types/Post";
 
 // components
 import AdminPostCard from "@/components/AdminPostCard";
-import PostModal from "@/components/PostModal";
+import AdminPostModal from "@/components/AdminPostModal";
 import TicketModal from "@/components/TicketModal";
 import TurnoverConfirmationModal from "@/components/TurnoverConfirmationModal";
 import MobileNavText from "@/components/NavHeadComp";
@@ -1248,10 +1248,38 @@ export default function AdminHomePage() {
       )}
 
       {selectedPost && (
-        <PostModal
+        <AdminPostModal
           post={selectedPost}
           onClose={() => setSelectedPost(null)}
-          hideSendMessage={true}
+          onPostUpdate={(updatedPost) => {
+            // Handle post update logic if needed
+            console.log("Post updated:", updatedPost.id);
+          }}
+          onConfirmTurnover={(post, status) => {
+            // Handle turnover confirmation logic if needed
+            console.log("Turnover confirmed:", post.id, status);
+          }}
+          onConfirmCampusSecurityCollection={(post, status) => {
+            // Handle campus security collection logic if needed
+            console.log("Campus security collection:", post.id, status);
+          }}
+          onApprove={(post) => {
+            // Handle approve logic if needed
+            console.log("Approve post:", post.id);
+          }}
+          onHide={(post) => {
+            // Handle hide logic if needed
+            console.log("Hide post:", post.id);
+          }}
+          onUnhide={(post) => {
+            // Handle unhide logic if needed
+            console.log("Unhide post:", post.id);
+          }}
+          onDelete={(post) => {
+            // Handle delete logic if needed
+            console.log("Delete post:", post.id);
+          }}
+          showCampusSecurityButtons={false}
         />
       )}
 

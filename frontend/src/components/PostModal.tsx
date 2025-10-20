@@ -434,8 +434,12 @@ export default function PostModal({
                     <p className="text-[13px] text-blue-700 font-medium">
                       {post.foundAction === "keep"
                         ? "The finder will keep this item and return it themselves"
+                        : post.turnoverDetails &&
+                          post.turnoverDetails.originalTurnoverAction === "turnover to Campus Security" &&
+                          post.turnoverDetails.turnoverAction === "turnover to OSA"
+                        ? "This item was transferred to OSA"
                         : post.foundAction === "turnover to OSA"
-                        ? "This item will be turned over to the OSA office"
+                        ? "This item was turned over to OSA office"
                         : "This item was turned over to Campus Security"}
                     </p>
                   </div>
@@ -593,9 +597,25 @@ export default function PostModal({
                   </div>
                 )}
                 <div>
+                  <span className="font-medium">Status:</span>{" "}
+                  {post.turnoverDetails.turnoverStatus === "declared"
+                    ? "Declared - Awaiting Confirmation"
+                    : post.turnoverDetails.turnoverStatus === "confirmed"
+                    ? "Confirmed - Item Received"
+                    : post.turnoverDetails.turnoverStatus === "not_received"
+                    ? "Not Received - Item Deleted"
+                    : post.turnoverDetails.turnoverAction === "turnover to Campus Security"
+                    ? "Turned over to Campus Security"
+                    : post.turnoverDetails.turnoverAction === "turnover to OSA"
+                    ? "Turned over to OSA"
+                    : post.turnoverDetails.turnoverStatus}
+                </div>
+                <div>
                   <span className="font-medium">Turned over to:</span>{" "}
                   {post.turnoverDetails.turnoverAction === "turnover to OSA"
                     ? "OSA"
+                    : post.turnoverDetails.originalTurnoverAction === "turnover to Campus Security"
+                    ? "Campus Security"
                     : "Campus Security"}
                 </div>
                 <div>
@@ -604,9 +624,15 @@ export default function PostModal({
                     ? formatDateTime(post.turnoverDetails.turnoverDecisionAt)
                     : "N/A"}
                 </div>
+                {post.turnoverDetails.turnoverReason && (
+                  <div>
+                    <span className="font-medium">Reason:</span>{" "}
+                    {post.turnoverDetails.turnoverReason}
+                  </div>
+                )}
                 {post.turnoverDetails.confirmationNotes && (
                   <div>
-                    <span className="font-medium">Confirmation Notes:</span>{" "}
+                    <span className="font-medium">Item Condition Notes:</span>{" "}
                     {post.turnoverDetails.confirmationNotes}
                   </div>
                 )}

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { FiX, FiShield, FiCheckCircle, FiXCircle } from "react-icons/fi";
 
 interface AdminCampusSecurityTurnoverModalProps {
@@ -15,14 +16,18 @@ export default function AdminCampusSecurityTurnoverModal({
   post,
   allowedActions = ["collected", "not_available"],
 }: AdminCampusSecurityTurnoverModalProps) {
+  const [notes, setNotes] = useState("");
+
   if (!isOpen) return null;
 
   const handleConfirm = (status: "collected" | "not_available") => {
-    onConfirm(status);
+    onConfirm(status, notes.trim() || undefined);
+    setNotes(""); // Reset notes after confirmation
     onClose();
   };
 
   const handleClose = () => {
+    setNotes(""); // Reset notes when closing
     onClose();
   };
 
@@ -67,6 +72,25 @@ export default function AdminCampusSecurityTurnoverModal({
             Confirm the status of item collection from Campus Security:
           </p>
         </div>
+
+        {/* Notes Field - Only show for "collected" action */}
+        {allowedActions.includes("collected") && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Item Condition Notes (Optional):
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add notes about the item's condition, any damage, or special handling instructions..."
+              className="w-full p-3 border border-gray-300 rounded-lg resize-none h-20 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              maxLength={500}
+            />
+            <div className="text-xs text-gray-500 mt-1 text-right">
+              {notes.length}/500 characters
+            </div>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex gap-3 mb-4">

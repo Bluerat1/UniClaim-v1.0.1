@@ -508,15 +508,6 @@ function AdminPostCard({
           onClick={onClick}
         />
 
-        {/* Revert Reason Display - show for admins when post has been reverted */}
-        {post.revertReason && (
-          <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded">
-            <div className="text-xs text-orange-800 font-medium mb-1">
-              Revert Reason:
-            </div>
-            <div className="text-xs text-orange-700">{post.revertReason}</div>
-          </div>
-        )}
 
         {/* Restore and Permanently Delete buttons for deleted posts */}
         {onRestore && onPermanentDelete && (
