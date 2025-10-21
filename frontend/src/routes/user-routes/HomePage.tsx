@@ -406,7 +406,7 @@ export default function HomePage() {
             <MdInfoOutline />
             {/* Tooltip */}
             <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 hidden group-hover:block bg-blue-100 text-blue-600 text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap z-10">
-              All completed posts will be shown for up to 30 days.
+              All completed posts will be shown up to 30 days.
               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-[6px] w-2 h-2 bg-blue-100 rotate-45"></div>
             </div>
           </div>
