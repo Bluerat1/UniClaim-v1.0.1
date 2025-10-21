@@ -1,26 +1,46 @@
 import { useState, useMemo } from "react";
-import type { Post } from "@/types/Post";
+import type { Post } from "../../types/Post";
 
 // components
-import AdminPostCard from "@/components/AdminPostCard";
-import AdminPostModal from "@/components/AdminPostModal";
-import AdminCampusSecurityTurnoverModal from "@/components/AdminCampusSecurityTurnoverModal";
-import MobileNavText from "@/components/NavHeadComp";
-import SearchBar from "@/components/SearchBar";
-import { useAdminPosts } from "@/hooks/usePosts";
-import { useToast } from "@/context/ToastContext";
-import { useAuth } from "@/context/AuthContext";
+import AdminPostCard from "../../components/AdminPostCard";
+import AdminPostCardList from "../../components/AdminPostCardList";
+import MultiControlPanel from "../../components/MultiControlPanel";
+import AdminPostModal from "../../components/AdminPostModal";
+import AdminCampusSecurityTurnoverModal from "../../components/AdminCampusSecurityTurnoverModal";
+import NavHeader from "../../components/NavHeadComp";
+import SearchBar from "../../components/SearchBar";
+
+// hooks
+import { useAdminPosts } from "../../hooks/usePosts";
+import { useToast } from "../../context/ToastContext";
+import { useAuth } from "../../context/AuthContext";
 
 export default function CampusSecurityManagementPage() {
   const { posts = [], loading, error } = useAdminPosts();
   const { showToast } = useToast();
   const { userData } = useAuth();
 
+  // State for view mode (card/list view)
+  const [viewMode, setViewMode] = useState<"card" | "list">("card");
+
+  // State for post selection
+  const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
+
   // State for search functionality
   const [query, setQuery] = useState("");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("All");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
+
+  // State for AdminPostModal
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+
+  // State for campus security collection confirmation modal
+  const [showCollectionModal, setShowCollectionModal] = useState(false);
+  const [postToConfirm, setPostToConfirm] = useState<Post | null>(null);
+  const [allowedActions, setAllowedActions] = useState<
+    ("collected" | "not_available")[]
+  >(["collected", "not_available"]);
 
   // Filter posts for campus security management with search functionality
   const campusSecurityPosts = useMemo(() => {
@@ -57,15 +77,84 @@ export default function CampusSecurityManagementPage() {
     });
   }, [posts, query, selectedCategoryFilter, description, location]);
 
-  // State for AdminPostModal
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  // Handle post selection change
+  const handlePostSelectionChange = (post: Post, selected: boolean) => {
+    const newSet = new Set(selectedPosts);
+    if (selected) {
+      newSet.add(post.id);
+    } else {
+      newSet.delete(post.id);
+    }
+    setSelectedPosts(newSet);
+  };
 
-  // State for campus security collection confirmation modal
-  const [showCollectionModal, setShowCollectionModal] = useState(false);
-  const [postToConfirm, setPostToConfirm] = useState<Post | null>(null);
-  const [allowedActions, setAllowedActions] = useState<
-    ("collected" | "not_available")[]
-  >(["collected", "not_available"]);
+  // Handle select all posts
+  const handleSelectAll = () => {
+    if (selectedPosts.size === campusSecurityPosts.length) {
+      setSelectedPosts(new Set());
+    } else {
+      setSelectedPosts(new Set(campusSecurityPosts.map((post) => post.id)));
+    }
+  };
+
+  // Handle clear selection
+  const handleClearSelection = () => {
+    setSelectedPosts(new Set());
+  };
+
+  // Handle bulk campus security collection
+  const handleBulkCampusSecurityCollection = async (status: "collected" | "not_available") => {
+    if (selectedPosts.size === 0) {
+      showToast("error", "Error", "Please select posts to process");
+      return;
+    }
+
+    const selectedPostObjects = campusSecurityPosts.filter(post => selectedPosts.has(post.id));
+
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const post of selectedPostObjects) {
+        try {
+          if (status === "not_available") {
+            // Delete the post when item is not available at campus security
+            const { postService } = await import("../../services/firebase/posts");
+            await postService.deletePost(post.id);
+          } else {
+            // Always update status and transfer ownership when "collected" is clicked
+            const { postService } = await import("../../services/firebase/posts");
+            await postService.updateCampusSecurityTurnoverStatus(
+              post.id,
+              status,
+              userData?.uid || "",
+              ""
+            );
+          }
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to process campus security collection for post ${post.id}:`, error);
+          errorCount++;
+        }
+      }
+
+      if (errorCount === 0) {
+        const actionText = status === "collected" ? "collected" : "marked as not available";
+        showToast("success", "Bulk Collection Complete", `Successfully ${actionText} ${successCount} items`);
+      } else {
+        showToast("warning", "Bulk Collection Partial",
+          `${status === "collected" ? "Collected" : "Marked not available"} ${successCount} items successfully, ${errorCount} failed`
+        );
+      }
+
+      // Clear selection
+      setSelectedPosts(new Set());
+
+    } catch (error: any) {
+      console.error("Bulk campus security collection failed:", error);
+      showToast("error", "Bulk Collection Failed", error.message || "Failed to process selected items");
+    }
+  };
 
   // Handle opening AdminPostModal
   const handlePostClick = (post: Post) => {
@@ -175,7 +264,7 @@ export default function CampusSecurityManagementPage() {
   };
   return (
     <div className="min-h-screen bg-gray-100 mb-13 font-manrope transition-colors duration-300">
-      <MobileNavText
+      <NavHeader
         title="Campus Security Management"
         description="Manage items turned over to Campus Security"
       />
@@ -192,27 +281,70 @@ export default function CampusSecurityManagementPage() {
           </p>
         </div>
 
-        {/* Search Bar */}
-        <SearchBar
-          onSearch={handleSearch}
-          onClear={handleClear}
-          query={query}
-          setQuery={setQuery}
-          selectedCategoryFilter={selectedCategoryFilter}
-          setSelectedCategoryFilter={setSelectedCategoryFilter}
-        />
+        {/* Search Bar and MultiControl Panel Container */}
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
+          {/* Search Bar */}
+          <div className="flex-1">
+            <SearchBar
+              onSearch={handleSearch}
+              onClear={handleClear}
+              query={query}
+              setQuery={setQuery}
+              selectedCategoryFilter={selectedCategoryFilter}
+              setSelectedCategoryFilter={setSelectedCategoryFilter}
+            />
+          </div>
+
+          {/* MultiControl Panel */}
+          {campusSecurityPosts.length > 0 && (
+            <div className="flex-shrink-0">
+              <MultiControlPanel
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+                selectedCount={selectedPosts.size}
+                totalCount={campusSecurityPosts.length}
+                onSelectAll={handleSelectAll}
+                onClearSelection={handleClearSelection}
+                customActions={
+                  selectedPosts.size > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleBulkCampusSecurityCollection("collected")}
+                        className="p-1.5 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                        title={`Collect Items (${selectedPosts.size})`}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleBulkCampusSecurityCollection("not_available")}
+                        className="p-1.5 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                        title={`Mark Not Available (${selectedPosts.size})`}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )
+                }
+              />
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Posts Grid */}
-      <div className="grid grid-cols-1 gap-5 mx-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+      {/* Posts Section */}
+      <div className="px-6">
+
+        {/* Posts Display */}
         {loading ? (
-          <div className="col-span-full flex items-center justify-center h-80">
-            <span className="text-gray-400">
-              Loading campus security posts...
-            </span>
+          <div className="flex items-center justify-center h-80">
+            <span className="text-gray-400">Loading campus security posts...</span>
           </div>
         ) : error ? (
-          <div className="col-span-full flex flex-col items-center justify-center h-80 text-red-500 p-4">
+          <div className="flex flex-col items-center justify-center h-80 text-red-500 p-4">
             <p>Error loading posts: {error}</p>
             <button
               onClick={() => window.location.reload()}
@@ -222,31 +354,67 @@ export default function CampusSecurityManagementPage() {
             </button>
           </div>
         ) : campusSecurityPosts.length === 0 ? (
-          <div className="col-span-full flex items-center justify-center h-80 text-gray-500">
+          <div className="flex items-center justify-center h-80 text-gray-500">
             No items have been turned over to Campus Security yet.
           </div>
         ) : (
-          campusSecurityPosts.map((post) => (
-            <AdminPostCard
-              key={post.id}
-              post={post}
-              onClick={() => handlePostClick(post)}
-              onConfirmCampusSecurityCollection={handleConfirmCollection}
-              highlightText=""
-              hideDeleteButton={true}
-              // Hide admin controls that aren't relevant for campus security management
-              onDelete={undefined}
-              onStatusChange={undefined}
-              onActivateTicket={undefined}
-              onRevertResolution={undefined}
-              onHidePost={undefined}
-              onUnhidePost={undefined}
-              onConfirmTurnover={undefined} // Hide OSA turnover option
-              showUnclaimedMessage={false}
-              showCampusSecurityButtons={true}
-              hideStatusDropdown={true}
-            />
-          ))
+          <>
+            {viewMode === "list" ? (
+              <div className="space-y-4">
+                {campusSecurityPosts.map((post) => (
+                  <AdminPostCardList
+                    key={post.id}
+                    post={post}
+                    onClick={() => handlePostClick(post)}
+                    onConfirmCampusSecurityCollection={handleConfirmCollection}
+                    highlightText=""
+                    hideDeleteButton={true}
+                    // Hide admin controls that aren't relevant for campus security management
+                    onDelete={undefined}
+                    onStatusChange={undefined}
+                    onActivateTicket={undefined}
+                    onRevertResolution={undefined}
+                    onHidePost={undefined}
+                    onUnhidePost={undefined}
+                    onConfirmTurnover={undefined} // Hide OSA turnover option
+                    showUnclaimedMessage={false}
+                    showCampusSecurityButtons={true}
+                    hideStatusDropdown={true}
+                    // Multi-select props
+                    isSelected={selectedPosts.has(post.id)}
+                    onSelectionChange={handlePostSelectionChange}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                {campusSecurityPosts.map((post) => (
+                  <AdminPostCard
+                    key={post.id}
+                    post={post}
+                    onClick={() => handlePostClick(post)}
+                    onConfirmCampusSecurityCollection={handleConfirmCollection}
+                    highlightText=""
+                    hideDeleteButton={true}
+                    // Hide admin controls that aren't relevant for campus security management
+                    onDelete={undefined}
+                    onStatusChange={undefined}
+                    onActivateTicket={undefined}
+                    onRevertResolution={undefined}
+                    onHidePost={undefined}
+                    onUnhidePost={undefined}
+                    onConfirmTurnover={undefined} // Hide OSA turnover option
+                    showUnclaimedMessage={false}
+                    showCampusSecurityButtons={true}
+                    hideStatusDropdown={true}
+                    // Multi-select props
+                    isSelected={selectedPosts.has(post.id)}
+                    onSelectionChange={handlePostSelectionChange}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 

@@ -6,8 +6,10 @@ import type { Post } from "../../types/Post";
 import PageWrapper from "../../components/PageWrapper";
 import NavHeader from "../../components/NavHeadComp";
 import AdminPostCard from "../../components/AdminPostCard";
+import AdminPostCardList from "../../components/AdminPostCardList"; // Added import
 import AdminPostModal from "../../components/AdminPostModal";
 import SearchBar from "../../components/SearchBar";
+import MultiControlPanel from "../../components/MultiControlPanel"; // Added import
 
 export default function FlaggedPostsPage() {
   const { posts = [] } = useAdminPosts();
@@ -37,6 +39,9 @@ export default function FlaggedPostsPage() {
 
   // State for view type filtering (similar to AdminHomePage)
   const [viewType, setViewType] = useState<"all" | "lost" | "found">("all");
+
+  // State for view mode (card/list view)
+  const [viewMode, setViewMode] = useState<"card" | "list">("card");
 
   // State for search functionality
   const [query, setQuery] = useState("");
@@ -185,7 +190,10 @@ export default function FlaggedPostsPage() {
     setConfirmAction(null);
   };
 
-  // Bulk action handlers
+  const handleClearSelection = () => {
+    setSelectedPosts(new Set());
+  };
+
   const handleSelectAll = () => {
     if (selectedPosts.size === filteredFlaggedPosts.length) {
       setSelectedPosts(new Set());
@@ -193,7 +201,6 @@ export default function FlaggedPostsPage() {
       setSelectedPosts(new Set(filteredFlaggedPosts.map((post) => post.id)));
     }
   };
-
   const handleBulkActionClick = (
     action: "approve" | "hide" | "unhide" | "delete"
   ) => {
@@ -264,6 +271,15 @@ export default function FlaggedPostsPage() {
   const handleCancelBulkAction = () => {
     setShowBulkConfirmModal(false);
     setBulkAction(null);
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedPosts.size === 0) {
+      showToast("error", "Error", "Please select posts to delete");
+      return;
+    }
+    setBulkAction({ type: "delete", count: selectedPosts.size });
+    setShowBulkConfirmModal(true);
   };
 
   return (
@@ -348,70 +364,45 @@ export default function FlaggedPostsPage() {
 
         {/* Content */}
         <div className="px-4 sm:px-6 lg:px-8">
-          {/* Bulk Actions Bar */}
+          {/* MultiControl Panel */}
           {filteredFlaggedPosts.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-lg p-3 mb-6 mt-5">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={
-                        selectedPosts.size === filteredFlaggedPosts.length &&
-                        filteredFlaggedPosts.length > 0
-                      }
-                      onChange={handleSelectAll}
-                      className="w-5 h-5 text-brand border-gray-300 rounded focus:ring-brand"
-                    />
-                    <div>
-                      <span className="text-sm font-semibold text-gray-900">
-                        Select All ({selectedPosts.size}/
-                        {filteredFlaggedPosts.length})
-                      </span>
-                      {selectedPosts.size > 0 && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          {selectedPosts.size} post
-                          {selectedPosts.size !== 1 ? "s" : ""} selected
-                        </p>
-                      )}
+            <div className="flex justify-end mb-6 mt-5">
+              <MultiControlPanel
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+                selectedCount={selectedPosts.size}
+                totalCount={filteredFlaggedPosts.length}
+                onSelectAll={handleSelectAll}
+                onClearSelection={handleClearSelection}
+                onBulkDelete={handleBulkDelete}
+                customActions={
+                  selectedPosts.size > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleBulkActionClick("approve")}
+                        disabled={actionLoading === "bulk"}
+                        className="p-1.5 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                        title={`Approve (${selectedPosts.size})`}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </button>
+
+                      <button
+                        onClick={() => handleBulkActionClick("hide")}
+                        disabled={actionLoading === "bulk"}
+                        className="p-1.5 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                        title={`Hide (${selectedPosts.size})`}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                        </svg>
+                      </button>
                     </div>
-                  </label>
-                </div>
-
-                {selectedPosts.size > 0 && (
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      onClick={() => handleBulkActionClick("approve")}
-                      disabled={actionLoading === "bulk"}
-                      className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium transition-colors shadow-sm"
-                    >
-                      {actionLoading === "bulk"
-                        ? "Processing..."
-                        : `Approve (${selectedPosts.size})`}
-                    </button>
-
-                    <button
-                      onClick={() => handleBulkActionClick("hide")}
-                      disabled={actionLoading === "bulk"}
-                      className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium transition-colors shadow-sm"
-                    >
-                      {actionLoading === "bulk"
-                        ? "Processing..."
-                        : `Hide (${selectedPosts.size})`}
-                    </button>
-
-                    <button
-                      onClick={() => handleBulkActionClick("delete")}
-                      disabled={actionLoading === "bulk"}
-                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium transition-colors shadow-sm"
-                    >
-                      {actionLoading === "bulk"
-                        ? "Processing..."
-                        : `Delete (${selectedPosts.size})`}
-                    </button>
-                  </div>
-                )}
-              </div>
+                  )
+                }
+              />
             </div>
           )}
 
@@ -432,33 +423,65 @@ export default function FlaggedPostsPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredFlaggedPosts.map((post) => (
-                <AdminPostCard
-                  key={post.id}
-                  post={post}
-                  onClick={() => {
-                    setSelectedPost(post);
-                    setShowPostModal(true);
-                  }}
-                  highlightText=""
-                  onDelete={() => handleActionClick("delete", post)}
-                  onHidePost={() => handleActionClick("hide", post)}
-                  onUnhidePost={() => handleActionClick("unhide", post)}
-                  onApprove={() => handleActionClick("approve", post)}
-                  isSelected={selectedPosts.has(post.id)}
-                  onSelectionChange={(post, selected) => {
-                    const newSet = new Set(selectedPosts);
-                    if (selected) {
-                      newSet.add(post.id);
-                    } else {
-                      newSet.delete(post.id);
-                    }
-                    setSelectedPosts(newSet);
-                  }}
-                />
-              ))}
-            </div>
+            <>
+              {viewMode === "list" ? (
+                <div className="space-y-4">
+                  {filteredFlaggedPosts.map((post) => (
+                    <AdminPostCardList
+                      key={post.id}
+                      post={post}
+                      onClick={() => {
+                        setSelectedPost(post);
+                        setShowPostModal(true);
+                      }}
+                      highlightText=""
+                      onDelete={() => handleActionClick("delete", post)}
+                      onHidePost={() => handleActionClick("hide", post)}
+                      onUnhidePost={() => handleActionClick("unhide", post)}
+                      onApprove={() => handleActionClick("approve", post)}
+                      isSelected={selectedPosts.has(post.id)}
+                      onSelectionChange={(post, selected) => {
+                        const newSet = new Set(selectedPosts);
+                        if (selected) {
+                          newSet.add(post.id);
+                        } else {
+                          newSet.delete(post.id);
+                        }
+                        setSelectedPosts(newSet);
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {filteredFlaggedPosts.map((post) => (
+                    <AdminPostCard
+                      key={post.id}
+                      post={post}
+                      onClick={() => {
+                        setSelectedPost(post);
+                        setShowPostModal(true);
+                      }}
+                      highlightText=""
+                      onDelete={() => handleActionClick("delete", post)}
+                      onHidePost={() => handleActionClick("hide", post)}
+                      onUnhidePost={() => handleActionClick("unhide", post)}
+                      onApprove={() => handleActionClick("approve", post)}
+                      isSelected={selectedPosts.has(post.id)}
+                      onSelectionChange={(post, selected) => {
+                        const newSet = new Set(selectedPosts);
+                        if (selected) {
+                          newSet.add(post.id);
+                        } else {
+                          newSet.delete(post.id);
+                        }
+                        setSelectedPosts(newSet);
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

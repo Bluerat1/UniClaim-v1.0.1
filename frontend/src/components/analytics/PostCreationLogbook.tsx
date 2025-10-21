@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Search, Calendar, User, MapPin, Tag, Eye } from 'lucide-react';
+import { Search, Calendar, User, MapPin, Tag, Eye, Download } from 'lucide-react';
 
 interface PostCreationLog {
   id: string;
@@ -77,6 +77,56 @@ const PostCreationLogbook: React.FC<PostCreationLogbookProps> = ({
     }
   };
 
+  // Export filtered logs to CSV (Excel-friendly format)
+  const exportToCSV = () => {
+    const headers = ['ID', 'Title', 'Type', 'Category', 'Location', 'Created At', 'Creator Name', 'Creator Email', 'Status', 'Image Count'];
+    const csvData = sortedLogs.map(log => [
+      log.id,
+      log.title,
+      log.type,
+      log.category,
+      log.location,
+      format(log.createdAt, 'yyyy-MM-dd HH:mm:ss'),
+      log.creatorName,
+      log.creatorEmail,
+      log.status,
+      log.imageCount.toString()
+    ]);
+
+    // Create CSV content with proper encoding
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row =>
+        row.map(cell => {
+          // Escape quotes and wrap in quotes if cell contains comma, quote, or newline
+          const cellStr = String(cell || '');
+          if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+            return `"${cellStr.replace(/"/g, '""')}"`;
+          }
+          return cellStr;
+        }).join(',')
+      )
+    ].join('\n');
+
+    // Add BOM (Byte Order Mark) for UTF-8 to help Excel recognize the file
+    const BOM = '\uFEFF';
+    const csvWithBOM = BOM + csvContent;
+
+    // Create blob with proper MIME type for Excel
+    const blob = new Blob([csvWithBOM], {
+      type: 'text/csv;charset=utf-8;'
+    });
+
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `post-creation-logbook-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (loading) {
     return (
       <Card>
@@ -90,9 +140,19 @@ const PostCreationLogbook: React.FC<PostCreationLogbookProps> = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Calendar className="h-5 w-5" />
-          Post Creation Logbook
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Post Creation Logbook
+          </div>
+          <button
+            onClick={exportToCSV}
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            title="Export filtered data to CSV"
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </button>
         </CardTitle>
         <p className="text-sm text-muted-foreground">
           Detailed log of all post creation events with user information

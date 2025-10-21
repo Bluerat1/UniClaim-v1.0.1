@@ -3,11 +3,13 @@ import type { Post } from "@/types/Post";
 
 // components
 import AdminPostCard from "@/components/AdminPostCard";
+import AdminPostCardList from "@/components/AdminPostCardList";
 import AdminPostModal from "@/components/AdminPostModal";
 import TicketModal from "@/components/TicketModal";
 import TurnoverConfirmationModal from "@/components/TurnoverConfirmationModal";
 import MobileNavText from "@/components/NavHeadComp";
 import SearchBar from "../../components/SearchBar";
+import MultiControlPanel from "@/components/MultiControlPanel";
 
 // hooks
 import { useAdminPosts, useResolvedPosts } from "@/hooks/usePosts";
@@ -46,6 +48,7 @@ export default function AdminHomePage() {
     null
   );
 
+  const [viewMode, setViewMode] = useState<"card" | "list">("card");
   const [viewType, setViewType] = useState<
     | "all"
     | "lost"
@@ -67,6 +70,8 @@ export default function AdminHomePage() {
   // Multi-select state for bulk operations
   const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isBulkReverting, setIsBulkReverting] = useState(false);
+  const [isBulkRestoring, setIsBulkRestoring] = useState(false);
 
   // Delete confirmation modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -116,6 +121,178 @@ export default function AdminHomePage() {
     }
   };
 
+  const handleBulkRevert = async () => {
+    if (selectedPosts.size === 0) {
+      showToast("warning", "No Selection", "Please select posts to revert");
+      return;
+    }
+
+    // Filter selected posts to only include those that can be reverted
+    const revertiblePosts = postsToDisplay.filter(post =>
+      selectedPosts.has(post.id) &&
+      (post.status === "resolved" || post.status === "completed")
+    );
+
+    if (revertiblePosts.length === 0) {
+      showToast("warning", "No Revertible Posts", "Selected posts cannot be reverted (only resolved/completed posts can be reverted)");
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to revert ${revertiblePosts.length} selected posts back to pending status? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setIsBulkReverting(true);
+      const { postService } = await import("../../utils/firebase");
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      // Revert all selected posts that can be reverted
+      for (const post of revertiblePosts) {
+        try {
+          let totalPhotosDeleted = 0;
+          let allErrors: string[] = [];
+
+          // Clean up handover details and photos
+          const handoverCleanupResult = await postService.cleanupHandoverDetailsAndPhotos(post.id);
+          totalPhotosDeleted += handoverCleanupResult.photosDeleted;
+          allErrors.push(...handoverCleanupResult.errors);
+
+          // Clean up claim details and photos
+          const claimCleanupResult = await postService.cleanupClaimDetailsAndPhotos(post.id);
+          totalPhotosDeleted += claimCleanupResult.photosDeleted;
+          allErrors.push(...claimCleanupResult.errors);
+
+          // Update the post status to pending
+          await postService.updatePostStatus(post.id, "pending", undefined, "Bulk revert by admin");
+
+          successCount++;
+          console.log(`Successfully reverted post: ${post.title}`);
+        } catch (error: any) {
+          console.error(`Failed to revert post ${post.id}:`, error);
+          errorCount++;
+        }
+      }
+
+      // Show results
+      if (successCount > 0) {
+        showToast("success", "Bulk Revert Complete", `Successfully reverted ${successCount} posts`);
+      }
+
+      if (errorCount > 0) {
+        showToast("error", "Some Reverts Failed", `${errorCount} posts failed to revert`);
+      }
+
+      // Clear selection and refresh
+      setSelectedPosts(new Set());
+
+    } catch (error: any) {
+      console.error("Error during bulk revert:", error);
+      showToast("error", "Bulk Revert Failed", error.message || "Failed to revert selected posts");
+    } finally {
+      setIsBulkReverting(false);
+    }
+  };
+
+  const handleBulkRestore = async () => {
+    if (selectedPosts.size === 0) {
+      showToast("warning", "No Selection", "Please select posts to restore");
+      return;
+    }
+
+    // Filter selected posts to only include deleted posts
+    const deletedPostsToRestore = postsToDisplay.filter(post =>
+      selectedPosts.has(post.id)
+    );
+
+    if (deletedPostsToRestore.length === 0) {
+      showToast("warning", "No Posts to Restore", "Selected posts cannot be restored");
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to restore ${deletedPostsToRestore.length} selected posts? They will be moved back to pending status.`)) {
+      return;
+    }
+
+    try {
+      setIsBulkRestoring(true);
+      const { postService } = await import("../../services/firebase/posts");
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      // Restore all selected deleted posts
+      for (const post of deletedPostsToRestore) {
+        try {
+          await postService.restorePost(post.id);
+
+          // Send notification to the post creator
+          if (post.creatorId) {
+            try {
+              // Check if this post has been turned over and use the original finder instead
+              const notificationRecipientId =
+                post.turnoverDetails?.originalFinder?.uid || post.creatorId;
+
+              await notificationSender.sendRestoreNotification({
+                postId: post.id,
+                postTitle: post.title,
+                postType: post.type as "lost" | "found",
+                creatorId: notificationRecipientId,
+                creatorName: post.turnoverDetails?.originalFinder
+                  ? `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`
+                  : post.user.firstName && post.user.lastName
+                  ? `${post.user.firstName} ${post.user.lastName}`
+                  : post.user.email?.split("@")[0] || "User",
+                adminName:
+                  userData?.firstName && userData?.lastName
+                    ? `${userData.firstName} ${userData.lastName}`
+                    : userData?.email?.split("@")[0] || "Admin",
+              });
+              console.log("✅ Restore notification sent to user");
+            } catch (notificationError) {
+              console.warn(
+                "⚠️ Failed to send restore notification:",
+                notificationError
+              );
+              // Don't throw - notification failures shouldn't break main functionality
+            }
+          }
+
+          successCount++;
+          console.log(`Successfully restored post: ${post.title}`);
+        } catch (error: any) {
+          console.error(`Failed to restore post ${post.id}:`, error);
+          errorCount++;
+        }
+      }
+
+      // Show results
+      if (successCount > 0) {
+        showToast("success", "Bulk Restore Complete", `Successfully restored ${successCount} posts`);
+      }
+
+      if (errorCount > 0) {
+        showToast("error", "Some Restores Failed", `${errorCount} posts failed to restore`);
+      }
+
+      // Clear selection and refresh
+      setSelectedPosts(new Set());
+
+      // Refresh the deleted posts list
+      if (viewType === "deleted") {
+        await fetchDeletedPosts().catch(console.error);
+      }
+
+    } catch (error: any) {
+      console.error("Error during bulk restore:", error);
+      showToast("error", "Bulk Restore Failed", error.message || "Failed to restore selected posts");
+    } finally {
+      setIsBulkRestoring(false);
+    }
+  };
+
   const handleBulkDelete = async () => {
     if (selectedPosts.size === 0) {
       showToast("warning", "No Selection", "Please select posts to delete");
@@ -155,8 +332,6 @@ export default function AdminHomePage() {
   const handleClearSelection = () => {
     setSelectedPosts(new Set());
   };
-
-  // Admin functionality handlers
   const handleDeletePost = (post: Post) => {
     setPostToDelete(post);
     setShowDeleteModal(true);
@@ -1222,98 +1397,33 @@ export default function AdminHomePage() {
           </button>
         </div>
 
-        {/* Multi-select controls - only show when not in deleted view */}
-        {viewType !== "deleted" && (
-          <div className="flex items-center justify-end">
-            <div className="flex items-center gap-2 bg-white rounded-lg border border-gray-200 px-3 py-2 shadow-sm min-w-[200px]">
-              {/* Select All/Deselect All Icon Button */}
-              <button
-                onClick={handleSelectAll}
-                className={`p-1.5 rounded transition-colors ${
-                  selectedPosts.size === postsToDisplay.length && postsToDisplay.length > 0
-                    ? "text-blue-600 hover:bg-blue-50"
-                    : "text-gray-600 hover:bg-gray-50"
-                }`}
-                title={selectedPosts.size === postsToDisplay.length && postsToDisplay.length > 0 ? "Deselect All" : "Select All"}
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill={selectedPosts.size === postsToDisplay.length && postsToDisplay.length > 0 ? "currentColor" : "none"}
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  {selectedPosts.size === postsToDisplay.length && postsToDisplay.length > 0 ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  ) : (
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" strokeWidth={2} />
-                  )}
-                </svg>
-              </button>
-
-              {/* Select All Message - shows when no posts selected */}
-              {(!selectedPosts.size || selectedPosts.size === 0) && (
-                <span className="text-sm text-gray-600">
-                  Select All
-                </span>
-              )}
-
-              {/* Selection Counter with Text */}
-              {selectedPosts.size > 0 && (
-                <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-opacity bg-blue-50 text-blue-700 opacity-100`}>
-                  Selected ({selectedPosts.size})
-                </div>
-              )}
-
-              {/* Delete Selected Icon Button */}
-              <button
-                onClick={handleBulkDelete}
-                disabled={isBulkDeleting || selectedPosts.size === 0}
-                className={`p-1.5 rounded transition-all ${
-                  selectedPosts.size > 0
-                    ? isBulkDeleting
-                      ? "text-gray-400 cursor-not-allowed"
-                      : "text-red-600 hover:bg-red-50"
-                    : "text-gray-400 cursor-not-allowed"
-                }`}
-                title="Delete Selected"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-              </button>
-
-              {/* Clear Icon Button */}
-              <button
-                onClick={handleClearSelection}
-                disabled={selectedPosts.size === 0}
-                className={`p-1.5 rounded transition-all ${
-                  selectedPosts.size > 0
-                    ? "text-gray-600 hover:bg-gray-50"
-                    : "text-gray-400 cursor-not-allowed"
-                }`}
-                title="Clear Selection"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Multi-select controls */}
+        <div className="flex items-center justify-end">
+          <MultiControlPanel
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            selectedCount={selectedPosts.size}
+            totalCount={postsToDisplay.length}
+            onSelectAll={handleSelectAll}
+            onClearSelection={handleClearSelection}
+            onBulkDelete={handleBulkDelete}
+            isBulkDeleting={isBulkDeleting}
+            onBulkRevert={handleBulkRevert}
+            isBulkReverting={isBulkReverting}
+            onBulkRestore={handleBulkRestore}
+            isBulkRestoring={isBulkRestoring}
+            viewType={viewType}
+          />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 mx-6 mt-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className={`${viewMode === "list" ? "space-y-4 mx-6 mt-7" : "grid grid-cols-1 gap-5 mx-6 mt-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"}`}>
         {/* Handle loading state */}
         {loading ||
         resolvedLoading ||
         isLoading ||
         (viewType === "deleted" && deletedPostsLoading) ? (
-          <div className="col-span-full flex items-center justify-center h-80">
+          <div className={`col-span-full flex items-center justify-center h-80 ${viewMode === "list" ? "col-span-1" : ""}`}>
             <span className="text-gray-400">
               Loading{" "}
               {viewType === "unclaimed"
@@ -1329,7 +1439,7 @@ export default function AdminHomePage() {
         ) : error ||
           resolvedError ||
           (viewType === "deleted" && deletedPostsError) ? (
-          <div className="col-span-full flex flex-col items-center justify-center h-80 text-red-500 p-4">
+          <div className={`col-span-full flex flex-col items-center justify-center h-80 text-red-500 p-4 ${viewMode === "list" ? "col-span-1" : ""}`}>
             <p>
               Error loading {viewType === "deleted" ? "deleted " : ""}posts:{" "}
               {viewType === "deleted"
@@ -1344,41 +1454,72 @@ export default function AdminHomePage() {
             </button>
           </div>
         ) : postsToDisplay.length === 0 ? (
-          <div className="col-span-full flex items-center justify-center h-80 text-gray-500">
+          <div className={`col-span-full flex items-center justify-center h-80 text-gray-500 ${viewMode === "list" ? "col-span-1" : ""}`}>
             {viewType === "deleted"
               ? "No deleted posts found."
               : "No results found."}
           </div>
         ) : (
           postsToDisplay.slice(0, currentPage * itemsPerPage).map((post) => (
-            <AdminPostCard
-              key={post.id}
-              post={post}
-              onClick={() => setSelectedPost(post)}
-              highlightText={lastDescriptionKeyword}
-              onDelete={viewType === "deleted" ? undefined : handleDeletePost}
-              onStatusChange={
-                viewType === "deleted" ? undefined : handleStatusChange
-              }
-              onActivateTicket={undefined}
-              onRevertResolution={
-                viewType === "deleted" ? undefined : handleRevertResolution
-              }
-              onHidePost={undefined}
-              onUnhidePost={
-                viewType === "deleted" ? undefined : handleUnhidePost
-              }
-              isDeleting={deletingPostId === post.id}
-              // Add restore and permanent delete actions for deleted posts
-              onRestore={viewType === "deleted" ? handleRestorePost : undefined}
-              onPermanentDelete={
-                viewType === "deleted" ? handlePermanentDeletePost : undefined
-              }
-              showUnclaimedMessage={false}
-              // Multi-select props
-              isSelected={selectedPosts.has(post.id)}
-              onSelectionChange={handlePostSelectionChange}
-            />
+            viewMode === "list" ? (
+              <AdminPostCardList
+                key={post.id}
+                post={post}
+                onClick={() => setSelectedPost(post)}
+                highlightText={lastDescriptionKeyword}
+                onDelete={viewType === "deleted" ? undefined : handleDeletePost}
+                onStatusChange={
+                  viewType === "deleted" ? undefined : handleStatusChange
+                }
+                onActivateTicket={undefined}
+                onRevertResolution={
+                  viewType === "deleted" ? undefined : handleRevertResolution
+                }
+                onHidePost={undefined}
+                onUnhidePost={
+                  viewType === "deleted" ? undefined : handleUnhidePost
+                }
+                isDeleting={deletingPostId === post.id}
+                // Add restore and permanent delete actions for deleted posts
+                onRestore={viewType === "deleted" ? handleRestorePost : undefined}
+                onPermanentDelete={
+                  viewType === "deleted" ? handlePermanentDeletePost : undefined
+                }
+                showUnclaimedMessage={false}
+                // Multi-select props
+                isSelected={selectedPosts.has(post.id)}
+                onSelectionChange={handlePostSelectionChange}
+              />
+            ) : (
+              <AdminPostCard
+                key={post.id}
+                post={post}
+                onClick={() => setSelectedPost(post)}
+                highlightText={lastDescriptionKeyword}
+                onDelete={viewType === "deleted" ? undefined : handleDeletePost}
+                onStatusChange={
+                  viewType === "deleted" ? undefined : handleStatusChange
+                }
+                onActivateTicket={undefined}
+                onRevertResolution={
+                  viewType === "deleted" ? undefined : handleRevertResolution
+                }
+                onHidePost={undefined}
+                onUnhidePost={
+                  viewType === "deleted" ? undefined : handleUnhidePost
+                }
+                isDeleting={deletingPostId === post.id}
+                // Add restore and permanent delete actions for deleted posts
+                onRestore={viewType === "deleted" ? handleRestorePost : undefined}
+                onPermanentDelete={
+                  viewType === "deleted" ? handlePermanentDeletePost : undefined
+                }
+                showUnclaimedMessage={false}
+                // Multi-select props
+                isSelected={selectedPosts.has(post.id)}
+                onSelectionChange={handlePostSelectionChange}
+              />
+            )
           ))
         )}
       </div>
