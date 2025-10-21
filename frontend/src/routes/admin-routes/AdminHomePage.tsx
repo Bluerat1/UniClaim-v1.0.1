@@ -9,7 +9,6 @@ import TicketModal from "@/components/TicketModal";
 import TurnoverConfirmationModal from "@/components/TurnoverConfirmationModal";
 import MobileNavText from "@/components/NavHeadComp";
 import SearchBar from "../../components/SearchBar";
-import MultiControlPanel from "@/components/MultiControlPanel";
 
 // hooks
 import { useAdminPosts, useResolvedPosts } from "@/hooks/usePosts";
@@ -48,7 +47,7 @@ export default function AdminHomePage() {
     null
   );
 
-  const [viewMode, setViewMode] = useState<"card" | "list">("card");
+  const [viewMode] = useState<"card" | "list">("card");
   const [viewType, setViewType] = useState<
     | "all"
     | "lost"
@@ -70,8 +69,6 @@ export default function AdminHomePage() {
   // Multi-select state for bulk operations
   const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  const [isBulkReverting, setIsBulkReverting] = useState(false);
-  const [isBulkRestoring, setIsBulkRestoring] = useState(false);
 
   // Delete confirmation modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -118,178 +115,6 @@ export default function AdminHomePage() {
       setSelectedPosts(new Set());
     } else {
       setSelectedPosts(new Set(postsToDisplay.map((post) => post.id)));
-    }
-  };
-
-  const handleBulkRevert = async () => {
-    if (selectedPosts.size === 0) {
-      showToast("warning", "No Selection", "Please select posts to revert");
-      return;
-    }
-
-    // Filter selected posts to only include those that can be reverted
-    const revertiblePosts = postsToDisplay.filter(post =>
-      selectedPosts.has(post.id) &&
-      (post.status === "resolved" || post.status === "completed")
-    );
-
-    if (revertiblePosts.length === 0) {
-      showToast("warning", "No Revertible Posts", "Selected posts cannot be reverted (only resolved/completed posts can be reverted)");
-      return;
-    }
-
-    if (!confirm(`Are you sure you want to revert ${revertiblePosts.length} selected posts back to pending status? This action cannot be undone.`)) {
-      return;
-    }
-
-    try {
-      setIsBulkReverting(true);
-      const { postService } = await import("../../utils/firebase");
-
-      let successCount = 0;
-      let errorCount = 0;
-
-      // Revert all selected posts that can be reverted
-      for (const post of revertiblePosts) {
-        try {
-          let totalPhotosDeleted = 0;
-          let allErrors: string[] = [];
-
-          // Clean up handover details and photos
-          const handoverCleanupResult = await postService.cleanupHandoverDetailsAndPhotos(post.id);
-          totalPhotosDeleted += handoverCleanupResult.photosDeleted;
-          allErrors.push(...handoverCleanupResult.errors);
-
-          // Clean up claim details and photos
-          const claimCleanupResult = await postService.cleanupClaimDetailsAndPhotos(post.id);
-          totalPhotosDeleted += claimCleanupResult.photosDeleted;
-          allErrors.push(...claimCleanupResult.errors);
-
-          // Update the post status to pending
-          await postService.updatePostStatus(post.id, "pending", undefined, "Bulk revert by admin");
-
-          successCount++;
-          console.log(`Successfully reverted post: ${post.title}`);
-        } catch (error: any) {
-          console.error(`Failed to revert post ${post.id}:`, error);
-          errorCount++;
-        }
-      }
-
-      // Show results
-      if (successCount > 0) {
-        showToast("success", "Bulk Revert Complete", `Successfully reverted ${successCount} posts`);
-      }
-
-      if (errorCount > 0) {
-        showToast("error", "Some Reverts Failed", `${errorCount} posts failed to revert`);
-      }
-
-      // Clear selection and refresh
-      setSelectedPosts(new Set());
-
-    } catch (error: any) {
-      console.error("Error during bulk revert:", error);
-      showToast("error", "Bulk Revert Failed", error.message || "Failed to revert selected posts");
-    } finally {
-      setIsBulkReverting(false);
-    }
-  };
-
-  const handleBulkRestore = async () => {
-    if (selectedPosts.size === 0) {
-      showToast("warning", "No Selection", "Please select posts to restore");
-      return;
-    }
-
-    // Filter selected posts to only include deleted posts
-    const deletedPostsToRestore = postsToDisplay.filter(post =>
-      selectedPosts.has(post.id)
-    );
-
-    if (deletedPostsToRestore.length === 0) {
-      showToast("warning", "No Posts to Restore", "Selected posts cannot be restored");
-      return;
-    }
-
-    if (!confirm(`Are you sure you want to restore ${deletedPostsToRestore.length} selected posts? They will be moved back to pending status.`)) {
-      return;
-    }
-
-    try {
-      setIsBulkRestoring(true);
-      const { postService } = await import("../../services/firebase/posts");
-
-      let successCount = 0;
-      let errorCount = 0;
-
-      // Restore all selected deleted posts
-      for (const post of deletedPostsToRestore) {
-        try {
-          await postService.restorePost(post.id);
-
-          // Send notification to the post creator
-          if (post.creatorId) {
-            try {
-              // Check if this post has been turned over and use the original finder instead
-              const notificationRecipientId =
-                post.turnoverDetails?.originalFinder?.uid || post.creatorId;
-
-              await notificationSender.sendRestoreNotification({
-                postId: post.id,
-                postTitle: post.title,
-                postType: post.type as "lost" | "found",
-                creatorId: notificationRecipientId,
-                creatorName: post.turnoverDetails?.originalFinder
-                  ? `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`
-                  : post.user.firstName && post.user.lastName
-                  ? `${post.user.firstName} ${post.user.lastName}`
-                  : post.user.email?.split("@")[0] || "User",
-                adminName:
-                  userData?.firstName && userData?.lastName
-                    ? `${userData.firstName} ${userData.lastName}`
-                    : userData?.email?.split("@")[0] || "Admin",
-              });
-              console.log("✅ Restore notification sent to user");
-            } catch (notificationError) {
-              console.warn(
-                "⚠️ Failed to send restore notification:",
-                notificationError
-              );
-              // Don't throw - notification failures shouldn't break main functionality
-            }
-          }
-
-          successCount++;
-          console.log(`Successfully restored post: ${post.title}`);
-        } catch (error: any) {
-          console.error(`Failed to restore post ${post.id}:`, error);
-          errorCount++;
-        }
-      }
-
-      // Show results
-      if (successCount > 0) {
-        showToast("success", "Bulk Restore Complete", `Successfully restored ${successCount} posts`);
-      }
-
-      if (errorCount > 0) {
-        showToast("error", "Some Restores Failed", `${errorCount} posts failed to restore`);
-      }
-
-      // Clear selection and refresh
-      setSelectedPosts(new Set());
-
-      // Refresh the deleted posts list
-      if (viewType === "deleted") {
-        await fetchDeletedPosts().catch(console.error);
-      }
-
-    } catch (error: any) {
-      console.error("Error during bulk restore:", error);
-      showToast("error", "Bulk Restore Failed", error.message || "Failed to restore selected posts");
-    } finally {
-      setIsBulkRestoring(false);
     }
   };
 
@@ -341,12 +166,13 @@ export default function AdminHomePage() {
     }
   };
 
-  const handleClearSelection = () => {
-    setSelectedPosts(new Set());
-  };
   const handleDeletePost = (post: Post) => {
     setPostToDelete(post);
     setShowDeleteModal(true);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedPosts(new Set());
   };
 
   const moveToDeleted = useCallback(async () => {
@@ -746,12 +572,6 @@ export default function AdminHomePage() {
         error.message || "Unknown error occurred"
       );
     }
-  };
-
-  const handleRevertResolution = async (post: Post) => {
-    setPostToRevert(post);
-    setRevertReason(""); // Reset reason when opening modal
-    setShowRevertModal(true);
   };
 
   const handleRevertConfirm = async () => {
@@ -1409,26 +1229,6 @@ export default function AdminHomePage() {
           </button>
         </div>
 
-<<<<<<< HEAD
-        {/* Multi-select controls */}
-        <div className="flex items-center justify-end">
-          <MultiControlPanel
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            selectedCount={selectedPosts.size}
-            totalCount={postsToDisplay.length}
-            onSelectAll={handleSelectAll}
-            onClearSelection={handleClearSelection}
-            onBulkDelete={handleBulkDelete}
-            isBulkDeleting={isBulkDeleting}
-            onBulkRevert={handleBulkRevert}
-            isBulkReverting={isBulkReverting}
-            onBulkRestore={handleBulkRestore}
-            isBulkRestoring={isBulkRestoring}
-            viewType={viewType}
-          />
-        </div>
-=======
         {/* Multi-select controls - only show when not in deleted view */}
         {viewType !== "deleted" && (
           <div className="flex items-center justify-end">
@@ -1552,7 +1352,6 @@ export default function AdminHomePage() {
             </div>
           </div>
         )}
->>>>>>> e65dfc341620014dca4fd66acd11dd874b93e7d7
       </div>
 
       <div className={`${viewMode === "list" ? "space-y-4 mx-6 mt-7" : "grid grid-cols-1 gap-5 mx-6 mt-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"}`}>
@@ -1610,9 +1409,6 @@ export default function AdminHomePage() {
                   viewType === "deleted" ? undefined : handleStatusChange
                 }
                 onActivateTicket={undefined}
-                onRevertResolution={
-                  viewType === "deleted" ? undefined : handleRevertResolution
-                }
                 onHidePost={undefined}
                 onUnhidePost={
                   viewType === "deleted" ? undefined : handleUnhidePost
@@ -1639,9 +1435,6 @@ export default function AdminHomePage() {
                   viewType === "deleted" ? undefined : handleStatusChange
                 }
                 onActivateTicket={undefined}
-                onRevertResolution={
-                  viewType === "deleted" ? undefined : handleRevertResolution
-                }
                 onHidePost={undefined}
                 onUnhidePost={
                   viewType === "deleted" ? undefined : handleUnhidePost

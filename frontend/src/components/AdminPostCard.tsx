@@ -9,7 +9,6 @@ interface AdminPostCardProps {
   onDelete?: (post: Post) => void;
   onStatusChange?: (post: Post, status: string, adminNotes?: string) => void;
   onActivateTicket?: (post: Post) => void;
-  onRevertResolution?: (post: Post) => void;
   onHidePost?: (post: Post) => void;
   onUnhidePost?: (post: Post) => void;
   onRestore?: (post: Post) => void;
@@ -63,7 +62,6 @@ function AdminPostCard({
   onDelete,
   onStatusChange,
   onActivateTicket,
-  onRevertResolution,
   onHidePost,
   onUnhidePost,
   onRestore,
@@ -350,7 +348,7 @@ function AdminPostCard({
           </div>
         </div>
 
-        <h1 className="text-lg font-semibold my-2 truncate max-w-[12rem]">
+        <h1 className="text-lg font-semibold my-2">
           {post.title}
         </h1>
 

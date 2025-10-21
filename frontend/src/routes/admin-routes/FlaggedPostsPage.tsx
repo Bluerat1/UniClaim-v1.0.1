@@ -190,10 +190,6 @@ export default function FlaggedPostsPage() {
     setConfirmAction(null);
   };
 
-  const handleClearSelection = () => {
-    setSelectedPosts(new Set());
-  };
-
   const handleSelectAll = () => {
     if (selectedPosts.size === filteredFlaggedPosts.length) {
       setSelectedPosts(new Set());
@@ -201,15 +197,58 @@ export default function FlaggedPostsPage() {
       setSelectedPosts(new Set(filteredFlaggedPosts.map((post) => post.id)));
     }
   };
-  const handleBulkActionClick = (
-    action: "approve" | "hide" | "unhide" | "delete"
-  ) => {
+
+  // Helper function to check if any selected posts are hidden
+  const hasHiddenPosts = () => {
+    return Array.from(selectedPosts).some(postId => {
+      const post = filteredFlaggedPosts.find(p => p.id === postId);
+      return post?.isHidden === true;
+    });
+  };
+
+  const handleClearSelection = () => {
+    setSelectedPosts(new Set());
+  };
+
+  const handleBulkApprove = () => {
     if (selectedPosts.size === 0) {
-      showToast("error", "Error", "Please select posts to perform bulk action");
+      showToast("error", "Error", "Please select posts to approve");
       return;
     }
-    setBulkAction({ type: action, count: selectedPosts.size });
+    setBulkAction({ type: "approve", count: selectedPosts.size });
     setShowBulkConfirmModal(true);
+  };
+
+  const handleBulkHide = () => {
+    if (selectedPosts.size === 0) {
+      showToast("error", "Error", "Please select posts to hide");
+      return;
+    }
+    setBulkAction({ type: "hide", count: selectedPosts.size });
+    setShowBulkConfirmModal(true);
+  };
+
+  const handleBulkUnhide = () => {
+    if (selectedPosts.size === 0) {
+      showToast("error", "Error", "Please select posts to unhide");
+      return;
+    }
+    setBulkAction({ type: "unhide", count: selectedPosts.size });
+    setShowBulkConfirmModal(true);
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedPosts.size === 0) {
+      showToast("error", "Error", "Please select posts to delete");
+      return;
+    }
+    setBulkAction({ type: "delete", count: selectedPosts.size });
+    setShowBulkConfirmModal(true);
+  };
+
+  const handleCancelBulkAction = () => {
+    setShowBulkConfirmModal(false);
+    setBulkAction(null);
   };
 
   const handleBulkConfirmAction = async () => {
@@ -268,20 +307,6 @@ export default function FlaggedPostsPage() {
     }
   };
 
-  const handleCancelBulkAction = () => {
-    setShowBulkConfirmModal(false);
-    setBulkAction(null);
-  };
-
-  const handleBulkDelete = () => {
-    if (selectedPosts.size === 0) {
-      showToast("error", "Error", "Please select posts to delete");
-      return;
-    }
-    setBulkAction({ type: "delete", count: selectedPosts.size });
-    setShowBulkConfirmModal(true);
-  };
-
   return (
     <PageWrapper title="Flagged Posts">
       <div className="w-full mx-auto mb-13">
@@ -320,82 +345,130 @@ export default function FlaggedPostsPage() {
           />
         </div>
 
-        {/* Filter Buttons */}
-        <div className="flex mt-5 flex-wrap sm:justify-center items-center gap-3 w-full px-4 sm:px-6 lg:px-8 lg:justify-start lg:gap-3">
-          <button
-            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
-              viewType === "all"
-                ? "bg-navyblue text-white"
-                : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
-            }`}
-            onClick={() => {
-              setViewType("all");
-            }}
-          >
-            All Item Reports
-          </button>
+        {/* Filter Buttons and MultiControl Panel */}
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mt-5 px-4 sm:px-6 lg:px-8">
+          {/* Filter Buttons */}
+          <div className="flex flex-wrap sm:justify-center items-center gap-3 lg:justify-start lg:gap-3">
+            <button
+              className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+                viewType === "all"
+                  ? "bg-navyblue text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
+              }`}
+              onClick={() => {
+                setViewType("all");
+              }}
+            >
+              All Item Reports
+            </button>
 
-          <button
-            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
-              viewType === "lost"
-                ? "bg-navyblue text-white"
-                : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
-            }`}
-            onClick={() => {
-              setViewType("lost");
-            }}
-          >
-            Lost Item Reports
-          </button>
+            <button
+              className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+                viewType === "lost"
+                  ? "bg-navyblue text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
+              }`}
+              onClick={() => {
+                setViewType("lost");
+              }}
+            >
+              Lost Item Reports
+            </button>
 
-          <button
-            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
-              viewType === "found"
-                ? "bg-navyblue text-white"
-                : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
-            }`}
-            onClick={() => {
-              setViewType("found");
-            }}
-          >
-            Found Item Reports
-          </button>
+            <button
+              className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+                viewType === "found"
+                  ? "bg-navyblue text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-blue-200 border-gray-300"
+              }`}
+              onClick={() => {
+                setViewType("found");
+              }}
+            >
+              Found Item Reports
+            </button>
+          </div>
+
+          {/* MultiControl Panel */}
+          {filteredFlaggedPosts.length > 0 && (
+            <div className="flex items-center justify-end lg:justify-end">
+              <MultiControlPanel
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+                selectedCount={selectedPosts.size}
+                totalCount={filteredFlaggedPosts.length}
+                onSelectAll={handleSelectAll}
+                onClearSelection={handleClearSelection}
+                customActions={
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={handleBulkApprove}
+                      disabled={selectedPosts.size === 0}
+                      className={`p-1.5 rounded transition-colors ${
+                        selectedPosts.size > 0
+                          ? "text-green-600 hover:bg-green-50"
+                          : "text-gray-400 cursor-not-allowed"
+                      }`}
+                      title={`Approve ${selectedPosts.size} Selected Posts`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={handleBulkHide}
+                      disabled={selectedPosts.size === 0}
+                      className={`p-1.5 rounded transition-colors ${
+                        selectedPosts.size > 0
+                          ? "text-yellow-600 hover:bg-yellow-50"
+                          : "text-gray-400 cursor-not-allowed"
+                      }`}
+                      title={`Hide ${selectedPosts.size} Selected Posts`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                      </svg>
+                    </button>
+                    {hasHiddenPosts() && (
+                      <button
+                        onClick={handleBulkUnhide}
+                        disabled={selectedPosts.size === 0}
+                        className={`p-1.5 rounded transition-colors ${
+                          selectedPosts.size > 0
+                            ? "text-blue-600 hover:bg-blue-50"
+                            : "text-gray-400 cursor-not-allowed"
+                        }`}
+                        title={`Unhide ${selectedPosts.size} Selected Posts`}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </button>
+                    )}
+                    <button
+                      onClick={handleBulkDelete}
+                      disabled={selectedPosts.size === 0}
+                      className={`p-1.5 rounded transition-colors ${
+                        selectedPosts.size > 0
+                          ? "text-red-600 hover:bg-red-50"
+                          : "text-gray-400 cursor-not-allowed"
+                      }`}
+                      title={`Delete ${selectedPosts.size} Selected Posts`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                }
+              />
+            </div>
+          )}
         </div>
 
         {/* Content */}
         <div className="px-4 sm:px-6 lg:px-8">
-          {/* MultiControl Panel */}
-          {filteredFlaggedPosts.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6 mt-5">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={
-                        selectedPosts.size === filteredFlaggedPosts.length &&
-                        filteredFlaggedPosts.length > 0
-                      }
-                      onChange={handleSelectAll}
-                      className="w-5 h-5 text-brand border-gray-300 rounded focus:ring-brand"
-                    />
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold text-gray-900">
-                        Select All ({selectedPosts.size}/
-                        {filteredFlaggedPosts.length})
-                      </span>
-                      {selectedPosts.size > 0 && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          {selectedPosts.size} post
-                          {selectedPosts.size !== 1 ? "s" : ""} selected
-                        </p>
-                      )}
-                    </div>
-                  </label>
-                </div>
-              </div>
-            </div>
-          )}
 
           {filteredFlaggedPosts.length === 0 ? (
             <div className="text-center py-16">
@@ -444,7 +517,7 @@ export default function FlaggedPostsPage() {
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {filteredFlaggedPosts.map((post) => (
                     <AdminPostCard
                       key={post.id}

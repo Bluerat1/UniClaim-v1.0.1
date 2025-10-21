@@ -263,147 +263,167 @@ export default function TurnoverManagementPage() {
         description="Manage turnover to OSA posts"
       />
 
-      {/* Header Section */}
-      <div className="pt-4 px-6">
-        <div className="mb-6 hidden lg:block">
-          <h1 className="text-lg font-bold text-gray-800 mb-2">
-            Turnover Management
-          </h1>
-          <p className="text-gray-600 text-sm">
-            Manage found items that need to be turned over to OSA (Office of
-            Student Affairs)
-          </p>
+      <div className="w-full mx-auto mb-5">
+        {/* Page Header */}
+        <div className="hidden px-6 py-3 lg:px-8 lg:flex items-center justify-between bg-gray-50 border-b border-zinc-200">
+          <div className="">
+            <h1 className="text-base font-medium text-gray-900">
+              Turnover Management
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Manage found items that need to be turned over to OSA (Office of
+              Student Affairs)
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+              {turnoverPosts.length} Items
+            </div>
+          </div>
         </div>
 
-        {/* Search Bar and MultiControl Panel Container */}
-        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
-          {/* Search Bar */}
-          <div className="flex-1">
-            <SearchBar
-              onSearch={handleSearch}
-              onClear={handleClear}
-              query={query}
-              setQuery={setQuery}
-              selectedCategoryFilter={selectedCategoryFilter}
-              setSelectedCategoryFilter={setSelectedCategoryFilter}
-            />
-          </div>
+        {/* Mobile nav */}
+        <NavHeader
+          title="Turnover Management"
+          description="Manage turnover to OSA posts"
+        />
 
-          {/* MultiControl Panel */}
-          {turnoverPosts.length > 0 && (
-            <div className="flex-shrink-0">
-              <MultiControlPanel
-                viewMode={viewMode}
-                onViewModeChange={setViewMode}
-                selectedCount={selectedPosts.size}
-                totalCount={turnoverPosts.length}
-                onSelectAll={handleSelectAll}
-                onClearSelection={handleClearSelection}
-                customActions={
-                  selectedPosts.size > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => handleBulkTurnoverConfirm("confirmed")}
-                        className="p-1.5 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-                        title={`Confirm Receipt (${selectedPosts.size})`}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => handleBulkTurnoverConfirm("not_received")}
-                        className="p-1.5 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-                        title={`Mark Not Received (${selectedPosts.size})`}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  )
-                }
+        {/* Search Bar and Filter Controls */}
+        <div className="px-6 py-4 lg:px-8">
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+            {/* Search Bar */}
+            <div className="flex-1">
+              <SearchBar
+                onSearch={handleSearch}
+                onClear={handleClear}
+                query={query}
+                setQuery={setQuery}
+                selectedCategoryFilter={selectedCategoryFilter}
+                setSelectedCategoryFilter={setSelectedCategoryFilter}
               />
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Posts Grid */}
-      <div className=" mt-5 grid grid-cols-1 gap-5 mx-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-        {loading ? (
-          <div className="flex items-center justify-center h-80">
-            <span className="text-gray-400">Loading turnover posts...</span>
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center h-80 text-red-500 p-4">
-            <p>Error loading posts: {error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-            >
-              Retry
-            </button>
-          </div>
-        ) : turnoverPosts.length === 0 ? (
-          <div className="flex items-center justify-center h-80 text-gray-500">
-            No turnover items found.
-          </div>
-        ) : (
-          <>
-            {viewMode === "list" ? (
-              <div className="space-y-4">
-                {turnoverPosts.map((post) => (
-                  <AdminPostCardList
-                    key={post.id}
-                    post={post}
-                    onClick={() => handleOpenAdminPostModal(post)}
-                    onConfirmTurnover={handleConfirmTurnover}
-                    highlightText=""
-                    hideDeleteButton={true}
-                    // Hide admin controls that aren't relevant for turnover management
-                    onDelete={undefined}
-                    onStatusChange={undefined}
-                    onActivateTicket={undefined}
-                    onRevertResolution={undefined}
-                    onHidePost={undefined}
-                    onUnhidePost={undefined}
-                    showUnclaimedMessage={false}
-                    hideStatusDropdown={true}
-                    // Multi-select props
-                    isSelected={selectedPosts.has(post.id)}
-                    onSelectionChange={handlePostSelectionChange}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-                {turnoverPosts.map((post) => (
-                  <AdminPostCard
-                    key={post.id}
-                    post={post}
-                    onClick={() => handleOpenAdminPostModal(post)}
-                    onConfirmTurnover={handleConfirmTurnover}
-                    highlightText=""
-                    hideDeleteButton={true}
-                    // Hide admin controls that aren't relevant for turnover management
-                    onDelete={undefined}
-                    onStatusChange={undefined}
-                    onActivateTicket={undefined}
-                    onRevertResolution={undefined}
-                    onHidePost={undefined}
-                    onUnhidePost={undefined}
-                    showUnclaimedMessage={false}
-                    hideStatusDropdown={true}
-                    // Multi-select props
-                    isSelected={selectedPosts.has(post.id)}
-                    onSelectionChange={handlePostSelectionChange}
-                  />
-                ))}
+            {/* MultiControl Panel */}
+            {turnoverPosts.length > 0 && (
+              <div className="flex-shrink-0">
+                <MultiControlPanel
+                  viewMode={viewMode}
+                  onViewModeChange={setViewMode}
+                  selectedCount={selectedPosts.size}
+                  totalCount={turnoverPosts.length}
+                  onSelectAll={handleSelectAll}
+                  onClearSelection={handleClearSelection}
+                  customActions={
+                    selectedPosts.size > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => handleBulkTurnoverConfirm("confirmed")}
+                          className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium transition-colors shadow-sm"
+                          title={`Confirm Receipt (${selectedPosts.size})`}
+                        >
+                          ✓ Confirm ({selectedPosts.size})
+                        </button>
+                        <button
+                          onClick={() => handleBulkTurnoverConfirm("not_received")}
+                          className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium transition-colors shadow-sm"
+                          title={`Mark Not Received (${selectedPosts.size})`}
+                        >
+                          ✗ Not Received ({selectedPosts.size})
+                        </button>
+                      </div>
+                    )
+                  }
+                />
               </div>
             )}
-          </>
-        )}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="px-6 lg:px-8 mb-13">
+          {loading ? (
+            <div className="flex items-center justify-center h-80">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading turnover posts...</p>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center h-80 text-red-500 p-4">
+              <p className="mb-4">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : turnoverPosts.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="bg-gray-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
+                <span className="text-4xl">📦</span>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                No Turnover Items
+              </h3>
+              <p className="text-gray-500 max-w-md mx-auto">
+                No items are currently awaiting turnover to OSA.
+              </p>
+            </div>
+          ) : (
+            <>
+              {viewMode === "list" ? (
+                <div className="space-y-4">
+                  {turnoverPosts.map((post) => (
+                    <AdminPostCardList
+                      key={post.id}
+                      post={post}
+                      onClick={() => handleOpenAdminPostModal(post)}
+                      onConfirmTurnover={handleConfirmTurnover}
+                      highlightText=""
+                      hideDeleteButton={true}
+                      // Hide admin controls that aren't relevant for turnover management
+                      onDelete={undefined}
+                      onStatusChange={undefined}
+                      onActivateTicket={undefined}
+                      onHidePost={undefined}
+                      onUnhidePost={undefined}
+                      showUnclaimedMessage={false}
+                      hideStatusDropdown={true}
+                      // Multi-select props
+                      isSelected={selectedPosts.has(post.id)}
+                      onSelectionChange={handlePostSelectionChange}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {turnoverPosts.map((post) => (
+                    <AdminPostCard
+                      key={post.id}
+                      post={post}
+                      onClick={() => handleOpenAdminPostModal(post)}
+                      onConfirmTurnover={handleConfirmTurnover}
+                      highlightText=""
+                      hideDeleteButton={true}
+                      // Hide admin controls that aren't relevant for turnover management
+                      onDelete={undefined}
+                      onStatusChange={undefined}
+                      onActivateTicket={undefined}
+                      onHidePost={undefined}
+                      onUnhidePost={undefined}
+                      showUnclaimedMessage={false}
+                      hideStatusDropdown={true}
+                      // Multi-select props
+                      isSelected={selectedPosts.has(post.id)}
+                      onSelectionChange={handlePostSelectionChange}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Turnover Confirmation Modal */}

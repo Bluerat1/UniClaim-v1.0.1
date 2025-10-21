@@ -12,6 +12,7 @@ const STATUS_COLORS: Record<string, string> = {
   'open': '#4CAF50',
   'pending': '#FFC107',
   'resolved': '#2196F3',
+  'resolved_completed': '#2196F3', // Combined status color
   'in-progress': '#FF9800',
   'closed': '#9E9E9E',
   'claimed': '#9C27B0',
@@ -26,12 +27,18 @@ const StatusDistributionChart: React.FC<StatusDistributionChartProps> = ({ posts
   const statusData = posts.reduce((acc, post) => {
     if (!post.status) return acc;
     
-    const status = post.status.toLowerCase();
+    let status = post.status.toLowerCase();
+    
+    // Combine 'resolved' and 'completed' into one category
+    if (status === 'resolved' || status === 'completed') {
+      status = 'resolved_completed';
+    }
+    
     const type = post.type;
     
     if (!acc[status]) {
       acc[status] = { 
-        name: status.charAt(0).toUpperCase() + status.slice(1),
+        name: status === 'resolved_completed' ? 'Resolved' : status.charAt(0).toUpperCase() + status.slice(1),
         lost: 0, 
         found: 0,
         total: 0
