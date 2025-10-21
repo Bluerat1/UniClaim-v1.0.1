@@ -158,127 +158,159 @@ function AdminPostCard({
       )}
 
       {previewUrl ? (
-        <img
-          src={previewUrl}
-          alt="post"
-          className="w-full h-85 object-cover lg:h-70 relative"
-        />
+        <div className="relative overflow-hidden">
+          <img
+            src={previewUrl}
+            alt="post"
+            className="w-full h-85 object-cover cursor-pointer lg:h-70"
+            onClick={onClick}
+          />
+
+          {/* Red Flag Icon - Top Right */}
+          {post.isFlagged && (
+            <div className="absolute top-2 right-2 text-2xl drop-shadow-lg z-10">
+              🚩
+            </div>
+          )}
+
+          {/* Unclaimed Badge - Top Left */}
+          {(post.status === "unclaimed" || post.movedToUnclaimed) && (
+            <div className="absolute top-2 left-2 z-10">
+              <div className="relative group">
+                <div className="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded drop-shadow-lg flex items-center gap-1">
+                  UNCLAIMED
+                  <div className="w-3 h-3 rounded-full bg-orange-600 text-white text-[10px] flex items-center justify-center cursor-help hover:bg-orange-700 transition-colors">
+                    i
+                  </div>
+                </div>
+
+                {/* Tooltip */}
+                <div className="absolute top-full left-0 mt-1 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
+                  {post.movedToUnclaimed
+                    ? "Moved to unclaimed status after 30 days."
+                    : "Marked unclaimed by administrator."}
+                  <div className="absolute -top-1 left-4 w-0 h-0 border-l-2 border-r-2 border-b-2 border-transparent border-b-gray-900"></div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Badge Container - Apply gap when multiple badges are present */}
+          <div className={`absolute top-2 left-2 z-10 ${(() => {
+            const badges = [];
+            // Check 30 days left badge
+            if (post.expiryDate && (() => {
+              try {
+                const now = new Date();
+                let expiry: Date;
+                if (post.expiryDate && typeof post.expiryDate === "object" && "seconds" in post.expiryDate) {
+                  expiry = new Date(post.expiryDate.seconds * 1000);
+                } else if (post.expiryDate instanceof Date) {
+                  expiry = post.expiryDate;
+                } else if (post.expiryDate) {
+                  expiry = new Date(post.expiryDate);
+                } else {
+                  return false;
+                }
+                if (isNaN(expiry.getTime())) return false;
+                const daysLeft = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                return daysLeft > 0;
+              } catch (error) {
+                return false;
+              }
+            })()) badges.push('daysLeft');
+
+            // Check unclaimed badge
+            if (post.status === "unclaimed" || post.movedToUnclaimed) badges.push('unclaimed');
+
+            // Check resolved badge
+            if (post.status === "resolved" || post.status === "completed") badges.push('resolved');
+
+            return badges.length > 1 ? 'flex gap-2' : 'flex';
+          })()}`}>
+            {/* 30 Days Left Badge */}
+            {post.expiryDate && (() => {
+              try {
+                const now = new Date();
+                let expiry: Date;
+
+                if (
+                  post.expiryDate &&
+                  typeof post.expiryDate === "object" &&
+                  "seconds" in post.expiryDate
+                ) {
+                  expiry = new Date(post.expiryDate.seconds * 1000);
+                } else if (post.expiryDate instanceof Date) {
+                  expiry = post.expiryDate;
+                } else if (post.expiryDate) {
+                  expiry = new Date(post.expiryDate);
+                } else {
+                  return null;
+                }
+
+                if (isNaN(expiry.getTime())) return null;
+
+                const daysLeft = Math.ceil(
+                  (expiry.getTime() - now.getTime()) /
+                    (1000 * 60 * 60 * 24)
+                );
+
+                if (daysLeft <= 0) {
+                  return null;
+                } else if (daysLeft <= 3) {
+                  return (
+                    <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-red-100 text-red-700 text-xs">
+                      ⚠️ {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
+                    </span>
+                  );
+                } else if (daysLeft <= 7) {
+                  return (
+                    <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-orange-100 text-orange-700 text-xs">
+                      ⚠️ {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
+                    </span>
+                  );
+                } else {
+                  return (
+                    <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-green-100 text-green-700 text-xs">
+                      {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
+                    </span>
+                  );
+                }
+              } catch (error) {
+                console.error("Error calculating days left:", error);
+                return null;
+              }
+            })()}
+
+            {/* Unclaimed Badge */}
+            {(post.status === "unclaimed" || post.movedToUnclaimed) && (
+              <div className="relative group">
+                <div className="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded drop-shadow-lg flex items-center gap-1">
+                  UNCLAIMED
+                  <div className="w-3 h-3 rounded-full bg-orange-600 text-white text-[8px] flex items-center justify-center cursor-help hover:bg-orange-700 transition-colors">
+                    i
+                  </div>
+                </div>
+                <div className="absolute top-full left-0 mt-1 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
+                  {post.movedToUnclaimed
+                    ? "This post expired after 30 days and was automatically moved to unclaimed status"
+                    : "This post was manually marked as unclaimed by an administrator"}
+                  <div className="absolute -top-1 left-4 w-0 h-0 border-l-2 border-r-2 border-b-2 border-transparent border-b-gray-900"></div>
+                </div>
+              </div>
+            )}
+
+            {/* Resolved Badge - Aligned with other badges in same container */}
+            {(post.status === "resolved" || post.status === "completed") && (
+              <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-green-100 text-green-700 text-xs">
+                RESOLVED
+              </span>
+            )}
+          </div>
+        </div>
       ) : (
         <div className="bg-gray-300 h-60 w-full" />
       )}
-
-      {/* Badge Container - Apply gap when multiple badges are present */}
-      <div className={`absolute top-2 left-2 z-10 ${(() => {
-        const badges = [];
-        // Check 30 days left badge
-        if (post.expiryDate && (() => {
-          try {
-            const now = new Date();
-            let expiry: Date;
-            if (post.expiryDate && typeof post.expiryDate === "object" && "seconds" in post.expiryDate) {
-              expiry = new Date(post.expiryDate.seconds * 1000);
-            } else if (post.expiryDate instanceof Date) {
-              expiry = post.expiryDate;
-            } else if (post.expiryDate) {
-              expiry = new Date(post.expiryDate);
-            } else {
-              return false;
-            }
-            if (isNaN(expiry.getTime())) return false;
-            const daysLeft = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-            return daysLeft > 0;
-          } catch (error) {
-            return false;
-          }
-        })()) badges.push('daysLeft');
-
-        // Check unclaimed badge
-        if (post.status === "unclaimed" || post.movedToUnclaimed) badges.push('unclaimed');
-
-        // Check resolved badge
-        if (post.status === "resolved" || post.status === "completed") badges.push('resolved');
-
-        return badges.length > 1 ? 'flex gap-2' : 'flex';
-      })()}`}>
-        {/* 30 Days Left Badge */}
-        {post.expiryDate && (() => {
-          try {
-            const now = new Date();
-            let expiry: Date;
-
-            if (
-              post.expiryDate &&
-              typeof post.expiryDate === "object" &&
-              "seconds" in post.expiryDate
-            ) {
-              expiry = new Date(post.expiryDate.seconds * 1000);
-            } else if (post.expiryDate instanceof Date) {
-              expiry = post.expiryDate;
-            } else if (post.expiryDate) {
-              expiry = new Date(post.expiryDate);
-            } else {
-              return null;
-            }
-
-            if (isNaN(expiry.getTime())) return null;
-
-            const daysLeft = Math.ceil(
-              (expiry.getTime() - now.getTime()) /
-                (1000 * 60 * 60 * 24)
-            );
-
-            if (daysLeft <= 0) {
-              return null;
-            } else if (daysLeft <= 3) {
-              return (
-                <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-red-100 text-red-700 text-xs">
-                  ⚠️ {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
-                </span>
-              );
-            } else if (daysLeft <= 7) {
-              return (
-                <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-orange-100 text-orange-700 text-xs">
-                  ⚠️ {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
-                </span>
-              );
-            } else {
-              return (
-                <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-green-100 text-green-700 text-xs">
-                  {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
-                </span>
-              );
-            }
-          } catch (error) {
-            console.error("Error calculating days left:", error);
-            return null;
-          }
-        })()}
-
-        {/* Unclaimed Badge */}
-        {(post.status === "unclaimed" || post.movedToUnclaimed) && (
-          <div className="relative group">
-            <div className="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded drop-shadow-lg flex items-center gap-1">
-              UNCLAIMED
-              <div className="w-3 h-3 rounded-full bg-orange-600 text-white text-[8px] flex items-center justify-center cursor-help hover:bg-orange-700 transition-colors">
-                i
-              </div>
-            </div>
-            <div className="absolute top-full left-0 mt-1 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
-              {post.movedToUnclaimed
-                ? "This post expired after 30 days and was automatically moved to unclaimed status"
-                : "This post was manually marked as unclaimed by an administrator"}
-              <div className="absolute -top-1 left-4 w-0 h-0 border-l-2 border-r-2 border-b-2 border-transparent border-b-gray-900"></div>
-            </div>
-          </div>
-        )}
-
-        {/* Resolved Badge - Aligned with other badges in same container */}
-        {(post.status === "resolved" || post.status === "completed") && (
-          <span className="capitalize px-2 py-1 rounded-[3px] font-medium bg-green-100 text-green-700 text-xs">
-            RESOLVED
-          </span>
-        )}
-      </div>
 
       <div className="p-3">
         <div className="flex flex-row items-start">
@@ -351,8 +383,119 @@ function AdminPostCard({
           <div className="mt-2 text-xs text-gray-600">
             <p>ID: {post.user?.studentId || "N/A"}</p>
             <p>Contact: {post.user?.contactNum || "N/A"}</p>
-            {/* Delete and Activate buttons in same row, now including approve/hide buttons */}
-            <div className="mt-2 flex gap-2 flex-wrap">
+            {/* Action buttons moved below contact info */}
+            <div className="flex gap-1 mt-2">
+              {/* Turnover confirmation button - for turnover management */}
+              {onConfirmTurnover &&
+                post.turnoverDetails?.turnoverStatus === "declared" && (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onConfirmTurnover(post, "confirmed");
+                      }}
+                      className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition flex items-center gap-1"
+                      title="Confirm Received - Mark as successfully received"
+                    >
+                      ✓ Confirm Received
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onConfirmTurnover(post, "not_received");
+                      }}
+                      className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition flex items-center gap-1"
+                      title="Mark as Not Received - Item was not turned over"
+                    >
+                      ✗ Not Received
+                    </button>
+                  </>
+                )}
+
+              {/* Approve button - for flagged posts */}
+              {onApprove && post.isFlagged && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onApprove(post);
+                  }}
+                  className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
+                  title="Approve Post - Remove flag and make visible"
+                >
+                  Approve
+                </button>
+              )}
+
+              {post.isFlagged && !post.isHidden && onHidePost && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onHidePost(post);
+                  }}
+                  className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition"
+                  title="Hide Post - Hide from public view"
+                >
+                  Hide
+                </button>
+              )}
+
+              {post.isHidden && onUnhidePost && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUnhidePost(post);
+                  }}
+                  className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
+                  title="Unhide Post - Make visible to public"
+                >
+                  Unhide
+                </button>
+              )}
+
+              {/* Campus Security Collection buttons */}
+              {showCampusSecurityButtons &&
+                onConfirmCampusSecurityCollection &&
+                post.turnoverDetails?.turnoverAction ===
+                  "turnover to Campus Security" && (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onConfirmCampusSecurityCollection(post, "collected");
+                      }}
+                      className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition flex items-center gap-1"
+                      title="Mark as Collected - Item has been collected by owner"
+                    >
+                      ✓ Collected
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onConfirmCampusSecurityCollection(post, "not_available");
+                      }}
+                      className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition flex items-center gap-1"
+                      title="Mark as Not Available - Item was not collected"
+                    >
+                      ✗ Not Available
+                    </button>
+                  </>
+                )}
+
+              {/* Show activate button for any post that can be reactivated */}
+              {(post.status === "unclaimed" || post.movedToUnclaimed) &&
+                onActivateTicket && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onActivateTicket(post);
+                    }}
+                    className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
+                    title="Activate - Move back to active status"
+                  >
+                    Activate
+                  </button>
+                )}
+
               {!onPermanentDelete && !onRestore && !hideDeleteButton && (
                 <button
                   onClick={handleDelete}
@@ -387,136 +530,6 @@ function AdminPostCard({
                   ) : (
                     "Delete"
                   )}
-                </button>
-              )}
-
-              {/* Activate button moved here to align with delete */}
-              {(post.status === "unclaimed" || post.movedToUnclaimed) &&
-                onActivateTicket && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onActivateTicket(post);
-                  }}
-                  className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
-                  title="Activate"
-                >
-                  Activate
-                </button>
-              )}
-
-              {/* Revert button moved here to align with delete and activate */}
-              {(post.status === "resolved" || post.status === "completed") &&
-                onRevertResolution && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRevertResolution(post);
-                    }}
-                    className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition"
-                    title="Revert Resolution"
-                  >
-                    Revert
-                  </button>
-                )}
-
-              {/* Approve button moved here from bottom */}
-              {onApprove && post.isFlagged && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onApprove(post);
-                  }}
-                  className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
-                  title="Approve Post"
-                >
-                  Approve
-                </button>
-              )}
-
-              {/* Hide button moved here from bottom */}
-              {post.isFlagged && !post.isHidden && onHidePost && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onHidePost(post);
-                  }}
-                  className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition"
-                  title="Hide Post"
-                >
-                  Hide
-                </button>
-              )}
-
-              {/* Unhide button moved here from bottom */}
-              {post.isHidden && onUnhidePost && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onUnhidePost(post);
-                  }}
-                  className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
-                  title="Unhide Post"
-                >
-                  Unhide
-                </button>
-              )}
-
-              {/* Confirm Received button moved here from bottom */}
-              {onConfirmTurnover && post.turnoverDetails?.turnoverStatus === "declared" && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onConfirmTurnover(post, "confirmed");
-                  }}
-                  className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition flex items-center gap-1"
-                  title="Confirm Received"
-                >
-                  ✓ Confirm Received
-                </button>
-              )}
-
-              {/* Not Received button moved here from bottom */}
-              {onConfirmTurnover && post.turnoverDetails?.turnoverStatus === "declared" && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onConfirmTurnover(post, "not_received");
-                  }}
-                  className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition flex items-center gap-1"
-                  title="Mark as Not Received"
-                >
-                  ✗ Not Received
-                </button>
-              )}
-
-              {/* Item Collected button moved here from AdminPostModal */}
-              {showCampusSecurityButtons && onConfirmCampusSecurityCollection &&
-               post.turnoverDetails?.turnoverAction === "turnover to Campus Security" && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onConfirmCampusSecurityCollection(post, "collected");
-                  }}
-                  className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition flex items-center gap-1"
-                  title="Mark as Collected"
-                >
-                  ✓ Item Collected
-                </button>
-              )}
-
-              {/* Not Available button moved here from AdminPostModal */}
-              {showCampusSecurityButtons && onConfirmCampusSecurityCollection &&
-               post.turnoverDetails?.turnoverAction === "turnover to Campus Security" && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onConfirmCampusSecurityCollection(post, "not_available");
-                  }}
-                  className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition flex items-center gap-1"
-                  title="Mark as Not Available"
-                >
-                  ✗ Not Available
                 </button>
               )}
             </div>
@@ -584,8 +597,7 @@ function AdminPostCard({
           }}
         />
 
-
-
+        {/* Restore and Permanently Delete buttons for deleted posts */}
         {onRestore && onPermanentDelete && (
           <div className="flex gap-2 mt-3">
             <button

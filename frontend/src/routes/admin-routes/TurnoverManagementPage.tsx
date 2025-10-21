@@ -329,10 +329,8 @@ export default function TurnoverManagementPage() {
         </div>
       </div>
 
-      {/* Posts Section */}
-      <div className="px-6">
-
-        {/* Posts Display */}
+      {/* Posts Grid */}
+      <div className=" mt-5 grid grid-cols-1 gap-5 mx-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {loading ? (
           <div className="flex items-center justify-center h-80">
             <span className="text-gray-400">Loading turnover posts...</span>

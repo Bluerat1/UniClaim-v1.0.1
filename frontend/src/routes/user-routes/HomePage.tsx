@@ -15,6 +15,7 @@ import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { postService } from "@/services/firebase/posts";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
+import { MdInfoOutline } from "react-icons/md";
 
 function fuzzyMatch(text: string, query: string): boolean {
   const cleanedText = text.toLowerCase();
@@ -335,7 +336,7 @@ export default function HomePage() {
       </div>
 
       {/* Lost / Found Toggle */}
-      <div className="flex flex-wrap sm:justify-center items-center gap-3 w-full px-4 lg:justify-start lg:gap-3">
+      <div className="flex mt-5 flex-wrap sm:justify-center items-center gap-3 w-full px-4 lg:justify-start lg:gap-3">
         <button
           className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
             viewType === "all"
@@ -386,7 +387,7 @@ export default function HomePage() {
         </button>
 
         <button
-          className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+          className={`relative flex items-center gap-2 px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
             viewType === "completed"
               ? "bg-navyblue text-white"
               : "bg-gray-200 text-gray-700 hover:bg-dark-navyblue/15 border-gray-300"
@@ -400,6 +401,15 @@ export default function HomePage() {
           }}
         >
           Completed Items
+          {/* Info Icon inside the button */}
+          <div className="relative group">
+            <MdInfoOutline />
+            {/* Tooltip */}
+            <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 hidden group-hover:block bg-blue-100 text-blue-600 text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap z-10">
+              All completed posts will be shown up to 30 days.
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-[6px] w-2 h-2 bg-blue-100 rotate-45"></div>
+            </div>
+          </div>
         </button>
       </div>
 

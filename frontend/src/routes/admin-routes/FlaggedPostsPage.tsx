@@ -309,7 +309,7 @@ export default function FlaggedPostsPage() {
         />
 
         {/* Search Bar */}
-        <div className="px-4 sm:px-6 lg:px-8">
+        <div className="px-4 mt-4 sm:px-6 lg:px-8">
           <SearchBar
             onSearch={handleSearch}
             onClear={handleClear}
@@ -321,7 +321,7 @@ export default function FlaggedPostsPage() {
         </div>
 
         {/* Filter Buttons */}
-        <div className="flex mt-7 flex-wrap sm:justify-center items-center gap-3 w-full px-4 sm:px-6 lg:px-8 lg:justify-start lg:gap-3">
+        <div className="flex mt-5 flex-wrap sm:justify-center items-center gap-3 w-full px-4 sm:px-6 lg:px-8 lg:justify-start lg:gap-3">
           <button
             className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
               viewType === "all"
@@ -366,43 +366,34 @@ export default function FlaggedPostsPage() {
         <div className="px-4 sm:px-6 lg:px-8">
           {/* MultiControl Panel */}
           {filteredFlaggedPosts.length > 0 && (
-            <div className="flex justify-end mb-6 mt-5">
-              <MultiControlPanel
-                viewMode={viewMode}
-                onViewModeChange={setViewMode}
-                selectedCount={selectedPosts.size}
-                totalCount={filteredFlaggedPosts.length}
-                onSelectAll={handleSelectAll}
-                onClearSelection={handleClearSelection}
-                onBulkDelete={handleBulkDelete}
-                customActions={
-                  selectedPosts.size > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => handleBulkActionClick("approve")}
-                        disabled={actionLoading === "bulk"}
-                        className="p-1.5 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-                        title={`Approve (${selectedPosts.size})`}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </button>
-
-                      <button
-                        onClick={() => handleBulkActionClick("hide")}
-                        disabled={actionLoading === "bulk"}
-                        className="p-1.5 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-                        title={`Hide (${selectedPosts.size})`}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                        </svg>
-                      </button>
+            <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6 mt-5">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={
+                        selectedPosts.size === filteredFlaggedPosts.length &&
+                        filteredFlaggedPosts.length > 0
+                      }
+                      onChange={handleSelectAll}
+                      className="w-5 h-5 text-brand border-gray-300 rounded focus:ring-brand"
+                    />
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold text-gray-900">
+                        Select All ({selectedPosts.size}/
+                        {filteredFlaggedPosts.length})
+                      </span>
+                      {selectedPosts.size > 0 && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {selectedPosts.size} post
+                          {selectedPosts.size !== 1 ? "s" : ""} selected
+                        </p>
+                      )}
                     </div>
-                  )
-                }
-              />
+                  </label>
+                </div>
+              </div>
             </div>
           )}
 

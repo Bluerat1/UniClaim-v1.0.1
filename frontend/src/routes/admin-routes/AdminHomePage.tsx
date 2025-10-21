@@ -102,7 +102,7 @@ export default function AdminHomePage() {
 
   // Multi-select handlers
   const handlePostSelectionChange = (post: Post, selected: boolean) => {
-    setSelectedPosts(prev => {
+    setSelectedPosts((prev) => {
       const newSet = new Set(prev);
       if (selected) {
         newSet.add(post.id);
@@ -117,7 +117,7 @@ export default function AdminHomePage() {
     if (selectedPosts.size === postsToDisplay.length) {
       setSelectedPosts(new Set());
     } else {
-      setSelectedPosts(new Set(postsToDisplay.map(post => post.id)));
+      setSelectedPosts(new Set(postsToDisplay.map((post) => post.id)));
     }
   };
 
@@ -299,7 +299,11 @@ export default function AdminHomePage() {
       return;
     }
 
-    if (!confirm(`Are you sure you want to delete ${selectedPosts.size} selected posts? This action cannot be undone.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete ${selectedPosts.size} selected posts? This action cannot be undone.`
+      )
+    ) {
       return;
     }
 
@@ -312,7 +316,11 @@ export default function AdminHomePage() {
         await postService.deletePost(postId, false, userData?.email || "admin");
       }
 
-      showToast("success", "Bulk Delete Complete", `Successfully deleted ${selectedPosts.size} posts`);
+      showToast(
+        "success",
+        "Bulk Delete Complete",
+        `Successfully deleted ${selectedPosts.size} posts`
+      );
 
       // Clear selection and refresh
       setSelectedPosts(new Set());
@@ -323,7 +331,11 @@ export default function AdminHomePage() {
       }
     } catch (error: any) {
       console.error("Error during bulk delete:", error);
-      showToast("error", "Bulk Delete Failed", error.message || "Failed to delete selected posts");
+      showToast(
+        "error",
+        "Bulk Delete Failed",
+        error.message || "Failed to delete selected posts"
+      );
     } finally {
       setIsBulkDeleting(false);
     }
@@ -1248,7 +1260,7 @@ export default function AdminHomePage() {
       </div>
 
       {/* View Type Tabs */}
-      <div className="flex mt-7 flex-wrap sm:justify-center items-center gap-3 w-full px-6 lg:justify-between lg:gap-3">
+      <div className="flex mt-5 flex-wrap sm:justify-center items-center gap-3 w-full px-6 lg:justify-between lg:gap-3">
         <div className="flex items-center gap-3 flex-wrap sm:justify-center lg:justify-start">
           {/* <div className="w-full lg:w-auto text-center lg:text-left mb-2 lg:mb-0">
             <span className="text-sm text-gray-600">Current View: </span>
@@ -1397,6 +1409,7 @@ export default function AdminHomePage() {
           </button>
         </div>
 
+<<<<<<< HEAD
         {/* Multi-select controls */}
         <div className="flex items-center justify-end">
           <MultiControlPanel
@@ -1415,6 +1428,131 @@ export default function AdminHomePage() {
             viewType={viewType}
           />
         </div>
+=======
+        {/* Multi-select controls - only show when not in deleted view */}
+        {viewType !== "deleted" && (
+          <div className="flex items-center justify-end">
+            <div className="flex items-center gap-2 bg-white rounded-lg border border-gray-200 px-3 py-2 shadow-sm max-w-[200px]">
+              {/* Select All/Deselect All Icon Button */}
+              <button
+                onClick={handleSelectAll}
+                className={`p-1.5 rounded transition-colors ${
+                  selectedPosts.size === postsToDisplay.length &&
+                  postsToDisplay.length > 0
+                    ? "text-blue-600 hover:bg-blue-50"
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+                title={
+                  selectedPosts.size === postsToDisplay.length &&
+                  postsToDisplay.length > 0
+                    ? "Deselect All"
+                    : "Select All"
+                }
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill={
+                    selectedPosts.size === postsToDisplay.length &&
+                    postsToDisplay.length > 0
+                      ? "currentColor"
+                      : "none"
+                  }
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  {selectedPosts.size === postsToDisplay.length &&
+                  postsToDisplay.length > 0 ? (
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  ) : (
+                    <rect
+                      x="3"
+                      y="3"
+                      width="18"
+                      height="18"
+                      rx="2"
+                      ry="2"
+                      strokeWidth={2}
+                    />
+                  )}
+                </svg>
+              </button>
+
+              {/* Select All Message - shows when no posts selected */}
+              {(!selectedPosts.size || selectedPosts.size === 0) && (
+                <span className="text-sm text-gray-600">Select All</span>
+              )}
+
+              {/* Selection Counter with Text */}
+              {selectedPosts.size > 0 && (
+                <div
+                  className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-opacity bg-blue-50 text-blue-700 opacity-100`}
+                >
+                  Selected ({selectedPosts.size})
+                </div>
+              )}
+
+              {/* Delete Selected Icon Button */}
+              <button
+                onClick={handleBulkDelete}
+                disabled={isBulkDeleting || selectedPosts.size === 0}
+                className={`p-1.5 rounded transition-all ${
+                  selectedPosts.size > 0
+                    ? isBulkDeleting
+                      ? "text-gray-400 cursor-not-allowed"
+                      : "text-red-600 hover:bg-red-50"
+                    : "text-gray-400 cursor-not-allowed"
+                }`}
+                title="Delete Selected"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              </button>
+
+              {/* Clear Icon Button */}
+              <button
+                onClick={handleClearSelection}
+                disabled={selectedPosts.size === 0}
+                className={`p-1.5 rounded transition-all ${
+                  selectedPosts.size > 0
+                    ? "text-gray-600 hover:bg-gray-50"
+                    : "text-gray-400 cursor-not-allowed"
+                }`}
+                title="Clear Selection"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+>>>>>>> e65dfc341620014dca4fd66acd11dd874b93e7d7
       </div>
 
       <div className={`${viewMode === "list" ? "space-y-4 mx-6 mt-7" : "grid grid-cols-1 gap-5 mx-6 mt-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"}`}>
