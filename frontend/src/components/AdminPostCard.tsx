@@ -16,6 +16,7 @@ interface AdminPostCardProps {
   onApprove?: (post: Post) => void;
   onConfirmTurnover?: (post: Post, status: "confirmed" | "not_received") => void;
   onConfirmCampusSecurityCollection?: (post: Post, status: "collected" | "not_available") => void;
+  onRevert?: (post: Post) => void;
   hideDeleteButton?: boolean;
   isDeleting?: boolean;
   showUnclaimedMessage?: boolean;
@@ -69,6 +70,7 @@ function AdminPostCard({
   onApprove,
   onConfirmTurnover,
   onConfirmCampusSecurityCollection,
+  onRevert,
   hideDeleteButton = false,
   isDeleting = false,
   showUnclaimedMessage = true,
@@ -478,6 +480,20 @@ function AdminPostCard({
                     </button>
                   </>
                 )}
+
+              {/* Show revert button for completed posts */}
+              {onRevert && (post.status === "resolved" || post.status === "completed") && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRevert(post);
+                  }}
+                  className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition"
+                  title="Revert Post - Move back to pending status"
+                >
+                  Revert
+                </button>
+              )}
 
               {/* Show activate button for any post that can be reactivated */}
               {(post.status === "unclaimed" || post.movedToUnclaimed) &&

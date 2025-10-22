@@ -9,8 +9,7 @@ import TicketModal from "@/components/TicketModal";
 import TurnoverConfirmationModal from "@/components/TurnoverConfirmationModal";
 import MobileNavText from "@/components/NavHeadComp";
 import SearchBar from "../../components/SearchBar";
-
-// hooks
+import MultiControlPanel from "../../components/MultiControlPanel";
 import { useAdminPosts, useResolvedPosts } from "@/hooks/usePosts";
 import { useToast } from "@/context/ToastContext";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
@@ -47,7 +46,8 @@ export default function AdminHomePage() {
     null
   );
 
-  const [viewMode] = useState<"card" | "list">("card");
+  // State for view mode (card/list view)
+  const [viewMode, setViewMode] = useState<"card" | "list">("card");
   const [viewType, setViewType] = useState<
     | "all"
     | "lost"
@@ -69,6 +69,8 @@ export default function AdminHomePage() {
   // Multi-select state for bulk operations
   const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isBulkRestoring, setIsBulkRestoring] = useState(false);
+  const [isBulkReverting, setIsBulkReverting] = useState(false);
 
   // Delete confirmation modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -118,6 +120,117 @@ export default function AdminHomePage() {
     }
   };
 
+  const handleBulkRestore = async () => {
+    if (selectedPosts.size === 0) {
+      showToast("warning", "No Selection", "Please select posts to restore");
+      return;
+    }
+
+    if (
+      !confirm(
+        `Are you sure you want to restore ${selectedPosts.size} selected posts? They will be moved back to pending status.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setIsBulkRestoring(true);
+      const { postService } = await import("../../services/firebase/posts");
+
+      // Restore all selected posts
+      for (const postId of selectedPosts) {
+        await postService.restorePost(postId);
+      }
+
+      showToast(
+        "success",
+        "Bulk Restore Complete",
+        `Successfully restored ${selectedPosts.size} posts`
+      );
+
+      // Clear selection and refresh
+      setSelectedPosts(new Set());
+
+      // Refresh the deleted posts list
+      if (viewType === "deleted") {
+        fetchDeletedPosts();
+      }
+    } catch (error: any) {
+      console.error("Error during bulk restore:", error);
+      showToast(
+        "error",
+        "Bulk Restore Failed",
+        error.message || "Failed to restore selected posts"
+      );
+    } finally {
+      setIsBulkRestoring(false);
+    }
+  };
+
+  const handleBulkRevert = async () => {
+    if (selectedPosts.size === 0) {
+      showToast("warning", "No Selection", "Please select posts to revert");
+      return;
+    }
+
+    if (
+      !confirm(
+        `Are you sure you want to revert ${selectedPosts.size} selected posts? They will be moved back to pending status and all resolution data will be cleared.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setIsBulkReverting(true);
+      const { postService } = await import("../../utils/firebase");
+
+      // Revert all selected posts
+      for (const postId of selectedPosts) {
+        const post = postsToDisplay.find(p => p.id === postId);
+        if (post) {
+          await postService.cleanupHandoverDetailsAndPhotos(postId);
+          await postService.cleanupClaimDetailsAndPhotos(postId);
+          await postService.updatePostStatus(
+            postId,
+            "pending",
+            undefined,
+            "Post reverted by admin via bulk operation"
+          );
+        }
+      }
+
+      showToast(
+        "success",
+        "Bulk Revert Complete",
+        `Successfully reverted ${selectedPosts.size} posts back to pending status`
+      );
+
+      // Clear selection
+      setSelectedPosts(new Set());
+    } catch (error: any) {
+      console.error("Error during bulk revert:", error);
+      showToast(
+        "error",
+        "Bulk Revert Failed",
+        error.message || "Failed to revert selected posts"
+      );
+    } finally {
+      setIsBulkReverting(false);
+    }
+  };
+
+  const handleRevertPost = async (post: Post) => {
+    setPostToRevert(post);
+    setShowRevertModal(true);
+  };
+
+  const handleDeletePost = (post: Post) => {
+    setPostToDelete(post);
+    setShowDeleteModal(true);
+  };
+
   const handleBulkDelete = async () => {
     if (selectedPosts.size === 0) {
       showToast("warning", "No Selection", "Please select posts to delete");
@@ -164,11 +277,6 @@ export default function AdminHomePage() {
     } finally {
       setIsBulkDeleting(false);
     }
-  };
-
-  const handleDeletePost = (post: Post) => {
-    setPostToDelete(post);
-    setShowDeleteModal(true);
   };
 
   const handleClearSelection = () => {
@@ -1229,132 +1337,27 @@ export default function AdminHomePage() {
           </button>
         </div>
 
-        {/* Multi-select controls - only show when not in deleted view */}
-        {viewType !== "deleted" && (
-          <div className="flex items-center justify-end">
-            <div className="flex items-center gap-2 bg-white rounded-lg border border-gray-200 px-3 py-2 shadow-sm max-w-[200px]">
-              {/* Select All/Deselect All Icon Button */}
-              <button
-                onClick={handleSelectAll}
-                className={`p-1.5 rounded transition-colors ${
-                  selectedPosts.size === postsToDisplay.length &&
-                  postsToDisplay.length > 0
-                    ? "text-blue-600 hover:bg-blue-50"
-                    : "text-gray-600 hover:bg-gray-50"
-                }`}
-                title={
-                  selectedPosts.size === postsToDisplay.length &&
-                  postsToDisplay.length > 0
-                    ? "Deselect All"
-                    : "Select All"
-                }
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill={
-                    selectedPosts.size === postsToDisplay.length &&
-                    postsToDisplay.length > 0
-                      ? "currentColor"
-                      : "none"
-                  }
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  {selectedPosts.size === postsToDisplay.length &&
-                  postsToDisplay.length > 0 ? (
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  ) : (
-                    <rect
-                      x="3"
-                      y="3"
-                      width="18"
-                      height="18"
-                      rx="2"
-                      ry="2"
-                      strokeWidth={2}
-                    />
-                  )}
-                </svg>
-              </button>
-
-              {/* Select All Message - shows when no posts selected */}
-              {(!selectedPosts.size || selectedPosts.size === 0) && (
-                <span className="text-sm text-gray-600">Select All</span>
-              )}
-
-              {/* Selection Counter with Text */}
-              {selectedPosts.size > 0 && (
-                <div
-                  className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-opacity bg-blue-50 text-blue-700 opacity-100`}
-                >
-                  Selected ({selectedPosts.size})
-                </div>
-              )}
-
-              {/* Delete Selected Icon Button */}
-              <button
-                onClick={handleBulkDelete}
-                disabled={isBulkDeleting || selectedPosts.size === 0}
-                className={`p-1.5 rounded transition-all ${
-                  selectedPosts.size > 0
-                    ? isBulkDeleting
-                      ? "text-gray-400 cursor-not-allowed"
-                      : "text-red-600 hover:bg-red-50"
-                    : "text-gray-400 cursor-not-allowed"
-                }`}
-                title="Delete Selected"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-              </button>
-
-              {/* Clear Icon Button */}
-              <button
-                onClick={handleClearSelection}
-                disabled={selectedPosts.size === 0}
-                className={`p-1.5 rounded transition-all ${
-                  selectedPosts.size > 0
-                    ? "text-gray-600 hover:bg-gray-50"
-                    : "text-gray-400 cursor-not-allowed"
-                }`}
-                title="Clear Selection"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Multi-select controls */}
+        <div className="flex items-center justify-end">
+          <MultiControlPanel
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            selectedCount={selectedPosts.size}
+            totalCount={postsToDisplay.length}
+            onSelectAll={handleSelectAll}
+            onClearSelection={handleClearSelection}
+            onBulkDelete={handleBulkDelete}
+            isBulkDeleting={isBulkDeleting}
+            onBulkRestore={viewType === "deleted" ? handleBulkRestore : undefined}
+            isBulkRestoring={isBulkRestoring}
+            onBulkRevert={viewType === "completed" ? handleBulkRevert : undefined}
+            isBulkReverting={isBulkReverting}
+            viewType={viewType}
+          />
+        </div>
       </div>
 
-      <div className={`${viewMode === "list" ? "space-y-4 mx-6 mt-7" : "grid grid-cols-1 gap-5 mx-6 mt-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"}`}>
+  <div className={`${viewMode === "list" ? "space-y-4 mx-6 mt-7" : "grid grid-cols-1 gap-5 mx-6 mt-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"}`}>
         {/* Handle loading state */}
         {loading ||
         resolvedLoading ||
@@ -1419,6 +1422,7 @@ export default function AdminHomePage() {
                 onPermanentDelete={
                   viewType === "deleted" ? handlePermanentDeletePost : undefined
                 }
+                onRevert={viewType === "completed" ? handleRevertPost : undefined}
                 showUnclaimedMessage={false}
                 // Multi-select props
                 isSelected={selectedPosts.has(post.id)}
@@ -1445,6 +1449,7 @@ export default function AdminHomePage() {
                 onPermanentDelete={
                   viewType === "deleted" ? handlePermanentDeletePost : undefined
                 }
+                onRevert={viewType === "completed" ? handleRevertPost : undefined}
                 showUnclaimedMessage={false}
                 // Multi-select props
                 isSelected={selectedPosts.has(post.id)}

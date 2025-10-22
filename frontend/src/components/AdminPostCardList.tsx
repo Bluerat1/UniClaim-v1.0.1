@@ -10,6 +10,7 @@ interface AdminPostCardListProps {
   onStatusChange?: (post: Post, status: string, adminNotes?: string) => void;
   onActivateTicket?: (post: Post) => void;
   onRevertResolution?: (post: Post) => void;
+  onRevert?: (post: Post) => void;
   onHidePost?: (post: Post) => void;
   onUnhidePost?: (post: Post) => void;
   onRestore?: (post: Post) => void;
@@ -64,6 +65,7 @@ function AdminPostCardList({
   onStatusChange,
   onActivateTicket,
   onRevertResolution,
+  onRevert,
   onHidePost,
   onUnhidePost,
   onRestore,
@@ -309,11 +311,11 @@ function AdminPostCardList({
 
         <div className="flex gap-0.5 mt-1">
           {(post.status === "resolved" || post.status === "completed") &&
-            onRevertResolution && (
+            (onRevertResolution || onRevert) && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onRevertResolution(post);
+                  (onRevert || onRevertResolution)?.(post);
                 }}
                 className="px-1 py-0.5 text-[10px] bg-orange-500 text-white rounded hover:bg-orange-600 transition"
                 title="Revert Resolution"
