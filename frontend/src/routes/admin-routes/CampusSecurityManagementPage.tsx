@@ -324,17 +324,31 @@ export default function CampusSecurityManagementPage() {
                       <div className="flex flex-wrap gap-2">
                         <button
                           onClick={() => handleBulkCampusSecurityCollection("collected")}
-                          className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium transition-colors shadow-sm"
+                          disabled={selectedPosts.size === 0}
+                          className={`p-1.5 rounded transition-colors ${
+                            selectedPosts.size > 0
+                              ? "text-green-600 hover:bg-green-50"
+                              : "text-gray-400 cursor-not-allowed"
+                          }`}
                           title={`Collect Items (${selectedPosts.size})`}
                         >
-                          ✓ Collected ({selectedPosts.size})
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
                         </button>
                         <button
                           onClick={() => handleBulkCampusSecurityCollection("not_available")}
-                          className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium transition-colors shadow-sm"
+                          disabled={selectedPosts.size === 0}
+                          className={`p-1.5 rounded transition-colors ${
+                            selectedPosts.size > 0
+                              ? "text-red-600 hover:bg-red-50"
+                              : "text-gray-400 cursor-not-allowed"
+                          }`}
                           title={`Mark Not Available (${selectedPosts.size})`}
                         >
-                          ✗ Not Available ({selectedPosts.size})
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
                         </button>
                       </div>
                     )

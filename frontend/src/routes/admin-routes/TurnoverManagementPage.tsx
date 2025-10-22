@@ -321,14 +321,14 @@ export default function TurnoverManagementPage() {
                           className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium transition-colors shadow-sm"
                           title={`Confirm Receipt (${selectedPosts.size})`}
                         >
-                          ✓ Confirm ({selectedPosts.size})
+                          ✓ ({selectedPosts.size})
                         </button>
                         <button
                           onClick={() => handleBulkTurnoverConfirm("not_received")}
                           className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium transition-colors shadow-sm"
                           title={`Mark Not Received (${selectedPosts.size})`}
                         >
-                          ✗ Not Received ({selectedPosts.size})
+                          ✗ ({selectedPosts.size})
                         </button>
                       </div>
                     )

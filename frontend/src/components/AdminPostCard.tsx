@@ -141,7 +141,7 @@ function AdminPostCard({
   };
 
   return (
-    <div className={`bg-white rounded shadow/2 overflow-hidden hover:shadow-md/5 transition relative cursor-pointer ${isSelected ? "border-brand ring-2 ring-brand/20 shadow-brand/10" : post.isFlagged ? "border border-red-500" : ""}`} onClick={onClick}>
+    <div className={`bg-white rounded shadow/2 hover:shadow-md/5 transition relative cursor-pointer ${isSelected ? "border-brand ring-2 ring-brand/20 shadow-brand/10" : post.isFlagged ? "border border-red-500" : ""}`} onClick={onClick}>
       {/* Selection Checkbox */}
       {onSelectionChange && (
         <div className="absolute top-2 left-2 z-10">
@@ -158,7 +158,7 @@ function AdminPostCard({
       )}
 
       {previewUrl ? (
-        <div className="relative overflow-hidden">
+        <div className="relative overflow-visible">
           <img
             src={previewUrl}
             alt="post"
@@ -170,28 +170,6 @@ function AdminPostCard({
           {post.isFlagged && (
             <div className="absolute top-2 right-2 text-2xl drop-shadow-lg z-10">
               🚩
-            </div>
-          )}
-
-          {/* Unclaimed Badge - Top Left */}
-          {(post.status === "unclaimed" || post.movedToUnclaimed) && (
-            <div className="absolute top-2 left-2 z-10">
-              <div className="relative group">
-                <div className="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded drop-shadow-lg flex items-center gap-1">
-                  UNCLAIMED
-                  <div className="w-3 h-3 rounded-full bg-orange-600 text-white text-[10px] flex items-center justify-center cursor-help hover:bg-orange-700 transition-colors">
-                    i
-                  </div>
-                </div>
-
-                {/* Tooltip */}
-                <div className="absolute top-full left-0 mt-1 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
-                  {post.movedToUnclaimed
-                    ? "Moved to unclaimed status after 30 days."
-                    : "Marked unclaimed by administrator."}
-                  <div className="absolute -top-1 left-4 w-0 h-0 border-l-2 border-r-2 border-b-2 border-transparent border-b-gray-900"></div>
-                </div>
-              </div>
             </div>
           )}
 
@@ -291,7 +269,7 @@ function AdminPostCard({
                     i
                   </div>
                 </div>
-                <div className="absolute top-full left-0 mt-1 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
+                <div className="absolute top-full left-0 mt-1 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-[60] whitespace-nowrap shadow-lg">
                   {post.movedToUnclaimed
                     ? "This post expired after 30 days and was automatically moved to unclaimed status"
                     : "This post was manually marked as unclaimed by an administrator"}
