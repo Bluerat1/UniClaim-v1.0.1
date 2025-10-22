@@ -10,6 +10,7 @@ import { useToast } from "@/context/ToastContext";
 import { AiOutlineDelete } from "react-icons/ai";
 import ProfilePictureSeenIndicator from "./ProfilePictureSeenIndicator";
 import ProfilePicture from "./ProfilePicture";
+import ImageModal from "./ImageModal";
 
 interface MessageBubbleProps {
   message: Message;
@@ -51,14 +52,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showIdPhotoModal, setShowIdPhotoModal] = useState(false);
   const [selectedIdPhoto, setSelectedIdPhoto] = useState<File | null>(null);
-  const [isUploadingIdPhoto, setIsUploadingIdPhoto] = useState(false);
-  const [showIdPhotoPreview, setShowIdPhotoPreview] = useState(false);
   const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
+  const [showIdPhotoPreview, setShowIdPhotoPreview] = useState(false);
+  const [isUploadingIdPhoto, setIsUploadingIdPhoto] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [imageModalImages, setImageModalImages] = useState<string[]>([]);
+  const [imageModalInitialIndex, setImageModalInitialIndex] = useState(0);
   const messageRef = useRef<HTMLDivElement>(null);
   const [hasBeenSeen, setHasBeenSeen] = useState(false);
   const { userData } = useAuth();
   const { showToast } = useToast();
   const userRole = userData?.role ?? "";
+
   const formatTime = (timestamp: any) => {
     if (!timestamp) return "";
     const date = timestamp instanceof Date ? timestamp : timestamp.toDate();
@@ -400,17 +405,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     }
   };
 
-  // Handle image click to open in new tab
-  const handleImageClick = (imageUrl: string) => {
-    window.open(imageUrl, '_blank');
-  };
-
-  const renderHandoverRequest = () => {
-    if (message.messageType !== "handover_request") {
-      return null;
-    }
-
-    const handoverData = message.handoverData;
     if (!handoverData) {
       return null;
     }

@@ -3,6 +3,7 @@ import type { Post } from "@/types/Post";
 import ProfilePicture from "./ProfilePicture";
 import PostCardMenu from "./PostCardMenu";
 import TurnoverConfirmationModal from "./TurnoverConfirmationModal";
+import ImageModal from "./ImageModal";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { usePostCreatorData } from "@/hooks/usePostCreatorData";
 
@@ -71,6 +72,10 @@ function PostCard({
     "confirmed" | "not_received" | null
   >(null);
 
+  // State for image modal
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
   const previewUrl = useMemo(() => {
     if (post.images && post.images.length > 0) {
       const firstImage = post.images[0];
@@ -79,6 +84,20 @@ function PostCard({
         : URL.createObjectURL(firstImage as File);
     }
     return null;
+  }, [post.images]);
+
+  // Process all images for the modal
+  const allImageUrls = useMemo(() => {
+    if (!post.images || post.images.length === 0) return [];
+
+    return post.images.map((image) => {
+      if (typeof image === "string") {
+        return image;
+      } else {
+        // For File objects, create object URLs
+        return URL.createObjectURL(image as File);
+      }
+    });
   }, [post.images]);
 
   useEffect(() => {
@@ -127,7 +146,14 @@ function PostCard({
         <img
           src={previewUrl}
           alt="post"
-          className="w-full h-85 object-cover lg:h-70 relative"
+          className="w-full h-85 object-cover lg:h-70 relative cursor-pointer hover:opacity-90 transition-opacity"
+          onClick={() => {
+            if (allImageUrls.length > 0) {
+              setShowImageModal(true);
+              setSelectedImageIndex(0);
+            }
+          }}
+          title={allImageUrls.length > 1 ? `Click to view ${allImageUrls.length} images` : "Click to view full size"}
         />
       ) : (
         <div className="bg-gray-300 h-60 w-full" />
@@ -493,6 +519,16 @@ function PostCard({
                 </div>
               </div>
             )}
+
+      {/* Image Modal */}
+      {showImageModal && allImageUrls.length > 0 && (
+        <ImageModal
+          images={allImageUrls}
+          initialIndex={selectedImageIndex}
+          altText={post.title}
+          onClose={() => setShowImageModal(false)}
+        />
+      )}
 
       {/* Turnover Confirmation Modal */}
       <TurnoverConfirmationModal

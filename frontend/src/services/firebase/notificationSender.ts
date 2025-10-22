@@ -701,6 +701,8 @@ export class NotificationSender {
                 ? messageData.text.substring(0, 50) + '...'
                 : messageData.text;
 
+            console.log(`📤 Sending message notifications to ${recipientIds.length} recipients:`, recipientIds);
+
             // Send notifications to all other participants
             await this.sendNotificationToUsers(recipientIds, {
                 type: 'message',
@@ -807,12 +809,12 @@ export class NotificationSender {
                         try {
                             // Import notificationService here to avoid circular dependency
                             const { notificationService } = await import('./notifications');
-                            const preferences = await notificationService.getNotificationPreferences(userId);
+                            const shouldSend = await notificationService.shouldSendNotification(userId, 'message');
 
                             // Check if user has enabled message notifications
-                            return preferences.messages ? userId : null;
+                            return shouldSend ? userId : null;
                         } catch (error) {
-                            console.warn(`Failed to get preferences for user ${userId}:`, error);
+                            console.warn(`Failed to check notification preferences for user ${userId}:`, error);
                             // If we can't get preferences, assume enabled (don't block notifications)
                             return userId;
                         }
@@ -822,7 +824,7 @@ export class NotificationSender {
                 filteredUserIds = usersWithPreferences.filter((userId): userId is string => userId !== null);
 
                 if (filteredUserIds.length === 0) {
-                    console.log('⚠️ No users have enabled message notifications');
+                    console.log('⚠️ No users are eligible for message notifications based on preferences and quiet hours');
                     return;
                 }
             } else if (notificationData.type === 'claim_response' || notificationData.type === 'handover_response') {
@@ -840,16 +842,11 @@ export class NotificationSender {
                             try {
                                 // Import notificationService here to avoid circular dependency
                                 const { notificationService } = await import('./notifications');
-                                const preferences = await notificationService.getNotificationPreferences(userId);
+                                const shouldSend = await notificationService.shouldSendNotification(userId, notificationData.type);
 
-                                // Check if user has enabled this type of response notification
-                                const isEnabled = notificationData.type === 'claim_response'
-                                    ? preferences.claimResponses
-                                    : preferences.handoverResponses;
-
-                                return isEnabled ? userId : null;
+                                return shouldSend ? userId : null;
                             } catch (error) {
-                                console.warn(`Failed to get preferences for user ${userId}:`, error);
+                                console.warn(`Failed to check notification preferences for user ${userId}:`, error);
                                 // If we can't get preferences, assume enabled (don't block notifications)
                                 return userId;
                             }

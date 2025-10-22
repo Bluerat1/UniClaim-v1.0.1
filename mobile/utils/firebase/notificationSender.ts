@@ -259,6 +259,12 @@ export class NotificationSender {
     }): Promise<void> {
         try {
             console.log('📱 Mobile: Sending message notifications to users:', userIds);
+            console.log('📱 Mobile: Message data:', {
+                conversationId: messageData.conversationId,
+                senderId: messageData.senderId,
+                senderName: messageData.senderName,
+                messageText: messageData.messageText.substring(0, 50) + '...'
+            });
 
             const notifications = [];
             const adminNotifications = [];
@@ -269,7 +275,7 @@ export class NotificationSender {
                     // Check if user should receive message notifications (only for regular users)
                     const shouldNotify = await notificationService.shouldSendNotification(userId, 'message');
                     if (!shouldNotify) {
-                        console.log(`🚫 Mobile: User ${userId} has message notifications disabled`);
+                        console.log(`🚫 Mobile: User ${userId} has message notifications disabled or is in quiet hours`);
                         continue;
                     }
 

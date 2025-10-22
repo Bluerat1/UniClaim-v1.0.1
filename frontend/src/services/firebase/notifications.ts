@@ -480,24 +480,66 @@ export class NotificationService {
     }
   }
 
-  // Get default notification preferences
-  private getDefaultPreferences(): NotificationPreferences {
-    return {
-      newPosts: true,
-      messages: true,
-      claimUpdates: true,
-      adminAlerts: true,
-      claimResponses: true,
-      handoverResponses: true,
-      locationFilter: false,
-      categoryFilter: [],
-      quietHours: {
-        enabled: false,
-        start: '22:00',
-        end: '08:00'
-      },
-      soundEnabled: true
-    };
+  // Check if user should receive notification based on preferences
+  async shouldSendNotification(userId: string, type: string): Promise<boolean> {
+    try {
+      const preferences = await this.getNotificationPreferences(userId);
+
+      // Check if notification type is enabled
+      switch (type) {
+        case 'new_post':
+          if (!preferences.newPosts) return false;
+          break;
+        case 'message':
+          if (!preferences.messages) return false;
+          break;
+        case 'claim_update':
+          if (!preferences.claimUpdates) return false;
+          break;
+        case 'claim_response':
+          if (!preferences.claimResponses) return false;
+          break;
+        case 'handover_response':
+          if (!preferences.handoverResponses) return false;
+          break;
+        case 'admin_alert':
+          if (!preferences.adminAlerts) return false;
+          break;
+        default:
+          return false;
+      }
+
+      // Check quiet hours
+      if (preferences.quietHours.enabled) {
+        const now = new Date();
+        const currentTime = now.getHours() * 60 + now.getMinutes();
+        const startTime = this.timeToMinutes(preferences.quietHours.start);
+        const endTime = this.timeToMinutes(preferences.quietHours.end);
+
+        if (startTime > endTime) {
+          // Quiet hours span midnight
+          if (currentTime >= startTime || currentTime <= endTime) {
+            return false;
+          }
+        } else {
+          // Normal quiet hours
+          if (currentTime >= startTime && currentTime <= endTime) {
+            return false;
+          }
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error checking notification preferences:', error);
+      return true; // Default to sending if there's an error
+    }
+  }
+
+  // Helper function to convert time string to minutes
+  private timeToMinutes(timeString: string): number {
+    const [hours, minutes] = timeString.split(':').map(Number);
+    return hours * 60 + minutes;
   }
 
   // Set up real-time listener for notifications
@@ -659,6 +701,26 @@ export class NotificationService {
     } catch (error) {
       console.error('Error during bulk notification cleanup:', error);
     }
+  }
+
+  // Get default notification preferences
+  private getDefaultPreferences(): NotificationPreferences {
+    return {
+      newPosts: true,
+      messages: true,
+      claimUpdates: true,
+      adminAlerts: true,
+      claimResponses: true,
+      handoverResponses: true,
+      locationFilter: false,
+      categoryFilter: [],
+      quietHours: {
+        enabled: false,
+        start: '22:00',
+        end: '08:00'
+      },
+      soundEnabled: true
+    };
   }
 }
 

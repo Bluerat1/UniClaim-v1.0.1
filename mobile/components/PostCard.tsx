@@ -7,6 +7,7 @@ import type { Post, RootStackParamList } from "@/types/type";
 import ProfilePicture from "./ProfilePicture";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import PostCardMenu from "./PostCardMenu";
+import PhotoViewerModal from "./PhotoViewerModal";
 
 type Props = {
   post: Post;
@@ -32,6 +33,7 @@ export default function PostCard({
   // Image optimization state
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
+  const [isPhotoModalVisible, setIsPhotoModalVisible] = useState(false);
 
   // Fallback to individual admin status fetch if not provided
   const fallbackAdminStatuses = useAdminStatus(adminStatuses ? [] : [post]);
@@ -106,15 +108,20 @@ export default function PostCard({
 
     return (
       <View className="relative">
-        <RNImage
-          source={imageSource}
-          className="w-full h-72 rounded-t-md"
-          resizeMode="cover"
-          onLoadStart={handleImageLoadStart}
-          onLoadEnd={handleImageLoadEnd}
-          onError={handleImageError}
-          key={`${post.id}-${firstImage}`} // Force re-render when post changes
-        />
+        <TouchableOpacity
+          onPress={() => setIsPhotoModalVisible(true)}
+          activeOpacity={0.9}
+        >
+          <RNImage
+            source={imageSource}
+            className="w-full h-72 rounded-t-md"
+            resizeMode="cover"
+            onLoadStart={handleImageLoadStart}
+            onLoadEnd={handleImageLoadEnd}
+            onError={handleImageError}
+            key={`${post.id}-${firstImage}`} // Force re-render when post changes
+          />
+        </TouchableOpacity>
 
         {/* Loading indicator */}
         {imageLoading && (
@@ -416,6 +423,18 @@ export default function PostCard({
           {highlightText(post.description, descriptionSearch)}
         </Text>
       </View>
+
+      {/* Photo Viewer Modal */}
+      <PhotoViewerModal
+        visible={isPhotoModalVisible}
+        images={post.images?.length ? post.images.map((img) =>
+          typeof img === "number"
+            ? RNImage.resolveAssetSource(img).uri
+            : img
+        ).filter(Boolean) as string[] : []}
+        initialIndex={0}
+        onClose={() => setIsPhotoModalVisible(false)}
+      />
     </TouchableOpacity>
   );
 }

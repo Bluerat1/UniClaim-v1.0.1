@@ -86,10 +86,57 @@ export default function ItemDetails({
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showOSATurnoverModal, setShowOSATurnoverModal] = useState(false);
+  const [showCampusSecurityTurnoverModal, setShowCampusSecurityTurnoverModal] = useState(false);
 
-  const handleReportClick = (type: "lost" | "found") => {
-    setReportType(type);
-    if (type === "found") setIsModalVisible(true);
+  const handleReportClick = (type: "lost" | "found" | null) => {
+    if (type === null) {
+      setReportType(null);
+      setFoundAction(null);
+      setIsModalVisible(false);
+      setShowOSATurnoverModal(false);
+      setShowCampusSecurityTurnoverModal(false);
+    } else {
+      setReportType(type);
+      if (type === "found") setIsModalVisible(true);
+    }
+  };
+
+  const handleFoundActionSelect = (action: "keep" | "turnover to OSA" | "turnover to Campus Security") => {
+    if (action === "turnover to OSA") {
+      setShowOSATurnoverModal(true);
+      setIsModalVisible(false);
+    } else if (action === "turnover to Campus Security") {
+      setShowCampusSecurityTurnoverModal(true);
+      setIsModalVisible(false);
+    } else {
+      setFoundAction(action);
+      setIsModalVisible(false);
+    }
+  };
+
+  const handleOSATurnoverConfirmation = (didTurnOver: boolean) => {
+    if (didTurnOver) {
+      setFoundAction("turnover to OSA");
+    } else {
+      // If they selected "No", reset the selection
+      setReportType(null);
+      setFoundAction(null);
+      setIsModalVisible(false);
+    }
+    setShowOSATurnoverModal(false);
+  };
+
+  const handleCampusSecurityTurnoverConfirmation = (didTurnOver: boolean) => {
+    if (didTurnOver) {
+      setFoundAction("turnover to Campus Security");
+    } else {
+      // If they selected "No", reset the selection
+      setReportType(null);
+      setFoundAction(null);
+      setIsModalVisible(false);
+    }
+    setShowCampusSecurityTurnoverModal(false);
   };
 
   // Detect location when coordinates change
@@ -151,21 +198,35 @@ export default function ItemDetails({
                 reportType === type ? "bg-navyblue" : "bg-zinc-200"
               }`}
             >
-              <Text
-                className={`text-base font-manrope-medium ${
-                  reportType === type ? "text-white" : "text-black"
-                }`}
-              >
-                {type === "found" && foundAction
-                  ? `Found (${
-                      foundAction === "keep"
-                        ? "Keep"
-                        : foundAction === "turnover to OSA"
-                          ? "OSA"
-                          : "Campus Security"
-                    })`
-                  : type.charAt(0).toUpperCase() + type.slice(1)}
-              </Text>
+              <View className="flex-row items-center justify-center w-full px-2">
+                <Text
+                  className={`text-base font-manrope-medium flex-1 text-center ${
+                    reportType === type ? "text-white" : "text-black"
+                  }`}
+                >
+                  {type === "found" && foundAction
+                    ? `Found (${
+                        foundAction === "keep"
+                          ? "Keep"
+                          : foundAction === "turnover to OSA"
+                            ? "OSA"
+                            : "Campus Security"
+                      })`
+                    : type.charAt(0).toUpperCase() + type.slice(1)}
+                </Text>
+                {reportType === type && (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleReportClick(null);
+                    }}
+                    hitSlop={10}
+                    className="ml-1"
+                  >
+                    <Ionicons name="close-outline" size={16} color={reportType === type ? "white" : "#4B5563"} />
+                  </Pressable>
+                )}
+              </View>
             </TouchableOpacity>
           ))}
         </View>
@@ -383,13 +444,12 @@ export default function ItemDetails({
                   <TouchableOpacity
                     key={action}
                     onPress={() => {
-                      setFoundAction(
+                      handleFoundActionSelect(
                         action as
                           | "keep"
                           | "turnover to OSA"
                           | "turnover to Campus Security"
                       );
-                      setIsModalVisible(false);
                     }}
                     className={`py-3 rounded-md items-center ${
                       foundAction === action ? "bg-navyblue" : "bg-zinc-200"
@@ -407,6 +467,112 @@ export default function ItemDetails({
                   </TouchableOpacity>
                 )
               )}
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* OSA Turnover Confirmation Modal */}
+      <Modal
+        visible={showOSATurnoverModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowOSATurnoverModal(false)}
+      >
+        <Pressable
+          className="flex-1 bg-black/60 justify-center items-center"
+          onPress={() => setShowOSATurnoverModal(false)}
+        >
+          <View className="bg-white w-[23rem] h-auto rounded-xl p-4 items-center flex-col gap-6">
+            {/* Header */}
+            <View className="flex-row items-center gap-2">
+              <MaterialIcons name="info-outline" size={18} color="black" />
+              <Text className="text-xl font-manrope-bold">
+                OSA Turnover
+              </Text>
+            </View>
+
+            {/* Question */}
+            <Text className="text-lg font-inter text-center text-gray-600">
+              Did you turn over the item to the Office of Student Affairs (OSA)
+              before creating a post or report?
+            </Text>
+
+            {/* Action Buttons */}
+            <View className="flex-col w-full gap-3">
+              <TouchableOpacity
+                onPress={() => {
+                  handleOSATurnoverConfirmation(false);
+                }}
+                className="py-3 rounded-md items-center bg-zinc-200"
+              >
+                <Text className="text-black font-manrope-medium">
+                  No, not yet
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  handleOSATurnoverConfirmation(true);
+                }}
+                className="py-3 rounded-md items-center bg-navyblue"
+              >
+                <Text className="text-white font-manrope-medium">
+                  Yes, I turned it over
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Campus Security Turnover Confirmation Modal */}
+      <Modal
+        visible={showCampusSecurityTurnoverModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCampusSecurityTurnoverModal(false)}
+      >
+        <Pressable
+          className="flex-1 bg-black/60 justify-center items-center"
+          onPress={() => setShowCampusSecurityTurnoverModal(false)}
+        >
+          <View className="bg-white w-[23rem] h-auto rounded-xl p-4 items-center flex-col gap-6">
+            {/* Header */}
+            <View className="flex-row items-center gap-2">
+              <MaterialIcons name="security" size={18} color="black" />
+              <Text className="text-xl font-manrope-bold">
+                Campus Security Turnover
+              </Text>
+            </View>
+
+            {/* Question */}
+            <Text className="text-lg font-inter text-center text-gray-600">
+              Did you turn over the item to Campus Security at the main entrance
+              before creating a post or report?
+            </Text>
+
+            {/* Action Buttons */}
+            <View className="flex-col w-full gap-3">
+              <TouchableOpacity
+                onPress={() => {
+                  handleCampusSecurityTurnoverConfirmation(false);
+                }}
+                className="py-3 rounded-md items-center bg-zinc-200"
+              >
+                <Text className="text-black font-manrope-medium">
+                  No, not yet
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  handleCampusSecurityTurnoverConfirmation(true);
+                }}
+                className="py-3 rounded-md items-center bg-navyblue"
+              >
+                <Text className="text-white font-manrope-medium">
+                  Yes, I turned it over
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Pressable>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, memo, useState } from "react";
 import type { Post } from "@/types/Post";
 import ProfilePicture from "./ProfilePicture";
+import ImageModal from "./ImageModal";
 
 interface AdminPostCardProps {
   post: Post;
@@ -83,6 +84,10 @@ function AdminPostCard({
   const [adminNotes, setAdminNotes] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
 
+  // State for image modal
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
   const previewUrl = useMemo(() => {
     if (post.images && post.images.length > 0) {
       const firstImage = post.images[0];
@@ -91,6 +96,20 @@ function AdminPostCard({
         : URL.createObjectURL(firstImage as File);
     }
     return null;
+  }, [post.images]);
+
+  // Process all images for the modal
+  const allImageUrls = useMemo(() => {
+    if (!post.images || post.images.length === 0) return [];
+
+    return post.images.map((image) => {
+      if (typeof image === "string") {
+        return image;
+      } else {
+        // For File objects, create object URLs
+        return URL.createObjectURL(image as File);
+      }
+    });
   }, [post.images]);
 
   useEffect(() => {
@@ -162,8 +181,15 @@ function AdminPostCard({
           <img
             src={previewUrl}
             alt="post"
-            className="w-full h-85 object-cover cursor-pointer lg:h-70"
-            onClick={onClick}
+            className="w-full h-85 object-cover cursor-pointer lg:h-70 hover:opacity-90 transition-opacity"
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent card click
+              if (allImageUrls.length > 0) {
+                setShowImageModal(true);
+                setSelectedImageIndex(0);
+              }
+            }}
+            title={allImageUrls.length > 1 ? `Click to view ${allImageUrls.length} images` : "Click to view full size"}
           />
 
           {/* Red Flag Icon - Top Right */}
@@ -615,6 +641,16 @@ function AdminPostCard({
           </div>
         )}
       </div>
+
+      {/* Image Modal */}
+      {showImageModal && allImageUrls.length > 0 && (
+        <ImageModal
+          images={allImageUrls}
+          initialIndex={selectedImageIndex}
+          altText={post.title}
+          onClose={() => setShowImageModal(false)}
+        />
+      )}
 
       {/* Admin Notes Modal */}
       {showAdminNotesModal && (

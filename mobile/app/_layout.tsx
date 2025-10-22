@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import SplashScreen from "../components/SplashScreen";
 import LoadingScreen from "../components/LoadingScreen";
 import "../global.css";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 // screens
 import Navigation from "@/navigation/Navigation";
@@ -132,27 +133,31 @@ export default function RootLayout() {
 
   if (!fontsLoaded || showSplash) {
     return (
-      <SafeAreaProvider>
-        <ScreenWrapper statusBarStyle="dark-content" statusBarBg="#FBFDFC">
-          <SplashScreen onAnimationEnd={() => {}} />
-        </ScreenWrapper>
-      </SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <ScreenWrapper statusBarStyle="dark-content" statusBarBg="#FBFDFC">
+            <SplashScreen onAnimationEnd={() => {}} />
+          </ScreenWrapper>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
     );
   }
   return (
-    <SafeAreaProvider>
-      <ToastProvider>
-        <AuthProvider>
-          <CoordinatesProvider>
-            <AppContent
-              hasSeenOnBoarding={hasSeenOnBoarding}
-              setHasSeenOnBoarding={setHasSeenOnBoarding}
-              hasPassedIndex={hasPassedIndex}
-              setHasPassedIndex={setHasPassedIndex}
-            />
-          </CoordinatesProvider>
-        </AuthProvider>
-      </ToastProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <CoordinatesProvider>
+              <AppContent
+                hasSeenOnBoarding={hasSeenOnBoarding}
+                setHasSeenOnBoarding={setHasSeenOnBoarding}
+                hasPassedIndex={hasPassedIndex}
+                setHasPassedIndex={setHasPassedIndex}
+              />
+            </CoordinatesProvider>
+          </AuthProvider>
+        </ToastProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -13,6 +13,7 @@ import type { Message } from "@/types/type";
 import ImagePicker from "@/components/ImagePicker";
 import ProfilePicture from "@/components/ProfilePicture";
 import ProfilePictureSeenIndicator from "@/components/ProfilePictureSeenIndicator";
+import PhotoViewerModal from "@/components/PhotoViewerModal";
 import {
   handoverClaimService,
   type HandoverClaimCallbacks,
@@ -66,11 +67,21 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showIdPhotoModal, setShowIdPhotoModal] = useState(false);
   const [isUploadingIdPhoto, setIsUploadingIdPhoto] = useState(false);
+  const [showPhotoViewerModal, setShowPhotoViewerModal] = useState(false);
+  const [photoViewerImages, setPhotoViewerImages] = useState<string[]>([]);
+  const [photoViewerInitialIndex, setPhotoViewerInitialIndex] = useState(0);
 
   const formatTime = (timestamp: any) => {
     if (!timestamp) return "";
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
+  // Helper function to open photo viewer modal
+  const openPhotoViewer = (images: string[], initialIndex: number = 0) => {
+    setPhotoViewerImages(images);
+    setPhotoViewerInitialIndex(initialIndex);
+    setShowPhotoViewerModal(true);
   };
 
   // Convert readBy user IDs to user objects with profile data
@@ -497,23 +508,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             <TouchableOpacity
               onPress={() => {
                 if (claimData.idPhotoUrl) {
-                  // For mobile, we'll use a simple alert with option to view
-                  Alert.alert(
-                    "View Claimer ID Photo",
-                    "Would you like to view the full-size claimer ID photo?",
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "View Full Size",
-                        onPress: () => {
-                          // Open in device's default image viewer
-                          if (claimData.idPhotoUrl) {
-                            Linking.openURL(claimData.idPhotoUrl);
-                          }
-                        },
-                      },
-                    ]
-                  );
+                  openPhotoViewer([claimData.idPhotoUrl], 0);
                 }
               }}
             >
@@ -548,23 +543,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             <TouchableOpacity
               onPress={() => {
                 if (claimData.ownerIdPhoto) {
-                  // For mobile, we'll use a simple alert with option to view
-                  Alert.alert(
-                    "View Owner ID Photo",
-                    "Would you like to view the full-size owner ID photo?",
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "View Full Size",
-                        onPress: () => {
-                          // Open in device's default image viewer
-                          if (claimData.ownerIdPhoto) {
-                            Linking.openURL(claimData.ownerIdPhoto);
-                          }
-                        },
-                      },
-                    ]
-                  );
+                  openPhotoViewer([claimData.ownerIdPhoto], 0);
                 }
               }}
             >
@@ -593,19 +572,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                   <View key={index}>
                     <TouchableOpacity
                       onPress={() => {
-                        Alert.alert(
-                          `View Evidence Photo ${index + 1}`,
-                          "Would you like to view the full-size evidence photo?",
-                          [
-                            { text: "Cancel", style: "cancel" },
-                            {
-                              text: "View Full Size",
-                              onPress: () => {
-                                Linking.openURL(photo.url);
-                              },
-                            },
-                          ]
-                        );
+                        if (claimData.evidencePhotos && claimData.evidencePhotos.length > 0) {
+                          const imageUrls = claimData.evidencePhotos.map(p => p.url);
+                          openPhotoViewer(imageUrls, index);
+                        }
                       }}
                     >
                       <Image
@@ -639,19 +609,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                   <View key={index}>
                     <TouchableOpacity
                       onPress={() => {
-                        Alert.alert(
-                          `View Verification Photo ${index + 1}`,
-                          "Would you like to view the full-size verification photo?",
-                          [
-                            { text: "Cancel", style: "cancel" },
-                            {
-                              text: "View Full Size",
-                              onPress: () => {
-                                Linking.openURL(photo.url);
-                              },
-                            },
-                          ]
-                        );
+                        if (claimData.verificationPhotos && claimData.verificationPhotos.length > 0) {
+                          const imageUrls = claimData.verificationPhotos.map(p => p.url);
+                          openPhotoViewer(imageUrls, index);
+                        }
                       }}
                     >
                       <Image
@@ -806,6 +767,15 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   return (
     <View className={`mb-3 ${isOwnMessage ? "items-end" : "items-start"}`}>
       {renderIdPhotoModal()}
+
+      {/* Photo Viewer Modal */}
+      <PhotoViewerModal
+        visible={showPhotoViewerModal}
+        images={photoViewerImages}
+        initialIndex={photoViewerInitialIndex}
+        onClose={() => setShowPhotoViewerModal(false)}
+      />
+
       <View
         className={`flex-row items-end gap-2 ${isOwnMessage ? "flex-row-reverse" : ""}`}
       >

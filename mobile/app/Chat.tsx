@@ -180,6 +180,15 @@ export default function Chat() {
   const [isConfirmationInProgress, setIsConfirmationInProgress] =
     useState(false);
 
+  // Track if FlatList is ready for scrolling
+  const [isFlatListReady, setIsFlatListReady] = useState(false);
+
+  // Handle FlatList layout to ensure it's ready for scrolling
+  const handleFlatListLayout = () => {
+    console.log('📜 Mobile Chat: FlatList layout completed, ready for scrolling');
+    setIsFlatListReady(true);
+  };
+
   // Get the other participant's profile picture (exclude current user)
   const getOtherParticipantProfilePicture = () => {
     if (!userData) return null;
@@ -306,19 +315,37 @@ export default function Chat() {
         setMessages(loadedMessages);
 
         // Scroll to bottom when messages are loaded (for any number of messages)
-        setTimeout(() => scrollToBottom(), 100);
+        console.log(`📜 Mobile Chat: Loaded ${loadedMessages.length} messages, scrolling to bottom`);
+        if (isFlatListReady) {
+          requestAnimationFrame(() => {
+            setTimeout(() => scrollToBottom(), 150);
+          });
+        }
       }
     );
 
     return () => unsubscribe();
-  }, [conversationId, getConversationMessages]);
+  }, [conversationId, getConversationMessages, isFlatListReady]);
 
   // Auto-scroll to bottom when messages are updated (e.g., new message received)
   useEffect(() => {
-    if (messages.length > 0) {
-      setTimeout(() => scrollToBottom(), 100);
+    if (messages.length > 0 && isFlatListReady) {
+      console.log(`📜 Mobile Chat: Messages updated to ${messages.length}, scrolling to bottom`);
+      requestAnimationFrame(() => {
+        setTimeout(() => scrollToBottom(), 150);
+      });
     }
-  }, [messages.length]);
+  }, [messages.length, isFlatListReady]);
+
+  // Scroll to bottom when FlatList becomes ready (for existing messages)
+  useEffect(() => {
+    if (isFlatListReady && messages.length > 0) {
+      console.log(`📜 Mobile Chat: FlatList ready with ${messages.length} messages, scrolling to bottom`);
+      requestAnimationFrame(() => {
+        setTimeout(() => scrollToBottom(), 100);
+      });
+    }
+  }, [isFlatListReady]);
 
   // Load conversation data
   useEffect(() => {
@@ -495,8 +522,15 @@ export default function Chat() {
     };
   }, [conversationId, navigation]);
   const scrollToBottom = () => {
-    if (flatListRef.current && messages.length > 0) {
-      flatListRef.current.scrollToEnd({ animated: true });
+    console.log(`📜 Mobile Chat: scrollToBottom called - messages: ${messages.length}, flatListRef exists: ${!!flatListRef.current}, flatList ready: ${isFlatListReady}`);
+    if (flatListRef.current && messages.length > 0 && isFlatListReady) {
+      // Use requestAnimationFrame for better timing with UI updates
+      requestAnimationFrame(() => {
+        console.log('📜 Mobile Chat: Executing scrollToEnd via requestAnimationFrame');
+        flatListRef.current?.scrollToEnd({ animated: true });
+      });
+    } else {
+      console.log('📜 Mobile Chat: Cannot scroll - missing flatListRef, no messages, or FlatList not ready');
     }
   };
 
@@ -565,7 +599,12 @@ export default function Chat() {
       );
 
       console.log('✅ Chat: Message sent successfully');
-      scrollToBottom();
+      console.log('📜 Chat: Scrolling to bottom after sending message');
+      if (isFlatListReady) {
+        requestAnimationFrame(() => {
+          setTimeout(() => scrollToBottom(), 100);
+        });
+      }
     } catch (error: any) {
       console.error('❌ Chat: Failed to send message:', error);
       Alert.alert("Error", "Failed to send message. Please try again.");
@@ -1023,6 +1062,7 @@ export default function Chat() {
                 onViewableItemsChanged={handleViewableItemsChanged}
                 viewabilityConfig={viewabilityConfig}
                 keyboardShouldPersistTaps="handled"
+                onLayout={handleFlatListLayout}
               />
             </View>
           )}
@@ -1077,7 +1117,7 @@ export default function Chat() {
 
           {/* Input Area with bottom spacing */}
           <View
-            className={`bg-white px-4 pt-2 ${isKeyboardVisible ? "pb-[1rem]" : "pb-0"}`}
+            className={`bg-white px-4 pt-2 ${isKeyboardVisible ? "pb-[2rem]" : "pb-[4rem]"}`}
           >
             <View className="flex-row items-center gap-3">
               <View className="flex-1">

@@ -25,6 +25,8 @@ export default function Header() {
   const [showPreferences, setShowPreferences] = useState(false);
   const slideAnim = useState(new Animated.Value(SCREEN_WIDTH))[0];
 
+  console.log('🏠 Header component rendered - isVisible:', isVisible, 'showPreferences:', showPreferences);
+
   const {
     notifications,
     unreadCount,
@@ -37,22 +39,44 @@ export default function Header() {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const openPanel = () => {
+    console.log('🔔 Bell icon pressed! Opening notification panel...');
+    console.log('Current isVisible state:', isVisible);
+    console.log('Current showPreferences state:', showPreferences);
+    
     setIsVisible(true);
     Animated.timing(slideAnim, {
       toValue: 0,
       duration: 300,
       useNativeDriver: false,
       easing: Easing.out(Easing.ease),
-    }).start();
+    }).start(() => {
+      console.log('✅ Notification panel animation completed');
+    });
   };
 
   const closePanel = () => {
+    console.log('❌ Closing notification panel, current isVisible:', isVisible);
     Animated.timing(slideAnim, {
       toValue: SCREEN_WIDTH,
       duration: 300,
       useNativeDriver: false,
       easing: Easing.out(Easing.ease),
-    }).start(() => setIsVisible(false));
+    }).start(() => {
+      console.log('✅ Panel animation completed, setting isVisible to false');
+      setIsVisible(false);
+    });
+  };
+
+  const openPreferences = () => {
+    console.log('🔧 Settings button pressed!');
+    console.log('Current showPreferences state:', showPreferences);
+    console.log('Current isVisible state:', isVisible);
+
+    closePanel();
+    setTimeout(() => {
+      setShowPreferences(true);
+      console.log('✅ Preferences modal should now be visible');
+    }, 350); // Wait for panel close animation
   };
 
   const handleNotificationPress = async (notification: any) => {
@@ -112,20 +136,28 @@ export default function Header() {
       {/* Full-Screen Modal with Full-Width Sliding Panel */}
       {isVisible && (
         <Modal transparent animationType="none">
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+            <TouchableOpacity
+              style={{ flex: 1 }}
+              activeOpacity={1}
+              onPress={() => {
+                console.log('🔙 Backdrop tapped - closing notification panel');
+                closePanel();
+              }}
+            />
             <Animated.View
               style={{
                 position: "absolute",
                 top: 0,
                 bottom: 0,
                 right: 0,
-                width: SCREEN_WIDTH, // ✅ full width
+                width: SCREEN_WIDTH * 0.85,
                 backgroundColor: "white",
                 padding: 20,
                 shadowColor: "#000",
                 shadowOffset: { width: -2, height: 0 },
-                shadowOpacity: 0.2,
-                shadowRadius: 5,
+                shadowOpacity: 0.25,
+                shadowRadius: 10,
                 transform: [{ translateX: slideAnim }],
               }}
             >
@@ -147,7 +179,10 @@ export default function Header() {
                 </View>
                 <View className="flex-row items-center gap-4">
                   <TouchableOpacity
-                    onPress={() => setShowPreferences(true)}
+                    onPress={() => {
+                      console.log('⚙️ TouchableOpacity settings button pressed!');
+                      openPreferences();
+                    }}
                     className="p-1"
                   >
                     <Feather name="settings" size={20} color="#6B7280" />
@@ -247,10 +282,16 @@ export default function Header() {
         <Modal
           visible={showPreferences}
           animationType="slide"
-          presentationStyle="pageSheet"
+          onRequestClose={() => {
+            console.log('🔙 Back button or outside tap - closing preferences modal');
+            setShowPreferences(false);
+          }}
         >
           <NotificationPreferencesModal
-            onClose={() => setShowPreferences(false)}
+            onClose={() => {
+              console.log('❌ Close button pressed in preferences modal');
+              setShowPreferences(false);
+            }}
           />
         </Modal>
       )}
