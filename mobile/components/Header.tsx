@@ -16,6 +16,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNotifications } from "../context/NotificationContext";
 import NotificationPreferencesModal from "./NotificationPreferences";
 import { postService } from "../utils/firebase/posts";
+import { messageService } from "../utils/firebase/messages";
 import type { RootStackParamList } from "../types/type";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -25,8 +26,6 @@ export default function Header() {
   const [showPreferences, setShowPreferences] = useState(false);
   const slideAnim = useState(new Animated.Value(SCREEN_WIDTH))[0];
 
-  console.log('🏠 Header component rendered - isVisible:', isVisible, 'showPreferences:', showPreferences);
-
   const {
     notifications,
     unreadCount,
@@ -35,47 +34,33 @@ export default function Header() {
     deleteNotification,
     deleteAllNotifications,
   } = useNotifications();
-  const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation() as NativeStackNavigationProp<RootStackParamList>;
 
   const openPanel = () => {
-    console.log('🔔 Bell icon pressed! Opening notification panel...');
-    console.log('Current isVisible state:', isVisible);
-    console.log('Current showPreferences state:', showPreferences);
-    
     setIsVisible(true);
     Animated.timing(slideAnim, {
       toValue: 0,
       duration: 300,
       useNativeDriver: false,
       easing: Easing.out(Easing.ease),
-    }).start(() => {
-      console.log('✅ Notification panel animation completed');
-    });
+    }).start();
   };
 
   const closePanel = () => {
-    console.log('❌ Closing notification panel, current isVisible:', isVisible);
     Animated.timing(slideAnim, {
       toValue: SCREEN_WIDTH,
       duration: 300,
       useNativeDriver: false,
       easing: Easing.out(Easing.ease),
     }).start(() => {
-      console.log('✅ Panel animation completed, setting isVisible to false');
       setIsVisible(false);
     });
   };
 
   const openPreferences = () => {
-    console.log('🔧 Settings button pressed!');
-    console.log('Current showPreferences state:', showPreferences);
-    console.log('Current isVisible state:', isVisible);
-
     closePanel();
     setTimeout(() => {
       setShowPreferences(true);
-      console.log('✅ Preferences modal should now be visible');
     }, 350); // Wait for panel close animation
   };
 
@@ -89,15 +74,107 @@ export default function Header() {
       // Close the notification panel
       closePanel();
 
-      // Navigate to the post if postId exists
+      // Handle claim_response and handover_response notifications with conversation data
+      if (
+        (notification.type === 'claim_response' || notification.type === 'handover_response') &&
+        notification.data?.conversationId
+      ) {
+        try {
+          // Get conversation data using the messageService
+          const conversationData = await messageService.getConversation(notification.data.conversationId);
+
+          if (conversationData) {
+            // Get post owner user data if available
+            let postOwnerUserData = null;
+            if (conversationData.postOwnerId || conversationData.postCreatorId) {
+              try {
+                const ownerId = conversationData.postOwnerId || conversationData.postCreatorId;
+                if (ownerId && conversationData.participants?.[ownerId]) {
+                  postOwnerUserData = conversationData.participants[ownerId];
+                }
+              } catch (error) {
+                console.warn('⚠️ Mobile: Could not fetch post owner user data for response notification:', error);
+              }
+            }
+
+            // Navigate to Chat screen with required parameters
+            navigation.navigate("Chat", {
+              conversationId: notification.data.conversationId,
+              postTitle: notification.data?.postTitle || conversationData.postTitle,
+              postOwnerId: conversationData.postOwnerId || conversationData.postCreatorId,
+              postOwnerUserData: postOwnerUserData || {},
+              postId: notification.data?.postId || conversationData.postId,
+              postType: conversationData.postType,
+              postStatus: conversationData.postStatus,
+              foundAction: conversationData.foundAction
+            });
+          } else {
+            // Fallback: Navigate to Messages tab
+            navigation.navigate('Message');
+          }
+        } catch (error) {
+          // Fallback: Navigate to Messages tab
+          navigation.navigate('Message');
+        }
+        return;
+      }
+
+      // Handle message notifications
+      if (notification.type === 'message' && notification.data?.conversationId) {
+        try {
+          // Get conversation data using the messageService
+          const conversationData = await messageService.getConversation(notification.data.conversationId);
+
+          if (conversationData) {
+            // Get post owner user data if available
+            let postOwnerUserData = null;
+            if (conversationData.postOwnerId || conversationData.postCreatorId) {
+              try {
+                const ownerId = conversationData.postOwnerId || conversationData.postCreatorId;
+                if (ownerId && conversationData.participants?.[ownerId]) {
+                  postOwnerUserData = conversationData.participants[ownerId];
+                }
+              } catch (error) {
+                console.warn('⚠️ Mobile: Could not fetch post owner user data:', error);
+              }
+            }
+
+            // Navigate to Chat screen with required parameters
+            navigation.navigate("Chat", {
+              conversationId: notification.data.conversationId,
+              postTitle: notification.data?.postTitle || conversationData.postTitle,
+              postOwnerId: conversationData.postOwnerId || conversationData.postCreatorId,
+              postOwnerUserData: postOwnerUserData || {},
+              postId: notification.data?.postId || conversationData.postId,
+              postType: conversationData.postType,
+              postStatus: conversationData.postStatus,
+              foundAction: conversationData.foundAction
+            });
+          } else {
+            // Fallback: Navigate to Messages tab
+            navigation.navigate('Message');
+          }
+        } catch (error) {
+          // Fallback: Navigate to Messages tab
+          navigation.navigate('Message');
+        }
+        return;
+      }
+
+      // Handle other notification types (existing post navigation)
       if (notification.postId) {
-        const post = await postService.getPostById(notification.postId);
-        if (post) {
-          navigation.navigate("PostDetails", { post });
+        try {
+          const post = await postService.getPostById(notification.postId);
+          if (post) {
+            navigation.navigate("PostDetails", { post });
+          } else {
+            console.error('❌ Mobile: Post not found:', notification.postId);
+          }
+        } catch (error) {
+          console.error('❌ Mobile: Error fetching post data:', error);
         }
       }
     } catch (error) {
-      console.error("Error handling notification press:", error);
       // Still close the panel even if navigation fails
       closePanel();
     }
@@ -141,7 +218,6 @@ export default function Header() {
               style={{ flex: 1 }}
               activeOpacity={1}
               onPress={() => {
-                console.log('🔙 Backdrop tapped - closing notification panel');
                 closePanel();
               }}
             />
@@ -180,7 +256,6 @@ export default function Header() {
                 <View className="flex-row items-center gap-4">
                   <TouchableOpacity
                     onPress={() => {
-                      console.log('⚙️ TouchableOpacity settings button pressed!');
                       openPreferences();
                     }}
                     className="p-1"
@@ -283,13 +358,11 @@ export default function Header() {
           visible={showPreferences}
           animationType="slide"
           onRequestClose={() => {
-            console.log('🔙 Back button or outside tap - closing preferences modal');
             setShowPreferences(false);
           }}
         >
           <NotificationPreferencesModal
             onClose={() => {
-              console.log('❌ Close button pressed in preferences modal');
               setShowPreferences(false);
             }}
           />

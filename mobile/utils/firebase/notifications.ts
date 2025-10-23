@@ -58,9 +58,6 @@ export class NotificationService {
             const constantsProjectId = Constants.expoConfig?.extra?.eas?.projectId;
             if (constantsProjectId) {
                 projectId = constantsProjectId;
-                console.log('Using project ID from Constants:', projectId);
-            } else {
-                console.log('Using hardcoded project ID:', projectId);
             }
 
             // Try with project ID first
@@ -70,16 +67,12 @@ export class NotificationService {
                 })).data;
 
                 this.expoPushToken = token;
-                console.log('Expo push token (with project ID):', token);
                 return token;
             } catch (projectIdError) {
-                console.log('Failed with project ID, trying without:', projectIdError);
-
                 // Try without project ID as fallback
                 const token = (await Notifications.getExpoPushTokenAsync()).data;
 
                 this.expoPushToken = token;
-                console.log('Expo push token (without project ID):', token);
                 return token;
             }
         } catch (error) {

@@ -66,12 +66,6 @@ export default function Profile() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [profile, setProfile] = useState(() => {
-    console.log("Profile initial state - userData:", userData);
-    console.log(
-      "Profile initial state - userData.profilePicture:",
-      userData?.profilePicture
-    );
-
     return {
       firstName: userData?.firstName || "",
       lastName: userData?.lastName || "",
@@ -624,7 +618,6 @@ export default function Profile() {
   useEffect(() => {
     if (user && isAuthenticated && userData) {
       // Ensure profile shows latest data
-      console.log('Profile screen: Refreshing user data for email verification status');
     }
   }, [userData?.emailVerified]);
 

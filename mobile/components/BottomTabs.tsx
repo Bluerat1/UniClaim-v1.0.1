@@ -6,7 +6,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  StyleSheet,
 } from "react-native";
 import {
   SafeAreaView,
@@ -30,77 +29,6 @@ type TabConfig = {
   label: string;
   component: () => JSX.Element;
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "white",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    fontSize: 16,
-    color: "#6B7280",
-  },
-  mainContent: {
-    flex: 1,
-  },
-  tabBar: {
-    backgroundColor: "white",
-    paddingTop: 15,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.32,
-    shadowRadius: 6,
-    elevation: 20,
-  },
-  tabBarContent: {
-    height: 50,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    marginHorizontal: 16,
-    marginBottom: 20,
-  },
-  tabButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "column",
-    gap: 4,
-  },
-  iconContainer: {
-    position: "relative",
-  },
-  badge: {
-    position: "absolute",
-    top: -8,
-    right: -8,
-    backgroundColor: "#EF4444",
-    borderRadius: 9,
-    minWidth: 18,
-    height: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badgeText: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  tabLabel: {
-    fontSize: 9,
-    marginTop: 2,
-  },
-  activeTabLabel: {
-    color: "#0A193A",
-  },
-  inactiveTabLabel: {
-    color: "#000000",
-  },
-});
 
 export default function CustomTabs() {
   const [currentTab, setCurrentTab] = useState("MyTickets");
@@ -241,30 +169,28 @@ export default function CustomTabs() {
   // Don't render content until tab state is loaded
   if (!isInitialized) {
     return (
-      <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
+      <SafeAreaView className="flex-1 bg-white" edges={["top", "left", "right"]}>
+        <View className="flex-1 justify-center items-center">
+          <Text className="text-base text-gray-500">Loading...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+    <SafeAreaView className="flex-1 bg-white" edges={["top", "left", "right"]}>
       {/* Main Content - All tabs mounted but only current one visible */}
-      <View style={styles.mainContent}>{renderActiveTab()}</View>
+      <View className="flex-1">{renderActiveTab()}</View>
 
       {/* Bottom Tabs — hidden when keyboard is visible */}
       {!isKeyboardVisible && (
         <View
-          style={[
-            styles.tabBar,
-            {
-              paddingBottom: Math.max(insets.bottom, 1),
-            },
-          ]}
+          className="bg-white pt-[15px] shadow-lg"
+          style={{
+            paddingBottom: Math.max(insets.bottom, 1),
+          }}
         >
-          <View style={styles.tabBarContent}>
+          <View className="h-[50px] flex-row items-center justify-around mx-4 mb-5">
             {tabs.map((tab) => {
               const isActive = currentTab === tab.key;
               const isAddTab = tab.key === "CreateReport";
@@ -273,13 +199,13 @@ export default function CustomTabs() {
                 <TouchableOpacity
                   key={tab.key}
                   onPress={() => handleTabPress(tab.key)}
-                  style={styles.tabButton}
+                  className="items-center justify-center flex-col gap-1"
                 >
-                  <View style={styles.iconContainer}>
+                  <View className="relative">
                     <Ionicons
                       name={isActive ? tab.iconFilled : tab.iconOutline}
                       size={isAddTab ? 28 : 22}
-                      color={isActive ? "#0A193A" : "#000"}
+                      color={isActive ? "#0A193A" : "#6B7280"}
                       style={
                         tab.key === "Ticket"
                           ? { transform: [{ rotate: "45deg" }] }
@@ -288,21 +214,15 @@ export default function CustomTabs() {
                     />
                     {/* Badge count for Messages tab */}
                     {tab.key === "Messages" && unreadCount > 0 && (
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>
+                      <View className="absolute -top-2 -right-2 bg-red-500 rounded-full min-w-[18px] h-[18px] items-center justify-center">
+                        <Text className="text-white text-xs font-bold">
                           {unreadCount > 99 ? "99+" : unreadCount}
                         </Text>
                       </View>
                     )}
                   </View>
                   <Text
-                    style={[
-                      styles.tabLabel,
-                      isAddTab ? { marginTop: 4 } : { marginTop: 8 },
-                      isActive
-                        ? styles.activeTabLabel
-                        : styles.inactiveTabLabel,
-                    ]}
+                    className={`text-[9px] ${isAddTab ? 'mt-1' : 'mt-2'} ${isActive ? 'text-[#0A193A]' : 'text-gray-500'}`}
                   >
                     {tab.label}
                   </Text>

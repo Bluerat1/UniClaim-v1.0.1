@@ -15,7 +15,6 @@ export const credentialStorage = {
 
             // Store credentials using Expo SecureStore (automatically encrypted)
             await SecureStore.setItemAsync(CREDENTIALS_KEY, JSON.stringify(credentials));
-            console.log('Credentials saved securely');
         } catch (error) {
             console.error('Error saving credentials:', error);
             throw new Error('Failed to save login credentials');
@@ -32,7 +31,6 @@ export const credentialStorage = {
             }
 
             const credentials: StoredCredentials = JSON.parse(credentialsData);
-            console.log('Credentials retrieved successfully');
             return credentials;
         } catch (error) {
             console.error('Error retrieving credentials:', error);
@@ -44,7 +42,6 @@ export const credentialStorage = {
     async clearCredentials(): Promise<void> {
         try {
             await SecureStore.deleteItemAsync(CREDENTIALS_KEY);
-            console.log('Stored credentials cleared');
         } catch (error) {
             console.error('Error clearing credentials:', error);
             // Don't throw error - clearing should always succeed

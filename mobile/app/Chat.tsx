@@ -185,7 +185,6 @@ export default function Chat() {
 
   // Handle FlatList layout to ensure it's ready for scrolling
   const handleFlatListLayout = () => {
-    console.log('📜 Mobile Chat: FlatList layout completed, ready for scrolling');
     setIsFlatListReady(true);
   };
 
@@ -247,9 +246,6 @@ export default function Chat() {
           conversationId || "dummy"
         );
         if (existingConversation) {
-          console.log(
-            "ℹ️ Chat: Conversation already exists, skipping creation"
-          );
           setLoading(false);
           return;
         }
@@ -276,9 +272,6 @@ export default function Chat() {
           error.message?.includes("Failed to get conversation") ||
           conversationId
         ) {
-          console.log(
-            "ℹ️ Chat: Conversation may have been deleted during creation - navigating back"
-          );
           navigation.goBack();
           return;
         }
@@ -315,7 +308,6 @@ export default function Chat() {
         setMessages(loadedMessages);
 
         // Scroll to bottom when messages are loaded (for any number of messages)
-        console.log(`📜 Mobile Chat: Loaded ${loadedMessages.length} messages, scrolling to bottom`);
         if (isFlatListReady) {
           requestAnimationFrame(() => {
             setTimeout(() => scrollToBottom(), 150);
@@ -330,7 +322,6 @@ export default function Chat() {
   // Auto-scroll to bottom when messages are updated (e.g., new message received)
   useEffect(() => {
     if (messages.length > 0 && isFlatListReady) {
-      console.log(`📜 Mobile Chat: Messages updated to ${messages.length}, scrolling to bottom`);
       requestAnimationFrame(() => {
         setTimeout(() => scrollToBottom(), 150);
       });
@@ -340,7 +331,6 @@ export default function Chat() {
   // Scroll to bottom when FlatList becomes ready (for existing messages)
   useEffect(() => {
     if (isFlatListReady && messages.length > 0) {
-      console.log(`📜 Mobile Chat: FlatList ready with ${messages.length} messages, scrolling to bottom`);
       requestAnimationFrame(() => {
         setTimeout(() => scrollToBottom(), 100);
       });
@@ -364,9 +354,6 @@ export default function Chat() {
 
         // Check if conversation doesn't exist (data is null)
         if (data === null) {
-          console.log(
-            "ℹ️ Chat: Conversation data is null - conversation was deleted"
-          );
           setIsConversationDataReady(true);
           isLoadingRef.current = false;
           navigation.goBack();
@@ -439,9 +426,6 @@ export default function Chat() {
           error.message?.includes("Conversation not found") ||
           error.message?.includes("Failed to get conversation")
         ) {
-          console.log(
-            "ℹ️ Chat: Conversation no longer exists - navigating back"
-          );
           setIsConversationDataReady(true);
           isLoadingRef.current = false;
           navigation.goBack();
@@ -487,8 +471,6 @@ export default function Chat() {
   useEffect(() => {
     if (!conversationId) return;
 
-    console.log(`👀 Mobile Chat: Setting up real-time listener for conversation ${conversationId}`);
-
     let unsubscribe: (() => void) | undefined;
 
     const setupListener = async () => {
@@ -499,7 +481,6 @@ export default function Chat() {
         const conversationRef = doc(db, 'conversations', conversationId);
         unsubscribe = onSnapshot(conversationRef, (docSnapshot: any) => {
           if (!docSnapshot.exists()) {
-            console.log(`🚪 Mobile Chat: Conversation ${conversationId} was deleted - closing chat window`);
             navigation.goBack();
             return;
           }
@@ -516,21 +497,16 @@ export default function Chat() {
 
     return () => {
       if (unsubscribe) {
-        console.log(`🔌 Mobile Chat: Cleaning up conversation listener for ${conversationId}`);
         unsubscribe();
       }
     };
   }, [conversationId, navigation]);
   const scrollToBottom = () => {
-    console.log(`📜 Mobile Chat: scrollToBottom called - messages: ${messages.length}, flatListRef exists: ${!!flatListRef.current}, flatList ready: ${isFlatListReady}`);
     if (flatListRef.current && messages.length > 0 && isFlatListReady) {
       // Use requestAnimationFrame for better timing with UI updates
       requestAnimationFrame(() => {
-        console.log('📜 Mobile Chat: Executing scrollToEnd via requestAnimationFrame');
         flatListRef.current?.scrollToEnd({ animated: true });
       });
-    } else {
-      console.log('📜 Mobile Chat: Cannot scroll - missing flatListRef, no messages, or FlatList not ready');
     }
   };
 
@@ -561,32 +537,18 @@ export default function Chat() {
   // Send message
   const handleSendMessage = async () => {
     if (!conversationId || !newMessage.trim() || !userData) {
-      console.log('❌ Chat: Cannot send message - missing required data:', {
-        conversationId,
-        hasMessage: !!newMessage.trim(),
-        userData: !!userData
-      });
       return;
     }
 
     const messageText = newMessage.trim();
 
     try {
-      console.log('🔄 Chat: Sending message:', {
-        conversationId,
-        messageLength: messageText.length,
-        senderId: userData.uid
-      });
-
       // Verify conversation exists before sending message
-      console.log('🔄 Chat: Verifying conversation exists...');
       const conversation = await getConversation(conversationId);
       if (!conversation) {
-        console.error('❌ Chat: Conversation not found, cannot send message');
         Alert.alert("Error", "Conversation not found. Please try again.");
         return;
       }
-      console.log('✅ Chat: Conversation verified, proceeding with message send');
 
       setNewMessage("");
 
@@ -598,8 +560,6 @@ export default function Chat() {
         userData.profilePicture
       );
 
-      console.log('✅ Chat: Message sent successfully');
-      console.log('📜 Chat: Scrolling to bottom after sending message');
       if (isFlatListReady) {
         requestAnimationFrame(() => {
           setTimeout(() => scrollToBottom(), 100);
@@ -740,16 +700,6 @@ export default function Chat() {
       setMessages((prevMessages) =>
         prevMessages.map((msg) => {
           if (msg.id === messageId && msg.claimData) {
-            console.log("📝 Mobile Chat: Updating message claim data", msg.id);
-            console.log(
-              "📝 Mobile Chat: Current status:",
-              msg.claimData.status
-            );
-            console.log(
-              "📝 Mobile Chat: New status will be:",
-              status === "accepted" ? "pending_confirmation" : status
-            );
-
             return {
               ...msg,
               claimData: {
@@ -765,13 +715,6 @@ export default function Chat() {
       );
 
       // Update the claim response in Firebase with ID photo URL if provided
-      console.log("🔄 Mobile Chat: Calling updateClaimResponse with:", {
-        conversationId,
-        messageId,
-        status,
-        userId: user.uid,
-        idPhotoUrl: idPhotoUrl ? "provided" : "not provided",
-      });
       await updateClaimResponse(
         conversationId,
         messageId,
@@ -779,37 +722,12 @@ export default function Chat() {
         user.uid,
         idPhotoUrl
       );
-      console.log("✅ Mobile Chat: Firebase updateClaimResponse completed");
 
       // Refresh message data from Firebase after upload to get complete updated data
       if (status === "accepted") {
-        console.log("🔄 Mobile Chat: Scheduling Firebase refresh in 2 seconds");
         setTimeout(() => {
-          console.log(
-            "🔄 Mobile Chat: Refreshing message data from Firebase after claim upload"
-          );
           if (conversationId) {
             getConversationMessages(conversationId, (updatedMessages) => {
-              console.log(
-                "✅ Mobile Chat: Refreshed messages from Firebase",
-                updatedMessages.length
-              );
-
-              // Log the status of the updated message
-              const updatedMessage = updatedMessages.find(
-                (m) => m.id === messageId
-              );
-              if (updatedMessage && updatedMessage.claimData) {
-                console.log(
-                  "📊 Mobile Chat: Refreshed message status:",
-                  updatedMessage.claimData.status
-                );
-                console.log(
-                  "📊 Mobile Chat: Refreshed message ownerIdPhoto:",
-                  updatedMessage.claimData.ownerIdPhoto ? "present" : "missing"
-                );
-              }
-
               // Force re-render of MessageBubble components by updating a key or state
               setMessages(updatedMessages);
             });
@@ -839,10 +757,6 @@ export default function Chat() {
     // Get the message data before trying to confirm
     const message = messages.find((m) => m.id === messageId);
     if (!message) {
-      console.error(
-        "❌ Mobile Chat: Message not found in local messages array:",
-        messageId
-      );
       setIsConfirmationInProgress(false);
       // If message is not found, conversation might already be deleted, just navigate back
       navigation.goBack();
@@ -850,11 +764,6 @@ export default function Chat() {
     }
 
     try {
-      console.log("🔄 Mobile Chat: Confirming ID photo for message:", {
-        messageId,
-        messageType: message.messageType,
-      });
-
       if (message.messageType === "handover_request") {
         await confirmHandoverIdPhoto(conversationId, messageId, user.uid);
         Alert.alert(
@@ -870,13 +779,9 @@ export default function Chat() {
       }
 
       // Clear messages and navigate back after successful confirmation
-      console.log(
-        "🔄 Mobile Chat: Confirmation successful - clearing messages and navigating back"
-      );
       setMessages([]);
       navigation.goBack();
     } catch (error: any) {
-      console.error("❌ Mobile Chat: Error confirming ID photo:", error);
       setIsConfirmationInProgress(false);
 
       // Handle different error scenarios
@@ -885,10 +790,6 @@ export default function Chat() {
         error.message?.includes("Message not found") ||
         error.message?.includes("already processed")
       ) {
-        console.log(
-          "🔄 Mobile Chat: Conversation/message missing - clearing messages and navigating back"
-        );
-
         // Clear messages and navigate back since conversation was already deleted
         setMessages([]);
         navigation.goBack();

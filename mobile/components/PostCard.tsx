@@ -213,7 +213,7 @@ export default function PostCard({
             isFlagged={post.isFlagged}
             flaggedBy={post.flaggedBy}
             onFlagSuccess={() => {
-              // You can add any callback logic here if needed
+              // Silent flagging - no visual feedback needed
             }}
           />
         </View>

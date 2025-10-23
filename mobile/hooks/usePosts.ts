@@ -24,8 +24,6 @@ export const usePosts = () => {
     useEffect(() => {
         // If user is not authenticated, clear posts and don't set up listeners
         if (!isAuthenticated) {
-            console.log('User not authenticated - clearing posts and listeners');
-
             // Clear posts
             setPosts([]);
             setLoading(false);
@@ -33,7 +31,6 @@ export const usePosts = () => {
 
             // Clean up any existing listener
             if (unsubscribeRef.current) {
-                console.log('Cleaning up posts listener');
                 unsubscribeRef.current();
                 unsubscribeRef.current = null;
             }
@@ -44,8 +41,6 @@ export const usePosts = () => {
         }
 
         // User is authenticated - set up listeners
-        console.log('User authenticated - setting up posts listener');
-
         // If we have valid cached data, use it immediately
         if (hasValidCache) {
             setPosts(cachedData.posts);
@@ -74,7 +69,6 @@ export const usePosts = () => {
 
         return () => {
             if (unsubscribe) {
-                console.log('Cleaning up posts listener on unmount');
                 unsubscribe();
                 unsubscribeRef.current = null;
             }
@@ -104,8 +98,6 @@ export const usePostsByType = (type: 'lost' | 'found') => {
     useEffect(() => {
         // If user is not authenticated, clear posts and don't set up listeners
         if (!isAuthenticated) {
-            console.log(`User not authenticated - clearing ${type} posts and listeners`);
-
             // Clear posts
             setPosts([]);
             setLoading(false);
@@ -113,7 +105,6 @@ export const usePostsByType = (type: 'lost' | 'found') => {
 
             // Clean up any existing listener
             if (unsubscribeRef.current) {
-                console.log(`Cleaning up ${type} posts listener`);
                 unsubscribeRef.current();
                 unsubscribeRef.current = null;
             }
@@ -124,8 +115,6 @@ export const usePostsByType = (type: 'lost' | 'found') => {
         }
 
         // User is authenticated - set up listeners
-        console.log(`User authenticated - setting up ${type} posts listener`);
-
         if (hasValidCache) {
             setPosts(cachedData.posts);
             setLoading(false);
@@ -150,7 +139,6 @@ export const usePostsByType = (type: 'lost' | 'found') => {
 
         return () => {
             if (unsubscribe) {
-                console.log(`Cleaning up ${type} posts listener on unmount`);
                 unsubscribe();
                 unsubscribeRef.current = null;
             }
@@ -174,15 +162,12 @@ export const usePostsByCategory = (category: string) => {
     useEffect(() => {
         // If user is not authenticated, clear posts and don't set up listeners
         if (!isAuthenticated) {
-            console.log('User not authenticated - clearing category posts and listeners');
-
             // Clear posts
             setPosts([]);
             setLoading(false);
 
             // Clean up any existing listener
             if (unsubscribeRef.current) {
-                console.log('Cleaning up category posts listener');
                 unsubscribeRef.current();
                 unsubscribeRef.current = null;
             }
@@ -211,7 +196,6 @@ export const usePostsByCategory = (category: string) => {
 
         return () => {
             if (unsubscribe) {
-                console.log('Cleaning up category posts listener on unmount');
                 unsubscribe();
                 unsubscribeRef.current = null;
             }
@@ -231,15 +215,12 @@ export const useUserPosts = (userEmail: string) => {
     useEffect(() => {
         // If user is not authenticated, clear posts and don't set up listeners
         if (!isAuthenticated) {
-            console.log('User not authenticated - clearing user posts and listeners');
-
             // Clear posts
             setPosts([]);
             setLoading(false);
 
             // Clean up any existing listener
             if (unsubscribeRef.current) {
-                console.log('Cleaning up user posts listener');
                 unsubscribeRef.current();
                 unsubscribeRef.current = null;
             }
@@ -265,7 +246,6 @@ export const useUserPosts = (userEmail: string) => {
 
         return () => {
             if (unsubscribe) {
-                console.log('Cleaning up user posts listener on unmount');
                 unsubscribe();
                 unsubscribeRef.current = null;
             }
@@ -352,8 +332,6 @@ export const useResolvedPosts = () => {
     useEffect(() => {
         // If user is not authenticated, clear posts and don't set up listeners
         if (!isAuthenticated) {
-            console.log('User not authenticated - clearing resolved posts and listeners');
-
             // Clear posts
             setPosts([]);
             setLoading(false);
@@ -361,7 +339,6 @@ export const useResolvedPosts = () => {
 
             // Clean up any existing listener
             if (unsubscribeRef.current) {
-                console.log('Cleaning up resolved posts listener');
                 unsubscribeRef.current();
                 unsubscribeRef.current = null;
             }
@@ -369,16 +346,11 @@ export const useResolvedPosts = () => {
         }
 
         // User is authenticated - set up listeners
-        console.log('User authenticated - setting up resolved posts listener');
-
         setLoading(true);
         setError(null);
 
         // Subscribe to resolved posts directly (like web version)
         const unsubscribe = postService.getResolvedPosts((fetchedPosts: Post[]) => {
-            console.log('🔍 [DEBUG] useResolvedPosts: Fetched resolved posts count:', fetchedPosts.length);
-            console.log('🔍 [DEBUG] useResolvedPosts: Sample resolved posts:', fetchedPosts.slice(0, 3).map(p => ({ id: p.id, status: p.status, title: p.title })));
-
             setPosts(fetchedPosts);
             setLoading(false);
             setError(null);
@@ -389,7 +361,6 @@ export const useResolvedPosts = () => {
 
         return () => {
             if (unsubscribe) {
-                console.log('Cleaning up resolved posts listener on unmount');
                 unsubscribe();
                 unsubscribeRef.current = null;
             }

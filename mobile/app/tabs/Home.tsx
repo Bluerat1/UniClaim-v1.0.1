@@ -305,7 +305,10 @@ export default function Home() {
             data={filteredPosts}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <PostCard post={item} descriptionSearch={descriptionSearch} />
+              <PostCard
+                post={item}
+                descriptionSearch={descriptionSearch}
+              />
             )}
             scrollEventThrottle={16} // Optimize scroll performance
             ListEmptyComponent={

@@ -358,14 +358,6 @@ export const userService = {
           // If emailVerified field is missing, assume true (grandfathered user)
           const firestoreEmailVerified = userData.emailVerified !== undefined ? userData.emailVerified : true;
 
-          console.log('🔍 Verification check details:', {
-            firebaseEmailVerified,
-            firestoreEmailVerified,
-            userId: user.uid,
-            userDataRole: userData.role,
-            timestamp: new Date().toISOString()
-          });
-
           // User needs verification if either Firebase or Firestore shows unverified
           return !firebaseEmailVerified || !firestoreEmailVerified;
         } catch (error: any) {

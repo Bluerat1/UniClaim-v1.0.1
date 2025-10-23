@@ -92,7 +92,6 @@ export const postService = {
         // Check cache first
         const cachedData = getCache(cacheKey);
         if (cachedData && isOnline) {
-            console.log('🔄 Using cached active posts data');
             callback(cachedData);
             return () => {}; // Return empty unsubscribe function
         }
@@ -242,8 +241,6 @@ export const postService = {
         }
     },
     getUserPosts(userEmail: string, callback: (posts: any[]) => void) {
-        console.log('🔍 [DEBUG] getUserPosts: Querying posts for user:', userEmail);
-
         const q = query(
             collection(db, 'posts'),
             where('user.email', '==', userEmail),
@@ -256,8 +253,6 @@ export const postService = {
                     id: doc.id,
                     ...doc.data()
                 }));
-                console.log('🔍 [DEBUG] getUserPosts: Found posts count:', posts.length);
-                console.log('🔍 [DEBUG] getUserPosts: Sample posts:', posts.slice(0, 2).map((p: any) => ({ id: p.id, title: p.title, userEmail: p.user?.email })));
                 callback(posts);
             },
             (error) => {
@@ -288,7 +283,6 @@ export const postService = {
         // Check cache first
         const cachedData = getCache(cacheKey);
         if (cachedData && isOnline) {
-            console.log('🔄 Using cached resolved posts data');
             callback(cachedData);
             return () => {};
         }

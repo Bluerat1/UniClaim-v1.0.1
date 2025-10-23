@@ -3,7 +3,6 @@ import { TouchableOpacity, Text, Alert, ActivityIndicator, StyleSheet } from 're
 import { postService } from '../utils/firebase/posts';
 import { useAuth } from '../context/AuthContext';
 import FlagModal from './FlagModal';
-import Toast from './Toast';
 
 interface FlagButtonProps {
   postId: string;
@@ -57,9 +56,6 @@ export default function FlagButton({
 }: FlagButtonProps) {
   const [showFlagModal, setShowFlagModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
-  const [toastType, setToastType] = useState<"success" | "error" | "warning" | "info">("success");
   const { user } = useAuth();
 
   const handleFlagClick = () => {
@@ -77,9 +73,6 @@ export default function FlagButton({
     try {
       await postService.flagPost(postId, user.uid, reason);
       setShowFlagModal(false);
-      setToastMessage("Post has been flagged for review");
-      setToastType("success");
-      setShowToast(true);
       onFlagSuccess?.();
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to flag post');
@@ -126,13 +119,6 @@ export default function FlagButton({
           isLoading={isLoading}
         />
       )}
-
-      <Toast
-        visible={showToast}
-        message={toastMessage}
-        type={toastType}
-        onClose={() => setShowToast(false)}
-      />
     </>
   );
 }

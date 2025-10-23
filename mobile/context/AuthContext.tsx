@@ -55,12 +55,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const attemptAutoLogin = async (): Promise<boolean> => {
     try {
       setIsAutoLogging(true);
-      console.log('Attempting auto-login...');
       
       const storedCredentials = await credentialStorage.getStoredCredentials();
       
       if (!storedCredentials) {
-        console.log('No stored credentials found');
         return false;
       }
       
@@ -71,12 +69,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         storedCredentials.password
       );
       
-      console.log('Auto-login successful');
       return true;
       
     } catch (error: any) {
-      console.log('Auto-login failed:', error.message);
-      
       // Clear invalid credentials
       await credentialStorage.clearCredentials();
       return false;
@@ -127,20 +122,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             await firebaseUser.reload();
 
             const needsVerification = await userService.needsEmailVerification(firebaseUser, fetchedUserData);
-            console.log('🔍 onAuthStateChanged verification check:', {
-              firebaseEmailVerified: firebaseUser.emailVerified,
-              firestoreEmailVerified: fetchedUserData.emailVerified,
-              needsVerification,
-              userId: firebaseUser.uid,
-              email: firebaseUser.email
-            });
             setNeedsEmailVerification(needsVerification);
 
             // If Firebase email is verified but Firestore is not, update Firestore
             if (firebaseUser.emailVerified && !fetchedUserData.emailVerified) {
               try {
                 await userService.updateUserData(firebaseUser.uid, { emailVerified: true });
-                console.log('Updated Firestore email verification status to true');
               } catch (error) {
                 console.error('Failed to update email verification status:', error);
               }
@@ -148,16 +135,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             // Only set authenticated if user is verified
             if (!needsVerification) {
-              console.log('✅ User is verified, setting authenticated = true');
               setIsAuthenticated(true);
             } else {
-              console.log('⏳ User needs verification, setting authenticated = false');
               // User needs verification, don't set authenticated
               setIsAuthenticated(false);
             }
           } else {
-            console.log('onAuthStateChanged: No user data found, creating user document...');
-
             // Create user document in Firestore if it doesn't exist
             try {
               // Get user profile data from Firebase Auth
@@ -179,7 +162,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 updatedAt: new Date()
               });
 
-              console.log('Created user document for new user:', firebaseUser.uid);
               setNeedsEmailVerification(true);
               setIsAuthenticated(false);
 
@@ -225,13 +207,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               const pushToken = await notificationService.registerForPushNotifications();
               if (pushToken) {
                 await notificationService.savePushToken(firebaseUser.uid, pushToken);
-                console.log('Push notifications initialized for user:', firebaseUser.uid);
               }
             } catch (error) {
               console.error('Error initializing notifications:', error);
             }
-          } else {
-            console.log('📧 User email not verified, skipping notification initialization');
           }
 
           // Start monitoring this specific user for ban status changes
@@ -245,8 +224,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
                   // Check if user just got deactivated (with backward compatibility)
                   if (userData.status === 'deactivated' || userData.status === 'banned') {
-                    console.log('User banned detected in real-time (mobile)');
-
                     // IMMEDIATELY stop listening to prevent permission errors
                     banUnsubscribe();
                     banListenerRef.current = null;
@@ -317,18 +294,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       } else {
         // User logged out - clean up all listeners
-        console.log('User logged out - cleaning up listeners');
-
         // Clean up ban listener if it exists
         if (banListenerRef.current) {
-          console.log('Cleaning up ban listener');
           banListenerRef.current();
           banListenerRef.current = null;
         }
 
         // Clean up smart ban check if it exists
         if (smartBanCheckRef.current) {
-          console.log('Cleaning up smart ban check system');
           smartBanCheckRef.current.deactivatePeriodicChecks();
           smartBanCheckRef.current = null;
         }
@@ -348,7 +321,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // No authenticated user - try auto-login once
         if (!hasAttemptedAutoLogin && !isProcessingAutoLogin) {
-          console.log('🔄 Starting auto-login attempt...');
           hasAttemptedAutoLogin = true;
           isProcessingAutoLogin = true;
 
@@ -356,11 +328,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const autoLoginSuccess = await attemptAutoLogin();
 
             if (autoLoginSuccess) {
-              console.log('✅ Auto-login successful, waiting for onAuthStateChanged to be called with user');
               // If auto-login succeeds, onAuthStateChanged will be called again with the user
               // We don't need to do anything here - the next call will handle the authenticated state
             } else {
-              console.log('❌ Auto-login failed or no credentials found');
               // Auto-login failed or no credentials - user needs to login manually
               setLoading(false);
             }
@@ -371,7 +341,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             isProcessingAutoLogin = false;
           }
         } else {
-          console.log('ℹ️ Auto-login already attempted or in progress, user is not authenticated');
           // Already attempted auto-login, user is truly not authenticated
           setLoading(false);
         }
@@ -383,14 +352,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // Clean up ban listener on component unmount
       if (banListenerRef.current) {
-        console.log('Cleaning up ban listener on unmount');
         banListenerRef.current();
         banListenerRef.current = null;
       }
 
       // Clean up smart ban check on component unmount
       if (smartBanCheckRef.current) {
-        console.log('Cleaning up smart ban check on unmount');
         smartBanCheckRef.current.deactivatePeriodicChecks();
         smartBanCheckRef.current = null;
       }
@@ -410,7 +377,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       setLoading(true);
-      console.log('Attempting login for:', email);
 
       // First check if user exists and get their data BEFORE Firebase login
       // We need to check verification status before allowing Firebase Auth login
@@ -419,24 +385,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // For now, we'll proceed with Firebase login and check immediately after
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
-        console.log('Firebase login successful for user:', user.uid);
 
         // Get user data to check verification status
         const userData = await authService.getUserData(user.uid);
-        console.log('User data fetched:', userData ? 'found' : 'not found');
 
         // Check email verification status and logout unverified users
         if (userData) {
           const needsVerification = await userService.needsEmailVerification(user, userData);
-          console.log('Verification check result:', needsVerification, {
-            firebaseEmailVerified: user.emailVerified,
-            firestoreEmailVerified: userData.emailVerified,
-            userDataRole: userData.role
-          });
 
           if (needsVerification) {
-            console.log('User needs verification, keeping logged in but marking as needs verification');
-
             // Keep user logged in but mark as needing verification
             // Don't set isAuthenticated to true, but also don't log them out
             setUser(user);
@@ -447,30 +404,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // Store credentials for auto-login (even for unverified users)
             try {
               await credentialStorage.saveCredentials(email, password);
-              console.log('Credentials stored for auto-login (email verification pending)');
             } catch (storageError) {
               console.warn('Failed to store credentials for auto-login:', storageError);
               // Continue with verification flow even if credential storage fails
             }
 
-            console.log('AuthContext: Set needsEmailVerification=true, isAuthenticated=false for user:', user.uid);
             // Throw error to prevent normal login flow
             throw new Error('EMAIL_VERIFICATION_REQUIRED');
           } else {
-            console.log('User is verified, login will proceed');
-
             // Store credentials for auto-login
             try {
               await credentialStorage.saveCredentials(email, password);
-              console.log('Credentials stored for auto-login');
             } catch (storageError) {
               console.warn('Failed to store credentials for auto-login:', storageError);
               // Continue with login even if credential storage fails
             }
           }
         } else {
-          console.log('No user data found during login, creating user document...');
-
           // Create user document in Firestore if it doesn't exist
           try {
             // Get user profile data from Firebase Auth
@@ -492,7 +442,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               updatedAt: new Date()
             });
 
-            console.log('Created user document for new user during login:', user.uid);
             setUser(user);
             setUserData({
               uid: user.uid,
@@ -518,8 +467,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         // User is verified, login will be handled by onAuthStateChanged listener
-        console.log('Login function completed, waiting for onAuthStateChanged');
-
       } catch (verificationError: any) {
         // If it's our verification error, re-throw it
         if (verificationError.message.includes('Email verification required') ||
@@ -570,7 +517,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Immediately clean up ban listener to prevent permission errors during logout
       // This prevents the race condition where the listener tries to access user data after logout
       if (banListenerRef.current) {
-        console.log('Immediately cleaning up ban listener during logout');
         banListenerRef.current();
         banListenerRef.current = null;
       }
@@ -578,7 +524,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Clear stored credentials for auto-login
       try {
         await credentialStorage.clearCredentials();
-        console.log('Stored credentials cleared during logout');
       } catch (credentialError) {
         console.warn('Error clearing stored credentials:', credentialError);
         // Continue with logout even if clearing credentials fails
@@ -597,7 +542,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           'message_cache',
           'coordinates_cache'
         ]);
-        console.log('User preferences and data cleared successfully');
       } catch (storageError) {
         console.log('Error clearing some stored data:', storageError);
         // Continue with logout even if clearing storage fails
@@ -642,7 +586,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
           // If user is now verified but was not authenticated, update auth state
           if (!needsVerification && !isAuthenticated) {
-            console.log('User is now verified, updating authentication state');
             setIsAuthenticated(true);
           }
         }
@@ -656,13 +599,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const handleEmailVerificationComplete = async (): Promise<void> => {
     if (!user || !userData) {
-      console.error('handleEmailVerificationComplete: No user or userData available');
       return;
     }
 
     try {
-      console.log('🔄 Starting email verification completion process...');
-
       // Update Firestore email verification status
       await userService.updateUserData(user.uid, { emailVerified: true });
 
@@ -682,14 +622,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const pushToken = await notificationService.registerForPushNotifications();
         if (pushToken) {
           await notificationService.savePushToken(user.uid, pushToken);
-          console.log('Push notifications initialized after email verification for user:', user.uid);
         }
       } catch (notificationError) {
         console.error('Error saving push token after verification:', notificationError);
         // Don't fail verification if push token saving fails
       }
-
-      console.log('✅ Email verification completed successfully - user is now authenticated');
     } catch (error: any) {
       console.error('❌ Failed to complete email verification:', error);
 
@@ -697,8 +634,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         await user.reload();
         if (user.emailVerified) {
-          console.log('🔄 Firebase Auth shows verified, but Firestore update failed. Proceeding anyway...');
-
           // Still set authenticated since Firebase verification is what matters
           setIsAuthenticated(true);
           setNeedsEmailVerification(false);
@@ -708,8 +643,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           userService.updateUserData(user.uid, { emailVerified: true }).catch(updateError => {
             console.error('Background Firestore update also failed:', updateError);
           });
-
-          console.log('✅ User authenticated despite Firestore error');
         } else {
           console.error('❌ Firebase Auth still shows unverified');
           setIsAuthenticated(false);
@@ -729,11 +662,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const handleImmediateBanLogout = async (bannedUserData: UserData & { status?: 'active' | 'deactivated' | 'banned' }) => {
     try {
-      console.log('Immediate logout due to ban detected (mobile)');
-
       // Clean up ban listener before logout to prevent permission errors
       if (banListenerRef.current) {
-        console.log('Cleaning up ban listener during ban logout');
         banListenerRef.current();
         banListenerRef.current = null;
       }
@@ -741,7 +671,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Clear stored credentials for auto-login (banned users shouldn't auto-login)
       try {
         await credentialStorage.clearCredentials();
-        console.log('Stored credentials cleared during ban logout');
       } catch (credentialError) {
         console.warn('Error clearing stored credentials during ban:', credentialError);
         // Continue with logout even if clearing credentials fails
@@ -763,8 +692,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // Force navigation to login by setting user to null
       // This will trigger the navigation logic to redirect to login
-      console.log('User logged out due to ban (mobile):', bannedUserData.banInfo);
-
     } catch (error) {
       console.error('Error during immediate ban logout (mobile):', error);
 
@@ -794,8 +721,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const startPeriodicBanCheck = () => {
     // SMART BAN CHECKING: Only run periodic checks if real-time listener fails
     // This prevents unnecessary quota consumption for non-banned users
-    console.log('🔄 Starting smart ban check system (mobile)');
-    
     const intervalId = setInterval(async () => {
       if (!auth.currentUser) {
         clearInterval(intervalId);
@@ -805,7 +730,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const userData = await authService.getUserData(auth.currentUser.uid);
         if (userData && (userData.status === 'deactivated' || userData.status === 'banned')) {
-          console.log('Ban detected via periodic check (mobile)');
           clearInterval(intervalId);
           handleImmediateBanLogout(userData);
         }
@@ -824,8 +748,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // NEW: Smart ban checking that only runs when needed
   const startSmartBanCheck = () => {
-    console.log('🧠 Starting smart ban check system (mobile)');
-    
     // Only start periodic checks if real-time listener fails
     // This prevents unnecessary quota consumption for non-banned users
     let periodicCheckActive = false;
@@ -844,7 +766,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const userData = await authService.getUserData(auth.currentUser.uid);
         if (userData && (userData.status === 'deactivated' || userData.status === 'banned')) {
-          console.log('Ban detected via periodic check (mobile)');
           clearInterval(intervalId);
           handleImmediateBanLogout(userData);
         }
@@ -864,11 +785,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return {
       activatePeriodicChecks: () => {
         periodicCheckActive = true;
-        console.log('⚠️ Activating periodic ban checks due to real-time listener failure');
       },
       deactivatePeriodicChecks: () => {
         periodicCheckActive = false;
-        console.log('✅ Deactivating periodic ban checks - real-time listener working');
       }
     };
   };

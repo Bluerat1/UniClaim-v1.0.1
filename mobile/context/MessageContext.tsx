@@ -65,13 +65,7 @@ export const MessageProvider = ({ children, userId, isAuthenticated }: { childre
 
   const sendMessage = async (conversationId: string, senderId: string, senderName: string, text: string, senderProfilePicture?: string): Promise<void> => {
     try {
-      console.log('🔄 MessageContext: Sending message:', {
-        conversationId,
-        senderId,
-        textLength: text.length
-      });
       await messageService.sendMessage(conversationId, senderId, senderName, text, senderProfilePicture);
-      console.log('✅ MessageContext: Message sent successfully');
     } catch (error: any) {
       console.error('❌ MessageContext: Failed to send message:', error);
       throw new Error(error.message || 'Failed to send message');
@@ -127,7 +121,6 @@ export const MessageProvider = ({ children, userId, isAuthenticated }: { childre
   const markAllUnreadMessagesAsRead = async (conversationId: string, userId: string): Promise<void> => {
     try {
       await messageService.markAllUnreadMessagesAsRead(conversationId, userId);
-      console.log(`✅ All unread messages marked as read in ${conversationId}`);
     } catch (error: any) {
       console.error('Failed to mark all unread messages as read:', error);
       // Don't throw error - just log it
@@ -179,13 +172,11 @@ export const MessageProvider = ({ children, userId, isAuthenticated }: { childre
 
   const confirmClaimIdPhoto = async (conversationId: string, messageId: string, userId: string): Promise<void> => {
     try {
-      console.log('🔄 Mobile MessageContext: confirmClaimIdPhoto called with:', { conversationId, messageId, userId });
       const result = await messageService.confirmClaimIdPhoto(conversationId, messageId, userId);
       if (!result.success) {
         console.error('❌ Mobile MessageContext: confirmClaimIdPhoto failed:', result.error);
         throw new Error(result.error || 'Failed to confirm claim ID photo');
       }
-      console.log('✅ Mobile MessageContext: confirmClaimIdPhoto succeeded');
     } catch (error: any) {
       console.error('❌ Mobile MessageContext: confirmClaimIdPhoto failed:', error);
       throw new Error(error.message || 'Failed to confirm claim ID photo');
@@ -214,7 +205,6 @@ export const MessageProvider = ({ children, userId, isAuthenticated }: { childre
 
       // For permission errors, don't throw - just log and continue
       if (error?.code === 'permission-denied') {
-        console.log('Permission denied during refresh - this is expected for some users');
         setConversations([]);
         return;
       }

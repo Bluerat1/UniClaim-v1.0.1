@@ -140,8 +140,6 @@ export const messageService: MessageService = {
     // Send message
     async sendMessage(conversationId: string, senderId: string, senderName: string, text: string, senderProfilePicture?: string): Promise<void> {
         try {
-            console.log('🔄 Firebase: Creating message document for conversation:', conversationId);
-
             // Prepare message data, filtering out undefined values
             const messageData: any = {
                 senderId,
@@ -157,14 +155,9 @@ export const messageService: MessageService = {
                 messageData.senderProfilePicture = senderProfilePicture;
             }
 
-            console.log('📝 Firebase: Message data to send:', messageData);
-
             await addDoc(collection(db, `conversations/${conversationId}/messages`), messageData);
 
-            console.log('✅ Firebase: Message document created successfully');
-
             // Get conversation data to find other participants
-            console.log('🔄 Firebase: Getting conversation data for unread count updates');
             const conversationRef = doc(db, 'conversations', conversationId);
             const conversationDoc = await getDoc(conversationRef);
 
@@ -184,9 +177,6 @@ export const messageService: MessageService = {
                 unreadCountUpdates[`unreadCounts.${participantId}`] = increment(1);
             });
 
-            console.log(`📈 Firebase: Incrementing unread counts for ${otherParticipantIds.length} participants:`, otherParticipantIds);
-            console.log(`📈 Firebase: Unread count updates:`, unreadCountUpdates);
-
             // Update conversation with last message and increment unread counts for other participants
             const currentTimestamp = new Date();
             await updateDoc(conversationRef, {
@@ -198,8 +188,6 @@ export const messageService: MessageService = {
                 },
                 ...unreadCountUpdates
             });
-
-            console.log(`✅ Firebase: Conversation updated with unread counts for ${otherParticipantIds.length} participants`);
 
             // Send notifications to other participants (mobile and web users)
             if (otherParticipantIds.length > 0) {
@@ -214,14 +202,11 @@ export const messageService: MessageService = {
                             conversationData
                         }
                     );
-                    console.log(`✅ Firebase: Sent message notifications to ${otherParticipantIds.length} participants`);
                 } catch (notificationError) {
                     console.warn('⚠️ Firebase: Failed to send message notifications, but message was sent:', notificationError);
                     // Continue even if notifications fail - message is already sent
                 }
             }
-
-            console.log(`✅ Firebase: Message sent successfully. Incremented unread counts for ${otherParticipantIds.length} participants`);
         } catch (error: any) {
             console.error('❌ Firebase: Failed to send message:', error);
             throw new Error(error.message || 'Failed to send message');
@@ -263,8 +248,6 @@ export const messageService: MessageService = {
                 const participantIds = Object.keys(conv.participants || {});
                 return participantIds.length > 1; // Must have at least 2 participants
             });
-
-            console.log(`📡 Mobile: Conversation listener triggered for user ${userId}. Found ${validConversations.length} conversations`);
 
             // Log unread counts for debugging
             validConversations.forEach(conv => {

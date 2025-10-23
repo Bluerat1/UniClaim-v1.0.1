@@ -16,6 +16,7 @@ import { AuthProvider, useAuth } from "../context/AuthContext";
 import { MessageProvider } from "../context/MessageContext";
 import { NotificationProvider } from "../context/NotificationContext";
 import { CoordinatesProvider } from "../context/CoordinatesContext";
+import { PostCardMenuProvider } from "../context/PostCardMenuContext";
 
 import { ToastProvider } from "../context/ToastContext";
 
@@ -51,8 +52,25 @@ const AppContent = ({
   // NEW: If user is banned, show login screen
   if (isBanned) {
     return (
+      <PostCardMenuProvider>
+        <NotificationProvider>
+          <MessageProvider userId={null} isAuthenticated={false}>
+            <Navigation
+              hasSeenOnBoarding={hasSeenOnBoarding}
+              setHasSeenOnBoarding={setHasSeenOnBoarding}
+              hasPassedIndex={hasPassedIndex}
+              setHasPassedIndex={setHasPassedIndex}
+            />
+          </MessageProvider>
+        </NotificationProvider>
+      </PostCardMenuProvider>
+    );
+  }
+
+  return (
+    <PostCardMenuProvider>
       <NotificationProvider>
-        <MessageProvider userId={null} isAuthenticated={false}>
+        <MessageProvider userId={user?.uid || null} isAuthenticated={isAuthenticated}>
           <Navigation
             hasSeenOnBoarding={hasSeenOnBoarding}
             setHasSeenOnBoarding={setHasSeenOnBoarding}
@@ -61,20 +79,7 @@ const AppContent = ({
           />
         </MessageProvider>
       </NotificationProvider>
-    );
-  }
-
-  return (
-    <NotificationProvider>
-      <MessageProvider userId={user?.uid || null} isAuthenticated={isAuthenticated}>
-        <Navigation
-          hasSeenOnBoarding={hasSeenOnBoarding}
-          setHasSeenOnBoarding={setHasSeenOnBoarding}
-          hasPassedIndex={hasPassedIndex}
-          setHasPassedIndex={setHasPassedIndex}
-        />
-      </MessageProvider>
-    </NotificationProvider>
+    </PostCardMenuProvider>
   );
 };
 

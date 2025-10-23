@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,10 +12,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useAuth } from "@/context/AuthContext";
+import { usePostCardMenu } from "@/context/PostCardMenuContext";
 import { messageService } from "@/utils/firebase/messages";
 import { postService } from "@/utils/firebase/posts";
 import FlagModal from "./FlagModal";
-import Toast from "./Toast";
 import type { RootStackParamList } from "@/types/type";
 
 interface PostCardMenuProps {
@@ -45,30 +45,33 @@ export default function PostCardMenu({
   onFlagSuccess,
   className = "",
 }: PostCardMenuProps) {
-  const [isOpen, setIsOpen] = useState(false);
   const [showFlagModal, setShowFlagModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreatingConversation, setIsCreatingConversation] = useState(false);
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
-  const [toastType, setToastType] = useState<
-    "success" | "error" | "warning" | "info"
-  >("success");
 
   const { user, userData } = useAuth();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { openMenuId, openMenu, closeMenu } = usePostCardMenu();
+
+  // Check if this menu should be open
+  const isOpen = openMenuId === postId;
+
+  // Cleanup effect to close menu when component unmounts
+  useEffect(() => {
+    return () => {
+      // Close this menu if it's currently open when component unmounts
+      if (openMenuId === postId) {
+        closeMenu();
+      }
+    };
+  }, [postId, openMenuId, closeMenu]);
 
   const handleMenuPress = () => {
-    console.log("Triple dot pressed, isOpen:", isOpen);
-    setIsOpen(!isOpen);
+    openMenu(postId);
   };
 
   const handleSendMessage = async () => {
-    console.log("Send Message button pressed");
-    console.log("UserData:", !!userData);
-    console.log("PostOwnerId:", postOwnerId);
-
     if (!userData) {
       Alert.alert("Login Required", "Please log in to send messages");
       return;
@@ -91,10 +94,9 @@ export default function PostCardMenu({
     }
 
     setIsCreatingConversation(true);
-    setIsOpen(false);
+    closeMenu(); // Close menu when starting conversation
 
     try {
-      console.log("Creating conversation...");
       // Create conversation
       const conversationId = await messageService.createConversation(
         postId,
@@ -105,7 +107,6 @@ export default function PostCardMenu({
         postOwnerUserData
       );
 
-      console.log("Conversation created, navigating to chat...");
       // Navigate to chat
       navigation.navigate("Chat", {
         conversationId,
@@ -130,7 +131,7 @@ export default function PostCardMenu({
       Alert.alert("Login Required", "Please log in to flag posts");
       return;
     }
-    setIsOpen(false);
+    closeMenu(); // Close menu when opening flag modal
     setShowFlagModal(true);
   };
 
@@ -141,21 +142,12 @@ export default function PostCardMenu({
     try {
       await postService.flagPost(postId, user.uid, reason);
       setShowFlagModal(false);
-      setToastMessage("Post has been flagged for review");
-      setToastType("success");
-      setShowToast(true);
       onFlagSuccess?.();
     } catch (error: any) {
-      setToastMessage(error.message || "Failed to flag post");
-      setToastType("error");
-      setShowToast(true);
+      console.error("Flag post error:", error);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const closeMenu = () => {
-    setIsOpen(false);
   };
 
   // Check if current user has already flagged this post
@@ -175,11 +167,13 @@ export default function PostCardMenu({
 
         {/* Dropdown menu positioned beside the triple dot */}
         {isOpen && (
-          <View className="absolute top-0 right-12 bg-white rounded-lg shadow-lg border border-gray-200 w-48 z-50">
+          <View
+            className="absolute top-0 right-12 bg-white rounded-lg shadow-lg border border-gray-200 w-48"
+            style={{ zIndex: 50 }}
+          >
             {/* Send Message Button */}
             <TouchableOpacity
               onPress={() => {
-                console.log("Send Message button tapped!");
                 handleSendMessage();
               }}
               disabled={isCreatingConversation || postOwnerId === userData?.uid}
@@ -218,7 +212,6 @@ export default function PostCardMenu({
             {/* Flag Post Button */}
             <TouchableOpacity
               onPress={() => {
-                console.log("Flag Post button tapped!");
                 handleFlagClick();
               }}
               disabled={
@@ -276,14 +269,6 @@ export default function PostCardMenu({
           isLoading={isLoading}
         />
       )}
-
-      {/* Toast */}
-      <Toast
-        visible={showToast}
-        message={toastMessage}
-        type={toastType}
-        onClose={() => setShowToast(false)}
-      />
     </>
   );
 }

@@ -74,12 +74,6 @@ export default function Navigation({
   const [renderKey, setRenderKey] = useState(0);
 
   useEffect(() => {
-    console.log('🔄 Navigation: Auth state changed, forcing re-render', {
-      isAuthenticated,
-      user: user ? 'present' : 'null',
-      loading,
-      needsEmailVerification
-    });
     setRenderKey(prev => prev + 1);
   }, [isAuthenticated, user, loading, needsEmailVerification]);
 
@@ -92,30 +86,15 @@ export default function Navigation({
   const shouldShowOnboarding = !hasSeenOnBoarding && !user;
   const shouldShowIndex = !hasPassedIndex && !user;
 
-  console.log('🔍 Navigation state check:', {
-    user: user ? 'present' : 'null',
-    isAuthenticated,
-    isBanned,
-    needsEmailVerification,
-    shouldShowEmailVerification: user && !isBanned && needsEmailVerification,
-    shouldShowOnboarding: !hasSeenOnBoarding && !user,
-    shouldShowIndex: !hasPassedIndex && !user,
-    loginAttemptFailed,
-    loading,
-    conditionCheck: `isAuthenticated && user && !isBanned = ${isAuthenticated && user && !isBanned}`,
-    shouldShowMainApp: isAuthenticated && user && !isBanned && !shouldShowEmailVerification
-  });
-
   // Handle redirect when user gets banned
   useEffect(() => {
     if (user && isBanned) {
-      console.log('User is banned, redirecting to login via component structure');
+      // User is banned, redirecting to login via component structure
     }
   }, [user, isBanned]);
 
   // Prevent banned users from accessing main app - redirect to index screen
   if (user && isBanned) {
-    console.log('🔄 Navigation: Showing banned user navigator');
     return (
       <Stack.Navigator
         key={`banned-navigation-${renderKey}`}
@@ -132,7 +111,6 @@ export default function Navigation({
 
   // If user is not authenticated and login attempt failed, show login screen
   if (!isAuthenticated && !user && loginAttemptFailed) {
-    console.log('🔄 Navigation: Showing login failed navigator');
     return (
       <Stack.Navigator
         key={`login-failed-navigation-${renderKey}`}
@@ -149,14 +127,6 @@ export default function Navigation({
 
   // If user is not authenticated, show index screen (welcome screen with login/register options)
   if (!isAuthenticated && !user && !needsEmailVerification && !loginAttemptFailed) {
-    console.log('🔄 Navigation: Showing index navigator');
-    console.log('🚨 DEBUG: Showing Index screen - checking conditions:', {
-      isAuthenticated,
-      user: user ? 'present' : 'null',
-      needsEmailVerification,
-      loginAttemptFailed,
-      conditionResult: !isAuthenticated && !user && !needsEmailVerification && !loginAttemptFailed
-    });
     return (
       <Stack.Navigator
         key={`index-navigation-${renderKey}`}
@@ -173,7 +143,6 @@ export default function Navigation({
 
   // CRITICAL FIX: If user is authenticated, always show main app
   if (isAuthenticated && user && !isBanned) {
-    console.log('✅ Navigation: Showing main app navigator');
     return (
       <Stack.Navigator
         key={`authenticated-navigation-${renderKey}`}
@@ -199,6 +168,13 @@ export default function Navigation({
           {() => (
             <Suspense fallback={<ScreenLoader />}>
               <PostDetails />
+            </Suspense>
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="Message">
+          {() => (
+            <Suspense fallback={<ScreenLoader />}>
+              <Message />
             </Suspense>
           )}
         </Stack.Screen>
@@ -272,17 +248,6 @@ export default function Navigation({
         : isAuthenticated && user && !isBanned
           ? "RootBottomTabs"
           : "Index"; // Fallback to Index if no other condition matches
-
-  console.log('Navigation: Final initial route:', initial, {
-    shouldShowOnboarding,
-    shouldShowIndex,
-    shouldShowEmailVerification,
-    isAuthenticated,
-    hasUser: !!user,
-    isNotBanned: !isBanned
-  });
-
-  console.log('🔄 Navigation: Using fallback navigator with initial route:', initial);
 
   return (
     <Stack.Navigator
