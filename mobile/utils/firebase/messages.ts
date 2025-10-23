@@ -287,8 +287,24 @@ export const messageService: MessageService = {
                         readBy: arrayUnion(userId)
                     });
                 }
+            } else {
+                console.warn(`⚠️ Mobile: Message ${messageId} not found in conversation ${conversationId}`);
             }
         } catch (error: any) {
+            console.error(`❌ Mobile: Failed to mark message ${messageId} as read in conversation ${conversationId} for user ${userId}:`, error);
+
+            // Log additional debugging information for permission errors
+            if (error.code === 'permission-denied') {
+                console.error(`🔒 Mobile: Permission denied. User ${userId} may not have access to update message ${messageId} in conversation ${conversationId}`);
+                console.error(`🔍 Mobile: Error details:`, {
+                    code: error.code,
+                    message: error.message,
+                    conversationId,
+                    messageId,
+                    userId
+                });
+            }
+
             throw new Error(error.message || 'Failed to mark message as read');
         }
     },
@@ -1130,8 +1146,6 @@ export const messageService: MessageService = {
     // Send handover request
     async sendHandoverRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, handoverReason?: string, idPhotoUrl?: string, itemPhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void> {
         try {
-            console.log('🔄 Mobile: sendHandoverRequest called with:', { conversationId, senderId, senderName, postId, postTitle, handoverReason, idPhotoUrl, itemPhotos });
-
             // Validate ID photo URL
             if (idPhotoUrl && !idPhotoUrl.startsWith('http')) {
                 console.error('❌ Invalid ID photo URL in sendHandoverRequest:', { idPhotoUrl });
@@ -1164,27 +1178,24 @@ export const messageService: MessageService = {
             };
 
             // Add message to conversation
-            const messageRef = await addDoc(collection(db, `conversations/${conversationId}/messages`), messageData);
+            await addDoc(collection(db, `conversations/${conversationId}/messages`), messageData);
 
-            // Get conversation data for notifications
+            // Get conversation data and update in parallel operations
             const conversationRef = doc(db, 'conversations', conversationId);
             const conversationDoc = await getDoc(conversationRef);
-            const conversationData = conversationDoc.data();
 
-            // Increment unread count for all participants except the sender
-            if (conversationData) {
+            if (conversationDoc.exists()) {
+                const conversationData = conversationDoc.data();
                 const participantIds = Object.keys(conversationData.participants || {});
                 const otherParticipantIds = participantIds.filter(id => id !== senderId);
 
-                // Prepare unread count updates for each receiver
+                // Prepare unread count updates for all receivers in one object
                 const unreadCountUpdates: { [key: string]: any } = {};
                 otherParticipantIds.forEach(participantId => {
                     unreadCountUpdates[`unreadCounts.${participantId}`] = increment(1);
                 });
 
-                console.log(`📈 Mobile: Incrementing unread counts for ${otherParticipantIds.length} participants:`, otherParticipantIds);
-
-                // Update conversation with handover request flag and unread counts
+                // Single update call with all conversation updates
                 await updateDoc(conversationRef, {
                     handoverRequested: true,
                     updatedAt: serverTimestamp(),
@@ -1195,24 +1206,8 @@ export const messageService: MessageService = {
                     },
                     ...unreadCountUpdates
                 });
-            } else {
-                // Fallback if no conversation data
-                await updateDoc(conversationRef, {
-                    handoverRequested: true,
-                    updatedAt: serverTimestamp(),
-                    lastMessage: {
-                        text: messageData.text,
-                        senderId,
-                        timestamp: serverTimestamp()
-                    }
-                });
-            }
 
-            // Send notifications to other participants for handover request
-            if (conversationData) {
-                const participantIds = Object.keys(conversationData.participants || {});
-                const otherParticipantIds = participantIds.filter(id => id !== senderId);
-
+                // Send notifications in parallel if there are participants
                 if (otherParticipantIds.length > 0) {
                     try {
                         await notificationSender.sendMessageNotifications(
@@ -1225,17 +1220,24 @@ export const messageService: MessageService = {
                                 conversationData
                             }
                         );
-                        console.log(`✅ Mobile: Sent handover request notifications to ${otherParticipantIds.length} participants`);
                     } catch (notificationError) {
                         console.warn('⚠️ Mobile: Failed to send handover request notifications, but request was sent:', notificationError);
                         // Continue even if notifications fail - request is already sent
                     }
                 }
             } else {
+                // Fallback if no conversation data
+                await updateDoc(conversationRef, {
+                    handoverRequested: true,
+                    updatedAt: serverTimestamp(),
+                    lastMessage: {
+                        text: messageData.text,
+                        senderId,
+                        timestamp: serverTimestamp()
+                    }
+                });
                 console.warn('⚠️ Mobile: No conversation data available for handover request notifications');
             }
-
-            console.log('✅ Mobile: Handover request sent successfully');
         } catch (error: any) {
             console.error('❌ Mobile: Failed to send handover request:', error);
             throw new Error(error.message || 'Failed to send handover request');
@@ -1342,8 +1344,6 @@ export const messageService: MessageService = {
     // Send claim request
     async sendClaimRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, claimReason?: string, idPhotoUrl?: string, evidencePhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void> {
         try {
-            console.log('🔄 Mobile: sendClaimRequest called with:', { conversationId, senderId, senderName, postId, postTitle, claimReason, idPhotoUrl, evidencePhotos });
-
             // Validate ID photo URL
             if (idPhotoUrl && !idPhotoUrl.startsWith('http')) {
                 console.error('❌ Invalid ID photo URL in sendClaimRequest:', { idPhotoUrl });
@@ -1394,8 +1394,6 @@ export const messageService: MessageService = {
                     unreadCountUpdates[`unreadCounts.${participantId}`] = increment(1);
                 });
 
-                console.log(`📈 Mobile: Incrementing unread counts for ${otherParticipantIds.length} participants:`, otherParticipantIds);
-
                 // Update conversation with claim request flag and unread counts
                 await updateDoc(conversationRef, {
                     claimRequested: true,
@@ -1437,7 +1435,6 @@ export const messageService: MessageService = {
                                 conversationData
                             }
                         );
-                        console.log(`✅ Mobile: Sent claim request notifications to ${otherParticipantIds.length} participants`);
                     } catch (notificationError) {
                         console.warn('⚠️ Mobile: Failed to send claim request notifications, but request was sent:', notificationError);
                         // Continue even if notifications fail - request is already sent
@@ -1446,19 +1443,15 @@ export const messageService: MessageService = {
             } else {
                 console.warn('⚠️ Mobile: No conversation data available for claim request notifications');
             }
-
-            console.log('✅ Mobile: Claim request sent successfully');
         } catch (error: any) {
             console.error('❌ Mobile: Failed to send claim request:', error);
             throw new Error(error.message || 'Failed to send claim request');
         }
     },
 
-    // Update claim response (matches web implementation with photo deletion on rejection)
+    // Update claim response
     async updateClaimResponse(conversationId: string, messageId: string, status: 'accepted' | 'rejected', userId: string, idPhotoUrl?: string): Promise<void> {
         try {
-            console.log('🔄 Mobile Firebase: updateClaimResponse called with:', { conversationId, messageId, status, userId, idPhotoUrl: idPhotoUrl ? 'provided' : 'not provided' });
-
             const messageRef = doc(db, `conversations/${conversationId}/messages`, messageId);
             const messageDoc = await getDoc(messageRef);
 
@@ -1477,35 +1470,22 @@ export const messageService: MessageService = {
 
             // If accepting with ID photo, add the owner photo URL and change status to pending confirmation
             if (status === 'accepted' && idPhotoUrl) {
-                console.log('📸 Mobile Firebase: Setting status to pending_confirmation with ID photo');
                 updateData['claimData.ownerIdPhoto'] = idPhotoUrl; // Store owner's photo with correct field name
                 updateData['claimData.status'] = 'pending_confirmation'; // New status for photo confirmation
             }
 
             // If rejecting, delete all photos from Cloudinary and clear photo URLs (like handover rejection)
             if (status === 'rejected') {
-                console.log('🗑️ Mobile: CLAIM REJECTION DETECTED - Starting photo deletion process');
-                console.log('🗑️ Mobile: Message data:', JSON.stringify(messageData, null, 2));
                 try {
                     const { extractMessageImages, deleteMessageImages } = await import('../cloudinary');
                     const imageUrls = extractMessageImages(messageData);
 
-                    console.log(`🗑️ Mobile: Found ${imageUrls.length} images to delete for claim rejection`);
-                    console.log('🗑️ Mobile: Full image URLs:', imageUrls);
                     if (imageUrls.length > 0) {
-                        console.log('🗑️ Mobile: Images to delete:', imageUrls.map(url => url.split('/').pop()));
-
                         // Try to delete from Cloudinary
                         let cloudinaryDeletionSuccess = false;
                         try {
                             const imageDeletionResult = await deleteMessageImages(imageUrls);
                             cloudinaryDeletionSuccess = imageDeletionResult.success;
-
-                            if (!imageDeletionResult.success) {
-                                console.warn(`⚠️ Mobile: Cloudinary deletion completed with some failures. Deleted: ${imageDeletionResult.deleted.length}, Failed: ${imageDeletionResult.failed.length}`);
-                            } else {
-                                console.log('✅ Mobile: Photos deleted from Cloudinary after claim rejection:', imageUrls.length);
-                            }
                         } catch (cloudinaryError: any) {
                             console.warn('Mobile: Cloudinary deletion failed (likely missing API credentials):', cloudinaryError.message);
                             // Continue with database cleanup even if Cloudinary deletion fails
@@ -1536,11 +1516,6 @@ export const messageService: MessageService = {
 
                         // Merge photo cleanup data with update data
                         Object.assign(updateData, photoCleanupData);
-                        console.log('✅ Mobile: Photo URLs cleared from database and deletion indicator added');
-
-                        if (!cloudinaryDeletionSuccess) {
-                            console.log('ℹ️ Mobile: Note - Photos may still exist in Cloudinary due to missing API credentials. Consider adding EXPO_PUBLIC_CLOUDINARY_API_KEY and EXPO_PUBLIC_CLOUDINARY_API_SECRET to your .env file for complete cleanup.');
-                        }
                     }
                 } catch (photoError: any) {
                     console.warn('Mobile: Failed to process photo deletion during claim rejection, but continuing with rejection:', photoError.message);
@@ -1548,12 +1523,8 @@ export const messageService: MessageService = {
                 }
             }
 
-            console.log('📝 Mobile Firebase: Final updateData:', updateData);
-
             await updateDoc(messageRef, updateData);
-            console.log('✅ Mobile Firebase: Claim response updated successfully');
         } catch (error: any) {
-            console.error('❌ Mobile Firebase: Failed to update claim response:', error);
             throw new Error(error.message || 'Failed to update claim response');
         }
     }

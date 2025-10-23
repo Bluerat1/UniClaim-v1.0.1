@@ -176,6 +176,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65709, 8.48570], // BOTTOM-RIGHT corner
             [124.65701, 8.48567]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65689, 8.48597],
+            [124.65706, 8.48603],
+            [124.65709, 8.48570],
+            [124.65701, 8.48567]
+        ]),
+        bufferRadius: 25 // in meters
     },
     {
         name: "LRC Building",
@@ -190,6 +197,17 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65566, 8.48646],
 
         ],
+        center: calculateCentroid([
+            [124.65557, 8.48670],
+            [124.65595, 8.48683],
+            [124.65604, 8.48659],
+            [124.65590, 8.48654],
+            [124.65592, 8.48650],
+            [124.65580, 8.48646],
+            [124.65578, 8.48650],
+            [124.65566, 8.48646]
+        ]),
+        bufferRadius: 50 // in meters
     },
     {
         name: "New Clinic Building",
@@ -199,6 +217,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65573, 8.48595], // BOTTOM-RIGHT corner
             [124.65560, 8.48589]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65557, 8.48595],
+            [124.65571, 8.48600],
+            [124.65573, 8.48595],
+            [124.65560, 8.48589]
+        ]),
+        bufferRadius: 15 // in meters
     },
     {
         name: "Parking Lot A",
@@ -209,6 +234,14 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65659, 8.48496],  // BOTTOM-LEFT corner
             [124.65656, 8.48503]
         ],
+        center: calculateCentroid([
+            [124.65657, 8.48514],
+            [124.65660, 8.48516],
+            [124.65667, 8.48500],
+            [124.65659, 8.48496],
+            [124.65656, 8.48503]
+        ]),
+        bufferRadius: 20 // in meters
     },
     {
         name: "Parking Lot B",
@@ -218,6 +251,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.6595, 8.4855], // BOTTOM-RIGHT corner
             [124.6590, 8.4855]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.6590, 8.4850],
+            [124.6595, 8.4850],
+            [124.6595, 8.4855],
+            [124.6590, 8.4855]
+        ]),
+        bufferRadius: 30 // in meters
     },
 
     {
@@ -230,6 +270,15 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65579, 8.48565],
             [124.65563, 8.48559],
         ],
+        center: calculateCentroid([
+            [124.65553, 8.48585],
+            [124.65621, 8.48610],
+            [124.65627, 8.48595],
+            [124.65575, 8.48576],
+            [124.65579, 8.48565],
+            [124.65563, 8.48559]
+        ]),
+        bufferRadius: 45 // in meters
     },
     {
         name: "Engineering Complex I",
@@ -241,6 +290,15 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65696, 8.48481],
             [124.65694, 8.48482],
         ],
+        center: calculateCentroid([
+            [124.65696, 8.48494],
+            [124.65723, 8.48490],
+            [124.65723, 8.48469],
+            [124.65694, 8.48474],
+            [124.65696, 8.48481],
+            [124.65694, 8.48482]
+        ]),
+        bufferRadius: 30 // in meters
     },
     {
         name: "Gym Lobby",
@@ -252,6 +310,15 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65636, 8.48615],
             [124.65647, 8.48620],
         ],
+        center: calculateCentroid([
+            [124.65650, 8.48614],
+            [124.65663, 8.48619],
+            [124.65666, 8.48612],
+            [124.65641, 8.48602],
+            [124.65636, 8.48615],
+            [124.65647, 8.48620]
+        ]),
+        bufferRadius: 20 // in meters
     },
     {
         name: "Information and Communication Technology Center",
@@ -279,6 +346,30 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65711, 8.48631],
 
         ],
+        center: calculateCentroid([
+            [124.65717, 8.48644],
+            [124.65733, 8.48638],
+            [124.65746, 8.48627],
+            [124.65755, 8.48617],
+            [124.65760, 8.48609],
+            [124.65763, 8.48602],
+            [124.65757, 8.48600],
+            [124.65759, 8.48598],
+            [124.65760, 8.48596],
+            [124.65760, 8.48593],
+            [124.65759, 8.48592],
+            [124.65756, 8.48589],
+            [124.65752, 8.48589],
+            [124.65749, 8.48591],
+            [124.65748, 8.48594],
+            [124.65748, 8.48598],
+            [124.65749, 8.48600],
+            [124.65744, 8.48608],
+            [124.65734, 8.48618],
+            [124.65724, 8.48625],
+            [124.65711, 8.48631]
+        ]),
+        bufferRadius: 35 // in meters
     },
     {
         name: "Finance and Accounting Building",
@@ -290,6 +381,15 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65677, 8.48626],
             [124.65650, 8.48616],
         ],
+        center: calculateCentroid([
+            [124.65646, 8.48627],
+            [124.65685, 8.48642],
+            [124.65697, 8.48611],
+            [124.65686, 8.48606],
+            [124.65677, 8.48626],
+            [124.65650, 8.48616]
+        ]),
+        bufferRadius: 25 // in meters
     },
     {
         name: "Food innovation",
@@ -302,6 +402,16 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65564, 8.48630],
             [124.65602, 8.48645],
         ],
+        center: calculateCentroid([
+            [124.65601, 8.48649],
+            [124.65609, 8.48652],
+            [124.65614, 8.48639],
+            [124.65610, 8.48634],
+            [124.65569, 8.48618],
+            [124.65564, 8.48630],
+            [124.65602, 8.48645]
+        ]),
+        bufferRadius: 25 // in meters
     },
     {
         name: "residences",
@@ -311,6 +421,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65756, 8.48552], // BOTTOM-RIGHT corner
             [124.65723, 8.48549]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65723, 8.48556],
+            [124.65756, 8.48559],
+            [124.65756, 8.48552],
+            [124.65723, 8.48549]
+        ]),
+        bufferRadius: 15 // in meters
     },
     {
         name: "FIC Extension",
@@ -320,6 +437,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65796, 8.48556], // BOTTOM-RIGHT corner
             [124.65763, 8.48553]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65763, 8.48559],
+            [124.65795, 8.48562],
+            [124.65796, 8.48556],
+            [124.65763, 8.48553]
+        ]),
+        bufferRadius: 15 // in meters
     },
     {
         name: "Study Shed",
@@ -329,6 +453,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65776, 8.48605], // BOTTOM-RIGHT corner
             [124.65770, 8.48603]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65768, 8.48613],
+            [124.65774, 8.48614],
+            [124.65776, 8.48605],
+            [124.65770, 8.48603]
+        ]),
+        bufferRadius: 10 // in meters
     },
     {
         name: "Study Shed 2",
@@ -338,6 +469,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65795, 8.48587], // BOTTOM-RIGHT corner
             [124.65789, 8.48586]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65788, 8.48589],
+            [124.65794, 8.48590],
+            [124.65795, 8.48587],
+            [124.65789, 8.48586]
+        ]),
+        bufferRadius: 10 // in meters
     },
     {
         name: "Guidance and Testing Center",
@@ -347,6 +485,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65839, 8.48626], // BOTTOM-RIGHT corner
             [124.65821, 8.48623]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65819, 8.48633],
+            [124.65838, 8.48636],
+            [124.65839, 8.48626],
+            [124.65821, 8.48623]
+        ]),
+        bufferRadius: 15 // in meters
     },
     {
         name: "Arts and Culture Building",
@@ -356,6 +501,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65858, 8.48620], // BOTTOM-RIGHT corner
             [124.65843, 8.48618]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65842, 8.48627],
+            [124.65856, 8.48630],
+            [124.65858, 8.48620],
+            [124.65843, 8.48618]
+        ]),
+        bufferRadius: 15 // in meters
     },
     {
         name: "Study Shed 3",
@@ -365,6 +517,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65632, 8.48624], // BOTTOM-RIGHT corner
             [124.65627, 8.48621]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65625, 8.48626],
+            [124.65630, 8.48628],
+            [124.65632, 8.48624],
+            [124.65627, 8.48621]
+        ]),
+        bufferRadius: 10 // in meters
     },
     {
         name: "Study Shed 4",
@@ -374,6 +533,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65626, 8.48638], // BOTTOM-RIGHT corner
             [124.65621, 8.48635]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65619, 8.48640],
+            [124.65624, 8.48642],
+            [124.65626, 8.48638],
+            [124.65621, 8.48635]
+        ]),
+        bufferRadius: 10 // in meters
     },
     {
         name: "Study Shed 5",
@@ -383,6 +549,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65551, 8.48641], // BOTTOM-RIGHT corner
             [124.65545, 8.48639]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65541, 8.48649],
+            [124.65547, 8.48651],
+            [124.65551, 8.48641],
+            [124.65545, 8.48639]
+        ]),
+        bufferRadius: 10 // in meters
     },
     {
         name: "Technology Building",
@@ -394,6 +567,15 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65508, 8.48686],
             [124.65543, 8.48699],
         ],
+        center: calculateCentroid([
+            [124.65542, 8.48702],
+            [124.65550, 8.48705],
+            [124.65558, 8.48682],
+            [124.65515, 8.48666],
+            [124.65508, 8.48686],
+            [124.65543, 8.48699]
+        ]),
+        bufferRadius: 30 // in meters
     },
     {
         name: "Study Shed 5",
@@ -403,6 +585,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65551, 8.48641], // BOTTOM-RIGHT corner
             [124.65545, 8.48639]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65541, 8.48649],
+            [124.65547, 8.48651],
+            [124.65551, 8.48641],
+            [124.65545, 8.48639]
+        ]),
+        bufferRadius: 10 // in meters
     },
     {
         name: "Student Center",
@@ -412,6 +601,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65531, 8.48597], // BOTTOM-RIGHT corner
             [124.65518, 8.48592]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65505, 8.48625],
+            [124.65517, 8.48630],
+            [124.65531, 8.48597],
+            [124.65518, 8.48592]
+        ]),
+        bufferRadius: 20 // in meters
     },
     {
         name: "BTED",
@@ -421,6 +617,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65543, 8.48566], // BOTTOM-RIGHT corner
             [124.65531, 8.48561]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65518, 8.48591],
+            [124.65531, 8.48596],
+            [124.65543, 8.48566],
+            [124.65531, 8.48561]
+        ]),
+        bufferRadius: 20 // in meters
     },
     {
         name: "Blank",
@@ -430,6 +633,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65554, 8.48549], // BOTTOM-RIGHT corner
             [124.65535, 8.48543]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65529, 8.48553],
+            [124.65547, 8.48563],
+            [124.65554, 8.48549],
+            [124.65535, 8.48543]
+        ]),
+        bufferRadius: 15 // in meters
     },
     {
         name: "Sports Complex",
@@ -439,6 +649,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65686, 8.48662], // BOTTOM-RIGHT corner
             [124.65631, 8.48640]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65625, 8.48654],
+            [124.65681, 8.48676],
+            [124.65686, 8.48662],
+            [124.65631, 8.48640]
+        ]),
+        bufferRadius: 40 // in meters
     },
 
     {
@@ -449,6 +666,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65716, 8.48586], // BOTTOM-RIGHT corner
             [124.65711, 8.48586]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65711, 8.48591],
+            [124.65715, 8.48592],
+            [124.65716, 8.48586],
+            [124.65711, 8.48586]
+        ]),
+        bufferRadius: 10 // in meters
     },
 
     {
@@ -461,6 +685,15 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65724, 8.48593],
             [124.65713, 8.48601],
         ],
+        center: calculateCentroid([
+            [124.65722, 8.48614],
+            [124.65738, 8.48603],
+            [124.65739, 8.48592],
+            [124.65736, 8.48588],
+            [124.65724, 8.48593],
+            [124.65713, 8.48601]
+        ]),
+        bufferRadius: 30 // in meters
     },
     {
         name: "Civil Technology Building (small)",
@@ -470,6 +703,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65497, 8.48666], // BOTTOM-RIGHT corner
             [124.65491, 8.48663]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65489, 8.48667],
+            [124.65496, 8.48669],
+            [124.65497, 8.48666],
+            [124.65491, 8.48663]
+        ]),
+        bufferRadius: 15 // in meters
     },
     {
         name: "Civil Technology Building (Big)",
@@ -479,6 +719,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65511, 8.48637], // BOTTOM-RIGHT corner
             [124.65493, 8.48630]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65482, 8.48659],
+            [124.65499, 8.48665],
+            [124.65511, 8.48637],
+            [124.65493, 8.48630]
+        ]),
+        bufferRadius: 25 // in meters
     },
     {
         name: "Sump Pit",
@@ -488,6 +735,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65502, 8.48677], // BOTTOM-RIGHT corner
             [124.65482, 8.48671]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65478, 8.48683],
+            [124.65498, 8.48689],
+            [124.65502, 8.48677],
+            [124.65482, 8.48671]
+        ]),
+        bufferRadius: 15 // in meters
     },
     {
         name: "Girl's Trade Building",
@@ -501,6 +755,17 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65560, 8.48612],
             [124.65542, 8.48605],
         ],
+        center: calculateCentroid([
+            [124.65522, 8.48658],
+            [124.65539, 8.48664],
+            [124.65544, 8.48652],
+            [124.65538, 8.48649],
+            [124.65549, 8.48624],
+            [124.65554, 8.48626],
+            [124.65560, 8.48612],
+            [124.65542, 8.48605]
+        ]),
+        bufferRadius: 35 // in meters
     },
     {
         name: "Printing Press",
@@ -510,6 +775,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65619, 8.48664], // BOTTOM-RIGHT corner
             [124.65609, 8.48660]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65605, 8.48671],
+            [124.65615, 8.48675],
+            [124.65619, 8.48664],
+            [124.65609, 8.48660]
+        ]),
+        bufferRadius: 15 // in meters
     },
     {
         name: "Study Shed 6",
@@ -520,6 +792,14 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65624, 8.48505],  // BOTTOM-LEFT corner
             [124.65609, 8.48517],
         ],
+        center: calculateCentroid([
+            [124.65602, 8.48545],
+            [124.65642, 8.48559],
+            [124.65653, 8.48526],
+            [124.65624, 8.48505],
+            [124.65609, 8.48517]
+        ]),
+        bufferRadius: 25 // in meters
     },
     {
         name: "ITB Building",
@@ -531,6 +811,15 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65804, 8.48622],
             [124.65819, 8.48623],
         ],
+        center: calculateCentroid([
+            [124.65820, 8.48606],
+            [124.65858, 8.48608],
+            [124.65859, 8.48594],
+            [124.65806, 8.48591],
+            [124.65804, 8.48622],
+            [124.65819, 8.48623]
+        ]),
+        bufferRadius: 40 // in meters
     },
     {
         name: "SPED Center",
@@ -540,6 +829,13 @@ export const USTP_CAMPUS_LOCATIONS: CampusLocation[] = [
             [124.65835, 8.48588], // BOTTOM-RIGHT corner
             [124.65824, 8.48588]  // BOTTOM-LEFT corner
         ],
+        center: calculateCentroid([
+            [124.65824, 8.48592],
+            [124.65835, 8.48592],
+            [124.65835, 8.48588],
+            [124.65824, 8.48588]
+        ]),
+        bufferRadius: 15 // in meters
     },
 
 

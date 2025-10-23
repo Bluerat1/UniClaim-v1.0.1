@@ -1,17 +1,15 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   FlatList,
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from "react-native";
 import SearchWithToggle from "../../components/Input";
 import PostCard from "../../components/PostCard";
 import { PostCardSkeletonList } from "../../components/PostCardSkeleton";
 import Layout from "../../layout/HomeLayout";
 import { Ionicons } from "@expo/vector-icons";
-import type { Post } from "../../types/type";
 
 // hooks
 import { usePosts, useResolvedPosts } from "../../hooks/usePosts";

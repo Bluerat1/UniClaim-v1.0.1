@@ -73,7 +73,7 @@ const ForgotPassword = () => {
         Forgot Password
       </Text>
       <Text className="text-base font-manrope text-gray-600 mb-6">
-        Enter your email address to receive a password reset link. Don't forget to check your spam/junk folder if you don't see the email.
+        Enter your email address to receive a password reset link. Don&apos;t forget to check your spam/junk folder if you don&apos;t see the email.
       </Text>
 
       <TextInput

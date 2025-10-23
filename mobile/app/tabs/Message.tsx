@@ -12,8 +12,8 @@ import PageLayout from "@/layout/PageLayout";
 import { useMessage } from "@/context/MessageContext";
 import { useAuth } from "@/context/AuthContext";
 import ProfilePicture from "@/components/ProfilePicture";
-import type { Conversation } from "@/types/type";
-import type { RootStackParamList } from "@/types/type";
+import type { Conversation , RootStackParamList } from "@/types/type";
+
 
 type MessageNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -176,6 +176,8 @@ const ConversationItem = React.memo(({
   );
 });
 
+ConversationItem.displayName = 'ConversationItem';
+
 export default function Message() {
   const navigation = useNavigation<MessageNavigationProp>();
   const {
@@ -188,17 +190,6 @@ export default function Message() {
   const [refreshing, setRefreshing] = useState(false);
 
   const handleConversationPress = useCallback(async (conversation: Conversation) => {
-    console.log("🔍 DEBUG: Navigating to Chat with conversation data:", {
-      conversationId: conversation.id,
-      postTitle: conversation.postTitle,
-      postOwnerId: conversation.postCreatorId,
-      postId: conversation.postId,
-      postType: conversation.postType,
-      postStatus: conversation.postStatus,
-      foundAction: conversation.foundAction,
-      fullConversation: conversation,
-    });
-
     // Mark conversation as read before navigating
     if (userData?.uid) {
       await markConversationAsRead(conversation.id, userData.uid);

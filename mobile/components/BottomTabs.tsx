@@ -30,11 +30,49 @@ type TabConfig = {
   component: () => JSX.Element;
 };
 
+// Static tabs configuration - moved outside component
+const tabs: TabConfig[] = [
+  {
+    key: "MyTickets",
+    iconOutline: "home-outline",
+    iconFilled: "home",
+    label: "Home",
+    component: HomeScreen,
+  },
+  {
+    key: "Ticket",
+    iconOutline: "ticket-outline",
+    iconFilled: "ticket",
+    label: "My Ticket",
+    component: MyTicket,
+  },
+  {
+    key: "CreateReport",
+    iconOutline: "add-circle",
+    iconFilled: "add-circle",
+    label: "Create a report",
+    component: CreateReportScreen,
+  },
+  {
+    key: "Messages",
+    iconOutline: "chatbubble-outline",
+    iconFilled: "chatbubble",
+    label: "Messages",
+    component: Message,
+  },
+  {
+    key: "Profile",
+    iconOutline: "person-outline",
+    iconFilled: "person",
+    label: "Profile",
+    component: ProfileScreen,
+  },
+];
+
 export default function CustomTabs() {
   const [currentTab, setCurrentTab] = useState("MyTickets");
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const insets = useSafeAreaInsets();
-  const TAB_BAR_HEIGHT = 50;
   const previousTabRef = useRef(currentTab);
   const [isInitialized, setIsInitialized] = useState(false);
   const { isBanned, userData } = useAuth();
@@ -44,59 +82,6 @@ export default function CustomTabs() {
   const unreadCount = userData?.uid
     ? getUnreadConversationCount(userData.uid)
     : 0;
-
-  // NEW: Redirect banned users to login
-  useEffect(() => {
-    if (isBanned) {
-      // User is banned, but don't try to navigate since the parent components handle this
-      console.log(
-        "User is banned in BottomTabs, redirecting via parent components"
-      );
-    }
-  }, [isBanned]);
-
-  // NEW: Don't render tabs if user is banned
-  if (isBanned) {
-    return null; // This will trigger the parent navigation logic
-  }
-
-  const tabs: TabConfig[] = [
-    {
-      key: "MyTickets",
-      iconOutline: "home-outline",
-      iconFilled: "home",
-      label: "Home",
-      component: HomeScreen,
-    },
-    {
-      key: "Ticket",
-      iconOutline: "ticket-outline",
-      iconFilled: "ticket",
-      label: "My Ticket",
-      component: MyTicket,
-    },
-    {
-      key: "CreateReport",
-      iconOutline: "add-circle",
-      iconFilled: "add-circle",
-      label: "Create a report",
-      component: CreateReportScreen,
-    },
-    {
-      key: "Messages",
-      iconOutline: "chatbubble-outline",
-      iconFilled: "chatbubble",
-      label: "Messages",
-      component: Message,
-    },
-    {
-      key: "Profile",
-      iconOutline: "person-outline",
-      iconFilled: "person",
-      label: "Profile",
-      component: ProfileScreen,
-    },
-  ];
 
   // Load saved tab state on component mount
   useEffect(() => {
@@ -125,14 +110,34 @@ export default function CustomTabs() {
     }
   }, [currentTab, isInitialized]);
 
+  useEffect(() => {
+    const keyboardShow = Keyboard.addListener("keyboardDidShow", () =>
+      setIsKeyboardVisible(true)
+    );
+    const keyboardHide = Keyboard.addListener("keyboardDidHide", () =>
+      setIsKeyboardVisible(false)
+    );
+
+    return () => {
+      keyboardShow.remove();
+      keyboardHide.remove();
+    };
+  }, []);
+
+  // NEW: Redirect banned users to login
+  useEffect(() => {
+    if (isBanned) {
+      // User is banned, but don't try to navigate since the parent components handle this
+      console.log(
+        "User is banned in BottomTabs, redirecting via parent components"
+      );
+    }
+  }, [isBanned]);
+
   // Handle tab press
   const handleTabPress = (tabKey: string) => {
     setCurrentTab(tabKey);
   };
-
-  // Get current tab component
-  const CurrentTabComponent =
-    tabs.find((tab) => tab.key === currentTab)?.component || HomeScreen;
 
   // Render only the active tab component to prevent background processing
   const renderActiveTab = () => {
@@ -152,19 +157,10 @@ export default function CustomTabs() {
     }
   };
 
-  useEffect(() => {
-    const keyboardShow = Keyboard.addListener("keyboardDidShow", () =>
-      setIsKeyboardVisible(true)
-    );
-    const keyboardHide = Keyboard.addListener("keyboardDidHide", () =>
-      setIsKeyboardVisible(false)
-    );
-
-    return () => {
-      keyboardShow.remove();
-      keyboardHide.remove();
-    };
-  }, []);
+  // NEW: Don't render tabs if user is banned
+  if (isBanned) {
+    return null; // This will trigger the parent navigation logic
+  }
 
   // Don't render content until tab state is loaded
   if (!isInitialized) {

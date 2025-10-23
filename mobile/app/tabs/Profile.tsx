@@ -530,7 +530,7 @@ export default function Profile() {
     if (!hasCurrentPicture) {
       Alert.alert(
         "No Profile Picture",
-        "You don't have a profile picture to remove."
+        "You don&apos;t have a profile picture to remove."
       );
       return;
     }

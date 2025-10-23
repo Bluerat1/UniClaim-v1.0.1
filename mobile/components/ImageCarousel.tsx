@@ -46,7 +46,7 @@ export default function ImageCarousel({ images }: { images: string[] }) {
         animated: false,
       });
     }
-  }, [itemWidth]);
+  }, [itemWidth, currentIndex]);
 
   const handleImagePress = (index: number) => {
     setCurrentIndex(index);

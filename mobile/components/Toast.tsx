@@ -38,29 +38,25 @@ export default function Toast({
 
       // Auto hide after duration
       const timer = setTimeout(() => {
-        hideToast();
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: -100,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          onClose();
+        });
       }, duration);
 
       return () => clearTimeout(timer);
     }
-  }, [visible, duration]);
-
-  const hideToast = () => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: -100,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onClose();
-    });
-  };
+  }, [visible, duration, onClose]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getToastStyle = () => {
     switch (type) {
@@ -114,7 +110,7 @@ export default function Toast({
         <Text style={styles.message}>
           {message}
         </Text>
-        <TouchableOpacity onPress={hideToast} style={styles.closeButton}>
+        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
           <MaterialIcons name="close" size={20} color="white" />
         </TouchableOpacity>
       </View>

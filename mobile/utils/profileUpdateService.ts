@@ -6,7 +6,8 @@ import {
     where,
     getDocs,
     writeBatch,
-    serverTimestamp
+    serverTimestamp,
+    collectionGroup
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -51,7 +52,6 @@ export const profileUpdateService: ProfileUpdateService = {
                 ...filteredUpdates,
                 updatedAt: serverTimestamp()
             });
-            console.log('User profile updated successfully');
         } catch (error: any) {
             console.error('Error updating user profile:', error);
 
@@ -78,7 +78,6 @@ export const profileUpdateService: ProfileUpdateService = {
             const postsSnapshot = await getDocs(postsQuery);
 
             if (postsSnapshot.empty) {
-                console.log('No posts found for user, skipping post updates');
                 return;
             }
 
@@ -117,7 +116,6 @@ export const profileUpdateService: ProfileUpdateService = {
 
             // Execute batch update
             await batch.commit();
-            console.log(`Updated ${updateCount} posts for user`);
 
         } catch (error: any) {
             console.error('Error updating user posts:', error);
@@ -125,164 +123,98 @@ export const profileUpdateService: ProfileUpdateService = {
         }
     },
 
-    // Update conversations where the user participates
+    // Update conversations where the user participates (SIMPLIFIED VERSION)
     async updateUserConversations(userId: string, updates: UserProfileUpdate): Promise<void> {
         try {
-            // Find all conversations where the user is a participant
+            // Early return if no relevant updates for conversations
+            if (!updates.firstName && !updates.lastName && !updates.email &&
+                !updates.contactNum && !updates.studentId && !updates.profilePicture) {
+                return;
+            }
+
+            // Get all conversations where user is a participant (single query)
             const conversationsQuery = query(
                 collection(db, 'conversations'),
                 where(`participants.${userId}`, '!=', null)
             );
-
             const conversationsSnapshot = await getDocs(conversationsQuery);
 
             if (conversationsSnapshot.empty) {
-                console.log('No conversations found for user, skipping conversation updates');
                 return;
             }
 
-            // Prepare batch update for conversations
-            const conversationBatch = writeBatch(db);
-            let conversationUpdateCount = 0;
+            // Single batch for all conversation updates
+            const batch = writeBatch(db);
+            let updateCount = 0;
 
-            // Prepare batch update for messages
-            const messageBatch = writeBatch(db);
-            let messageUpdateCount = 0;
-
-            // Process each conversation
-            for (const conversationDoc of conversationsSnapshot.docs) {
+            // Update conversations - simplified approach
+            conversationsSnapshot.forEach((conversationDoc) => {
                 const conversationData = conversationDoc.data();
 
-                // Only update if the user is actually a participant
-                if (!conversationData.participants || !conversationData.participants[userId]) {
-                    console.log(`User ${userId} not found in conversation ${conversationDoc.id}, skipping`);
-                    continue;
+                // Check if user is actually a participant (handle both object and array structures)
+                const isParticipant = conversationData.participants &&
+                    (conversationData.participants[userId] ||
+                     (Array.isArray(conversationData.participants) && conversationData.participants.includes(userId)));
+
+                if (!isParticipant) {
+                    return; // Skip if user not actually a participant
                 }
 
-                // Update the participant data in the conversation
-                const conversationUpdates: any = {};
+                const currentParticipant = conversationData.participants[userId] || {};
+                const updatedParticipant = {
+                    ...currentParticipant,
+                    ...(updates.firstName !== undefined && { firstName: updates.firstName }),
+                    ...(updates.lastName !== undefined && { lastName: updates.lastName }),
+                    ...(updates.email !== undefined && { email: updates.email }),
+                    ...(updates.contactNum !== undefined && { contactNum: updates.contactNum }),
+                    ...(updates.studentId !== undefined && { studentId: updates.studentId }),
+                    ...(updates.profilePicture !== undefined && { profilePicture: updates.profilePicture })
+                };
 
-                // Only update if we have actual changes to make
-                let hasConversationUpdates = false;
+                // Only update if there are actual changes
+                const hasChanges = Object.keys(updatedParticipant).some(key =>
+                    updatedParticipant[key] !== currentParticipant[key]
+                );
 
-                if (updates.firstName !== undefined || updates.lastName !== undefined ||
-                    updates.email !== undefined || updates.contactNum !== undefined ||
-                    updates.studentId !== undefined || updates.profilePicture !== undefined) {
-
-                    const currentParticipant = conversationData.participants[userId] || {};
-                    const updatedParticipant = {
-                        ...currentParticipant,
-                        ...(updates.firstName !== undefined && { firstName: updates.firstName }),
-                        ...(updates.lastName !== undefined && { lastName: updates.lastName }),
-                        ...(updates.email !== undefined && { email: updates.email }),
-                        ...(updates.contactNum !== undefined && { contactNum: updates.contactNum }),
-                        ...(updates.studentId !== undefined && { studentId: updates.studentId }),
-                        ...(updates.profilePicture !== undefined && { profilePicture: updates.profilePicture })
-                    };
-
-                    conversationUpdates[`participants.${userId}`] = updatedParticipant;
-                    hasConversationUpdates = true;
-                }
-
-                // Add conversation updates to batch
-                if (hasConversationUpdates) {
+                if (hasChanges) {
                     const conversationRef = doc(db, 'conversations', conversationDoc.id);
-                    conversationBatch.update(conversationRef, conversationUpdates);
-                    conversationUpdateCount++;
+                    batch.update(conversationRef, { [`participants.${userId}`]: updatedParticipant });
+                    updateCount++;
                 }
+            });
 
-                // Update messages where the user is the sender
-                if (updates.firstName !== undefined || updates.lastName !== undefined || updates.profilePicture !== undefined) {
-                    try {
-                        const messagesQuery = query(
-                            collection(db, 'conversations', conversationDoc.id, 'messages'),
-                            where('senderId', '==', userId)
-                        );
-
-                        const messagesSnapshot = await getDocs(messagesQuery);
-
-                        if (!messagesSnapshot.empty) {
-                            messagesSnapshot.forEach((messageDoc) => {
-                                const messageRef = doc(db, 'conversations', conversationDoc.id, 'messages', messageDoc.id);
-                                const messageData = messageDoc.data();
-
-                                const messageUpdates: any = {};
-
-                                // Update sender name if it exists in the message
-                                if (messageData.senderName && (updates.firstName !== undefined || updates.lastName !== undefined)) {
-                                    const currentFirstName = messageData.senderName.split(' ')[0] || '';
-                                    const currentLastName = messageData.senderName.split(' ').slice(1).join(' ') || '';
-
-                                    const newFirstName = updates.firstName !== undefined ? updates.firstName : currentFirstName;
-                                    const newLastName = updates.lastName !== undefined ? updates.lastName : currentLastName;
-
-                                    messageUpdates.senderName = `${newFirstName} ${newLastName}`.trim();
-                                }
-
-                                // Update sender details if they exist
-                                if (updates.firstName !== undefined) {
-                                    messageUpdates.senderFirstName = updates.firstName;
-                                }
-                                if (updates.lastName !== undefined) {
-                                    messageUpdates.senderLastName = updates.lastName;
-                                }
-                                if (updates.profilePicture !== undefined) {
-                                    messageUpdates.senderProfilePicture = updates.profilePicture;
-                                }
-
-                                // Only add to batch if we have updates
-                                if (Object.keys(messageUpdates).length > 0) {
-                                    messageBatch.update(messageRef, messageUpdates);
-                                    messageUpdateCount++;
-                                }
-                            });
-                        }
-                    } catch (messageError: any) {
-                        console.warn(`Failed to update messages in conversation ${conversationDoc.id}:`, messageError.message);
-                        // Continue with other conversations even if message updates fail
-                    }
-                }
-            }
-
-            // Execute conversation updates batch
-            if (conversationUpdateCount > 0) {
-                await conversationBatch.commit();
-                console.log(`Updated ${conversationUpdateCount} conversations for user`);
-            }
-
-            // Execute message updates batch
-            if (messageUpdateCount > 0) {
-                await messageBatch.commit();
-                console.log(`Updated ${messageUpdateCount} messages for user`);
-            }
-
-            if (conversationUpdateCount === 0 && messageUpdateCount === 0) {
-                console.log('No conversation or message updates needed');
+            // Execute batch update
+            if (updateCount > 0) {
+                await batch.commit();
             }
 
         } catch (error: any) {
             console.error('Error updating user conversations:', error);
             // Don't throw error for conversations - just log it
             // This allows profile updates to continue even if conversation updates fail
-            console.warn('Conversation updates failed, but profile update will continue');
         }
     },
 
-    // Main function to update all user data across collections
+    // Main function to update all user data across collections (PARALLEL PROCESSING)
     async updateAllUserData(userId: string, updates: UserProfileUpdate): Promise<void> {
         try {
-            console.log('Starting comprehensive user data update...');
-
-            // Update user profile first
+            // Update user profile first (must be sequential as it's the primary operation)
             await this.updateUserProfile(userId, updates);
 
-            // Update user posts
-            await this.updateUserPosts(userId, updates);
+            // Run posts and conversations updates in parallel for better performance
+            const [postsResult, conversationsResult] = await Promise.allSettled([
+                this.updateUserPosts(userId, updates),
+                this.updateUserConversations(userId, updates)
+            ]);
 
-            // Update user conversations (this won't throw errors now)
-            await this.updateUserConversations(userId, updates);
+            // Log any errors but don't fail the entire operation
+            if (postsResult.status === 'rejected') {
+                console.warn('Failed to update user posts:', postsResult.reason);
+            }
 
-            console.log('All user data updated successfully');
+            if (conversationsResult.status === 'rejected') {
+                console.warn('Failed to update user conversations:', conversationsResult.reason);
+            }
 
         } catch (error: any) {
             console.error('Error in comprehensive user data update:', error);

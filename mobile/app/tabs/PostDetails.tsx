@@ -1,5 +1,4 @@
 import ImageCarousel from "@/components/ImageCarousel";
-import ProfilePicture from "@/components/ProfilePicture";
 import {
   Ionicons,
   MaterialCommunityIcons,
@@ -29,19 +28,6 @@ export default function PostDetailsScreen() {
   const isCurrentUserCreator =
     userData?.uid === post.creatorId || userData?.uid === post.postedById;
 
-  const getCategoryBadgeStyle = (category: string) => {
-    switch (category.toLowerCase()) {
-      case "student essentials":
-        return "bg-yellow-100 text-yellow-700";
-      case "gadgets":
-        return "bg-blue-100 text-blue-700";
-      case "personal belongings":
-        return "bg-purple-100 text-purple-700";
-      default:
-        return "bg-blue-100 text-blue-700"; // fallback
-    }
-  };
-
   return (
     <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-white">
       {/* X Close Icon */}
@@ -67,16 +53,6 @@ export default function PostDetailsScreen() {
           <TouchableOpacity
             className="bg-brand h-[3.5rem] mb-5 w-full items-center justify-center rounded-md"
             onPress={() => {
-              // Debug: Log post data to see what's available
-              console.log("PostDetails - Post data for messaging:", {
-                id: post.id,
-                title: post.title,
-                postedById: post.postedById,
-                user: post.user,
-                hasPostedById: !!post.postedById,
-                userKeys: Object.keys(post.user || {}),
-              });
-
               // Try to get postOwnerId from multiple sources
               let postOwnerId = post.creatorId || post.postedById;
 
@@ -84,9 +60,12 @@ export default function PostDetailsScreen() {
               if (!postOwnerId && post.user) {
                 // For now, we'll show an alert, but in the future we could implement
                 // a way to get the user ID from the user object or other means
-                console.warn(
-                  "PostDetails - postedById missing, cannot start conversation"
+                Alert.alert(
+                  "Messaging Unavailable",
+                  "Unable to start conversation. Post owner information is missing. This post was created before messaging was enabled.",
+                  [{ text: "OK" }]
                 );
+                return;
               }
 
               // Navigate to Chat screen with post details

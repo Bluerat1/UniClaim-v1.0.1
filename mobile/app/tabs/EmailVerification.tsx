@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
@@ -56,7 +55,7 @@ export default function EmailVerification() {
     } else if (user && !user.emailVerified) {
       setIsEmailVerified(false);
     }
-  }, [user?.emailVerified]);
+  }, [user]);
 
   // Only check when user manually taps the button (no automatic background checking)
   useEffect(() => {
@@ -202,7 +201,7 @@ export default function EmailVerification() {
         'A new verification email has been sent to your email address. Please check your inbox and spam folder.',
         [{ text: 'OK' }]
       );
-    } catch (error: any) {
+    } catch {
       Alert.alert(
         'Error',
         'Failed to send verification email. Please try again later.',
@@ -268,7 +267,7 @@ export default function EmailVerification() {
             Verify Your Email
           </Text>
           <Text className="text-base font-manrope-medium text-gray-600 text-center">
-            We've sent a verification email to
+            We&apos;ve sent a verification email to
           </Text>
           <Text className="text-lg font-manrope-semibold text-black text-center mt-1">
             {user?.email}
@@ -296,12 +295,12 @@ export default function EmailVerification() {
             <View className="flex-row items-start">
               <Text className="text-blue-600 mr-2">3.</Text>
               <Text className="text-blue-700 font-manrope-medium flex-1">
-                Return to the app - you'll be automatically redirected
+                Return to the app - you&apos;ll be automatically redirected
               </Text>
             </View>
           </View>
           <Text className="text-sm font-manrope-medium text-blue-600 mt-4 text-center">
-            Don't forget to check your spam/junk folder!
+            Don&apos;t forget to check your spam/junk folder!
           </Text>
         </View>
 

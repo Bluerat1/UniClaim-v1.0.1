@@ -5,7 +5,6 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   Pressable,
   Text,
   TextInput,
@@ -18,12 +17,12 @@ import type { RootStackParamList } from "../../types/type";
 import { useAuth } from "../../context/AuthContext";
 import { authService, getFirebaseErrorMessage } from "../../utils/firebase";
 
-const screenHeight = Dimensions.get("window").height;
+// const screenHeight = Dimensions.get("window").height;
 
 export default function Register() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { refreshUserData, user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -74,7 +73,7 @@ export default function Register() {
         setIsLoading(true);
 
         // Register user with Firebase
-        const result = await authService.register(
+        await authService.register(
           email,
           password,
           firstName,
@@ -139,7 +138,6 @@ export default function Register() {
       <View className="flex-1">
         <KeyboardAwareScrollView
           contentContainerStyle={{
-            minHeight: screenHeight,
             paddingHorizontal: 24,
             paddingTop: 24,
             paddingBottom: 36,

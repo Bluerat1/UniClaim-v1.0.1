@@ -169,7 +169,7 @@ export default function ItemDetails({
     } else {
       setSelectedLocation(null);
     }
-  }, [coordinates]);
+  }, [coordinates, setSelectedLocation]);
 
   return (
     <View className="flex-1">

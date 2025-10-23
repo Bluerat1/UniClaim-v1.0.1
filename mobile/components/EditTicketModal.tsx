@@ -221,7 +221,6 @@ export default function EditTicketModal({
       return String(img); // Fallback for other types
     })
   );
-  const [newImageFiles, setNewImageFiles] = useState<string[]>([]);
   const [cleanupStatus, setCleanupStatus] = useState<{
     isCleaning: boolean;
     deleted: string[];
@@ -263,7 +262,6 @@ export default function EditTicketModal({
         return String(img); // Fallback for other types
       })
     );
-    setNewImageFiles([]);
   }, [post]); // ✅ FIXED: Removed locationOptions from dependencies
 
   const handleSave = async () => {
@@ -345,7 +343,6 @@ export default function EditTicketModal({
         return String(img); // Fallback for other types
       })
     );
-    setNewImageFiles([]);
     onClose();
   };
 
@@ -434,24 +431,6 @@ export default function EditTicketModal({
       }
 
       Alert.alert("Error", errorMessage);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "resolved":
-        return "bg-green-100";
-      default:
-        return "bg-yellow-100";
-    }
-  };
-
-  const getStatusTextColor = (status: string) => {
-    switch (status) {
-      case "resolved":
-        return "text-green-700";
-      default:
-        return "text-yellow-700";
     }
   };
 

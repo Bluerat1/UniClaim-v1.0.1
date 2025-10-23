@@ -1,15 +1,14 @@
 import React from "react";
 import { View, Text } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import ProfilePicture from "./ProfilePicture";
 
 interface ProfilePictureSeenIndicatorProps {
-  readBy: Array<{
+  readBy: {
     uid: string;
     profilePicture?: string | null;
     firstName: string;
     lastName: string;
-  }>;
+  }[];
   currentUserId: string;
   maxVisible?: number;
   size?: "xs" | "sm";

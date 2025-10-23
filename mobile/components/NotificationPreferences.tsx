@@ -1,5 +1,5 @@
 // Notification preferences component for mobile app
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -45,11 +45,7 @@ export default function NotificationPreferencesModal({
   // Available categories for filtering - using the same categories as items
   const availableCategories = ITEM_CATEGORIES;
 
-  useEffect(() => {
-    loadPreferences();
-  }, [userData?.uid]);
-
-  const loadPreferences = async () => {
+  const loadPreferences = useCallback(async () => {
     if (!userData?.uid) return;
 
     try {
@@ -62,7 +58,11 @@ export default function NotificationPreferencesModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [userData?.uid]);
+
+  useEffect(() => {
+    loadPreferences();
+  }, [loadPreferences]);
 
   const savePreferences = async () => {
     if (!userData?.uid) return;

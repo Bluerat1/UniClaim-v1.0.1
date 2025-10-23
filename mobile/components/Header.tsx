@@ -92,8 +92,8 @@ export default function Header() {
                 if (ownerId && conversationData.participants?.[ownerId]) {
                   postOwnerUserData = conversationData.participants[ownerId];
                 }
-              } catch (error) {
-                console.warn('⚠️ Mobile: Could not fetch post owner user data for response notification:', error);
+              } catch {
+                console.warn('⚠️ Mobile: Could not fetch post owner user data for response notification:');
               }
             }
 
@@ -112,7 +112,7 @@ export default function Header() {
             // Fallback: Navigate to Messages tab
             navigation.navigate('Message');
           }
-        } catch (error) {
+        } catch {
           // Fallback: Navigate to Messages tab
           navigation.navigate('Message');
         }
@@ -134,8 +134,8 @@ export default function Header() {
                 if (ownerId && conversationData.participants?.[ownerId]) {
                   postOwnerUserData = conversationData.participants[ownerId];
                 }
-              } catch (error) {
-                console.warn('⚠️ Mobile: Could not fetch post owner user data:', error);
+              } catch {
+                console.warn('⚠️ Mobile: Could not fetch post owner user data:');
               }
             }
 
@@ -154,7 +154,7 @@ export default function Header() {
             // Fallback: Navigate to Messages tab
             navigation.navigate('Message');
           }
-        } catch (error) {
+        } catch {
           // Fallback: Navigate to Messages tab
           navigation.navigate('Message');
         }
@@ -170,11 +170,11 @@ export default function Header() {
           } else {
             console.error('❌ Mobile: Post not found:', notification.postId);
           }
-        } catch (error) {
-          console.error('❌ Mobile: Error fetching post data:', error);
+        } catch {
+          console.error('❌ Mobile: Error fetching post data:');
         }
       }
-    } catch (error) {
+    } catch {
       // Still close the panel even if navigation fails
       closePanel();
     }

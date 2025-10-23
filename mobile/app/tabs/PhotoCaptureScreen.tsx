@@ -7,7 +7,6 @@ import {
   Alert,
   ActivityIndicator,
   Image,
-  Dimensions,
 } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -27,7 +26,7 @@ interface PhotoData {
   description?: string;
 }
 
-const { width: screenWidth } = Dimensions.get('window');
+// const { width: screenWidth } = Dimensions.get('window');
 
 export default function PhotoCaptureScreen() {
   const navigation = useNavigation<PhotoCaptureScreenNavigationProp>();
@@ -109,7 +108,7 @@ export default function PhotoCaptureScreen() {
           setEvidencePhotos(prev => [...prev, photoData]);
         }
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to take photo. Please try again.');
     }
   };
@@ -147,7 +146,7 @@ export default function PhotoCaptureScreen() {
           setEvidencePhotos(prev => [...prev, photoData]);
         }
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to select photo. Please try again.');
     }
   };

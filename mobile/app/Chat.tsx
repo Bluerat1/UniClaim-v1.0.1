@@ -6,7 +6,6 @@ import {
   Modal,
   Image as RNImage,
   StyleSheet,
-  Dimensions,
   View,
   TextInput,
   Platform,
@@ -14,7 +13,6 @@ import {
   Keyboard,
   KeyboardAvoidingView,
 } from "react-native";
-import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -96,11 +94,9 @@ export default function Chat() {
     createConversation,
     getConversationMessages,
     getConversation,
-    markConversationAsRead,
     markMessageAsRead,
     sendClaimRequest,
     sendHandoverRequest,
-    updateHandoverResponse,
     updateClaimResponse,
     confirmHandoverIdPhoto,
     confirmClaimIdPhoto,
@@ -116,7 +112,6 @@ export default function Chat() {
   );
   const [loading, setLoading] = useState<boolean>(false);
   const [conversationData, setConversationData] = useState<any>(null);
-  const [isConversationDataReady, setIsConversationDataReady] = useState(false);
 
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [showHandoverModal, setShowHandoverModal] = useState(false);
@@ -130,10 +125,36 @@ export default function Chat() {
   } | null>(null);
 
   // Keyboard handling state
-  const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState<boolean>(false);
 
   const flatListRef = useRef<FlatList>(null);
+
+  // Get the other participant's profile picture (exclude current user)
+  const getOtherParticipantProfilePicture = () => {
+    if (!userData) return null;
+
+    // First try to get from conversation data
+    if (conversationData && conversationData.participants) {
+      const otherParticipant = Object.entries(
+        conversationData.participants || {}
+      ).find(([uid]) => uid !== userData.uid);
+
+      if (
+        otherParticipant &&
+        otherParticipant[1] &&
+        (otherParticipant[1] as any).profilePicture
+      ) {
+        return (otherParticipant[1] as any).profilePicture;
+      }
+    }
+
+    // Fallback to postOwnerUserData from route params
+    if (postOwnerUserData && postOwnerUserData.profilePicture) {
+      return postOwnerUserData.profilePicture;
+    }
+
+    return null;
+  };
 
   // Fetch post data from Firestore
   const fetchPostData = async (postId: string) => {
@@ -188,32 +209,15 @@ export default function Chat() {
     setIsFlatListReady(true);
   };
 
-  // Get the other participant's profile picture (exclude current user)
-  const getOtherParticipantProfilePicture = () => {
-    if (!userData) return null;
-
-    // First try to get from conversation data
-    if (conversationData && conversationData.participants) {
-      const otherParticipant = Object.entries(
-        conversationData.participants || {}
-      ).find(([uid]) => uid !== userData.uid);
-
-      if (
-        otherParticipant &&
-        otherParticipant[1] &&
-        (otherParticipant[1] as any).profilePicture
-      ) {
-        return (otherParticipant[1] as any).profilePicture;
-      }
+  // Scroll to bottom function - defined after state declarations so it can be used in useEffect hooks
+  const scrollToBottom = useCallback(() => {
+    if (flatListRef.current && messages.length > 0 && isFlatListReady) {
+      // Use requestAnimationFrame for better timing with UI updates
+      requestAnimationFrame(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      });
     }
-
-    // Fallback to postOwnerUserData from route params
-    if (postOwnerUserData && postOwnerUserData.profilePicture) {
-      return postOwnerUserData.profilePicture;
-    }
-
-    return null;
-  };
+  }, [messages.length, isFlatListReady]);
 
   // Create conversation if needed
   useEffect(() => {
@@ -293,6 +297,10 @@ export default function Chat() {
     postOwnerUserData,
     createConversation,
     navigation,
+    foundAction,
+    getConversation,
+    postStatus,
+    postType,
   ]);
 
   // Load messages when conversation changes
@@ -317,7 +325,7 @@ export default function Chat() {
     );
 
     return () => unsubscribe();
-  }, [conversationId, getConversationMessages, isFlatListReady]);
+  }, [conversationId, getConversationMessages, isFlatListReady, scrollToBottom]);
 
   // Auto-scroll to bottom when messages are updated (e.g., new message received)
   useEffect(() => {
@@ -326,7 +334,7 @@ export default function Chat() {
         setTimeout(() => scrollToBottom(), 150);
       });
     }
-  }, [messages.length, isFlatListReady]);
+  }, [messages.length, isFlatListReady, scrollToBottom]);
 
   // Scroll to bottom when FlatList becomes ready (for existing messages)
   useEffect(() => {
@@ -335,7 +343,7 @@ export default function Chat() {
         setTimeout(() => scrollToBottom(), 100);
       });
     }
-  }, [isFlatListReady]);
+  }, [isFlatListReady, messages.length, scrollToBottom]);
 
   // Load conversation data
   useEffect(() => {
@@ -343,7 +351,6 @@ export default function Chat() {
     if (isLoadingRef.current) return; // Prevent multiple simultaneous loads
 
     isLoadingRef.current = true;
-    setIsConversationDataReady(false);
     setHasUpdatedConversation(false);
 
     let isMounted = true; // Flag to prevent state updates if component unmounts
@@ -354,7 +361,6 @@ export default function Chat() {
 
         // Check if conversation doesn't exist (data is null)
         if (data === null) {
-          setIsConversationDataReady(true);
           isLoadingRef.current = false;
           navigation.goBack();
           return;
@@ -382,7 +388,6 @@ export default function Chat() {
                       data.postOwnerId,
                   };
                   setConversationData(updatedConversationData);
-                  setIsConversationDataReady(true);
                   isLoadingRef.current = false;
 
                   // Also update the conversation in Firestore for future use (only once)
@@ -395,24 +400,20 @@ export default function Chat() {
                   }
                 } else {
                   setConversationData(data);
-                  setIsConversationDataReady(true);
                   isLoadingRef.current = false;
                 }
               })
               .catch((error) => {
                 if (!isMounted) return; // Don't update state if component unmounted
                 setConversationData(data);
-                setIsConversationDataReady(true);
                 isLoadingRef.current = false;
               });
           } else {
             setConversationData(data);
-            setIsConversationDataReady(true);
             isLoadingRef.current = false;
           }
         } else {
           setConversationData(data);
-          setIsConversationDataReady(true);
           isLoadingRef.current = false;
         }
       })
@@ -426,13 +427,11 @@ export default function Chat() {
           error.message?.includes("Conversation not found") ||
           error.message?.includes("Failed to get conversation")
         ) {
-          setIsConversationDataReady(true);
           isLoadingRef.current = false;
           navigation.goBack();
           return;
         }
 
-        setIsConversationDataReady(true);
         isLoadingRef.current = false;
       });
 
@@ -441,14 +440,13 @@ export default function Chat() {
       isMounted = false;
       isLoadingRef.current = false;
     };
-  }, [conversationId, getConversation]); // Add getConversation back to dependencies
+  }, [conversationId, getConversation, hasUpdatedConversation, navigation]); // Add getConversation back to dependencies
 
   // Keyboard handling
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
       (e) => {
-        setKeyboardHeight(e.endCoordinates.height);
         setIsKeyboardVisible(true);
       }
     );
@@ -456,7 +454,6 @@ export default function Chat() {
     const keyboardDidHideListener = Keyboard.addListener(
       Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
       () => {
-        setKeyboardHeight(0);
         setIsKeyboardVisible(false);
       }
     );
@@ -501,14 +498,48 @@ export default function Chat() {
       }
     };
   }, [conversationId, navigation]);
-  const scrollToBottom = () => {
-    if (flatListRef.current && messages.length > 0 && isFlatListReady) {
-      // Use requestAnimationFrame for better timing with UI updates
+
+  // Load messages when conversation changes
+  useEffect(() => {
+    if (!conversationId) {
+      setMessages([]);
+      return;
+    }
+
+    const unsubscribe = getConversationMessages(
+      conversationId,
+      (loadedMessages) => {
+        setMessages(loadedMessages);
+
+        // Scroll to bottom when messages are loaded (for any number of messages)
+        if (isFlatListReady) {
+          requestAnimationFrame(() => {
+            setTimeout(() => scrollToBottom(), 150);
+          });
+        }
+      }
+    );
+
+    return () => unsubscribe();
+  }, [conversationId, getConversationMessages, isFlatListReady, scrollToBottom]);
+
+  // Auto-scroll to bottom when messages are updated (e.g., new message received)
+  useEffect(() => {
+    if (messages.length > 0 && isFlatListReady) {
       requestAnimationFrame(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
+        setTimeout(() => scrollToBottom(), 150);
       });
     }
-  };
+  }, [messages.length, isFlatListReady, scrollToBottom]);
+
+  // Scroll to bottom when FlatList becomes ready (for existing messages)
+  useEffect(() => {
+    if (isFlatListReady && messages.length > 0) {
+      requestAnimationFrame(() => {
+        setTimeout(() => scrollToBottom(), 100);
+      });
+    }
+  }, [isFlatListReady, messages.length, scrollToBottom]);
 
   // Handle message visibility changes to mark messages as read
   const handleViewableItemsChanged = useCallback(
@@ -522,7 +553,11 @@ export default function Chat() {
 
       // Mark each visible message as read
       visibleMessageIds.forEach((messageId) => {
-        markMessageAsRead(conversationId, messageId);
+        markMessageAsRead(conversationId, messageId, userData?.uid || '')
+          .catch((error) => {
+            console.error(`❌ Chat: Failed to mark message ${messageId} as read:`, error);
+            // Continue with other messages even if one fails
+          });
       });
     },
     [conversationId, userData?.uid, markMessageAsRead]
@@ -565,8 +600,8 @@ export default function Chat() {
           setTimeout(() => scrollToBottom(), 100);
         });
       }
-    } catch (error: any) {
-      console.error('❌ Chat: Failed to send message:', error);
+    } catch {
+      console.error('❌ Chat: Failed to send message:');
       Alert.alert("Error", "Failed to send message. Please try again.");
       setNewMessage(messageText); // Restore message on error
     }
@@ -632,7 +667,7 @@ export default function Chat() {
       );
       setShowHandoverModal(false);
       Alert.alert("Success", "Handover request sent successfully!");
-    } catch (error: any) {
+    } catch {
       Alert.alert(
         "Error",
         "Failed to send handover request. Please try again."
@@ -668,7 +703,7 @@ export default function Chat() {
       );
       setShowClaimModal(false);
       Alert.alert("Success", "Claim request sent successfully!");
-    } catch (error: any) {
+    } catch {
       Alert.alert("Error", "Failed to send claim request. Please try again.");
     } finally {
       setIsClaimSubmitting(false);
@@ -739,7 +774,7 @@ export default function Chat() {
         "Success",
         `Claim request ${status === "accepted" ? "accepted - awaiting verification" : status}!`
       );
-    } catch (error: any) {
+    } catch {
       Alert.alert(
         "Error",
         `Failed to ${status} claim request. Please try again.`

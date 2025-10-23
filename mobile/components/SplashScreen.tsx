@@ -14,7 +14,7 @@ export default function SplashScreen({
     }, 2000); // duration sa splash screen
 
     return () => clearTimeout(timeout);
-  }, []);
+  }, [onAnimationEnd]);
 
   return (
     <Animated.View

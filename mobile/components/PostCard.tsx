@@ -20,15 +20,7 @@ export default function PostCard({
   descriptionSearch = "",
   adminStatuses,
 }: Props) {
-  // Get navigation if available (handle cases where navigation context doesn't exist)
-  let navigation: NativeStackNavigationProp<RootStackParamList> | undefined;
-  try {
-    navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  } catch (error) {
-    // Navigation context not available - this happens when PostCard is used outside of React Navigation
-    console.log('Navigation context not available in PostCard');
-    navigation = undefined;
-  }
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   // Image optimization state
   const [imageLoading, setImageLoading] = useState(true);

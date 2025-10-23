@@ -175,7 +175,7 @@ export default function ClaimFormScreen() {
                   Photo Verification Required
                 </Text>
                 <Text className="text-blue-700 text-sm">
-                  You'll need to provide photos to verify your claim:
+                  You&apos;ll need to provide photos to verify your claim:
                 </Text>
                 <Text className="text-blue-700 text-sm mt-1">
                   • A photo of your ID

@@ -1,5 +1,8 @@
 import React, { useMemo } from 'react';
-import { Image, ImageStyle, View, Text } from 'react-native';
+import { Image, ImageStyle } from 'react-native';
+
+// Default profile picture image - moved outside component
+const defaultProfilePicture = require('../assets/images/empty_profile.jpg');
 
 interface ProfilePictureProps {
   src?: string | null;
@@ -12,9 +15,6 @@ const ProfilePicture: React.FC<ProfilePictureProps> = ({
   size = 'md',
   style
 }) => {
-  // Default profile picture image
-  const defaultProfilePicture = require('../assets/images/empty_profile.jpg');
-
   const sizeStyles = {
     xs: { width: 20, height: 20 },
     sm: { width: 32, height: 32 },

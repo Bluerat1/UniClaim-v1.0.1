@@ -131,7 +131,7 @@ export default function Login() {
             Welcome Back
           </Text>
           <Text className="text-base font-manrope-medium text-black mt-1">
-            Hi, Welcome back, you've been missed
+            Hi, Welcome back, you&apos;ve been missed
           </Text>
         </View>
 

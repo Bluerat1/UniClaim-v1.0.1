@@ -1,12 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
   TouchableOpacity,
   Text,
   Dimensions,
-  PanResponder,
-  Animated,
   StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,7 +31,6 @@ export default function PhotoViewerModal({
   const [imageScale, setImageScale] = useState(1);
   const [imageTranslateX, setImageTranslateX] = useState(0);
   const [imageTranslateY, setImageTranslateY] = useState(0);
-  const scrollViewRef = useRef<any>(null);
 
   useEffect(() => {
     if (visible && initialIndex !== currentIndex) {
@@ -43,7 +40,7 @@ export default function PhotoViewerModal({
       setImageTranslateX(0);
       setImageTranslateY(0);
     }
-  }, [visible, initialIndex]);
+  }, [visible, initialIndex, currentIndex]);
 
   const handleClose = () => {
     // Reset transformations before closing

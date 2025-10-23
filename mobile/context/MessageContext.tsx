@@ -12,7 +12,7 @@ interface MessageContextType {
   getOlderMessages: (conversationId: string, lastMessageTimestamp: any, limit?: number) => Promise<Message[]>;
   getConversation: (conversationId: string) => Promise<any>;
   deleteMessage: (conversationId: string, messageId: string) => Promise<void>;
-  markMessageAsRead: (conversationId: string, messageId: string) => Promise<void>;
+  markMessageAsRead: (conversationId: string, messageId: string, userId: string) => Promise<void>;
   markAllUnreadMessagesAsRead: (conversationId: string, userId: string) => Promise<void>;
   sendHandoverRequest: (conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, handoverReason?: string, idPhotoUrl?: string, itemPhotos?: { url: string; uploadedAt: any; description?: string }[]) => Promise<void>;
   updateHandoverResponse: (conversationId: string, messageId: string, status: 'accepted' | 'rejected', idPhotoUrl?: string) => Promise<void>;
@@ -108,13 +108,18 @@ export const MessageProvider = ({ children, userId, isAuthenticated }: { childre
     }
   };
 
-  const markMessageAsRead = async (conversationId: string, messageId: string): Promise<void> => {
-    if (!userId) return;
-
+  const markMessageAsRead = async (conversationId: string, messageId: string, userId: string): Promise<void> => {
     try {
       await messageService.markMessageAsRead(conversationId, messageId, userId);
     } catch (error: any) {
-      console.error('Failed to mark message as read:', error);
+      console.error('❌ MessageContext: Failed to mark message as read:', error);
+
+      // Log additional debugging information for permission errors
+      if (error.code === 'permission-denied') {
+        console.error(`🔒 MessageContext: Permission denied for user ${userId} in conversation ${conversationId}, message ${messageId}`);
+      }
+
+      throw new Error(error.message || 'Failed to mark message as read');
     }
   };
 

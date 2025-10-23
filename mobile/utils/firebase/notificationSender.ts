@@ -40,16 +40,12 @@ export class NotificationSender {
         creatorName: string;
     }): Promise<void> {
         try {
-            console.log('Sending new post notification for:', postData.title);
-
             // Get users with optimal filtering (category + location + time awareness)
             const interestedSubscriptions = await notificationSubscriptionService.getOptimalUsersForPost({
                 category: postData.category,
                 location: postData.location,
                 type: postData.type
             });
-
-            console.log('🎯 Optimal filtering found', interestedSubscriptions.length, 'users for post:', postData.title);
 
             const notifications = [];
 
@@ -99,13 +95,10 @@ export class NotificationSender {
                             data: notification.data,
                             postId: notification.postId
                         });
-                        console.log(`✅ Mobile: Created notification for user ${notification.userId}`);
                     } catch (error) {
                         console.error(`❌ Mobile: Failed to create notification for user ${notification.userId}:`, error);
                     }
                 }
-
-                console.log(`✅ Mobile: Sent ${notifications.length} new post notifications with limit enforcement`);
 
                 // Send push notifications to users' phones
                 for (const notification of notifications) {
@@ -127,8 +120,6 @@ export class NotificationSender {
                         console.error('Error sending push notification to user:', notification.userId, error);
                     }
                 }
-            } else {
-                console.log('No users to notify for this post');
             }
 
         } catch (error) {
@@ -237,12 +228,10 @@ export class NotificationSender {
                         data: notificationData.data || {},
                         // Note: postId and conversationId not included in this interface, but can be added to data if needed
                     });
-                    console.log(`✅ Mobile: Created notification for user ${userId}`);
                 } catch (error) {
                     console.error(`❌ Mobile: Failed to create notification for user ${userId}:`, error);
                 }
             }
-            console.log(`✅ Mobile: Sent ${userIds.length} notifications to specific users with limit enforcement`);
         } catch (error) {
             console.error('❌ Mobile: Error sending notifications to specific users:', error);
             // Don't throw error - notification failures shouldn't break main functionality
@@ -258,14 +247,6 @@ export class NotificationSender {
         conversationData: any;
     }): Promise<void> {
         try {
-            console.log('📱 Mobile: Sending message notifications to users:', userIds);
-            console.log('📱 Mobile: Message data:', {
-                conversationId: messageData.conversationId,
-                senderId: messageData.senderId,
-                senderName: messageData.senderName,
-                messageText: messageData.messageText.substring(0, 50) + '...'
-            });
-
             const notifications = [];
             const adminNotifications = [];
             const adminUserIds: string[] = [];
@@ -275,14 +256,12 @@ export class NotificationSender {
                     // Check if user should receive message notifications (only for regular users)
                     const shouldNotify = await notificationService.shouldSendNotification(userId, 'message');
                     if (!shouldNotify) {
-                        console.log(`🚫 Mobile: User ${userId} has message notifications disabled or is in quiet hours`);
                         continue;
                     }
 
                     // Get user data to check if they're an admin and determine if they're mobile or web
                     const userDoc = await getDoc(doc(db, 'users', userId));
                     if (!userDoc.exists()) {
-                        console.log(`⚠️ Mobile: User ${userId} not found, skipping notification`);
                         continue;
                     }
 
@@ -318,7 +297,6 @@ export class NotificationSender {
                         };
 
                         adminNotifications.push(adminNotificationData);
-                        console.log(`👑 Mobile: Created admin notification for admin user ${userId}`);
                     } else {
                         // Handle regular users - send regular notifications
                         // Create notification data
@@ -359,13 +337,10 @@ export class NotificationSender {
                                         messageText: messageData.messageText
                                     }
                                 );
-                                console.log(`📲 Mobile: Sent push notification to mobile user ${userId}`);
                             } catch (pushError) {
                                 console.warn(`⚠️ Mobile: Failed to send push notification to ${userId}:`, pushError);
                                 // Continue - database notification will still be created
                             }
-                        } else {
-                            console.log(`💻 Mobile: User ${userId} appears to be web user, database notification created`);
                         }
                     }
 
@@ -387,14 +362,10 @@ export class NotificationSender {
                             data: notification.data,
                             conversationId: notification.conversationId
                         });
-                        console.log(`✅ Mobile: Created message notification for user ${notification.userId}`);
                     } catch (error) {
                         console.error(`❌ Mobile: Failed to create message notification for user ${notification.userId}:`, error);
                     }
                 }
-                console.log(`✅ Mobile: Created ${notifications.length} regular message notifications in database with limit enforcement`);
-            } else {
-                console.log('ℹ️ Mobile: No regular users eligible for message notifications');
             }
 
             // Batch create admin notifications
@@ -404,9 +375,6 @@ export class NotificationSender {
                 );
 
                 await Promise.all(adminBatch);
-                console.log(`✅ Mobile: Created ${adminNotifications.length} admin message notifications in database`);
-            } else {
-                console.log('ℹ️ Mobile: No admin users to notify');
             }
 
         } catch (error) {

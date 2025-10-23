@@ -55,10 +55,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const attemptAutoLogin = async (): Promise<boolean> => {
     try {
       setIsAutoLogging(true);
+      setLoading(true); // Ensure loading state is true during auto-login
       
       const storedCredentials = await credentialStorage.getStoredCredentials();
       
       if (!storedCredentials) {
+        setLoading(false); // Set loading false if no credentials
         return false;
       }
       
@@ -69,11 +71,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         storedCredentials.password
       );
       
+      // Keep loading true - onAuthStateChanged will handle setting it false
       return true;
       
     } catch (error: any) {
       // Clear invalid credentials
       await credentialStorage.clearCredentials();
+      setLoading(false); // Set loading false on error
       return false;
     } finally {
       setIsAutoLogging(false);
@@ -187,6 +191,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
 
           // Set loading to false after successful authentication and data fetch
+          // Only set loading to false after all authentication checks are complete
           setLoading(false);
 
           // Initialize notifications for authenticated user (only if email is verified)
@@ -316,8 +321,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setNeedsEmailVerification(false);
         setLoginAttemptFailed(false);
 
-        // CRITICAL: Ensure loading state is reset when user logs out
-        setLoading(false);
+        // Don't immediately set loading to false - auto-login might be attempted
+        // Loading state will be managed by the auto-login process below
 
         // No authenticated user - try auto-login once
         if (!hasAttemptedAutoLogin && !isProcessingAutoLogin) {
@@ -330,6 +335,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (autoLoginSuccess) {
               // If auto-login succeeds, onAuthStateChanged will be called again with the user
               // We don't need to do anything here - the next call will handle the authenticated state
+              // Loading state will be managed by the authenticated user branch
             } else {
               // Auto-login failed or no credentials - user needs to login manually
               setLoading(false);
