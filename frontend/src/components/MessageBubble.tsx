@@ -405,6 +405,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     }
   };
 
+  const handleImageClick = (imageUrl: string) => {
+    setImageModalImages([imageUrl]);
+    setImageModalInitialIndex(0);
+    setShowImageModal(true);
+  };
+
+  const renderHandoverRequest = () => {
+    if (message.messageType !== "handover_request") return null;
+
+    const handoverData = message.handoverData;
     if (!handoverData) {
       return null;
     }
@@ -1282,6 +1292,15 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
       {/* ID Photo Modal */}
       {renderIdPhotoModal()}
+
+      {/* Image Modal for viewing photos */}
+      {showImageModal && (
+        <ImageModal
+          images={imageModalImages}
+          initialIndex={imageModalInitialIndex}
+          onClose={() => setShowImageModal(false)}
+        />
+      )}
     </div>
   );
 };

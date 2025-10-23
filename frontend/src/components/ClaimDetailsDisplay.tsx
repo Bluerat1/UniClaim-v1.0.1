@@ -287,7 +287,8 @@ const ClaimDetailsDisplay: React.FC<ClaimDetailsDisplayProps> = ({
       </div>
       {selectedImage && (
         <ImageModal
-          imageUrl={selectedImage}
+          images={[selectedImage]}
+          initialIndex={0}
           altText="Claim Photo"
           onClose={closeImageModal}
         />

@@ -295,7 +295,8 @@ const HandoverDetailsDisplay: React.FC<HandoverDetailsDisplayProps> = ({
       </div>
       {selectedImage && (
         <ImageModal
-          imageUrl={selectedImage}
+          images={[selectedImage]}
+          initialIndex={0}
           altText="Handover Photo"
           onClose={closeImageModal}
         />
