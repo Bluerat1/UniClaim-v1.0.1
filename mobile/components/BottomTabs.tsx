@@ -1,12 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { JSX } from "react";
 import { useEffect, useState, useRef } from "react";
-import {
-  Keyboard,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Keyboard, Text, TouchableOpacity, View } from "react-native";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -165,7 +160,10 @@ export default function CustomTabs() {
   // Don't render content until tab state is loaded
   if (!isInitialized) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={["top", "left", "right"]}>
+      <SafeAreaView
+        className="flex-1 bg-white"
+        edges={["top", "left", "right"]}
+      >
         <View className="flex-1 justify-center items-center">
           <Text className="text-base text-gray-500">Loading...</Text>
         </View>
@@ -201,7 +199,7 @@ export default function CustomTabs() {
                     <Ionicons
                       name={isActive ? tab.iconFilled : tab.iconOutline}
                       size={isAddTab ? 28 : 22}
-                      color={isActive ? "#0A193A" : "#6B7280"}
+                      color={isActive ? "#0A193A" : "#0A193A"}
                       style={
                         tab.key === "Ticket"
                           ? { transform: [{ rotate: "45deg" }] }
@@ -218,7 +216,7 @@ export default function CustomTabs() {
                     )}
                   </View>
                   <Text
-                    className={`text-[9px] ${isAddTab ? 'mt-1' : 'mt-2'} ${isActive ? 'text-[#0A193A]' : 'text-gray-500'}`}
+                    className={`text-[9px] font-manrope-medium ${isAddTab ? "mt-1" : "mt-1"} ${isActive ? "text-[#0A193A]" : "text-[#0A193A]"}`}
                   >
                     {tab.label}
                   </Text>

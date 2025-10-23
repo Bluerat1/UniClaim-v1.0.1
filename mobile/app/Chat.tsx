@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   FlatList,
@@ -325,7 +325,12 @@ export default function Chat() {
     );
 
     return () => unsubscribe();
-  }, [conversationId, getConversationMessages, isFlatListReady, scrollToBottom]);
+  }, [
+    conversationId,
+    getConversationMessages,
+    isFlatListReady,
+    scrollToBottom,
+  ]);
 
   // Auto-scroll to bottom when messages are updated (e.g., new message received)
   useEffect(() => {
@@ -475,18 +480,28 @@ export default function Chat() {
         const { doc, onSnapshot } = await import("firebase/firestore");
         const { db } = await import("@/utils/firebase/config");
 
-        const conversationRef = doc(db, 'conversations', conversationId);
-        unsubscribe = onSnapshot(conversationRef, (docSnapshot: any) => {
-          if (!docSnapshot.exists()) {
-            navigation.goBack();
-            return;
+        const conversationRef = doc(db, "conversations", conversationId);
+        unsubscribe = onSnapshot(
+          conversationRef,
+          (docSnapshot: any) => {
+            if (!docSnapshot.exists()) {
+              navigation.goBack();
+              return;
+            }
+          },
+          (error: any) => {
+            console.error(
+              `❌ Mobile Chat: Error listening to conversation ${conversationId}:`,
+              error
+            );
+            // Don't navigate back on listener errors - could be temporary network issues
           }
-        }, (error: any) => {
-          console.error(`❌ Mobile Chat: Error listening to conversation ${conversationId}:`, error);
-          // Don't navigate back on listener errors - could be temporary network issues
-        });
+        );
       } catch (error) {
-        console.error(`❌ Mobile Chat: Failed to setup conversation listener for ${conversationId}:`, error);
+        console.error(
+          `❌ Mobile Chat: Failed to setup conversation listener for ${conversationId}:`,
+          error
+        );
       }
     };
 
@@ -521,7 +536,12 @@ export default function Chat() {
     );
 
     return () => unsubscribe();
-  }, [conversationId, getConversationMessages, isFlatListReady, scrollToBottom]);
+  }, [
+    conversationId,
+    getConversationMessages,
+    isFlatListReady,
+    scrollToBottom,
+  ]);
 
   // Auto-scroll to bottom when messages are updated (e.g., new message received)
   useEffect(() => {
@@ -553,11 +573,15 @@ export default function Chat() {
 
       // Mark each visible message as read
       visibleMessageIds.forEach((messageId) => {
-        markMessageAsRead(conversationId, messageId, userData?.uid || '')
-          .catch((error) => {
-            console.error(`❌ Chat: Failed to mark message ${messageId} as read:`, error);
+        markMessageAsRead(conversationId, messageId, userData?.uid || "").catch(
+          (error) => {
+            console.error(
+              `❌ Chat: Failed to mark message ${messageId} as read:`,
+              error
+            );
             // Continue with other messages even if one fails
-          });
+          }
+        );
       });
     },
     [conversationId, userData?.uid, markMessageAsRead]
@@ -601,7 +625,7 @@ export default function Chat() {
         });
       }
     } catch {
-      console.error('❌ Chat: Failed to send message:');
+      console.error("❌ Chat: Failed to send message:");
       Alert.alert("Error", "Failed to send message. Please try again.");
       setNewMessage(messageText); // Restore message on error
     }
@@ -1053,7 +1077,7 @@ export default function Chat() {
 
           {/* Input Area with bottom spacing */}
           <View
-            className={`bg-white px-4 pt-2 ${isKeyboardVisible ? "pb-[2rem]" : "pb-[4rem]"}`}
+            className={`bg-white px-4 pt-2 ${isKeyboardVisible ? "pb-5" : "pb-0"}`}
           >
             <View className="flex-row items-center gap-3">
               <View className="flex-1">
