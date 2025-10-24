@@ -179,7 +179,7 @@ export default function AdminPostModal({
   const handleActivationConfirm = async (adminNotes?: string) => {
     try {
       // Use updatePostStatus instead of activateTicket to support admin notes
-      const originalStatus = post.originalStatus || 'pending';
+      const originalStatus = post.originalStatus || "pending";
       await postService.updatePostStatus(post.id, originalStatus, adminNotes);
 
       showToast(
@@ -219,8 +219,14 @@ export default function AdminPostModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="bg-white rounded p-4 shadow w-[40rem] sm:w-[43rem] md:w-[45rem] lg:w-[50rem] xl:w-[55rem] max-w-full h-auto max-h-[95vh] overflow-y-auto modal-scrollbar" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded p-4 shadow w-[40rem] sm:w-[43rem] md:w-[45rem] lg:w-[50rem] xl:w-[55rem] max-w-full h-auto max-h-[95vh] overflow-y-auto modal-scrollbar"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <ProfilePicture
@@ -299,48 +305,52 @@ export default function AdminPostModal({
             {/* Admin Action Buttons - Top Right */}
             <div className="flex items-center gap-2">
               {/* Unclaimed Post Actions */}
-              {showUnclaimedFeatures && (post.status === "unclaimed" || post.movedToUnclaimed) && (
-                <>
-                  <button
-                    onClick={() => setIsActivationModalOpen(true)}
-                    disabled={isActivating}
-                    className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
-                    title="Activate - Move back to active status"
-                  >
-                    {isActivating ? (
-                      <span className="flex items-center gap-1">
-                        <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                            fill="none"
-                          />
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          />
-                        </svg>
-                        Activating...
-                      </span>
-                    ) : (
-                      "Activate"
-                    )}
-                  </button>
+              {showUnclaimedFeatures &&
+                (post.status === "unclaimed" || post.movedToUnclaimed) && (
+                  <>
+                    <button
+                      onClick={() => setIsActivationModalOpen(true)}
+                      disabled={isActivating}
+                      className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
+                      title="Activate - Move back to active status"
+                    >
+                      {isActivating ? (
+                        <span className="flex items-center gap-1">
+                          <svg
+                            className="animate-spin h-3 w-3"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                              fill="none"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            />
+                          </svg>
+                          Activating...
+                        </span>
+                      ) : (
+                        "Activate"
+                      )}
+                    </button>
 
-                  <button
-                    onClick={() => onDelete?.(post)}
-                    className="px-2 py-1 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition"
-                    title="Delete Post"
-                  >
-                    Delete
-                  </button>
-                </>
-              )}
+                    <button
+                      onClick={() => onDelete?.(post)}
+                      className="px-2 py-1 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition"
+                      title="Delete Post"
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
 
               {post.isFlagged && onApprove && showFlaggedPostActions && (
                 <button
@@ -352,25 +362,31 @@ export default function AdminPostModal({
                 </button>
               )}
 
-              {post.isFlagged && !post.isHidden && onHide && showFlaggedPostActions && (
-                <button
-                  onClick={() => onHide(post)}
-                  className="px-2 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700 flex items-center gap-1"
-                  title="Hide Post"
-                >
-                  Hide
-                </button>
-              )}
+              {post.isFlagged &&
+                !post.isHidden &&
+                onHide &&
+                showFlaggedPostActions && (
+                  <button
+                    onClick={() => onHide(post)}
+                    className="px-2 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700 flex items-center gap-1"
+                    title="Hide Post"
+                  >
+                    Hide
+                  </button>
+                )}
 
-              {post.isFlagged && post.isHidden && onUnhide && showFlaggedPostActions && (
-                <button
-                  onClick={() => onUnhide(post)}
-                  className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1"
-                  title="Unhide Post"
-                >
-                  Unhide
-                </button>
-              )}
+              {post.isFlagged &&
+                post.isHidden &&
+                onUnhide &&
+                showFlaggedPostActions && (
+                  <button
+                    onClick={() => onUnhide(post)}
+                    className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1"
+                    title="Unhide Post"
+                  >
+                    Unhide
+                  </button>
+                )}
 
               {showDeleteButton && onDelete && !showUnclaimedFeatures && (
                 <button
@@ -544,10 +560,12 @@ export default function AdminPostModal({
                 </div>
                 <div className="text-sm text-orange-700 space-y-2">
                   <p>
-                    This post has expired and was automatically moved to unclaimed status after 30 days.
+                    This post has expired and was automatically moved to
+                    unclaimed status after 30 days.
                   </p>
                   <p className="font-medium">
-                    Activating this post will restore it with a new 30-day period.
+                    Activating this post will restore it with a new 30-day
+                    period.
                   </p>
                 </div>
               </div>
@@ -559,7 +577,9 @@ export default function AdminPostModal({
                 <div className="text-sm text-orange-800 font-medium mb-2">
                   Revert Reason:
                 </div>
-                <div className="text-sm text-orange-700">{post.revertReason}</div>
+                <div className="text-sm text-orange-700">
+                  {post.revertReason}
+                </div>
               </div>
             )}
 
@@ -571,8 +591,10 @@ export default function AdminPostModal({
                     {post.foundAction === "keep"
                       ? "The finder will keep this item and return it themselves"
                       : post.turnoverDetails &&
-                        post.turnoverDetails.originalTurnoverAction === "turnover to Campus Security" &&
-                        post.turnoverDetails.turnoverAction === "turnover to OSA"
+                        post.turnoverDetails.originalTurnoverAction ===
+                          "turnover to Campus Security" &&
+                        post.turnoverDetails.turnoverAction ===
+                          "turnover to OSA"
                       ? "This item was transferred to OSA"
                       : post.foundAction === "turnover to OSA"
                       ? "This item was turned over to OSA office"
@@ -594,7 +616,8 @@ export default function AdminPostModal({
 
                 {/* Item Holder Transfer - show under coordinates in left column */}
                 {post.turnoverDetails &&
-                  post.turnoverDetails.originalTurnoverAction === "turnover to Campus Security" &&
+                  post.turnoverDetails.originalTurnoverAction ===
+                    "turnover to Campus Security" &&
                   post.turnoverDetails.turnoverAction === "turnover to OSA" && (
                     <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
                       <div className="flex items-center gap-2 mb-2">
@@ -605,7 +628,8 @@ export default function AdminPostModal({
                       </div>
                       <div className="text-sm text-blue-700 space-y-1 text-xs">
                         <p>
-                          <strong>Status:</strong> Item has been transferred from Campus Security to OSA (Admin)
+                          <strong>Status:</strong> Item has been transferred
+                          from Campus Security to OSA (Admin)
                         </p>
                         <p>
                           <strong>Collection Date:</strong>{" "}
@@ -615,7 +639,8 @@ export default function AdminPostModal({
                         </p>
                         {post.turnoverDetails.turnoverReason && (
                           <p>
-                            <strong>Reason:</strong> {post.turnoverDetails.turnoverReason}
+                            <strong>Reason:</strong>{" "}
+                            {post.turnoverDetails.turnoverReason}
                           </p>
                         )}
                       </div>
@@ -662,14 +687,16 @@ export default function AdminPostModal({
 
             {/* Turnover Details - show under map in right column */}
             {post.turnoverDetails && (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="p-3 bg-blue-50 border border-blue-200 h-60 rounded-md">
                 <h3 className="font-semibold text-blue-800 mb-2 text-sm">
                   Turnover Details
                 </h3>
                 <div className="text-sm text-blue-700 space-y-1">
                   {/* Original Finder Information */}
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="font-medium text-blue-800 text-xs">Originally found by:</span>
+                    <span className="font-medium text-blue-800 text-xs">
+                      Originally found by:
+                    </span>
                     <ProfilePicture
                       src={post.turnoverDetails.originalFinder.profilePicture}
                       alt={`${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`}
@@ -681,7 +708,7 @@ export default function AdminPostModal({
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="flex flex-col gap-2 text-xs">
                     <div>
                       <span className="font-medium">Student ID:</span>{" "}
                       {post.turnoverDetails.originalFinder.studentId || "N/A"}
@@ -698,7 +725,7 @@ export default function AdminPostModal({
                     )}
                   </div>
 
-                  <div className="border-t border-blue-200 pt-2 mt-2 text-xs">
+                  <div className="border-t space-y-2 border-blue-200 pt-2 mt-3 text-xs">
                     <p>
                       <strong>Status:</strong>{" "}
                       {post.turnoverDetails.turnoverStatus === "declared"
@@ -707,20 +734,24 @@ export default function AdminPostModal({
                         ? "Confirmed - Item Received"
                         : post.turnoverDetails.turnoverStatus === "not_received"
                         ? "Not Received - Item Deleted"
-                        : post.turnoverDetails.turnoverAction === "turnover to Campus Security"
+                        : post.turnoverDetails.turnoverAction ===
+                          "turnover to Campus Security"
                         ? "Turned over to Campus Security"
-                        : post.turnoverDetails.turnoverAction === "turnover to OSA"
+                        : post.turnoverDetails.turnoverAction ===
+                          "turnover to OSA"
                         ? "Turned over to OSA"
                         : post.turnoverDetails.turnoverStatus}
                     </p>
                     {post.turnoverDetails.turnoverReason && (
                       <p>
-                        <strong>Reason:</strong> {post.turnoverDetails.turnoverReason}
+                        <strong>Reason:</strong>{" "}
+                        {post.turnoverDetails.turnoverReason}
                       </p>
                     )}
                     {post.turnoverDetails.confirmationNotes && (
                       <p>
-                        <strong>Item Condition Notes:</strong> {post.turnoverDetails.confirmationNotes}
+                        <strong>Item Condition Notes:</strong>{" "}
+                        {post.turnoverDetails.confirmationNotes}
                       </p>
                     )}
                     {post.turnoverDetails.confirmedAt && (
@@ -744,7 +775,6 @@ export default function AdminPostModal({
             <HandoverDetailsDisplay handoverDetails={post.handoverDetails} />
           </div>
         )}
-
       </div>
 
       {/* Activation Modal */}

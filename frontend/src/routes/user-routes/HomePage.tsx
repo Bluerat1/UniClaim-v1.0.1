@@ -15,7 +15,6 @@ import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { postService } from "@/services/firebase/posts";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
-import { MdInfoOutline } from "react-icons/md";
 
 function fuzzyMatch(text: string, query: string): boolean {
   const cleanedText = text.toLowerCase();
@@ -401,19 +400,10 @@ export default function HomePage() {
           }}
         >
           Completed Items
-          {/* Info Icon inside the button */}
-          <div className="relative group">
-            <MdInfoOutline />
-            {/* Tooltip */}
-            <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 hidden group-hover:block bg-blue-100 text-blue-600 text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap z-10">
-              All completed posts will be shown up to 30 days.
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-[6px] w-2 h-2 bg-blue-100 rotate-45"></div>
-            </div>
-          </div>
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 mx-4 mt-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 mx-4 mt-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {/* ✅ Handle Firebase loading state */}
         {loading || resolvedLoading || isLoading ? (
           <div className="col-span-full flex items-center justify-center h-80">

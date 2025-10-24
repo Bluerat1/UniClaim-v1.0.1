@@ -153,7 +153,11 @@ function PostCard({
               setSelectedImageIndex(0);
             }
           }}
-          title={allImageUrls.length > 1 ? `Click to view ${allImageUrls.length} images` : "Click to view full size"}
+          title={
+            allImageUrls.length > 1
+              ? `Click to view ${allImageUrls.length} images`
+              : "Click to view full size"
+          }
         />
       ) : (
         <div className="bg-gray-300 h-60 w-full" />
@@ -184,8 +188,7 @@ function PostCard({
               if (isNaN(expiry.getTime())) return null;
 
               const daysLeft = Math.ceil(
-                (expiry.getTime() - now.getTime()) /
-                  (1000 * 60 * 60 * 24)
+                (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
               );
 
               if (daysLeft <= 0) {
@@ -481,68 +484,69 @@ function PostCard({
             </div>
           )}
 
-          {/* Turnover Confirmation Buttons - Show only for posts awaiting OSA confirmation */}
-          {post.turnoverDetails &&
-            post.turnoverDetails.turnoverStatus === "declared" &&
-            post.turnoverDetails.turnoverAction === "turnover to OSA" && (
-              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-blue-600 text-lg">🔄</span>
-                  <h4 className="text-sm font-semibold text-blue-800">
-                    Confirm Item Receipt
-                  </h4>
-                </div>
-                <p className="text-xs text-blue-700 mb-3">
-                  This item has been turned over to OSA. Please confirm if you have received it.
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setConfirmationType("confirmed");
-                      setShowTurnoverModal(true);
-                    }}
-                    className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
-                  >
-                    ✓ Confirm Received
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setConfirmationType("not_received");
-                      setShowTurnoverModal(true);
-                    }}
-                    className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
-                  >
-                    ✗ Not Received
-                  </button>
-                </div>
+        {/* Turnover Confirmation Buttons - Show only for posts awaiting OSA confirmation */}
+        {post.turnoverDetails &&
+          post.turnoverDetails.turnoverStatus === "declared" &&
+          post.turnoverDetails.turnoverAction === "turnover to OSA" && (
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-blue-600 text-lg">🔄</span>
+                <h4 className="text-sm font-semibold text-blue-800">
+                  Confirm Item Receipt
+                </h4>
               </div>
-            )}
+              <p className="text-xs text-blue-700 mb-3">
+                This item has been turned over to OSA. Please confirm if you
+                have received it.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmationType("confirmed");
+                    setShowTurnoverModal(true);
+                  }}
+                  className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
+                >
+                  ✓ Confirm Received
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmationType("not_received");
+                    setShowTurnoverModal(true);
+                  }}
+                  className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+                >
+                  ✗ Not Received
+                </button>
+              </div>
+            </div>
+          )}
 
-      {/* Image Modal */}
-      {showImageModal && allImageUrls.length > 0 && (
-        <ImageModal
-          images={allImageUrls}
-          initialIndex={selectedImageIndex}
-          altText={post.title}
-          onClose={() => setShowImageModal(false)}
+        {/* Image Modal */}
+        {showImageModal && allImageUrls.length > 0 && (
+          <ImageModal
+            images={allImageUrls}
+            initialIndex={selectedImageIndex}
+            altText={post.title}
+            onClose={() => setShowImageModal(false)}
+          />
+        )}
+
+        {/* Turnover Confirmation Modal */}
+        <TurnoverConfirmationModal
+          isOpen={showTurnoverModal}
+          onClose={() => {
+            setShowTurnoverModal(false);
+            setConfirmationType(null);
+          }}
+          onConfirm={(status, notes) => {
+            onConfirmTurnover?.(post, status, notes);
+          }}
+          post={post}
+          confirmationType={confirmationType}
         />
-      )}
-
-      {/* Turnover Confirmation Modal */}
-      <TurnoverConfirmationModal
-        isOpen={showTurnoverModal}
-        onClose={() => {
-          setShowTurnoverModal(false);
-          setConfirmationType(null);
-        }}
-        onConfirm={(status, notes) => {
-          onConfirmTurnover?.(post, status, notes);
-        }}
-        post={post}
-        confirmationType={confirmationType}
-      />
       </div>
     </div>
   );
