@@ -6,7 +6,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as ImagePicker from "expo-image-picker";
-import React, { useState, useCallback, useMemo, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -28,7 +28,6 @@ import {
   cloudinaryService,
   deleteOldProfilePicture,
 } from "../../utils/cloudinary";
-import { userService } from "../../utils/firebase";
 import { postUpdateService } from "../../utils/postUpdateService";
 import { userDeletionService } from "../../utils/firebase/userDeletion";
 import { credentialStorage } from "../../utils/credentialStorage";
@@ -37,21 +36,6 @@ import { credentialStorage } from "../../utils/credentialStorage";
 const DEFAULT_PROFILE_PICTURE = require("../../assets/images/empty_profile.jpg");
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "Profile">;
-const useDebounce = (value: string, delay: number) => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-};
 
 export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
@@ -457,7 +441,7 @@ export default function Profile() {
               }
 
               // Wait for AuthContext to process the logout state
-              await new Promise(resolve => setTimeout(resolve, 500));
+              await new Promise(resolve => setTimeout(resolve, 1000));
 
               // Force navigation to ensure we leave any current screens
               console.log('Forcing navigation to Index screen after account deletion');
@@ -619,7 +603,7 @@ export default function Profile() {
     if (user && isAuthenticated && userData) {
       // Ensure profile shows latest data
     }
-  }, [userData?.emailVerified]);
+  }, [user, isAuthenticated, userData]);
 
   // Show loading if userData is not available yet
   if (!userData) {

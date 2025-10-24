@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useState } from "react";
+import { useState, useCallback, memo } from "react";
 import {
   Pressable,
   SafeAreaView,
@@ -17,10 +17,10 @@ import { getFirebaseErrorMessage } from "../../utils/firebase";
 import Toast from "../../components/Toast";
 import { useToast } from "../../context/ToastContext";
 
-export default function Login() {
+function Login() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { login, loading, isBanned, banInfo, needsEmailVerification } = useAuth();
+  const { login, loading, isBanned, banInfo, needsEmailVerification, user } = useAuth();
   const { showToastMessage, showToast, toastMessage, toastType, toastDuration } = useToast();
 
   const [email, setEmail] = useState("");
@@ -29,24 +29,50 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [generalError, setGeneralError] = useState("");
 
   // NEW: Get ban details for display
-  const getBanDetails = () => {
-    if (!banInfo) return { reason: "No reason provided", duration: "Unknown" };
+  const reason = banInfo?.reason || "No reason provided";
+  const duration = banInfo?.duration || "Unknown";
+  const endDate = banInfo?.banEndDate;
 
-    const reason = banInfo.reason || "No reason provided";
-    const duration = banInfo.duration || "Unknown";
-    const endDate = banInfo.banEndDate;
+  // Stable handlers to prevent re-renders
+  const handleEmailFocus = useCallback(() => {
+    setEmailFocused(true);
+    setEmailError("");
+  }, []);
 
-    return { reason, duration, endDate };
-  };
+  const handleEmailBlur = useCallback(() => {
+    setEmailFocused(false);
+  }, []);
 
-  const { reason, duration, endDate } = getBanDetails();
+  const handlePasswordFocus = useCallback(() => {
+    setPasswordFocused(true);
+    setPasswordError("");
+  }, []);
+
+  const handlePasswordBlur = useCallback(() => {
+    setPasswordFocused(false);
+  }, []);
+
+  const handleEmailVerificationNavigation = useCallback(() => {
+    navigation.navigate("EmailVerification");
+  }, [navigation]);
+
+  const handleForgotPasswordNavigation = useCallback(() => {
+    navigation.navigate("ForgotPassword");
+  }, [navigation]);
+
+  const handleRegisterNavigation = useCallback(() => {
+    navigation.navigate("Register");
+  }, [navigation]);
+
+  const handleToastClose = useCallback(() => {
+    // Toast is managed by ToastContext, no need to reset state here
+  }, []);
 
   const validateEmail = (value: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -73,37 +99,26 @@ export default function Login() {
       valid = false;
     }
 
-    if (!valid) return;
+    if (!valid) {
+      return;
+    }
 
     try {
-      setIsLoading(true);
       await login(email, password);
 
-      // Show success toast before navigation occurs
-      console.log('Login successful - showing success toast');
       showToastMessage("Login successful! Welcome back!", "success");
 
       // Navigation will be handled automatically by Navigation component based on auth state
       // No manual navigation needed - the Navigation component will show RootBottomTabs when authenticated
     } catch (error: any) {
-      console.log('=== LOGIN ERROR CATCH BLOCK REACHED ===');
-      console.log('Error object:', error);
-      console.log('Error message:', error.message);
-      console.log('Error code:', error.code);
-
       if (error.message === 'EMAIL_VERIFICATION_REQUIRED') {
-        // User needs email verification - redirect to verification screen
-        console.log('Email verification required - redirecting to EmailVerification screen');
-        setGeneralError("Please verify your email address before logging in.");
-        showToastMessage("Email verification required. Please check your email for the verification link.", "warning");
+        // User needs email verification - show friendly message
+        setGeneralError("");
+        showToastMessage("Please verify your email address before logging in. Check your email for the verification link.", "info");
 
-        // Navigate to email verification screen
-        setTimeout(() => {
-          navigation.navigate("EmailVerification");
-        }, 2000); // Small delay to let user see the message
+        // Don't navigate automatically - let them use the verification message above
       } else {
         const errorMessage = getFirebaseErrorMessage(error);
-        console.log('Login error - showing error toast:', errorMessage);
         setGeneralError(errorMessage);
 
         // Determine toast type based on error type
@@ -116,9 +131,6 @@ export default function Login() {
 
         showToastMessage(errorMessage, toastType);
       }
-      console.log('=== END OF CATCH BLOCK ===');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -135,24 +147,31 @@ export default function Login() {
           </Text>
         </View>
 
-        {/* NEW: Email Verification Message Display */}
-        {needsEmailVerification && (
-          <View className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-            <Text className="text-lg font-manrope-bold text-orange-600 mb-2 text-center">
-              Email Verification Required
+        {/* Email Verification Message - shows for logged-in users who need verification */}
+        {user && needsEmailVerification && !isBanned && (
+          <View className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <Text className="text-lg font-manrope-bold text-blue-600 mb-2 text-center">
+              🎉 Registration Successful!
             </Text>
-            <Text className="text-sm font-manrope-medium text-orange-700 mb-2">
-              Please check your email and click the verification link to activate your account before logging in.
+            <Text className="text-sm font-manrope-medium text-blue-700 mb-2">
+              Your account has been created successfully! Please check your email and click the verification link to activate your account before logging in.
             </Text>
             <TouchableOpacity
-              className="bg-orange-100 p-3 rounded-lg mt-2"
-              onPress={() => navigation.navigate("EmailVerification")}
+              className="bg-blue-100 p-3 rounded-lg mt-2"
+              onPress={handleEmailVerificationNavigation}
             >
-              <Text className="text-orange-600 text-sm font-manrope-medium text-center">
+              <Text className="text-blue-600 text-sm font-manrope-medium text-center">
                 Go to Email Verification
               </Text>
             </TouchableOpacity>
           </View>
+        )}
+
+        {/* General Error */}
+        {generalError !== "" && (
+          <Text className="text-red-500 font-manrope-medium mb-4 text-center">
+            {generalError}
+          </Text>
         )}
 
         {/* NEW: Ban Message Display */}
@@ -185,13 +204,6 @@ export default function Login() {
           </View>
         )}
 
-        {/* General Error */}
-        {generalError !== "" && (
-          <Text className="text-red-500 font-manrope-medium mb-4 text-center">
-            {generalError}
-          </Text>
-        )}
-
         {/* Form */}
         <View>
           {/* Email */}
@@ -208,11 +220,8 @@ export default function Login() {
               }}
               value={email}
               onChangeText={setEmail}
-              onFocus={() => {
-                setEmailFocused(true);
-                setEmailError("");
-              }}
-              onBlur={() => setEmailFocused(false)}
+              onFocus={handleEmailFocus}
+              onBlur={handleEmailBlur}
               className={`bg-gray-100 rounded-lg px-5 h-[3.5rem] text-base text-black font-manrope border ${
                 emailError
                   ? "border-red-500"
@@ -251,11 +260,8 @@ export default function Login() {
                 }}
                 value={password}
                 onChangeText={setPassword}
-                onFocus={() => {
-                  setPasswordFocused(true);
-                  setPasswordError("");
-                }}
-                onBlur={() => setPasswordFocused(false)}
+                onFocus={handlePasswordFocus}
+                onBlur={handlePasswordBlur}
                 secureTextEntry={!showPassword}
                 className="flex-1 text-base text-black"
               />
@@ -277,7 +283,7 @@ export default function Login() {
           {/* Forgot Password */}
           <TouchableOpacity
             className="mt-5 self-end"
-            onPress={() => navigation.navigate("ForgotPassword")}
+            onPress={handleForgotPasswordNavigation}
           >
             <Text className="text-base font-manrope-medium text-brand underline">
               Forgot Password?
@@ -288,12 +294,12 @@ export default function Login() {
         {/* Login Button */}
         <TouchableOpacity
           className={`flex items-center justify-center py-4 rounded-xl mb-3 mt-6 ${
-            isLoading || loading ? "bg-gray-400" : "bg-brand"
+            loading ? "bg-gray-400" : "bg-brand"
           }`}
           onPress={handleLogin}
-          disabled={isLoading || loading}
+          disabled={loading}
         >
-          {isLoading || loading ? (
+          {loading ? (
             <ActivityIndicator color="white" size="small" />
           ) : (
             <Text className="text-white text-lg font-semibold font-manrope-medium">
@@ -310,7 +316,7 @@ export default function Login() {
           <Text className="text-base text-gray-700 font-manrope-medium">
             New to UniClaim?{" "}
           </Text>
-          <Pressable onPress={() => navigation.navigate("Register")}>
+          <Pressable onPress={handleRegisterNavigation}>
             <Text className="text-base font-manrope-medium text-brand font-semibold underline">
               Register here
             </Text>
@@ -324,10 +330,10 @@ export default function Login() {
         message={toastMessage}
         type={toastType}
         duration={toastDuration}
-        onClose={() => {
-          // Toast is managed by ToastContext, no need to reset state here
-        }}
+        onClose={handleToastClose}
       />
     </>
   );
 }
+
+export default memo(Login);

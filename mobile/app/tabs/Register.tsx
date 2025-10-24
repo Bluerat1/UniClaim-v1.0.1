@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useState } from "react";
+import React, { useState, useCallback, memo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,15 +14,22 @@ import {
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { RootStackParamList } from "../../types/type";
-import { useAuth } from "../../context/AuthContext";
 import { authService, getFirebaseErrorMessage } from "../../utils/firebase";
 
-// const screenHeight = Dimensions.get("window").height;
+type FormErrors = {
+  [key: string]: string | undefined;
+  firstName?: string;
+  lastName?: string;
+  contactNumber?: string;
+  studentId?: string;
+  email?: string;
+  password?: string;
+  confirmPassword?: string;
+};
 
-export default function Register() {
+function Register() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { user, isAuthenticated } = useAuth();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -35,20 +42,53 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
+
+  // Show registration form only for unauthenticated users
+
+  const handleFirstNameChange = useCallback((text: string) => {
+    setFirstName(text);
+  }, []);
+
+  const handleLastNameChange = useCallback((text: string) => {
+    setLastName(text);
+  }, []);
+
+  const handleContactNumberChange = useCallback((text: string) => {
+    setContactNumber(text);
+  }, []);
+
+  const handleStudentIdChange = useCallback((text: string) => {
+    setStudentId(text);
+  }, []);
+
+  const handleEmailChange = useCallback((text: string) => {
+    setEmail(text);
+  }, []);
+
+  const handlePasswordChange = useCallback((text: string) => {
+    setPassword(text);
+  }, []);
+
+  const handleConfirmPasswordChange = useCallback((text: string) => {
+    setConfirmPassword(text);
+  }, []);
+
+  const handleFocus = useCallback((field: string) => {
+    setFocusedInput(field);
+    setErrors((prev) => ({ ...prev, [field]: "" }));
+  }, []);
+
+  const handleBlur = useCallback(() => {
+    setFocusedInput(null);
+  }, []);
 
   const validateEmail = (value: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
-  // If user is already authenticated, redirect to main app
-  if (isAuthenticated && user) {
-    console.log('Register: User is authenticated, redirecting to main app');
-    return null; // This will trigger the Navigation component to show the appropriate screen
-  }
-
   const handleRegister = async () => {
-    const newErrors: { [key: string]: string } = {};
+    const newErrors: FormErrors = {};
 
     if (!firstName.trim()) newErrors.firstName = "First name is required";
     if (!lastName.trim()) newErrors.lastName = "Last name is required";
@@ -82,34 +122,15 @@ export default function Register() {
           studentId
         );
 
-        // After successful registration, don't attempt login immediately
-        // Instead, show success message and redirect to login screen
-        console.log('Registration successful, redirecting to login for email verification');
+        // After successful registration, the user is logged in but needs email verification
+        // The Navigation component will redirect to EmailVerification screen
+        // Once verified, they'll have full access to the main app.
 
-        // Show success message
-        Alert.alert(
-          "Registration Successful",
-          "Your account has been created successfully! Please verify your email to continue.",
-          [
-            {
-              text: "Go to Email Verification",
-              onPress: () => {
-                console.log('Register: Attempting to navigate to EmailVerification');
-                // Navigate to email verification screen
-                navigation.navigate("EmailVerification");
-                console.log('Register: Navigation call completed');
-              }
-            }
-          ]
-        );
-
-        // Also navigate to email verification screen programmatically
-        navigation.navigate("EmailVerification");
+        // Note: No need to setIsLoading(false) here as navigation will redirect
 
       } catch (error: any) {
         const errorMessage = getFirebaseErrorMessage(error);
         Alert.alert("Registration Failed", errorMessage);
-      } finally {
         setIsLoading(false);
       }
     }
@@ -132,6 +153,26 @@ export default function Register() {
           ? "border-red-500"
           : "border-gray-300"
     }`;
+
+  // Show loading screen during registration process
+  if (isLoading) {
+    return (
+      <SafeAreaView className="flex-1 bg-white justify-center items-center px-6">
+        <View className="items-center">
+          <ActivityIndicator size="large" color="#1e40af" />
+          <Text className="text-lg font-manrope-bold text-brand mt-4">
+            Account created successfully!
+          </Text>
+          <Text className="text-sm font-manrope-medium text-gray-600 mt-2 text-center">
+            Please verify your email to access the app. Check your inbox for the verification link.
+          </Text>
+          <Text className="text-xs font-manrope-medium text-gray-500 mt-2 text-center">
+            This may take a few moments...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -163,12 +204,9 @@ export default function Register() {
             </Text>
             <TextInput
               value={firstName}
-              onChangeText={setFirstName}
-              onFocus={() => {
-                setFocusedInput("firstName");
-                setErrors((prev) => ({ ...prev, firstName: "" }));
-              }}
-              onBlur={() => setFocusedInput(null)}
+              onChangeText={handleFirstNameChange}
+              onFocus={() => handleFocus("firstName")}
+              onBlur={handleBlur}
               placeholder="Enter first name"
               placeholderTextColor="#747476"
               style={{ fontFamily: "ManropeRegular", fontSize: 15 }}
@@ -188,12 +226,9 @@ export default function Register() {
             </Text>
             <TextInput
               value={lastName}
-              onChangeText={setLastName}
-              onFocus={() => {
-                setFocusedInput("lastName");
-                setErrors((prev) => ({ ...prev, lastName: "" }));
-              }}
-              onBlur={() => setFocusedInput(null)}
+              onChangeText={handleLastNameChange}
+              onFocus={() => handleFocus("lastName")}
+              onBlur={handleBlur}
               placeholder="Enter last name"
               placeholderTextColor="#747476"
               style={{ fontFamily: "ManropeRegular", fontSize: 15 }}
@@ -213,12 +248,9 @@ export default function Register() {
             </Text>
             <TextInput
               value={contactNumber}
-              onChangeText={setContactNumber}
-              onFocus={() => {
-                setFocusedInput("contactNumber");
-                setErrors((prev) => ({ ...prev, contactNumber: "" }));
-              }}
-              onBlur={() => setFocusedInput(null)}
+              onChangeText={handleContactNumberChange}
+              onFocus={() => handleFocus("contactNumber")}
+              onBlur={handleBlur}
               placeholder="Enter contact number"
               placeholderTextColor="#747476"
               style={{ fontFamily: "ManropeRegular", fontSize: 15 }}
@@ -237,12 +269,9 @@ export default function Register() {
             </Text>
             <TextInput
               value={studentId}
-              onChangeText={setStudentId}
-              onFocus={() => {
-                setFocusedInput("studentId");
-                setErrors((prev) => ({ ...prev, studentId: "" }));
-              }}
-              onBlur={() => setFocusedInput(null)}
+              onChangeText={handleStudentIdChange}
+              onFocus={() => handleFocus("studentId")}
+              onBlur={handleBlur}
               placeholder="Ex. 2022123456"
               placeholderTextColor="#747476"
               style={{ fontFamily: "ManropeRegular", fontSize: 15 }}
@@ -260,12 +289,9 @@ export default function Register() {
             <Text className="font-manrope-medium text-black mb-2">Email</Text>
             <TextInput
               value={email}
-              onChangeText={setEmail}
-              onFocus={() => {
-                setFocusedInput("email");
-                setErrors((prev) => ({ ...prev, email: "" }));
-              }}
-              onBlur={() => setFocusedInput(null)}
+              onChangeText={handleEmailChange}
+              onFocus={() => handleFocus("email")}
+              onBlur={handleBlur}
               placeholder="Ex. juandelacruz@gmail.com"
               placeholderTextColor="#747476"
               style={{ fontFamily: "ManropeRegular", fontSize: 15 }}
@@ -286,12 +312,9 @@ export default function Register() {
             <View className={passwordInputClass("password")}>
               <TextInput
                 value={password}
-                onChangeText={setPassword}
-                onFocus={() => {
-                  setFocusedInput("password");
-                  setErrors((prev) => ({ ...prev, password: "" }));
-                }}
-                onBlur={() => setFocusedInput(null)}
+                onChangeText={handlePasswordChange}
+                onFocus={() => handleFocus("password")}
+                onBlur={handleBlur}
                 placeholder="Enter password"
                 placeholderTextColor="#747476"
                 secureTextEntry={!showPassword}
@@ -321,12 +344,9 @@ export default function Register() {
             <View className={passwordInputClass("confirmPassword")}>
               <TextInput
                 value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                onFocus={() => {
-                  setFocusedInput("confirmPassword");
-                  setErrors((prev) => ({ ...prev, confirmPassword: "" }));
-                }}
-                onBlur={() => setFocusedInput(null)}
+                onChangeText={handleConfirmPasswordChange}
+                onFocus={() => handleFocus("confirmPassword")}
+                onBlur={handleBlur}
                 placeholder="Re-enter password"
                 placeholderTextColor="#747476"
                 secureTextEntry={!showConfirmPassword}
@@ -359,7 +379,12 @@ export default function Register() {
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="white" size="small" />
+              <View className="flex-row items-center">
+                <ActivityIndicator color="white" size="small" />
+                <Text className="text-white text-base font-manrope-medium ml-2">
+                  Creating account...
+                </Text>
+              </View>
             ) : (
               <Text className="text-white text-lg font-semibold font-manrope-medium">
                 Register
@@ -383,3 +408,5 @@ export default function Register() {
     </SafeAreaView>
   );
 }
+
+export default memo(Register);

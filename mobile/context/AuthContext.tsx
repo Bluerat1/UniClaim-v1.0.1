@@ -56,27 +56,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setIsAutoLogging(true);
       setLoading(true); // Ensure loading state is true during auto-login
-      
-      const storedCredentials = await credentialStorage.getStoredCredentials();
-      
+
+            const storedCredentials = await credentialStorage.getStoredCredentials();
+
       if (!storedCredentials) {
-        setLoading(false); // Set loading false if no credentials
+                setLoading(false); // Set loading false if no credentials
         return false;
       }
+
       
       // Attempt login with stored credentials
       const userCredential = await signInWithEmailAndPassword(
-        auth, 
-        storedCredentials.email, 
+        auth,
+        storedCredentials.email,
         storedCredentials.password
       );
-      
-      // Keep loading true - onAuthStateChanged will handle setting it false
+
+            // Keep loading true - onAuthStateChanged will handle setting it false
       return true;
-      
+
     } catch (error: any) {
+      console.error('❌ AuthContext: Auto-login failed:', error);
+
       // Clear invalid credentials
-      await credentialStorage.clearCredentials();
+      try {
+        await credentialStorage.clearCredentials();
+              } catch (clearError) {
+        console.error('❌ AuthContext: Failed to clear invalid credentials:', clearError);
+      }
+
       setLoading(false); // Set loading false on error
       return false;
     } finally {
@@ -88,11 +96,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let hasAttemptedAutoLogin = false;
     let isProcessingAutoLogin = false;
+    let autoLoginTimeout: NodeJS.Timeout | null = null;
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
+      
+      // Clear any existing auto-login timeout
+      if (autoLoginTimeout) {
+        clearTimeout(autoLoginTimeout);
+      }
+
       if (firebaseUser) {
-        setUser(firebaseUser);
+                setUser(firebaseUser);
         // Don't set isAuthenticated yet - wait for verification check
+
+        // SET LOADING TO TRUE: Start processing user authentication
+        setLoading(true);
 
         // Check if user is admin
         const userIsAdmin = checkIfAdmin(firebaseUser.email);
@@ -100,7 +118,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Fetch user data from Firestore
         try {
           const fetchedUserData = await authService.getUserData(firebaseUser.uid);
-          setUserData(fetchedUserData);
+                    setUserData(fetchedUserData);
 
           // Update admin status based on role data (includes campus_security)
           const isAdminOrCampusSecurity = userIsAdmin ||
@@ -119,14 +137,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
           // Check email verification status
           if (fetchedUserData) {
-            // IMPORTANT: Add a small delay to ensure Firebase Auth state is fully updated
+                        // IMPORTANT: Add a small delay to ensure Firebase Auth state is fully updated
             await new Promise(resolve => setTimeout(resolve, 500));
 
             // Reload user data to get the latest email verification status from Firebase Auth
             await firebaseUser.reload();
 
             const needsVerification = await userService.needsEmailVerification(firebaseUser, fetchedUserData);
-            setNeedsEmailVerification(needsVerification);
+                                                setNeedsEmailVerification(needsVerification);
 
             // If Firebase email is verified but Firestore is not, update Firestore
             if (firebaseUser.emailVerified && !fetchedUserData.emailVerified) {
@@ -139,13 +157,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             // Only set authenticated if user is verified
             if (!needsVerification) {
-              setIsAuthenticated(true);
+                            setIsAuthenticated(true);
             } else {
-              // User needs verification, don't set authenticated
+                            // User needs verification, don't set authenticated
               setIsAuthenticated(false);
             }
           } else {
-            // Create user document in Firestore if it doesn't exist
+                        // NEW USER: Immediately set verification requirement to prevent race condition
+            setNeedsEmailVerification(true);
+            setIsAuthenticated(false); // Explicitly set to false for new users
+
+            // User document should already be created by the register function
+            // Only create it here as a fallback if it somehow doesn't exist
             try {
               // Get user profile data from Firebase Auth
               const displayName = firebaseUser.displayName || '';
@@ -153,7 +176,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               const firstName = nameParts[0] || '';
               const lastName = nameParts.slice(1).join(' ') || '';
 
-              // Create user document with unverified email status
+              // Create user document with unverified email status (fallback)
               await userService.createUser(firebaseUser.uid, {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email || '',
@@ -166,8 +189,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 updatedAt: new Date()
               });
 
-              setNeedsEmailVerification(true);
-              setIsAuthenticated(false);
+                            // Note: needsEmailVerification is already set to true above
 
               // Set the newly created user data
               const newUserData = {
@@ -184,8 +206,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               setUserData(newUserData);
 
             } catch (createError) {
-              console.error('Failed to create user document:', createError);
-              setNeedsEmailVerification(false);
+              console.error('Failed to create fallback user document:', createError);
+              // Keep needsEmailVerification as true even if document creation fails
               setIsAuthenticated(false);
             }
           }
@@ -260,8 +282,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   // This is expected during logout - don't log as error
                   // Only log if we're still authenticated (not during logout)
                   if (isAuthenticated) {
-                    console.log('Ban listener permission error (expected during logout):', error.message);
-                  }
+                                      }
                 } else {
                   console.warn('Ban listener error (mobile):', error);
                 }
@@ -298,7 +319,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setLoading(false);
         }
       } else {
-        // User logged out - clean up all listeners
+        // User logged out or no user - clean up all listeners
+        
         // Clean up ban listener if it exists
         if (banListenerRef.current) {
           banListenerRef.current();
@@ -321,33 +343,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setNeedsEmailVerification(false);
         setLoginAttemptFailed(false);
 
-        // Don't immediately set loading to false - auto-login might be attempted
-        // Loading state will be managed by the auto-login process below
-
-        // No authenticated user - try auto-login once
+        // No authenticated user - try auto-login with improved logic
         if (!hasAttemptedAutoLogin && !isProcessingAutoLogin) {
           hasAttemptedAutoLogin = true;
           isProcessingAutoLogin = true;
 
-          try {
-            const autoLoginSuccess = await attemptAutoLogin();
+          
+          // Add a small delay to ensure Firebase Auth state is fully settled
+          autoLoginTimeout = setTimeout(async () => {
+            try {
+              const autoLoginSuccess = await attemptAutoLogin();
 
-            if (autoLoginSuccess) {
-              // If auto-login succeeds, onAuthStateChanged will be called again with the user
-              // We don't need to do anything here - the next call will handle the authenticated state
-              // Loading state will be managed by the authenticated user branch
-            } else {
-              // Auto-login failed or no credentials - user needs to login manually
+              if (autoLoginSuccess) {
+                                // If auto-login succeeds, onAuthStateChanged will be called again with the user
+                // We don't need to do anything here - the next call will handle the authenticated state
+                // Loading state will be managed by the authenticated user branch
+              } else {
+                                // Auto-login failed or no credentials - user needs to login manually
+                setLoading(false);
+              }
+            } catch (error) {
+              console.error('❌ Auto-login error:', error);
               setLoading(false);
+            } finally {
+              isProcessingAutoLogin = false;
             }
-          } catch (error) {
-            console.error('❌ Auto-login error:', error);
-            setLoading(false);
-          } finally {
-            isProcessingAutoLogin = false;
-          }
+          }, 1000) as unknown as NodeJS.Timeout; // 1 second delay to prevent race conditions
         } else {
-          // Already attempted auto-login, user is truly not authenticated
+                    // Already attempted auto-login, user is truly not authenticated
           setLoading(false);
         }
       }
@@ -355,6 +378,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       unsubscribe();
+
+      // Clean up auto-login timeout
+      if (autoLoginTimeout) {
+        clearTimeout(autoLoginTimeout);
+        autoLoginTimeout = null;
+      }
 
       // Clean up ban listener on component unmount
       if (banListenerRef.current) {
@@ -427,7 +456,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
           }
         } else {
-          // Create user document in Firestore if it doesn't exist
+          // User document should already exist from registration
+          // Only create it here as a fallback if it somehow doesn't exist
           try {
             // Get user profile data from Firebase Auth
             const displayName = user.displayName || '';
@@ -435,7 +465,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const firstName = nameParts[0] || '';
             const lastName = nameParts.slice(1).join(' ') || '';
 
-            // Create user document with unverified email status
+            // Create user document with unverified email status (fallback)
             await userService.createUser(user.uid, {
               uid: user.uid,
               email: user.email || '',

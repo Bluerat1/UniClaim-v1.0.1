@@ -28,3 +28,7 @@ export const db = getFirestore(app);
 
 // Export the app instance if needed elsewhere
 export { app };
+
+// Note: Firebase Auth in React Native uses local persistence by default
+// No need to explicitly set persistence as it works automatically
+console.log('🔥 Firebase initialized successfully for React Native');

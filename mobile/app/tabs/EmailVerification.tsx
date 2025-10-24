@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   SafeAreaView,
+  Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -57,10 +58,15 @@ export default function EmailVerification() {
     }
   }, [user]);
 
-  // Only check when user manually taps the button (no automatic background checking)
+  // Debug effect to monitor isChecking state changes
   useEffect(() => {
-    // No automatic checking - only manual button presses
-  }, [user, userData]);
+    console.log('🔄 EmailVerification: isChecking state changed to:', isChecking);
+    if (isChecking) {
+      console.log('🔄 EmailVerification: Loading modal should be visible');
+    } else {
+      console.log('🔄 EmailVerification: Loading modal should be hidden');
+    }
+  }, [isChecking]);
 
   // Countdown timer for resend button
   useEffect(() => {
@@ -88,10 +94,20 @@ export default function EmailVerification() {
     setIsChecking(true);
     setIsLoading(true);
 
+    // Set a maximum timeout to ensure modal closes even if something goes wrong
+    const maxTimeout = setTimeout(() => {
+      console.log('⚠️ EmailVerification: Force closing modal due to timeout');
+      setIsChecking(false);
+      setIsLoading(false);
+    }, 30000); // 30 second maximum
+
     try {
       // If we have a user (logged in), check their verification status
       if (user) {
         console.log(`🔍 Checking verification status (attempt ${retryCount + 1})`);
+
+        // Show loading overlay for the checking process
+        // The isChecking state will show the full-screen loading overlay
 
         // IMPORTANT: Reload user data to get the latest email verification status
         await user.reload();
@@ -118,6 +134,9 @@ export default function EmailVerification() {
 
               // Call handleEmailVerificationComplete to update authentication state
               await handleEmailVerificationComplete();
+
+              // Clear the timeout since we're navigating away
+              clearTimeout(maxTimeout);
 
               // Navigate to the main app after a short delay to ensure state is updated
               setTimeout(() => {
@@ -183,6 +202,8 @@ export default function EmailVerification() {
         [{ text: 'OK' }]
       );
     } finally {
+      // Always clear timeout and reset states
+      clearTimeout(maxTimeout);
       setIsLoading(false);
       setIsChecking(false);
     }
@@ -307,12 +328,12 @@ export default function EmailVerification() {
         {/* Check Again Button */}
         <TouchableOpacity
           className={`py-4 rounded-xl mb-4 ${
-            isLoading ? 'bg-gray-300' : 'bg-brand'
+            isLoading || isChecking ? 'bg-gray-300' : 'bg-brand'
           }`}
           onPress={() => checkVerificationStatus()}
-          disabled={isLoading}
+          disabled={isLoading || isChecking}
         >
-          {isLoading ? (
+          {isLoading || isChecking ? (
             <ActivityIndicator color="white" size="small" />
           ) : (
             <Text className="text-white text-lg font-manrope-semibold text-center">
@@ -324,12 +345,12 @@ export default function EmailVerification() {
         {/* Resend Button */}
         <TouchableOpacity
           className={`py-4 rounded-xl mb-4 ${
-            resendCooldown > 0 || resendLoading
+            resendCooldown > 0 || resendLoading || isChecking
               ? 'bg-gray-300'
               : 'bg-brand'
           }`}
           onPress={handleResendVerification}
-          disabled={resendCooldown > 0 || resendLoading}
+          disabled={resendCooldown > 0 || resendLoading || isChecking}
         >
           {resendLoading ? (
             <ActivityIndicator color="white" size="small" />
@@ -346,12 +367,12 @@ export default function EmailVerification() {
         {/* Logout Button */}
         <TouchableOpacity
           className={`py-4 rounded-xl mb-6 border border-gray-300 ${
-            isLoading ? 'opacity-50' : ''
+            isLoading || isChecking ? 'opacity-50' : ''
           }`}
           onPress={handleLogout}
-          disabled={isLoading}
+          disabled={isLoading || isChecking}
         >
-          {isLoading ? (
+          {isLoading || isChecking ? (
             <ActivityIndicator color="#2563eb" size="small" />
           ) : (
             <Text className="text-brand text-lg font-manrope-semibold text-center">
@@ -367,6 +388,32 @@ export default function EmailVerification() {
           </Text>
         </View>
       </View>
+
+      {/* Loading Overlay */}
+      <Modal
+        key={`loading-modal-${isChecking}`}
+        visible={isChecking}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {}} // Prevent closing by back button
+      >
+        <View className="flex-1 bg-black/30 justify-center items-center px-6">
+          <View className="bg-white rounded-2xl p-8 items-center shadow-lg w-full max-w-sm">
+            <View className="w-16 h-16 bg-brand/10 rounded-full items-center justify-center mb-4">
+              <ActivityIndicator size="large" color="#2563eb" />
+            </View>
+            <Text className="text-xl font-albert-bold text-gray-800 mb-2 text-center">
+              Checking Verification
+            </Text>
+            <Text className="text-base font-manrope-medium text-gray-600 text-center mb-2">
+              Please wait while we verify your email...
+            </Text>
+            <Text className="text-sm font-manrope-medium text-gray-500 text-center">
+              This may take a few seconds
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

@@ -2,7 +2,7 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { auth, authService, UserData, db, userService } from '../utils/firebase';
 import React, { useState, useEffect, Suspense } from "react";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, Text, SafeAreaView } from "react-native";
 import type { RootStackParamList } from "../types/type";
 import { useAuth } from "../context/AuthContext";
 
@@ -77,15 +77,31 @@ export default function Navigation({
     setRenderKey(prev => prev + 1);
   }, [isAuthenticated, user, loading, needsEmailVerification]);
 
+  // If AuthContext is still loading, show loading screen
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-white justify-center items-center px-6">
+        <View className="items-center">
+          <ActivityIndicator size="large" color="#1e40af" />
+          <Text className="text-lg font-manrope-bold text-brand mt-4">
+            Loading...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   // If user is banned, redirect to login
   const shouldRedirectToLogin = user && isBanned;
 
   // Check if user needs email verification (show verification screen for logged-in but unverified users)
-  const shouldShowEmailVerification = user && !isBanned && needsEmailVerification;
+  // Exclude case where user account has been deleted (user exists but userData is null)
+  const shouldShowEmailVerification = user && userData !== null && !isBanned && needsEmailVerification && !isAuthenticated;
 
   const shouldShowOnboarding = !hasSeenOnBoarding && !user;
   const shouldShowIndex = !hasPassedIndex && !user;
 
+    
   // Handle redirect when user gets banned
   useEffect(() => {
     if (user && isBanned) {
@@ -105,6 +121,13 @@ export default function Navigation({
         <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
         <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
         <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
+        <Stack.Screen name="EmailVerification">
+          {() => (
+            <Suspense fallback={<ScreenLoader />}>
+              <EmailVerification />
+            </Suspense>
+          )}
+        </Stack.Screen>
       </Stack.Navigator>
     );
   }
@@ -121,29 +144,20 @@ export default function Navigation({
         <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
         <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
         <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
+        <Stack.Screen name="EmailVerification">
+          {() => (
+            <Suspense fallback={<ScreenLoader />}>
+              <EmailVerification />
+            </Suspense>
+          )}
+        </Stack.Screen>
       </Stack.Navigator>
     );
   }
 
-  // If user is not authenticated, show index screen (welcome screen with login/register options)
-  if (!isAuthenticated && !user && !needsEmailVerification && !loginAttemptFailed) {
-    return (
-      <Stack.Navigator
-        key={`index-navigation-${renderKey}`}
-        initialRouteName="Index"
-        screenOptions={{ headerShown: false, animation: "fade" }}
-      >
-        <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
-        <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
-        <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
-        <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
-      </Stack.Navigator>
-    );
-  }
-
-  // CRITICAL FIX: If user is authenticated, always show main app
+  // If user is fully authenticated, show main app (HIGHEST PRIORITY)
   if (isAuthenticated && user && !isBanned) {
-    return (
+        return (
       <Stack.Navigator
         key={`authenticated-navigation-${renderKey}`}
         initialRouteName="RootBottomTabs"
@@ -239,15 +253,68 @@ export default function Navigation({
     );
   }
 
+  // If user needs email verification, show email verification screen
+  if (shouldShowEmailVerification) {
+    console.log('🚀 Navigation: RETURNING email verification stack (PRIORITY 2)');
+    return (
+      <Stack.Navigator
+        key={`email-verification-navigation-${renderKey}`}
+        initialRouteName="EmailVerification"
+        screenOptions={{ headerShown: false, animation: "fade" }}
+      >
+        <Stack.Screen name="EmailVerification">
+          {() => (
+            <Suspense fallback={<ScreenLoader />}>
+              <EmailVerification />
+            </Suspense>
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
+        <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
+        <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
+        <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
+      </Stack.Navigator>
+    );
+  }
+
+  // If user is not authenticated, show index screen
+  // Handle account deletion case: if user exists but userData is null (account deleted), show Index
+  if (!isAuthenticated && (!user || (user && userData === null)) && !needsEmailVerification && !loginAttemptFailed) {
+    console.log('🚀 Navigation: RETURNING index stack (PRIORITY 4)');
+    return (
+      <Stack.Navigator
+        key={`index-navigation-${renderKey}`}
+        initialRouteName="Index"
+        screenOptions={{ headerShown: false, animation: "fade" }}
+      >
+        <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
+        <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
+        <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
+        <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
+        <Stack.Screen name="EmailVerification">
+          {() => (
+            <Suspense fallback={<ScreenLoader />}>
+              <EmailVerification />
+            </Suspense>
+          )}
+        </Stack.Screen>
+      </Stack.Navigator>
+    );
+  }
+
   const initial = shouldShowOnboarding
     ? "OnBoarding"
     : shouldShowIndex
       ? "Index"
-      : shouldShowEmailVerification
-        ? "EmailVerification"
-        : isAuthenticated && user && !isBanned
-          ? "RootBottomTabs"
-          : "Index"; // Fallback to Index if no other condition matches
+      : isAuthenticated && user && !isBanned
+        ? "RootBottomTabs"
+        : shouldShowEmailVerification
+          ? "EmailVerification"
+          : (!isAuthenticated && (!user || (user && userData === null)))
+            ? "Index" // Handle account deletion case: redirect to Index if user exists but account deleted
+            : "Index"; // Fallback to Index if no other condition matches
+
+  console.log('🚀 Navigation: Initial route:', initial);
 
   return (
     <Stack.Navigator

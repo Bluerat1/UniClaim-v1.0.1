@@ -21,6 +21,7 @@ import {
     limit,
     getDocs
 } from 'firebase/firestore';
+import { credentialStorage } from '../credentialStorage';
 import { notificationSubscriptionService } from './notificationSubscriptions';
 
 // User data interface for Firestore
@@ -54,6 +55,8 @@ export const authService = {
     ): Promise<UserCredential> {
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            console.log('🔥 Registration successful - user created:', userCredential.user.uid);
+            console.log('🔥 User automatically logged in:', userCredential.user.email);
 
             // Update profile with additional user data
             if (userCredential.user) {
@@ -63,12 +66,13 @@ export const authService = {
 
                 // Send email verification
                 await sendEmailVerification(userCredential.user);
+                console.log('📧 Email verification sent to:', userCredential.user.email);
 
-                // Create user document in Firestore with all registration data
+                // Create Firestore user document with all registration data
                 try {
                     await userService.createUser(userCredential.user.uid, {
                         uid: userCredential.user.uid,
-                        email: email,
+                        email: userCredential.user.email || '',
                         firstName: firstName,
                         lastName: lastName,
                         contactNum: contactNum,
@@ -77,12 +81,23 @@ export const authService = {
                         createdAt: new Date(),
                         updatedAt: new Date()
                     });
-                    console.log('✅ Created Firestore user document for new user:', userCredential.user.uid);
-                } catch (firestoreError: any) {
+                    console.log('📝 Firestore user document created successfully with profile data');
+
+                    // Store credentials for auto-login
+                    try {
+                        await credentialStorage.saveCredentials(email, password);
+                        console.log('🔐 Credentials stored for auto-login after registration');
+                    } catch (credentialError) {
+                        console.warn('⚠️ Failed to store credentials for auto-login:', credentialError);
+                        // Continue with registration even if credential storage fails
+                        // The user can still login manually
+                    }
+                } catch (firestoreError) {
                     console.error('❌ Failed to create Firestore user document:', firestoreError);
-                    // Don't fail registration if Firestore creation fails
-                    // The AuthContext onAuthStateChanged listener will handle this case
+                    // Don't fail the entire registration if Firestore creation fails
+                    // The AuthContext will handle creating the document later if needed
                 }
+
             }
 
             return userCredential;
