@@ -5,17 +5,17 @@ import PageWrapper from "../../components/PageWrapper";
 import type { Post } from "@/types/Post";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import NavHeader from "../../components/NavHeadComp";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import PostsOverTimeChart from "@/components/analytics/PostsOverTimeChart";
 import CategoryDistributionChart from "@/components/analytics/CategoryDistributionChart";
 import StatusDistributionChart from "@/components/analytics/StatusDistributionChart";
 import DateRangeSelector from "@/components/analytics/DateRangeSelector";
 import PostCreationLogbook from "@/components/analytics/PostCreationLogbook";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
-import * as ExcelJS from 'exceljs';
-import { Chart as ChartJS, registerables } from 'chart.js';
-import 'chartjs-adapter-date-fns';
-import html2canvas from 'html2canvas';
+import * as ExcelJS from "exceljs";
+import { Chart as ChartJS, registerables } from "chart.js";
+import "chartjs-adapter-date-fns";
+import html2canvas from "html2canvas";
 
 const AdminAnalyticsPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
@@ -107,37 +107,40 @@ const AdminAnalyticsPage: React.FC = () => {
   const exportCategoryDataToExcel = async () => {
     try {
       const categoryCounts: Record<string, number> = {};
-      displayPosts.forEach(post => {
-        const category = post.category || 'Uncategorized';
+      displayPosts.forEach((post) => {
+        const category = post.category || "Uncategorized";
         categoryCounts[category] = (categoryCounts[category] || 0) + 1;
       });
 
-      const data = Object.entries(categoryCounts).map(([category, count]) => ({ Category: category, Count: count }));
+      const data = Object.entries(categoryCounts).map(([category, count]) => ({
+        Category: category,
+        Count: count,
+      }));
 
       if (data.length === 0) {
-        console.warn('No data to export');
+        console.warn("No data to export");
         return;
       }
 
       // Create a temporary div for the chart
-      const chartDiv = document.createElement('div');
-      chartDiv.style.position = 'absolute';
-      chartDiv.style.left = '-9999px';
-      chartDiv.style.top = '-9999px';
-      chartDiv.style.width = '800px';
-      chartDiv.style.height = '400px';
-      chartDiv.style.backgroundColor = 'white'; // Ensure background for better capture
+      const chartDiv = document.createElement("div");
+      chartDiv.style.position = "absolute";
+      chartDiv.style.left = "-9999px";
+      chartDiv.style.top = "-9999px";
+      chartDiv.style.width = "800px";
+      chartDiv.style.height = "400px";
+      chartDiv.style.backgroundColor = "white"; // Ensure background for better capture
       document.body.appendChild(chartDiv);
 
       // Create canvas for Chart.js
-      const canvas = document.createElement('canvas');
+      const canvas = document.createElement("canvas");
       canvas.width = 800;
       canvas.height = 400;
       chartDiv.appendChild(canvas);
 
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext("2d");
       if (!ctx) {
-        console.error('Failed to get canvas context');
+        console.error("Failed to get canvas context");
         document.body.removeChild(chartDiv);
         return;
       }
@@ -147,39 +150,41 @@ const AdminAnalyticsPage: React.FC = () => {
 
       // Generate chart data
       const chartData = {
-        labels: data.map(row => row.Category),
-        datasets: [{
-          label: 'Count',
-          data: data.map(row => row.Count),
-          backgroundColor: 'rgba(75, 192, 192, 0.6)',
-          borderColor: 'rgba(75, 192, 192, 1)',
-          borderWidth: 1
-        }]
+        labels: data.map((row) => row.Category),
+        datasets: [
+          {
+            label: "Count",
+            data: data.map((row) => row.Count),
+            backgroundColor: "rgba(75, 192, 192, 0.6)",
+            borderColor: "rgba(75, 192, 192, 1)",
+            borderWidth: 1,
+          },
+        ],
       };
 
       // Create Chart.js chart
       new ChartJS(ctx, {
-        type: 'bar',
+        type: "bar",
         data: chartData,
         options: {
           responsive: false,
           plugins: {
             title: {
               display: true,
-              text: 'Category Distribution'
-            }
-          }
-        }
+              text: "Category Distribution",
+            },
+          },
+        },
       });
 
       // Wait for chart to render
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Capture the chart as an image
       const chartImage = await html2canvas(chartDiv, {
         useCORS: true,
         allowTaint: false,
-        backgroundColor: '#ffffff'
+        backgroundColor: "#ffffff",
       });
 
       const chartBuffer = await new Promise<Uint8Array>((resolve, reject) => {
@@ -190,64 +195,65 @@ const AdminAnalyticsPage: React.FC = () => {
               const arrayBuffer = reader.result as ArrayBuffer;
               resolve(new Uint8Array(arrayBuffer));
             };
-            reader.onerror = () => reject(new Error('Failed to read blob'));
+            reader.onerror = () => reject(new Error("Failed to read blob"));
             reader.readAsArrayBuffer(blob);
           } else {
-            reject(new Error('Failed to generate blob'));
+            reject(new Error("Failed to generate blob"));
           }
         });
       });
 
-      console.log('Chart buffer generated:', chartBuffer.length);
+      console.log("Chart buffer generated:", chartBuffer.length);
 
       // Remove temporary div
       document.body.removeChild(chartDiv);
 
       // Create Excel workbook
       const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Category Analysis');
+      const worksheet = workbook.addWorksheet("Category Analysis");
 
       // Add data to worksheet
-      worksheet.addRow(['Category', 'Count']);
-      data.forEach(row => {
+      worksheet.addRow(["Category", "Count"]);
+      data.forEach((row) => {
         worksheet.addRow([row.Category, row.Count]);
       });
 
       // Auto-fit columns
       worksheet.columns = [
-        { key: 'category', width: 20 },
-        { key: 'count', width: 10 }
+        { key: "category", width: 20 },
+        { key: "count", width: 10 },
       ];
 
       // Embed the chart image
       try {
         const imageId = workbook.addImage({
           buffer: chartBuffer,
-          extension: 'png',
+          extension: "png",
         });
 
         worksheet.addImage(imageId, {
           tl: { col: 3, row: 1 },
-          ext: { width: 400, height: 200 }
+          ext: { width: 400, height: 200 },
         });
 
-        console.log('Image embedded successfully');
+        console.log("Image embedded successfully");
       } catch (imageError) {
-        console.error('Failed to embed image:', imageError);
+        console.error("Failed to embed image:", imageError);
       }
 
       // Save and download
       const buffer = await workbook.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = `category_analysis_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+      a.download = `category_analysis_${format(new Date(), "yyyy-MM-dd")}.xlsx`;
       a.click();
       window.URL.revokeObjectURL(url);
-
     } catch (error) {
-      console.error('Export failed:', error);
+      console.error("Export failed:", error);
     }
   };
 
@@ -256,15 +262,17 @@ const AdminAnalyticsPage: React.FC = () => {
     try {
       // Group posts by date
       const postsByDate: Record<string, number> = {};
-      displayPosts.forEach(post => {
+      displayPosts.forEach((post) => {
         if (post.createdAt) {
           let postDate: Date;
           try {
-            postDate = post.createdAt.toDate ? post.createdAt.toDate() : new Date(post.createdAt);
-            const date = postDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+            postDate = post.createdAt.toDate
+              ? post.createdAt.toDate()
+              : new Date(post.createdAt);
+            const date = postDate.toISOString().split("T")[0]; // YYYY-MM-DD format
             postsByDate[date] = (postsByDate[date] || 0) + 1;
           } catch (error) {
-            console.error('Error processing date for post:', post.id, error);
+            console.error("Error processing date for post:", post.id, error);
           }
         }
       });
@@ -274,29 +282,29 @@ const AdminAnalyticsPage: React.FC = () => {
         .map(([date, count]) => ({ Date: date, Count: count }));
 
       if (data.length === 0) {
-        console.warn('No data to export');
+        console.warn("No data to export");
         return;
       }
 
       // Create a temporary div for the chart
-      const chartDiv = document.createElement('div');
-      chartDiv.style.position = 'absolute';
-      chartDiv.style.left = '-9999px';
-      chartDiv.style.top = '-9999px';
-      chartDiv.style.width = '800px';
-      chartDiv.style.height = '400px';
-      chartDiv.style.backgroundColor = 'white';
+      const chartDiv = document.createElement("div");
+      chartDiv.style.position = "absolute";
+      chartDiv.style.left = "-9999px";
+      chartDiv.style.top = "-9999px";
+      chartDiv.style.width = "800px";
+      chartDiv.style.height = "400px";
+      chartDiv.style.backgroundColor = "white";
       document.body.appendChild(chartDiv);
 
       // Create canvas for Chart.js
-      const canvas = document.createElement('canvas');
+      const canvas = document.createElement("canvas");
       canvas.width = 800;
       canvas.height = 400;
       chartDiv.appendChild(canvas);
 
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext("2d");
       if (!ctx) {
-        console.error('Failed to get canvas context');
+        console.error("Failed to get canvas context");
         document.body.removeChild(chartDiv);
         return;
       }
@@ -306,44 +314,46 @@ const AdminAnalyticsPage: React.FC = () => {
 
       // Generate chart data
       const chartData = {
-        labels: data.map(row => row.Date),
-        datasets: [{
-          label: 'Posts',
-          data: data.map(row => row.Count),
-          backgroundColor: 'rgba(54, 162, 235, 0.6)',
-          borderColor: 'rgba(54, 162, 235, 1)',
-          borderWidth: 1
-        }]
+        labels: data.map((row) => row.Date),
+        datasets: [
+          {
+            label: "Posts",
+            data: data.map((row) => row.Count),
+            backgroundColor: "rgba(54, 162, 235, 0.6)",
+            borderColor: "rgba(54, 162, 235, 1)",
+            borderWidth: 1,
+          },
+        ],
       };
 
       // Create Chart.js chart
       new ChartJS(ctx, {
-        type: 'bar',
+        type: "bar",
         data: chartData,
         options: {
           responsive: false,
           plugins: {
             title: {
               display: true,
-              text: 'Posts Over Time'
-            }
+              text: "Posts Over Time",
+            },
           },
           scales: {
             y: {
-              beginAtZero: true
-            }
-          }
-        }
+              beginAtZero: true,
+            },
+          },
+        },
       });
 
       // Wait for chart to render
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Capture the chart as an image
       const chartImage = await html2canvas(chartDiv, {
         useCORS: true,
         allowTaint: false,
-        backgroundColor: '#ffffff'
+        backgroundColor: "#ffffff",
       });
 
       const chartBuffer = await new Promise<Uint8Array>((resolve, reject) => {
@@ -354,64 +364,65 @@ const AdminAnalyticsPage: React.FC = () => {
               const arrayBuffer = reader.result as ArrayBuffer;
               resolve(new Uint8Array(arrayBuffer));
             };
-            reader.onerror = () => reject(new Error('Failed to read blob'));
+            reader.onerror = () => reject(new Error("Failed to read blob"));
             reader.readAsArrayBuffer(blob);
           } else {
-            reject(new Error('Failed to generate blob'));
+            reject(new Error("Failed to generate blob"));
           }
         });
       });
 
-      console.log('Timeline chart buffer generated:', chartBuffer.length);
+      console.log("Timeline chart buffer generated:", chartBuffer.length);
 
       // Remove temporary div
       document.body.removeChild(chartDiv);
 
       // Create Excel workbook
       const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Posts Timeline');
+      const worksheet = workbook.addWorksheet("Posts Timeline");
 
       // Add data to worksheet
-      worksheet.addRow(['Date', 'Count']);
-      data.forEach(row => {
+      worksheet.addRow(["Date", "Count"]);
+      data.forEach((row) => {
         worksheet.addRow([row.Date, row.Count]);
       });
 
       // Auto-fit columns
       worksheet.columns = [
-        { key: 'date', width: 15 },
-        { key: 'count', width: 10 }
+        { key: "date", width: 15 },
+        { key: "count", width: 10 },
       ];
 
       // Embed the chart image
       try {
         const imageId = workbook.addImage({
           buffer: chartBuffer,
-          extension: 'png',
+          extension: "png",
         });
 
         worksheet.addImage(imageId, {
           tl: { col: 3, row: 1 },
-          ext: { width: 400, height: 200 }
+          ext: { width: 400, height: 200 },
         });
 
-        console.log('Timeline image embedded successfully');
+        console.log("Timeline image embedded successfully");
       } catch (imageError) {
-        console.error('Failed to embed timeline image:', imageError);
+        console.error("Failed to embed timeline image:", imageError);
       }
 
       // Save and download
       const buffer = await workbook.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = `posts_timeline_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+      a.download = `posts_timeline_${format(new Date(), "yyyy-MM-dd")}.xlsx`;
       a.click();
       window.URL.revokeObjectURL(url);
-
     } catch (error) {
-      console.error('Timeline export failed:', error);
+      console.error("Timeline export failed:", error);
     }
   };
 
@@ -421,36 +432,49 @@ const AdminAnalyticsPage: React.FC = () => {
       const workbook = new ExcelJS.Workbook();
 
       // Helper function to generate chart image
-      const generateChartImage = async (chartType: 'bar' | 'line', labels: string[], data: number[], title: string) => {
-        const chartDiv = document.createElement('div');
-        chartDiv.style.position = 'absolute';
-        chartDiv.style.left = '-9999px';
-        chartDiv.style.top = '-9999px';
-        chartDiv.style.width = '800px';
-        chartDiv.style.height = '400px';
-        chartDiv.style.backgroundColor = 'white';
+      const generateChartImage = async (
+        chartType: "bar" | "line",
+        labels: string[],
+        data: number[],
+        title: string
+      ) => {
+        const chartDiv = document.createElement("div");
+        chartDiv.style.position = "absolute";
+        chartDiv.style.left = "-9999px";
+        chartDiv.style.top = "-9999px";
+        chartDiv.style.width = "800px";
+        chartDiv.style.height = "400px";
+        chartDiv.style.backgroundColor = "white";
         document.body.appendChild(chartDiv);
 
-        const canvas = document.createElement('canvas');
+        const canvas = document.createElement("canvas");
         canvas.width = 800;
         canvas.height = 400;
         chartDiv.appendChild(canvas);
 
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext("2d");
         if (!ctx) return null;
 
         ChartJS.register(...registerables);
 
         const chartData = {
           labels,
-          datasets: [{
-            label: 'Count',
-            data,
-            backgroundColor: chartType === 'bar' ? 'rgba(75, 192, 192, 0.6)' : 'rgba(54, 162, 235, 0.6)',
-            borderColor: chartType === 'bar' ? 'rgba(75, 192, 192, 1)' : 'rgba(54, 162, 235, 1)',
-            borderWidth: 1,
-            fill: chartType === 'line' ? false : undefined
-          }]
+          datasets: [
+            {
+              label: "Count",
+              data,
+              backgroundColor:
+                chartType === "bar"
+                  ? "rgba(75, 192, 192, 0.6)"
+                  : "rgba(54, 162, 235, 0.6)",
+              borderColor:
+                chartType === "bar"
+                  ? "rgba(75, 192, 192, 1)"
+                  : "rgba(54, 162, 235, 1)",
+              borderWidth: 1,
+              fill: chartType === "line" ? false : undefined,
+            },
+          ],
         };
 
         new ChartJS(ctx, {
@@ -461,23 +485,26 @@ const AdminAnalyticsPage: React.FC = () => {
             plugins: {
               title: {
                 display: true,
-                text: title
-              }
+                text: title,
+              },
             },
-            scales: chartType === 'line' ? {
-              y: { beginAtZero: true }
-            } : {
-              y: { beginAtZero: true }
-            }
-          }
+            scales:
+              chartType === "line"
+                ? {
+                    y: { beginAtZero: true },
+                  }
+                : {
+                    y: { beginAtZero: true },
+                  },
+          },
         });
 
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
         const chartImage = await html2canvas(chartDiv, {
           useCORS: true,
           allowTaint: false,
-          backgroundColor: '#ffffff'
+          backgroundColor: "#ffffff",
         });
 
         const chartBuffer = await new Promise<Uint8Array>((resolve, reject) => {
@@ -488,10 +515,10 @@ const AdminAnalyticsPage: React.FC = () => {
                 const arrayBuffer = reader.result as ArrayBuffer;
                 resolve(new Uint8Array(arrayBuffer));
               };
-              reader.onerror = () => reject(new Error('Failed to read blob'));
+              reader.onerror = () => reject(new Error("Failed to read blob"));
               reader.readAsArrayBuffer(blob);
             } else {
-              reject(new Error('Failed to generate blob'));
+              reject(new Error("Failed to generate blob"));
             }
           });
         });
@@ -502,49 +529,58 @@ const AdminAnalyticsPage: React.FC = () => {
 
       // Categories data and chart
       const categoryCounts: Record<string, number> = {};
-      displayPosts.forEach(post => {
-        const category = post.category || 'Uncategorized';
+      displayPosts.forEach((post) => {
+        const category = post.category || "Uncategorized";
         categoryCounts[category] = (categoryCounts[category] || 0) + 1;
       });
 
-      const categoryData = Object.entries(categoryCounts).map(([category, count]) => ({ Category: category, Count: count }));
+      const categoryData = Object.entries(categoryCounts).map(
+        ([category, count]) => ({ Category: category, Count: count })
+      );
 
       if (categoryData.length > 0) {
-        const categorySheet = workbook.addWorksheet('Categories');
-        categorySheet.addRow(['Category', 'Count']);
-        categoryData.forEach(row => {
+        const categorySheet = workbook.addWorksheet("Categories");
+        categorySheet.addRow(["Category", "Count"]);
+        categoryData.forEach((row) => {
           categorySheet.addRow([row.Category, row.Count]);
         });
         categorySheet.columns = [
-          { key: 'category', width: 20 },
-          { key: 'count', width: 10 }
+          { key: "category", width: 20 },
+          { key: "count", width: 10 },
         ];
 
         // Add chart image
-        const categoryChartBuffer = await generateChartImage('bar', categoryData.map(d => d.Category), categoryData.map(d => d.Count), 'Category Distribution');
+        const categoryChartBuffer = await generateChartImage(
+          "bar",
+          categoryData.map((d) => d.Category),
+          categoryData.map((d) => d.Count),
+          "Category Distribution"
+        );
         if (categoryChartBuffer) {
           const imageId = workbook.addImage({
             buffer: categoryChartBuffer,
-            extension: 'png',
+            extension: "png",
           });
           categorySheet.addImage(imageId, {
             tl: { col: 3, row: 1 },
-            ext: { width: 400, height: 200 }
+            ext: { width: 400, height: 200 },
           });
         }
       }
 
       // Timeline data and chart
       const postsByDate: Record<string, number> = {};
-      displayPosts.forEach(post => {
+      displayPosts.forEach((post) => {
         if (post.createdAt) {
           let postDate: Date;
           try {
-            postDate = post.createdAt.toDate ? post.createdAt.toDate() : new Date(post.createdAt);
-            const date = postDate.toISOString().split('T')[0];
+            postDate = post.createdAt.toDate
+              ? post.createdAt.toDate()
+              : new Date(post.createdAt);
+            const date = postDate.toISOString().split("T")[0];
             postsByDate[date] = (postsByDate[date] || 0) + 1;
           } catch (error) {
-            console.error('Error processing date for post:', post.id, error);
+            console.error("Error processing date for post:", post.id, error);
           }
         }
       });
@@ -554,129 +590,183 @@ const AdminAnalyticsPage: React.FC = () => {
         .map(([date, count]) => ({ Date: date, Count: count }));
 
       if (timelineData.length > 0) {
-        const timelineSheet = workbook.addWorksheet('Timeline');
-        timelineSheet.addRow(['Date', 'Count']);
-        timelineData.forEach(row => {
+        const timelineSheet = workbook.addWorksheet("Timeline");
+        timelineSheet.addRow(["Date", "Count"]);
+        timelineData.forEach((row) => {
           timelineSheet.addRow([row.Date, row.Count]);
         });
         timelineSheet.columns = [
-          { key: 'date', width: 15 },
-          { key: 'count', width: 10 }
+          { key: "date", width: 15 },
+          { key: "count", width: 10 },
         ];
 
         // Add chart image
-        const timelineChartBuffer = await generateChartImage('line', timelineData.map(d => d.Date), timelineData.map(d => d.Count), 'Posts Over Time');
+        const timelineChartBuffer = await generateChartImage(
+          "line",
+          timelineData.map((d) => d.Date),
+          timelineData.map((d) => d.Count),
+          "Posts Over Time"
+        );
         if (timelineChartBuffer) {
           const imageId = workbook.addImage({
             buffer: timelineChartBuffer,
-            extension: 'png',
+            extension: "png",
           });
           timelineSheet.addImage(imageId, {
             tl: { col: 3, row: 1 },
-            ext: { width: 400, height: 200 }
+            ext: { width: 400, height: 200 },
           });
         }
       }
 
       // Status distribution data and chart
       const statusCounts: Record<string, number> = {};
-      displayPosts.forEach(post => {
-        const status = post.status || 'Unknown';
+      displayPosts.forEach((post) => {
+        const status = post.status || "Unknown";
         statusCounts[status] = (statusCounts[status] || 0) + 1;
       });
 
-      const statusData = Object.entries(statusCounts).map(([status, count]) => ({ Status: status, Count: count }));
+      const statusData = Object.entries(statusCounts).map(
+        ([status, count]) => ({ Status: status, Count: count })
+      );
 
       if (statusData.length > 0) {
-        const statusSheet = workbook.addWorksheet('Status Distribution');
-        statusSheet.addRow(['Status', 'Count']);
-        statusData.forEach(row => {
+        const statusSheet = workbook.addWorksheet("Status Distribution");
+        statusSheet.addRow(["Status", "Count"]);
+        statusData.forEach((row) => {
           statusSheet.addRow([row.Status, row.Count]);
         });
         statusSheet.columns = [
-          { key: 'status', width: 20 },
-          { key: 'count', width: 10 }
+          { key: "status", width: 20 },
+          { key: "count", width: 10 },
         ];
 
         // Add chart image
-        const statusChartBuffer = await generateChartImage('bar', statusData.map(d => d.Status), statusData.map(d => d.Count), 'Status Distribution');
+        const statusChartBuffer = await generateChartImage(
+          "bar",
+          statusData.map((d) => d.Status),
+          statusData.map((d) => d.Count),
+          "Status Distribution"
+        );
         if (statusChartBuffer) {
           const imageId = workbook.addImage({
             buffer: statusChartBuffer,
-            extension: 'png',
+            extension: "png",
           });
           statusSheet.addImage(imageId, {
             tl: { col: 3, row: 1 },
-            ext: { width: 400, height: 200 }
+            ext: { width: 400, height: 200 },
           });
         }
       }
 
       // Overview data
       const overviewData = [
-        { Metric: 'Total Posts', Value: totalPosts },
-        { Metric: 'Lost Items', Value: lostItems },
-        { Metric: 'Found Items', Value: foundItems },
-        { Metric: 'Pending', Value: displayPosts.filter((p) => p.status === "pending").length },
-        { Metric: 'Unclaimed', Value: displayPosts.filter((p) => p.status === "unclaimed" || p.movedToUnclaimed).length },
-        { Metric: 'Completed', Value: resolvedItems },
-        { Metric: 'OSA Turnover', Value: displayPosts.filter((p) => p.type === "found" && p.turnoverDetails && p.turnoverDetails.turnoverAction === "turnover to OSA").length }
+        { Metric: "Total Posts", Value: totalPosts },
+        { Metric: "Lost Items", Value: lostItems },
+        { Metric: "Found Items", Value: foundItems },
+        {
+          Metric: "Pending",
+          Value: displayPosts.filter((p) => p.status === "pending").length,
+        },
+        {
+          Metric: "Unclaimed",
+          Value: displayPosts.filter(
+            (p) => p.status === "unclaimed" || p.movedToUnclaimed
+          ).length,
+        },
+        { Metric: "Completed", Value: resolvedItems },
+        {
+          Metric: "OSA Turnover",
+          Value: displayPosts.filter(
+            (p) =>
+              p.type === "found" &&
+              p.turnoverDetails &&
+              p.turnoverDetails.turnoverAction === "turnover to OSA"
+          ).length,
+        },
       ];
 
-      const overviewSheet = workbook.addWorksheet('Overview');
-      overviewSheet.addRow(['Metric', 'Value']);
-      overviewData.forEach(row => {
+      const overviewSheet = workbook.addWorksheet("Overview");
+      overviewSheet.addRow(["Metric", "Value"]);
+      overviewData.forEach((row) => {
         overviewSheet.addRow([row.Metric, row.Value]);
       });
       overviewSheet.columns = [
-        { key: 'metric', width: 20 },
-        { key: 'value', width: 10 }
+        { key: "metric", width: 20 },
+        { key: "value", width: 10 },
       ];
 
       // Logbook data
-      const logbookData = displayPosts.map(post => ({
+      const logbookData = displayPosts.map((post) => ({
         ID: post.id,
-        Title: post.title || 'Untitled',
-        Type: post.type || 'Unknown',
-        Category: post.category || 'Uncategorized',
-        Location: post.location || 'Not specified',
-        CreatedAt: post.createdAt?.toDate ? post.createdAt.toDate().toISOString().split('T')[0] : 'Unknown',
-        Creator: post.user?.firstName && post.user?.lastName ? `${post.user.firstName} ${post.user.lastName}` : 'Unknown',
-        Status: post.status || 'Unknown',
-        Images: post.images?.length || 0
+        Title: post.title || "Untitled",
+        Type: post.type || "Unknown",
+        Category: post.category || "Uncategorized",
+        Location: post.location || "Not specified",
+        CreatedAt: post.createdAt?.toDate
+          ? post.createdAt.toDate().toISOString().split("T")[0]
+          : "Unknown",
+        Creator:
+          post.user?.firstName && post.user?.lastName
+            ? `${post.user.firstName} ${post.user.lastName}`
+            : "Unknown",
+        Status: post.status || "Unknown",
+        Images: post.images?.length || 0,
       }));
 
       if (logbookData.length > 0) {
-        const logbookSheet = workbook.addWorksheet('Logbook');
-        logbookSheet.addRow(['ID', 'Title', 'Type', 'Category', 'Location', 'Created At', 'Creator', 'Status', 'Images']);
-        logbookData.forEach(row => {
-          logbookSheet.addRow([row.ID, row.Title, row.Type, row.Category, row.Location, row.CreatedAt, row.Creator, row.Status, row.Images]);
+        const logbookSheet = workbook.addWorksheet("Logbook");
+        logbookSheet.addRow([
+          "ID",
+          "Title",
+          "Type",
+          "Category",
+          "Location",
+          "Created At",
+          "Creator",
+          "Status",
+          "Images",
+        ]);
+        logbookData.forEach((row) => {
+          logbookSheet.addRow([
+            row.ID,
+            row.Title,
+            row.Type,
+            row.Category,
+            row.Location,
+            row.CreatedAt,
+            row.Creator,
+            row.Status,
+            row.Images,
+          ]);
         });
         logbookSheet.columns = [
-          { key: 'id', width: 15 },
-          { key: 'title', width: 25 },
-          { key: 'type', width: 10 },
-          { key: 'category', width: 15 },
-          { key: 'location', width: 20 },
-          { key: 'createdAt', width: 15 },
-          { key: 'creator', width: 20 },
-          { key: 'status', width: 15 },
-          { key: 'images', width: 10 }
+          { key: "id", width: 15 },
+          { key: "title", width: 25 },
+          { key: "type", width: 10 },
+          { key: "category", width: 15 },
+          { key: "location", width: 20 },
+          { key: "createdAt", width: 15 },
+          { key: "creator", width: 20 },
+          { key: "status", width: 15 },
+          { key: "images", width: 10 },
         ];
       }
 
       // Save and download
       const buffer = await workbook.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = `analytics_report_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+      a.download = `analytics_report_${format(new Date(), "yyyy-MM-dd")}.xlsx`;
       a.click();
       window.URL.revokeObjectURL(url);
-
     } catch (error) {
-      console.error('All export failed:', error);
+      console.error("All export failed:", error);
     }
   };
 
@@ -726,7 +816,7 @@ const AdminAnalyticsPage: React.FC = () => {
     <PageWrapper title="Analytics Dashboard">
       <div className="w-full mx-auto mb-13">
         {/* Page Header */}
-        <div className="hidden px-4 py-3 sm:px-6 lg:px-8 lg:flex items-center justify-between bg-gray-50 border-b border-zinc-200">
+        <div className="mb-5 hidden px-4 py-3 sm:px-6 lg:px-8 lg:flex items-center justify-between bg-gray-50 border-b border-zinc-200">
           <div className="">
             <h1 className="text-base font-medium text-gray-900">
               Analytics Dashboard
@@ -805,9 +895,11 @@ const AdminAnalyticsPage: React.FC = () => {
             <Card className="shadow">
               <CardContent className="p-4">
                 <div className="text-2xl font-bold text-orange-600 mt-5">
-                  {displayPosts.filter(
-                    (p) => p.status === "unclaimed" || p.movedToUnclaimed
-                  ).length}
+                  {
+                    displayPosts.filter(
+                      (p) => p.status === "unclaimed" || p.movedToUnclaimed
+                    ).length
+                  }
                 </div>
                 <div className="text-sm text-gray-600">Unclaimed</div>
               </CardContent>
@@ -823,12 +915,14 @@ const AdminAnalyticsPage: React.FC = () => {
             <Card className="shadow">
               <CardContent className="p-4">
                 <div className="text-2xl font-bold text-indigo-600 mt-5">
-                  {displayPosts.filter(
-                    (p) =>
-                      p.type === "found" &&
-                      p.turnoverDetails &&
-                      p.turnoverDetails.turnoverAction === "turnover to OSA"
-                  ).length}
+                  {
+                    displayPosts.filter(
+                      (p) =>
+                        p.type === "found" &&
+                        p.turnoverDetails &&
+                        p.turnoverDetails.turnoverAction === "turnover to OSA"
+                    ).length
+                  }
                 </div>
                 <div className="text-sm text-gray-600">OSA Turnover</div>
               </CardContent>
@@ -837,7 +931,10 @@ const AdminAnalyticsPage: React.FC = () => {
         </div>
 
         {/* Tabs for different analytics views */}
-        <Tabs defaultValue="overview" className="space-y-4 ml-4 mr-4 sm:ml-6 sm:mr-6 lg:ml-8 lg:mr-8">
+        <Tabs
+          defaultValue="overview"
+          className="space-y-4 ml-4 mr-4 sm:ml-6 sm:mr-6 lg:ml-8 lg:mr-8"
+        >
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="categories">Categories</TabsTrigger>

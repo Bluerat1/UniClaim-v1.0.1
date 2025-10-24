@@ -20,7 +20,7 @@ const ItemCategory: React.FC<CategoryProps> = ({
     brand: "hover:bg-navyblue hover:text-white",
     yellow: "hover:bg-yellow-300",
     blue: "hover:bg-blue-400",
-    green: "hover:bg-green-400",
+    green: "hover:bg-purple-400",
   };
 
   const activeColors = {
