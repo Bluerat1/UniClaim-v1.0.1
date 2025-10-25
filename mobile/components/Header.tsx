@@ -34,7 +34,8 @@ export default function Header() {
     deleteNotification,
     deleteAllNotifications,
   } = useNotifications();
-  const navigation = useNavigation() as NativeStackNavigationProp<RootStackParamList>;
+  const navigation =
+    useNavigation() as NativeStackNavigationProp<RootStackParamList>;
 
   const openPanel = () => {
     setIsVisible(true);
@@ -76,87 +77,113 @@ export default function Header() {
 
       // Handle claim_response and handover_response notifications with conversation data
       if (
-        (notification.type === 'claim_response' || notification.type === 'handover_response') &&
+        (notification.type === "claim_response" ||
+          notification.type === "handover_response") &&
         notification.data?.conversationId
       ) {
         try {
           // Get conversation data using the messageService
-          const conversationData = await messageService.getConversation(notification.data.conversationId);
+          const conversationData = await messageService.getConversation(
+            notification.data.conversationId
+          );
 
           if (conversationData) {
             // Get post owner user data if available
             let postOwnerUserData = null;
-            if (conversationData.postOwnerId || conversationData.postCreatorId) {
+            if (
+              conversationData.postOwnerId ||
+              conversationData.postCreatorId
+            ) {
               try {
-                const ownerId = conversationData.postOwnerId || conversationData.postCreatorId;
+                const ownerId =
+                  conversationData.postOwnerId ||
+                  conversationData.postCreatorId;
                 if (ownerId && conversationData.participants?.[ownerId]) {
                   postOwnerUserData = conversationData.participants[ownerId];
                 }
               } catch {
-                console.warn('⚠️ Mobile: Could not fetch post owner user data for response notification:');
+                console.warn(
+                  "⚠️ Mobile: Could not fetch post owner user data for response notification:"
+                );
               }
             }
 
             // Navigate to Chat screen with required parameters
             navigation.navigate("Chat", {
               conversationId: notification.data.conversationId,
-              postTitle: notification.data?.postTitle || conversationData.postTitle,
-              postOwnerId: conversationData.postOwnerId || conversationData.postCreatorId,
+              postTitle:
+                notification.data?.postTitle || conversationData.postTitle,
+              postOwnerId:
+                conversationData.postOwnerId || conversationData.postCreatorId,
               postOwnerUserData: postOwnerUserData || {},
               postId: notification.data?.postId || conversationData.postId,
               postType: conversationData.postType,
               postStatus: conversationData.postStatus,
-              foundAction: conversationData.foundAction
+              foundAction: conversationData.foundAction,
             });
           } else {
             // Fallback: Navigate to Messages tab
-            navigation.navigate('Message');
+            navigation.navigate("Message");
           }
         } catch {
           // Fallback: Navigate to Messages tab
-          navigation.navigate('Message');
+          navigation.navigate("Message");
         }
         return;
       }
 
       // Handle message notifications
-      if (notification.type === 'message' && notification.data?.conversationId) {
+      if (
+        notification.type === "message" &&
+        notification.data?.conversationId
+      ) {
         try {
           // Get conversation data using the messageService
-          const conversationData = await messageService.getConversation(notification.data.conversationId);
+          const conversationData = await messageService.getConversation(
+            notification.data.conversationId
+          );
 
           if (conversationData) {
             // Get post owner user data if available
             let postOwnerUserData = null;
-            if (conversationData.postOwnerId || conversationData.postCreatorId) {
+            if (
+              conversationData.postOwnerId ||
+              conversationData.postCreatorId
+            ) {
               try {
-                const ownerId = conversationData.postOwnerId || conversationData.postCreatorId;
+                const ownerId =
+                  conversationData.postOwnerId ||
+                  conversationData.postCreatorId;
                 if (ownerId && conversationData.participants?.[ownerId]) {
                   postOwnerUserData = conversationData.participants[ownerId];
                 }
               } catch {
-                console.warn('⚠️ Mobile: Could not fetch post owner user data:');
+                console.warn(
+                  "⚠️ Mobile: Could not fetch post owner user data:"
+                );
               }
             }
 
             // Navigate to Chat screen with required parameters
             navigation.navigate("Chat", {
               conversationId: notification.data.conversationId,
-              postTitle: notification.data?.postTitle || conversationData.postTitle,
-              postOwnerId: conversationData.postOwnerId || conversationData.postCreatorId,
+              postTitle:
+                notification.data?.postTitle || conversationData.postTitle,
+              postOwnerId:
+                conversationData.postOwnerId || conversationData.postCreatorId,
               postOwnerUserData: postOwnerUserData || {},
               postId: notification.data?.postId || conversationData.postId,
               postType: conversationData.postType,
               postStatus: conversationData.postStatus,
-              foundAction: conversationData.foundAction
+              foundAction: conversationData.foundAction,
             });
           } else {
             // Fallback: Navigate to Messages tab
-            navigation.navigate('Message');
+            navigation.navigate("Message");
           }
         } catch {
           // Fallback: Navigate to Messages tab
-          navigation.navigate('Message');
+          navigation.navigate("Message");
         }
         return;
       }
@@ -168,10 +195,10 @@ export default function Header() {
           if (post) {
             navigation.navigate("PostDetails", { post });
           } else {
-            console.error('❌ Mobile: Post not found:', notification.postId);
+            console.error("❌ Mobile: Post not found:", notification.postId);
           }
         } catch {
-          console.error('❌ Mobile: Error fetching post data:');
+          console.error("❌ Mobile: Error fetching post data:");
         }
       }
     } catch {
@@ -213,7 +240,7 @@ export default function Header() {
       {/* Full-Screen Modal with Full-Width Sliding Panel */}
       {isVisible && (
         <Modal transparent animationType="none">
-          <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+          <View style={{ flex: 1, backgroundColor: "rgba(0, 0, 0, 0.5)" }}>
             <TouchableOpacity
               style={{ flex: 1 }}
               activeOpacity={1}
@@ -227,7 +254,7 @@ export default function Header() {
                 top: 0,
                 bottom: 0,
                 right: 0,
-                width: SCREEN_WIDTH * 0.85,
+                width: SCREEN_WIDTH * 1.0,
                 backgroundColor: "white",
                 padding: 20,
                 shadowColor: "#000",
