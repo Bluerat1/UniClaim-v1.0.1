@@ -16,11 +16,13 @@ import * as ExcelJS from "exceljs";
 import { Chart as ChartJS, registerables } from "chart.js";
 import "chartjs-adapter-date-fns";
 import html2canvas from "html2canvas";
+import { FiChevronDown, FiChevronUp } from "react-icons/fi";
 
 const AdminAnalyticsPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [posts, setPosts] = useState<Post[]>([]);
   const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
+  const [isOverviewVisible, setIsOverviewVisible] = useState<boolean>(true);
   // Active tab is managed by the Tabs component internally
   // We don't need to track it in state since we're not using it elsewhere
   const [dateRange, setDateRange] = useState<{
@@ -854,80 +856,95 @@ const AdminAnalyticsPage: React.FC = () => {
         {/* Dashboard Overview */}
         <div className="mb-8 ml-4 mr-4 sm:ml-6 sm:mr-6 lg:ml-8 lg:mr-8">
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-gray-800">
-              Dashboard Overview
-            </h2>
+            <div
+              className="flex items-center cursor-pointer group gap-2"
+              onClick={() => setIsOverviewVisible(!isOverviewVisible)}
+            >
+              <h2 className="text-lg font-semibold text-gray-800 group-hover:text-gray-900 transition-colors">
+                Dashboard Overview
+              </h2>
+              <div className="flex items-center">
+                {isOverviewVisible ? (
+                  <FiChevronUp className="w-5 h-5 text-gray-500 group-hover:text-gray-700 transition-colors" />
+                ) : (
+                  <FiChevronDown className="w-5 h-5 text-gray-500 group-hover:text-gray-700 transition-colors" />
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-4 md:grid-cols-3 lg:grid-cols-7 gap-4">
-            <Card className="shadow">
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold text-blue-600 mt-5">
-                  {totalPosts}
-                </div>
-                <div className="text-sm text-gray-600">Total Posts</div>
-              </CardContent>
-            </Card>
-            <Card className="shadow">
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold text-red-600 mt-5">
-                  {lostItems}
-                </div>
-                <div className="text-sm text-gray-600">Lost Items</div>
-              </CardContent>
-            </Card>
-            <Card className="shadow">
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold text-green-600 mt-5">
-                  {foundItems}
-                </div>
-                <div className="text-sm text-gray-600">Found Items</div>
-              </CardContent>
-            </Card>
-            <Card className="shadow">
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold text-yellow-600 mt-5">
-                  {displayPosts.filter((p) => p.status === "pending").length}
-                </div>
-                <div className="text-sm text-gray-600">Pending</div>
-              </CardContent>
-            </Card>
-            <Card className="shadow">
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold text-orange-600 mt-5">
-                  {
-                    displayPosts.filter(
-                      (p) => p.status === "unclaimed" || p.movedToUnclaimed
-                    ).length
-                  }
-                </div>
-                <div className="text-sm text-gray-600">Unclaimed</div>
-              </CardContent>
-            </Card>
-            <Card className="shadow">
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold text-purple-600 mt-5">
-                  {resolvedItems}
-                </div>
-                <div className="text-sm text-gray-600">Completed</div>
-              </CardContent>
-            </Card>
-            <Card className="shadow">
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold text-indigo-600 mt-5">
-                  {
-                    displayPosts.filter(
-                      (p) =>
-                        p.type === "found" &&
-                        p.turnoverDetails &&
-                        p.turnoverDetails.turnoverAction === "turnover to OSA"
-                    ).length
-                  }
-                </div>
-                <div className="text-sm text-gray-600">OSA Turnover</div>
-              </CardContent>
-            </Card>
-          </div>
+          {isOverviewVisible && (
+            <div className="grid grid-cols-4 md:grid-cols-3 lg:grid-cols-7 gap-4">
+              <Card className="shadow">
+                <CardContent className="p-4">
+                  <div className="text-2xl font-bold text-blue-600 mt-5">
+                    {totalPosts}
+                  </div>
+                  <div className="text-sm text-gray-600">Total Posts</div>
+                </CardContent>
+              </Card>
+              <Card className="shadow">
+                <CardContent className="p-4">
+                  <div className="text-2xl font-bold text-red-600 mt-5">
+                    {lostItems}
+                  </div>
+                  <div className="text-sm text-gray-600">Lost Items</div>
+                </CardContent>
+              </Card>
+              <Card className="shadow">
+                <CardContent className="p-4">
+                  <div className="text-2xl font-bold text-green-600 mt-5">
+                    {foundItems}
+                  </div>
+                  <div className="text-sm text-gray-600">Found Items</div>
+                </CardContent>
+              </Card>
+              <Card className="shadow">
+                <CardContent className="p-4">
+                  <div className="text-2xl font-bold text-yellow-600 mt-5">
+                    {displayPosts.filter((p) => p.status === "pending").length}
+                  </div>
+                  <div className="text-sm text-gray-600">Pending</div>
+                </CardContent>
+              </Card>
+              <Card className="shadow">
+                <CardContent className="p-4">
+                  <div className="text-2xl font-bold text-orange-600 mt-5">
+                    {
+                      displayPosts.filter(
+                        (p) => p.status === "unclaimed" || p.movedToUnclaimed
+                      ).length
+                    }
+                  </div>
+                  <div className="text-sm text-gray-600">Unclaimed</div>
+                </CardContent>
+              </Card>
+              <Card className="shadow">
+                <CardContent className="p-4">
+                  <div className="text-2xl font-bold text-purple-600 mt-5">
+                    {resolvedItems}
+                  </div>
+                  <div className="text-sm text-gray-600">Completed</div>
+                </CardContent>
+              </Card>
+              <Card className="shadow">
+                <CardContent className="p-4">
+                  <div className="text-2xl font-bold text-indigo-600 mt-5">
+                    {
+                      displayPosts.filter(
+                        (p) =>
+                          p.type === "found" &&
+                          p.turnoverDetails &&
+                          p.turnoverDetails.turnoverAction === "turnover to OSA"
+                      ).length
+                    }
+                  </div>
+                  <div className="text-sm text-gray-600">OSA Turnover</div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
         </div>
 
         {/* Tabs for different analytics views */}

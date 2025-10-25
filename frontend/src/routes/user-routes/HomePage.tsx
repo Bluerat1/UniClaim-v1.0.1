@@ -7,6 +7,8 @@ import PostModal from "@/components/PostModal";
 import MobileNavText from "@/components/NavHeadComp";
 import SearchBar from "../../components/SearchBar";
 import FlagModal from "@/components/FlagModal";
+import Tooltip from "@/components/Tooltip";
+import { IoInformationCircle } from "react-icons/io5";
 
 // hooks
 import { usePosts, useResolvedPosts } from "@/hooks/usePosts";
@@ -400,6 +402,9 @@ export default function HomePage() {
           }}
         >
           Completed Items
+          <Tooltip content="After 30 days the posts will be removed">
+            <IoInformationCircle className="w-4 h-4" />
+          </Tooltip>
         </button>
       </div>
 
