@@ -184,7 +184,7 @@ export default function CustomTabs() {
             paddingBottom: Math.max(insets.bottom, 1),
           }}
         >
-          <View className="h-[50px] flex-row items-center justify-around mx-4 mb-5">
+          <View className="h-[50px] flex-row items-center justify-around mx-4">
             {tabs.map((tab) => {
               const isActive = currentTab === tab.key;
               const isAddTab = tab.key === "CreateReport";

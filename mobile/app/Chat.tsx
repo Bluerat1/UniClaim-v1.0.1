@@ -867,7 +867,7 @@ export default function Chat() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={["top", "bottom"]}>
+    <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
       {/* Header - Stays fixed at top */}
       <View className="bg-white border-b border-gray-200 pb-4 px-4 mt-3 flex-row items-center">
         <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3">
@@ -1077,7 +1077,7 @@ export default function Chat() {
 
           {/* Input Area with bottom spacing */}
           <View
-            className={`bg-white px-4 pt-2 ${isKeyboardVisible ? "pb-5" : "pb-0"}`}
+            className={`bg-white px-4 pt-2 ${isKeyboardVisible ? "pb-14" : "pb-0"}`}
           >
             <View className="flex-row items-center gap-3">
               <View className="flex-1">
