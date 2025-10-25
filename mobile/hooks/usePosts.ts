@@ -9,7 +9,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Custom hook for real-time posts with smart caching
 export const usePosts = () => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user, needsEmailVerification } = useAuth();
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -22,8 +22,8 @@ export const usePosts = () => {
     const hasValidCache = cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION;
 
     useEffect(() => {
-        // If user is not authenticated, clear posts and don't set up listeners
-        if (!isAuthenticated) {
+        // If user is not logged in at all, clear posts and don't set up listeners
+        if (!user) {
             // Clear posts
             setPosts([]);
             setLoading(false);
@@ -40,7 +40,7 @@ export const usePosts = () => {
             return;
         }
 
-        // User is authenticated - set up listeners
+        // User is logged in (authenticated or needs email verification) - set up listeners
         // If we have valid cached data, use it immediately
         if (hasValidCache) {
             setPosts(cachedData.posts);
@@ -73,7 +73,7 @@ export const usePosts = () => {
                 unsubscribeRef.current = null;
             }
         };
-    }, [isAuthenticated, hasValidCache]);
+    }, [user, hasValidCache]);
 
     return {
         posts,
@@ -326,12 +326,12 @@ export const useResolvedPosts = () => {
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user, needsEmailVerification } = useAuth();
     const unsubscribeRef = useRef<(() => void) | null>(null);
 
     useEffect(() => {
-        // If user is not authenticated, clear posts and don't set up listeners
-        if (!isAuthenticated) {
+        // If user is not logged in at all, clear posts and don't set up listeners
+        if (!user) {
             // Clear posts
             setPosts([]);
             setLoading(false);
@@ -345,7 +345,7 @@ export const useResolvedPosts = () => {
             return;
         }
 
-        // User is authenticated - set up listeners
+        // User is logged in (authenticated or needs email verification) - set up listeners
         setLoading(true);
         setError(null);
 
@@ -365,7 +365,7 @@ export const useResolvedPosts = () => {
                 unsubscribeRef.current = null;
             }
         };
-    }, [isAuthenticated]);
+    }, [user]);
 
     return { posts, loading, error };
 };

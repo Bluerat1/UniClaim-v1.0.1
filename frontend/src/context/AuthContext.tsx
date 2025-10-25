@@ -35,6 +35,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Listen for authentication state changes
   useEffect(() => {
+    let hasAttemptedAutoLogin = false;
+    let isProcessingAutoLogin = false;
+    let autoLoginTimeout: NodeJS.Timeout | null = null;
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
@@ -95,7 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           
           // Start monitoring this specific user for ban status changes
           const userDocRef = doc(db, 'users', firebaseUser.uid);
-          const unsubscribe = onSnapshot(userDocRef, 
+          const banUnsubscribe = onSnapshot(userDocRef, 
             (docSnapshot) => {
               if (docSnapshot.exists()) {
                 const userData = docSnapshot.data() as UserData;
@@ -105,7 +108,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   console.log('User banned detected in real-time');
                   
                   // IMMEDIATELY stop listening to prevent permission errors
-                  unsubscribe();
+                  banUnsubscribe();
                   setBanListenerUnsubscribe(null);
                   
                   // Update state
@@ -132,21 +135,52 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                       console.error('Error checking email verification status in listener:', error);
                     });
                 }
+              } else {
+                // Document doesn't exist - account has been deleted
+                console.log('🚨 User document deleted - account has been deleted from web');
+
+                // IMMEDIATELY stop listening to prevent permission errors
+                banUnsubscribe();
+                setBanListenerUnsubscribe(null);
+
+                // Use the dedicated account deletion logout function
+                handleAccountDeletionLogout();
               }
             },
-            (error) => {
+              (error) => {
               // Error handler - if listener fails, clean up gracefully
               console.warn('Ban listener error:', error);
-              unsubscribe();
-              setBanListenerUnsubscribe(null);
-              
-              // Fallback: start periodic ban checking
-              startPeriodicBanCheck();
+
+              // Check if this is a permission error indicating account deletion
+              const isPermissionError = error?.code === 'permission-denied' ||
+                error?.message?.includes('Missing or insufficient permissions') ||
+                error?.message?.includes('No document to update') ||
+                error?.message?.includes('not found') ||
+                error?.message?.includes('does not exist') ||
+                error?.code === 'not-found';
+
+              if (isPermissionError && firebaseUser) {
+                console.log('🚨 Permission denied - account may have been deleted from web');
+
+                // IMMEDIATELY stop listening
+                banUnsubscribe();
+                setBanListenerUnsubscribe(null);
+
+                // Use the dedicated account deletion logout function
+                handleAccountDeletionLogout();
+              } else {
+                // For other errors, just clean up and start periodic checking
+                banUnsubscribe();
+                setBanListenerUnsubscribe(null);
+
+                // Fallback: start periodic ban checking
+                startPeriodicBanCheck();
+              }
             }
           );
           
           // Store unsubscribe function for cleanup
-          setBanListenerUnsubscribe(() => unsubscribe);
+          setBanListenerUnsubscribe(() => banUnsubscribe);
           
         } catch (error: any) {
           console.error('AuthContext: Error fetching user data:', error);
@@ -247,10 +281,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       // Update Firestore email verification status
       await authService.updateEmailVerificationStatus(user.uid, true);
-      
+
       // Refresh user data to get updated verification status
       await refreshUserData();
-      
+
       console.log('Email verification completed successfully');
     } catch (error: any) {
       console.error('Failed to complete email verification:', error);
@@ -261,19 +295,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async (): Promise<void> => {
     try {
       setLoading(true);
-      
+
       // Clean up ban listener
       if (banListenerUnsubscribe) {
         banListenerUnsubscribe();
         setBanListenerUnsubscribe(null);
       }
-      
+
       // Clean up periodic check interval
       if (periodicCheckInterval) {
         clearInterval(periodicCheckInterval);
         setPeriodicCheckInterval(null);
       }
-      
+
       // Clean up listeners before logout
       try {
         listenerManager.removeAllListeners();
@@ -281,7 +315,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.error('AuthContext: Error during pre-logout cleanup:', error);
         listenerManager.forceCleanup();
       }
-      
+
       await authService.logout();
       // onAuthStateChanged will handle updating the state
     } catch (error: any) {
@@ -295,21 +329,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (user) {
       try {
         const updatedUserData = await authService.getUserData(user.uid);
-        setUserData(updatedUserData);
-        
-        // Update deactivation status when refreshing user data (with backward compatibility)
-        if (updatedUserData && (updatedUserData.status === 'deactivated' || (updatedUserData as any).status === 'banned')) {
-          setIsBanned(true);
-          setBanInfo(updatedUserData.banInfo || {});
+
+        if (updatedUserData) {
+          setUserData(updatedUserData);
+
+          // Update deactivation status when refreshing user data (with backward compatibility)
+          if (updatedUserData && (updatedUserData.status === 'deactivated' || (updatedUserData as any).status === 'banned')) {
+            setIsBanned(true);
+            setBanInfo(updatedUserData.banInfo || {});
+          } else {
+            setIsBanned(false);
+            setBanInfo(null);
+          }
         } else {
+          // User document doesn't exist - account has been deleted
+          console.log('🚨 refreshUserData: User document deleted - account has been deleted from web');
+
+          // Use the dedicated account deletion logout function
+          handleAccountDeletionLogout();
+        }
+      } catch (error: any) {
+        // Check if this is a permission error indicating account deletion
+        if (error?.code === 'permission-denied' ||
+            error?.message?.includes('Missing or insufficient permissions') ||
+            error?.message?.includes('not found') ||
+            error?.message?.includes('does not exist') ||
+            error?.code === 'not-found') {
+          console.log('🚨 refreshUserData: Permission denied - account may have been deleted from web');
+
+          // Use the dedicated account deletion logout function
+          handleAccountDeletionLogout();
+        } else {
+          console.error('AuthContext: Error refreshing user data:', error);
+          setUserData(null);
           setIsBanned(false);
           setBanInfo(null);
         }
-      } catch (error: any) {
-        console.error('AuthContext: Error refreshing user data:', error);
-        setUserData(null);
-        setIsBanned(false);
-        setBanInfo(null);
       }
     }
   };
@@ -317,28 +372,68 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const handleImmediateBanLogout = async (bannedUserData: UserData) => {
     try {
       console.log('Immediate logout due to ban detected');
-      
+
       // Clean up ban listener
       if (banListenerUnsubscribe) {
         banListenerUnsubscribe();
         setBanListenerUnsubscribe(null);
       }
-      
+
       // Logout user immediately
       await authService.logout();
-      
+
       // Reset all auth state
       setUser(null);
       setUserData(null);
       setIsAuthenticated(false);
       setIsBanned(true);
       setBanInfo(bannedUserData.banInfo || {});
-      
+
       // Show ban toast message
       showBanToast(bannedUserData);
-      
+
     } catch (error) {
       console.error('Error during immediate ban logout:', error);
+    }
+  };
+
+  const handleAccountDeletionLogout = async () => {
+    try {
+      console.log('Account deletion detected - logging out user');
+
+      // Clean up ban listener
+      if (banListenerUnsubscribe) {
+        banListenerUnsubscribe();
+        setBanListenerUnsubscribe(null);
+      }
+
+      // Clean up periodic check interval
+      if (periodicCheckInterval) {
+        clearInterval(periodicCheckInterval);
+        setPeriodicCheckInterval(null);
+      }
+
+      // Clear all user data and force logout
+      setUser(null);
+      setUserData(null);
+      setIsAuthenticated(false);
+      setIsBanned(false);
+      setBanInfo(null);
+      setNeedsEmailVerification(false);
+
+      // Clean up listeners
+      try {
+        listenerManager.removeAllListeners();
+      } catch (error) {
+        console.error('AuthContext: Error during listener cleanup:', error);
+        listenerManager.forceCleanup();
+      }
+
+      // Force logout from Firebase
+      await authService.logout();
+
+    } catch (error) {
+      console.error('Error during account deletion logout:', error);
     }
   };
 
@@ -347,14 +442,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const banReason = bannedUserData.banInfo?.reason || 'No reason provided';
     const banDuration = bannedUserData.banInfo?.duration || 'Unknown';
     const banEndDate = bannedUserData.banInfo?.banEndDate;
-    
+
     let banMessage = `🚫 Account Banned\nReason: ${banReason}\nDuration: ${banDuration === 'permanent' ? 'Permanent' : 'Temporary'}`;
-    
+
     if (banEndDate && banDuration === 'temporary') {
       const endDate = new Date(banEndDate.toDate ? banEndDate.toDate() : banEndDate);
       banMessage += `\nExpires: ${endDate.toLocaleDateString()}`;
     }
-    
+
     // Create and show the toast
     const toast = document.createElement('div');
     toast.className = 'fixed top-4 right-4 bg-red-600 text-white px-6 py-4 rounded-lg shadow-lg z-50 max-w-md';
@@ -375,10 +470,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         </button>
       </div>
     `;
-    
+
     // Add to page
     document.body.appendChild(toast);
-    
+
     // Auto-remove after 10 seconds
     setTimeout(() => {
       if (toast.parentElement) {
@@ -391,13 +486,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // SMART BAN CHECKING: Only run periodic checks if real-time listener fails
     // This prevents unnecessary quota consumption for non-banned users
     console.log('🔄 Starting smart ban check system (frontend)');
-    
+
     const intervalId = setInterval(async () => {
       if (!auth.currentUser) {
         clearInterval(intervalId);
         return;
       }
-      
+
       try {
         const userData = await authService.getUserData(auth.currentUser.uid);
         if (userData && (userData.status === 'deactivated' || (userData as any).status === 'banned')) {
@@ -405,18 +500,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           clearInterval(intervalId);
           handleImmediateBanLogout(userData);
         }
+        // Also check if current user is still valid (tokens not revoked)
+        else if (auth.currentUser) {
+          try {
+            // Test if current token is still valid
+            await auth.currentUser.getIdToken();
+          } catch (tokenError: any) {
+            if (tokenError.code === 'auth/id-token-revoked' || tokenError.code === 'auth/user-token-expired') {
+              console.log('🚨 Token revoked or expired - account may have been deleted');
+              clearInterval(intervalId);
+              handleAccountDeletionLogout();
+            }
+          }
+        }
       } catch (error: any) {
         // Handle quota errors gracefully - don't spam the console
         if (error.code === 'resource-exhausted' || error.message?.includes('Quota exceeded')) {
           console.warn('Periodic ban check quota exceeded - will retry later');
           // Don't clear interval - let it retry when quota resets
+        } else if (error?.code === 'permission-denied' ||
+                   error?.message?.includes('Missing or insufficient permissions') ||
+                   error?.message?.includes('not found') ||
+                   error?.message?.includes('does not exist') ||
+                   error?.code === 'not-found') {
+          // Account may have been deleted - force logout
+          console.log('🚨 Periodic check: Account may have been deleted from web');
+          clearInterval(intervalId);
+          handleAccountDeletionLogout();
         } else {
           console.warn('Periodic ban check error:', error);
         }
         // Continue checking - don't stop on errors
       }
     }, 300000); // Check every 5 minutes (300,000 ms)
-    
+
     // Store interval ID for cleanup
     setPeriodicCheckInterval(intervalId);
   };

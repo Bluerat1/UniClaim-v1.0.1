@@ -134,6 +134,21 @@ export const postService = {
             // Cache the results
             setCache(cacheKey, activePosts);
 
+            console.log('📱 Mobile getActivePosts:', {
+                totalPosts: posts.length,
+                activePosts: activePosts.length,
+                queryResults: posts.slice(0, 3).map(p => ({
+                    id: p.id,
+                    title: p.title,
+                    status: p.status,
+                    type: p.type,
+                    creatorId: p.creatorId,
+                    userEmail: p.user?.email,
+                    movedToUnclaimed: p.movedToUnclaimed,
+                    isHidden: p.isHidden
+                }))
+            });
+
             callback(activePosts);
         }, (error) => {
             console.error('❌ Firebase getActivePosts failed:', error);
@@ -352,12 +367,25 @@ export const postService = {
                 // Add lifecycle management fields that web expects
                 isExpired: false,
                 movedToUnclaimed: false,
+                isHidden: false,
                 originalStatus: postData.status || 'pending',
                 // Set expiry date for 30-day lifecycle system
                 expiryDate: expiryDate,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
             };
+
+            console.log('📝 Creating post with data:', {
+                title: enhancedPostData.title,
+                status: enhancedPostData.status,
+                type: enhancedPostData.type,
+                category: enhancedPostData.category,
+                creatorId: enhancedPostData.creatorId,
+                userEmail: enhancedPostData.user?.email,
+                movedToUnclaimed: enhancedPostData.movedToUnclaimed,
+                isHidden: enhancedPostData.isHidden,
+                isExpired: enhancedPostData.isExpired
+            });
 
             const postRef = await addDoc(collection(db, 'posts'), enhancedPostData);
 
@@ -400,6 +428,17 @@ export const postService = {
                     console.error('❌ Error sending background notifications for post:', postRef.id, notificationError);
                 }
             }, 0);
+
+            console.log('✅ Post created successfully:', {
+                id: postRef.id,
+                title: enhancedPostData.title,
+                status: enhancedPostData.status,
+                type: enhancedPostData.type,
+                creatorId: enhancedPostData.creatorId
+            });
+
+            // Clear cache to ensure the new post appears immediately
+            queryCache.clear();
 
             return postRef.id;
         } catch (error: any) {

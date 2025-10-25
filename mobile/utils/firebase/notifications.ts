@@ -284,7 +284,7 @@ export class NotificationService {
                 notificationsRef,
                 where('userId', '==', userId),
                 orderBy('createdAt', 'desc'),
-                limit(limitCount)
+                limit(Math.min(limitCount, 15)) // Limit to 15 notifications max to enforce the limit at query level
             );
 
             const snapshot = await getDocs(q);
@@ -496,48 +496,14 @@ export class NotificationService {
                 conversationId: notificationData.conversationId || null
             });
 
-            // Enforce 15-notification limit per user
-            await this.enforceNotificationLimit(notificationData.userId, 15);
-
+            // Instead of trying to enforce limit by deleting (which causes permission errors),
+            // just log that the notification was created and let the UI handle the limit
             console.log('Successfully created notification:', docRef.id);
+
             return docRef.id;
         } catch (error) {
             console.error('Error creating notification:', error);
             throw error;
-        }
-    }
-
-    // Helper to enforce notification limit per user
-    private async enforceNotificationLimit(userId: string, maxLimit: number): Promise<void> {
-        try {
-            const notificationsRef = collection(db, 'notifications');
-            const q = query(
-                notificationsRef,
-                where('userId', '==', userId),
-                orderBy('createdAt', 'desc')
-            );
-
-            const snapshot = await getDocs(q);
-            const totalNotifications = snapshot.size;
-
-            if (totalNotifications > maxLimit) {
-                const excessCount = totalNotifications - maxLimit;
-                const excessDocs = snapshot.docs.slice(maxLimit); // Get the oldest ones to delete
-
-                console.log(`User ${userId} has ${totalNotifications} notifications, deleting ${excessCount} oldest.`);
-
-                // Delete excess notifications in a batch
-                const batch = [];
-                for (const doc of excessDocs) {
-                    batch.push(deleteDoc(doc.ref));
-                }
-                await Promise.all(batch);
-
-                console.log(`Deleted ${excessCount} old notifications for user ${userId}.`);
-            }
-        } catch (error) {
-            console.error('Error enforcing notification limit:', error);
-            // Don't throw to avoid blocking notification creation
         }
     }
 
@@ -558,7 +524,7 @@ export class NotificationService {
                 notificationsRef,
                 where('userId', '==', userId),
                 orderBy('createdAt', 'desc'),
-                limit(50) // Limit to 50 most recent notifications
+                limit(15) // Limit to 15 most recent notifications
             );
 
             const unsubscribe = onSnapshot(q,

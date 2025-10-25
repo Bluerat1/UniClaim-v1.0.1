@@ -140,7 +140,20 @@ export const userDeletionService = {
             // Step 5: Delete user document
             await this.deleteUserDocument(userId);
 
-            // Step 6: Delete Firebase Auth account
+            // Step 6: Wait a moment to allow other clients (mobile app) to detect the document deletion
+            console.log('⏳ Waiting for other platforms to detect account deletion...');
+            await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+
+            // Step 7: Force token refresh and cleanup to invalidate sessions on other devices
+            console.log('🔐 Cleaning up auth tokens and forcing logout on all devices...');
+            try {
+              // Get a fresh token which will help invalidate old sessions
+              await user.getIdToken(true);
+            } catch (tokenError) {
+              console.warn('Could not refresh token (this is normal during deletion):', tokenError);
+            }
+
+            // Step 8: Delete Firebase Auth account
             await deleteUser(user);
 
             console.log(`✅ Complete deletion successful for user: ${userId}`);

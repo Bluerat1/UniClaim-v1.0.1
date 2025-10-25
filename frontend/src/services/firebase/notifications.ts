@@ -153,7 +153,7 @@ export class NotificationService {
         notificationsRef,
         where('userId', '==', userId),
         orderBy('createdAt', 'desc'),
-        limit(limitCount)
+        limit(Math.min(limitCount, 15)) // Limit to 15 notifications max to enforce the limit at query level
       );
 
       const snapshot = await getDocs(q);
@@ -574,7 +574,7 @@ export class NotificationService {
         notificationsRef,
         where('userId', '==', userId),
         orderBy('createdAt', 'desc'),
-        limit(50) // Limit to 50 most recent notifications
+        limit(15) // Limit to 15 most recent notifications
       );
 
       const unsubscribe = onSnapshot(q,

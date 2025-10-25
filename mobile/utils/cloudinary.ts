@@ -359,7 +359,7 @@ export const cleanupRemovedPostImages = async (
         );
 
         if (cloudinaryRemovedImages.length === 0) {
-            console.log('No Cloudinary images were removed');
+            // console.log('No Cloudinary images were removed');
             return { deleted: [], failed: [], success: true };
         }
 

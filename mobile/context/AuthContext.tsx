@@ -146,20 +146,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const needsVerification = await userService.needsEmailVerification(firebaseUser, fetchedUserData);
                                                 setNeedsEmailVerification(needsVerification);
 
-            // If Firebase email is verified but Firestore is not, update Firestore
+            // If Firebase email is verified but Firestore is not, update Firestore and authenticate user
             if (firebaseUser.emailVerified && !fetchedUserData.emailVerified) {
               try {
+                console.log('🔄 Firebase Auth shows verified but Firestore shows unverified - updating Firestore...');
                 await userService.updateUserData(firebaseUser.uid, { emailVerified: true });
+                // Update local userData to reflect the change
+                setUserData({ ...fetchedUserData, emailVerified: true });
+                console.log('✅ Firestore updated - user is now fully authenticated');
+                // Since email is verified, set authenticated immediately
+                setIsAuthenticated(true);
+                setNeedsEmailVerification(false);
               } catch (error) {
-                console.error('Failed to update email verification status:', error);
+                console.error('Failed to update email verification status in Firestore:', error);
+                // Continue with authentication even if Firestore update fails
+                // Firebase verification is what matters for authentication
+                setIsAuthenticated(true);
+                setNeedsEmailVerification(false);
               }
             }
 
-            // Only set authenticated if user is verified
-            if (!needsVerification) {
-                            setIsAuthenticated(true);
-            } else {
-                            // User needs verification, don't set authenticated
+            // Set authenticated state based on verification check (skip if already set above)
+            if (!needsVerification && !isAuthenticated) {
+              setIsAuthenticated(true);
+            } else if (needsVerification && isAuthenticated) {
+              // User needs verification, ensure they're not authenticated
               setIsAuthenticated(false);
             }
           } else {
@@ -271,32 +282,86 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                       smartBanCheckRef.current.deactivatePeriodicChecks();
                     }
                   }
+                } else {
+                  // Document doesn't exist - account has been deleted
+                  console.log('🚨 User document deleted - account has been deleted from web');
+
+                  // IMMEDIATELY stop listening to prevent permission errors
+                  banUnsubscribe();
+                  banListenerRef.current = null;
+
+                  // Clear all user data and force logout
+                  setUser(null);
+                  setUserData(null);
+                  setIsAuthenticated(false);
+                  setIsBanned(false);
+                  setIsAdmin(false);
+                  setBanInfo(null);
+                  setNeedsEmailVerification(false);
+                  setLoginAttemptFailed(false);
+
+                  // Clear stored credentials
+                  credentialStorage.clearCredentials().catch(error => {
+                    console.warn('Error clearing credentials during account deletion:', error);
+                  });
+
+                  // Force navigation to login by triggering Firebase logout
+                  authService.logout().catch(error => {
+                    console.error('Error during forced logout after account deletion:', error);
+                  });
                 }
               },
               (error: any) => {
                 // Error handler - if listener fails, clean up gracefully
                 const isPermissionError = error?.code === 'permission-denied' ||
-                  error?.message?.includes('Missing or insufficient permissions');
+                  error?.message?.includes('Missing or insufficient permissions') ||
+                  error?.message?.includes('No document to update') ||
+                  error?.message?.includes('not found') ||
+                  error?.message?.includes('does not exist') ||
+                  error?.code === 'not-found';
 
-                if (isPermissionError) {
-                  // This is expected during logout - don't log as error
-                  // Only log if we're still authenticated (not during logout)
-                  if (isAuthenticated) {
-                                      }
+                if (isPermissionError && firebaseUser) {
+                  // Permission denied - account may have been deleted from web
+                  console.log('🚨 Permission denied - account may have been deleted from web');
+
+                  // IMMEDIATELY stop listening to prevent further errors
+                  banUnsubscribe();
+                  banListenerRef.current = null;
+
+                  // Clear all user data and force logout
+                  setUser(null);
+                  setUserData(null);
+                  setIsAuthenticated(false);
+                  setIsBanned(false);
+                  setIsAdmin(false);
+                  setBanInfo(null);
+                  setNeedsEmailVerification(false);
+                  setLoginAttemptFailed(false);
+
+                  // Clear stored credentials
+                  credentialStorage.clearCredentials().catch(credentialError => {
+                    console.warn('Error clearing credentials during account deletion:', credentialError);
+                  });
+
+                  // Force logout from Firebase
+                  authService.logout().catch(logoutError => {
+                    console.error('Error during forced logout after account deletion:', logoutError);
+                  });
                 } else {
+                  // For other errors, clean up and start fallback
                   console.warn('Ban listener error (mobile):', error);
-                }
 
-                // Clean up the listener
-                banUnsubscribe();
-                banListenerRef.current = null;
+                  // Clean up the listener
+                  banUnsubscribe();
+                  banListenerRef.current = null;
 
-                // Only start fallback if still authenticated
-                if (isAuthenticated) {
-                  // Start smart ban check system
-                  const smartBanCheck = startSmartBanCheck();
-                  smartBanCheckRef.current = smartBanCheck;
-                  smartBanCheck.activatePeriodicChecks();
+                  // Only start fallback if still authenticated
+                  if (isAuthenticated) {
+                    // Start smart ban check system
+                    const smartBanCheck = startSmartBanCheck();
+                    smartBanCheckRef.current = smartBanCheck;
+                    smartBanCheck.activatePeriodicChecks();
+                  }
                 }
               }
             );
@@ -600,35 +665,109 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (user && isAuthenticated) {
       try {
         const fetchedUserData = await authService.getUserData(user.uid);
-        setUserData(fetchedUserData);
 
-        // Update deactivation status when refreshing user data (with backward compatibility)
-        if (fetchedUserData && (fetchedUserData.status === 'deactivated' || fetchedUserData.status === 'banned')) {
-          setIsBanned(true);
-          setBanInfo(fetchedUserData.banInfo || {});
+        if (fetchedUserData) {
+          setUserData(fetchedUserData);
+
+          // Update deactivation status when refreshing user data (with backward compatibility)
+          if (fetchedUserData && (fetchedUserData.status === 'deactivated' || fetchedUserData.status === 'banned')) {
+            setIsBanned(true);
+            setBanInfo(fetchedUserData.banInfo || {});
+          } else {
+            setIsBanned(false);
+            setBanInfo(null);
+          }
+
+          // Check email verification status
+          if (fetchedUserData) {
+            // Add a small delay to ensure Firebase Auth state is fully updated
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            await user.reload();
+            const needsVerification = await userService.needsEmailVerification(user, fetchedUserData);
+            setNeedsEmailVerification(needsVerification);
+
+            // If Firebase email is verified but Firestore is not, update Firestore and authenticate user
+            if (user.emailVerified && !fetchedUserData.emailVerified) {
+              try {
+                console.log('🔄 refreshUserData: Firebase Auth shows verified but Firestore shows unverified - updating Firestore...');
+                await userService.updateUserData(user.uid, { emailVerified: true });
+                // Update local userData to reflect the change
+                setUserData({ ...fetchedUserData, emailVerified: true });
+                console.log('✅ refreshUserData: Firestore updated - user is now fully authenticated');
+                // Since email is verified, set authenticated immediately
+                setIsAuthenticated(true);
+                setNeedsEmailVerification(false);
+              } catch (error) {
+                console.error('refreshUserData: Failed to update email verification status in Firestore:', error);
+                // Continue with authentication even if Firestore update fails
+                setIsAuthenticated(true);
+                setNeedsEmailVerification(false);
+              }
+            } else {
+              // If user is now verified but was not authenticated, update auth state
+              if (!needsVerification && !isAuthenticated) {
+                setIsAuthenticated(true);
+              }
+            }
+          }
         } else {
+          // User document doesn't exist - account has been deleted
+          console.log('🚨 refreshUserData: User document deleted - account has been deleted from web');
+
+          // Clear all user data and force logout
+          setUser(null);
+          setUserData(null);
+          setIsAuthenticated(false);
+          setIsBanned(false);
+          setIsAdmin(false);
+          setBanInfo(null);
+          setNeedsEmailVerification(false);
+          setLoginAttemptFailed(false);
+
+          // Clear stored credentials
+          credentialStorage.clearCredentials().catch(error => {
+            console.warn('Error clearing credentials during account deletion:', error);
+          });
+
+          // Force logout from Firebase
+          authService.logout().catch(error => {
+            console.error('Error during forced logout after account deletion:', error);
+          });
+        }
+      } catch (error: any) {
+        // Check if this is a permission error indicating account deletion
+        if (error?.code === 'permission-denied' ||
+            error?.message?.includes('Missing or insufficient permissions') ||
+            error?.message?.includes('not found') ||
+            error?.message?.includes('does not exist') ||
+            error?.code === 'not-found') {
+          console.log('🚨 refreshUserData: Permission denied - account may have been deleted from web');
+
+          // Clear all user data and force logout
+          setUser(null);
+          setUserData(null);
+          setIsAuthenticated(false);
+          setIsBanned(false);
+          setIsAdmin(false);
+          setBanInfo(null);
+          setNeedsEmailVerification(false);
+          setLoginAttemptFailed(false);
+
+          // Clear stored credentials
+          credentialStorage.clearCredentials().catch(credentialError => {
+            console.warn('Error clearing credentials during account deletion:', credentialError);
+          });
+
+          // Force logout from Firebase
+          authService.logout().catch(logoutError => {
+            console.error('Error during forced logout after account deletion:', logoutError);
+          });
+        } else {
+          console.error('Error refreshing user data:', error);
           setIsBanned(false);
           setBanInfo(null);
         }
-
-        // Check email verification status
-        if (fetchedUserData) {
-          // Add a small delay to ensure Firebase Auth state is fully updated
-          await new Promise(resolve => setTimeout(resolve, 300));
-
-          await user.reload();
-          const needsVerification = await userService.needsEmailVerification(user, fetchedUserData);
-          setNeedsEmailVerification(needsVerification);
-
-          // If user is now verified but was not authenticated, update auth state
-          if (!needsVerification && !isAuthenticated) {
-            setIsAuthenticated(true);
-          }
-        }
-      } catch (error: any) {
-        console.error('Error refreshing user data:', error);
-        setIsBanned(false);
-        setBanInfo(null);
       }
     }
   };
@@ -639,8 +778,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      // Update Firestore email verification status
-      await userService.updateUserData(user.uid, { emailVerified: true });
+      // Reload user to get latest Firebase Auth state
+      await user.reload();
+
+      // Check if email is actually verified in Firebase Auth
+      if (!user.emailVerified) {
+        console.log('❌ Firebase Auth still shows unverified');
+        setIsAuthenticated(false);
+        setNeedsEmailVerification(true);
+        setLoading(false);
+        throw new Error('Email verification failed - please try again');
+      }
+
+      // Update Firestore email verification status (with error handling for concurrent updates)
+      try {
+        await userService.updateUserData(user.uid, { emailVerified: true });
+        console.log('✅ Firestore email verification updated successfully');
+      } catch (firestoreError: any) {
+        // If Firestore update fails due to concurrent update (already verified), that's okay
+        if (firestoreError?.code === 'already-exists' ||
+            firestoreError?.message?.includes('already verified') ||
+            firestoreError?.code === 'permission-denied') {
+          console.log('✅ Firestore already updated (likely by web), continuing with authentication');
+        } else {
+          console.warn('Firestore update warning:', firestoreError);
+          // Continue anyway - Firebase Auth verification is what matters
+        }
+      }
 
       // Refresh user data to get updated verification status
       const updatedUserData = await authService.getUserData(user.uid);
@@ -652,6 +816,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // CRITICAL: Ensure loading state is reset after verification
       setLoading(false);
+
+      console.log('✅ Email verification completed successfully');
+      console.log('🔄 AuthContext state updated: isAuthenticated:', true, 'needsEmailVerification:', false);
+
+      // Add small delay to ensure state propagation before Navigation routes
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Now that email is verified, save push token
       try {
@@ -671,9 +841,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await user.reload();
         if (user.emailVerified) {
           // Still set authenticated since Firebase verification is what matters
+          console.log('✅ Firebase Auth verified despite Firestore error, setting authenticated');
+          console.log('🔄 AuthContext state updated: isAuthenticated:', true, 'needsEmailVerification:', false);
           setIsAuthenticated(true);
           setNeedsEmailVerification(false);
           setLoading(false);
+
+          // Add small delay to ensure state propagation
+          await new Promise(resolve => setTimeout(resolve, 100));
 
           // Try to update Firestore again in background
           userService.updateUserData(user.uid, { emailVerified: true }).catch(updateError => {
@@ -762,7 +937,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         clearInterval(intervalId);
         return;
       }
-      
+
       try {
         const userData = await authService.getUserData(auth.currentUser.uid);
         if (userData && (userData.status === 'deactivated' || userData.status === 'banned')) {
@@ -774,6 +949,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (error.code === 'resource-exhausted' || error.message?.includes('Quota exceeded')) {
           console.warn('Periodic ban check quota exceeded (mobile) - will retry later');
           // Don't clear interval - let it retry when quota resets
+        } else if (error?.code === 'permission-denied' ||
+                   error?.message?.includes('Missing or insufficient permissions') ||
+                   error?.message?.includes('not found') ||
+                   error?.message?.includes('does not exist') ||
+                   error?.code === 'not-found') {
+          // Account may have been deleted - force logout
+          console.log('🚨 Periodic check: Account may have been deleted from web');
+          clearInterval(intervalId);
+          handleImmediateBanLogout({} as UserData);
         } else {
           console.warn('Periodic ban check error (mobile):', error);
         }
@@ -787,36 +971,76 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Only start periodic checks if real-time listener fails
     // This prevents unnecessary quota consumption for non-banned users
     let periodicCheckActive = false;
-    
+
     const intervalId = setInterval(async () => {
       if (!auth.currentUser) {
         clearInterval(intervalId);
         return;
       }
-      
+
       // Skip periodic checks if real-time listener is working
       if (!periodicCheckActive) {
         return;
       }
-      
+
       try {
         const userData = await authService.getUserData(auth.currentUser.uid);
         if (userData && (userData.status === 'deactivated' || userData.status === 'banned')) {
           clearInterval(intervalId);
           handleImmediateBanLogout(userData);
         }
+        // Also check if current user is still valid (tokens not revoked)
+        else if (auth.currentUser) {
+          try {
+            // Test if current token is still valid
+            await auth.currentUser.getIdToken();
+          } catch (tokenError: any) {
+            if (tokenError.code === 'auth/id-token-revoked' || tokenError.code === 'auth/user-token-expired') {
+              console.log('🚨 Token revoked or expired - account may have been deleted');
+              clearInterval(intervalId);
+              // Clear all user data and force logout for account deletion
+              setUser(null);
+              setUserData(null);
+              setIsAuthenticated(false);
+              setIsBanned(false);
+              setIsAdmin(false);
+              setBanInfo(null);
+              setNeedsEmailVerification(false);
+              setLoginAttemptFailed(false);
+
+              // Clear stored credentials
+              credentialStorage.clearCredentials().catch(credentialError => {
+                console.warn('Error clearing credentials during account deletion:', credentialError);
+              });
+
+              // Force logout from Firebase
+              authService.logout().catch(logoutError => {
+                console.error('Error during forced logout after account deletion:', logoutError);
+              });
+            }
+          }
+        }
       } catch (error: any) {
         // Handle quota errors gracefully - don't spam the console
         if (error.code === 'resource-exhausted' || error.message?.includes('Quota exceeded')) {
           console.warn('Periodic ban check quota exceeded (mobile) - will retry later');
           // Don't clear interval - let it retry when quota resets
+        } else if (error?.code === 'permission-denied' ||
+                   error?.message?.includes('Missing or insufficient permissions') ||
+                   error?.message?.includes('not found') ||
+                   error?.message?.includes('does not exist') ||
+                   error?.code === 'not-found') {
+          // Account may have been deleted - force logout
+          console.log('🚨 Smart check: Account may have been deleted from web');
+          clearInterval(intervalId);
+          handleImmediateBanLogout({} as UserData);
         } else {
           console.warn('Periodic ban check error (mobile):', error);
         }
         // Continue checking - don't stop on errors
       }
     }, 300000); // Check every 5 minutes (300,000 ms)
-    
+
     // Return function to activate periodic checks only when needed
     return {
       activatePeriodicChecks: () => {

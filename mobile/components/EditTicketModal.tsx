@@ -280,8 +280,8 @@ export default function EditTicketModal({
     }
 
     // Log for debugging
-    console.log("Original post images:", post.images);
-    console.log("Edited images to save:", editedImages);
+    // console.log("Original post images:", post.images);
+    // console.log("Edited images to save:", editedImages);
 
     // Clean up removed images from Cloudinary before saving
     setCleanupStatus({ isCleaning: true, deleted: [], failed: [] });
@@ -324,7 +324,7 @@ export default function EditTicketModal({
       images: editedImages, // This should contain the updated image array
     };
 
-    console.log("Final updated post:", updatedPost);
+    // console.log("Final updated post:", updatedPost);
     onSave(updatedPost);
   };
 

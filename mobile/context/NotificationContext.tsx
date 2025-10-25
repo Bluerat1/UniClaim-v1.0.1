@@ -103,25 +103,21 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     if (notifications.length <= 15) return notifications;
 
     try {
-      // Sort notifications by createdAt (newest first) to maintain correct order
+      // Instead of deleting notifications (which causes permission errors),
+      // we'll just return the latest 15 and log that we're limiting them
       const sortedNotifications = [...notifications].sort((a, b) =>
         new Date(b.createdAt?.seconds * 1000).getTime() - new Date(a.createdAt?.seconds * 1000).getTime()
       );
 
-      // Identify oldest notifications to delete (keep only the latest 15)
-      const notificationsToDelete = sortedNotifications.slice(15);
+      const limitedNotifications = sortedNotifications.slice(0, 15);
 
-      // Delete excess notifications
-      const deletePromises = notificationsToDelete.map(notif => notificationService.deleteNotification(notif.id));
-      await Promise.all(deletePromises);
+      // Log that we're limiting notifications without deleting them
+      console.log(`📋 Notification limit enforced: showing ${limitedNotifications.length} of ${notifications.length} notifications (oldest ${notifications.length - limitedNotifications.length} hidden due to limit)`);
 
-      console.log(`Deleted ${notificationsToDelete.length} old notifications to enforce 15-limit`);
-
-      // Return only the latest 15 notifications (already in newest-first order)
-      return sortedNotifications.slice(0, 15);
+      return limitedNotifications;
     } catch (error) {
       console.error('Error enforcing notification limit:', error);
-      // Return original notifications if deletion fails
+      // Return original notifications if enforcement fails
       return notifications;
     }
   };
@@ -135,7 +131,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       
       const userNotifications = await notificationService.getUserNotifications(userData.uid, 50);
       
-      // Enforce 15-notification limit by deleting oldest notifications if needed
+      // Enforce 15-notification limit by limiting in memory (not deleting from database)
       const enforcedNotifications = await enforceNotificationLimit(userNotifications);
       
       // Check for new notifications and play sound

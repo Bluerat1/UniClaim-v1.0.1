@@ -37,10 +37,10 @@ export default function EmailVerification() {
       setIsResending(true);
       setResendMessage("");
 
-      await authService.sendEmailVerification(user.email!);
+      await authService.sendEmailVerificationToCurrentUser();
       setResendMessage("Verification email sent! Please check your inbox.");
     } catch (error: any) {
-      setResendMessage("Failed to send verification email. Please try again.");
+      setResendMessage(`Failed to send verification email: ${error.message || 'Please try again.'}`);
       console.error("Error sending verification email:", error);
     } finally {
       setIsResending(false);
@@ -76,7 +76,7 @@ export default function EmailVerification() {
       }
     } catch (error: any) {
       console.error("Error checking email verification:", error);
-      setResendMessage("Error checking verification status. Please try again.");
+      setResendMessage(`Error checking verification status: ${error.message || 'Please try again.'}`);
     } finally {
       setIsCheckingVerification(false);
     }

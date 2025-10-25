@@ -77,6 +77,20 @@ export default function Navigation({
     setRenderKey(prev => prev + 1);
   }, [isAuthenticated, user, loading, needsEmailVerification]);
 
+  // Debug logging for navigation state changes
+  useEffect(() => {
+    console.log('🔄 Navigation Debug:', {
+      renderKey,
+      isAuthenticated,
+      user: !!user,
+      userData: !!userData,
+      isBanned,
+      needsEmailVerification,
+      loading,
+      loginAttemptFailed
+    });
+  }, [renderKey, isAuthenticated, user, userData, isBanned, needsEmailVerification, loading, loginAttemptFailed]);
+
   // If AuthContext is still loading, show loading screen
   if (loading) {
     return (
@@ -96,7 +110,7 @@ export default function Navigation({
 
   // Check if user needs email verification (show verification screen for logged-in but unverified users)
   // Exclude case where user account has been deleted (user exists but userData is null)
-  const shouldShowEmailVerification = user && userData !== null && !isBanned && needsEmailVerification && !isAuthenticated;
+  const shouldShowEmailVerification = user && userData !== null && !isBanned && needsEmailVerification;
 
   const shouldShowOnboarding = !hasSeenOnBoarding && !user;
   const shouldShowIndex = !hasPassedIndex && !user;
@@ -157,6 +171,8 @@ export default function Navigation({
 
   // If user is fully authenticated, show main app (HIGHEST PRIORITY)
   if (isAuthenticated && user && !isBanned) {
+        console.log('🚀 Navigation: User authenticated, routing to main app');
+        console.log('🔄 Navigation: isAuthenticated:', isAuthenticated, 'user:', !!user, 'isBanned:', isBanned);
         return (
       <Stack.Navigator
         key={`authenticated-navigation-${renderKey}`}
