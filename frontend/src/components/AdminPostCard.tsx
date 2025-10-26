@@ -83,10 +83,10 @@ function AdminPostCard({
   const [showAdminNotesModal, setShowAdminNotesModal] = useState(false);
   const [adminNotes, setAdminNotes] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
-
-  // State for image modal
+  const [isHovered, setIsHovered] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isMinimized, setIsMinimized] = useState(true);
 
   const previewUrl = useMemo(() => {
     if (post.images && post.images.length > 0) {
@@ -159,11 +159,17 @@ function AdminPostCard({
     setSelectedStatus("");
   };
 
+  const toggleMinimize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsMinimized(!isMinimized);
+  };
+
   return (
-    <div className={`bg-white rounded shadow/2 hover:shadow-md/5 transition relative cursor-pointer ${isSelected ? "border-brand ring-2 ring-brand/20 shadow-brand/10" : post.isFlagged ? "border border-red-500" : ""}`} onClick={onClick}>
+    <div className={`bg-white rounded shadow/2 hover:shadow-md/5 transition relative cursor-pointer ${isSelected ? "border-brand ring-2 ring-brand/20 shadow-brand/10" : post.isFlagged ? "border border-red-500" : ""}`} onClick={onClick} onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
       {/* Selection Checkbox */}
-      {onSelectionChange && (
-        <div className="absolute top-2 left-2 z-10">
+      {onSelectionChange && (isHovered || isSelected) && (
+        <div className={`absolute top-1 right-1 z-20 transition-opacity duration-200 ${isHovered || isSelected ? 'opacity-100' : 'opacity-0'}`}>
           <input
             type="checkbox"
             checked={isSelected}
@@ -171,7 +177,8 @@ function AdminPostCard({
               e.stopPropagation();
               onSelectionChange(post, e.target.checked);
             }}
-            className="size-5 text-brand border-gray-300 rounded focus:ring-brand"
+            onClick={(e) => e.stopPropagation()}
+            className="size-5 text-brand border-2 border-gray-400 rounded focus:ring-2 focus:ring-brand focus:border-brand bg-white"
           />
         </div>
       )}
@@ -192,14 +199,14 @@ function AdminPostCard({
             title={allImageUrls.length > 1 ? `Click to view ${allImageUrls.length} images` : "Click to view full size"}
           />
 
-          {/* Red Flag Icon - Top Right */}
+          {/* Red Flag Icon - Top Left */}
           {post.isFlagged && (
-            <div className="absolute top-2 right-2 text-2xl drop-shadow-lg z-10">
+            <div className="absolute top-1 left-1 text-2xl drop-shadow-lg z-10">
               🚩
             </div>
           )}
 
-          {/* Badge Container - Apply gap when multiple badges are present */}
+          {/* Badge Container - Top Left */}
           <div className={`absolute top-2 left-2 z-10 ${(() => {
             const badges = [];
             // Check 30 days left badge
@@ -359,23 +366,40 @@ function AdminPostCard({
         </h1>
 
         {/* Display the user who created the post */}
-        <div className="bg-sky-100 p-3 rounded-lg mb-3 border border-sky-200">
-          <div className="flex items-center gap-2">
+        <div
+          className={`bg-sky-100 rounded-lg border border-sky-200 relative cursor-pointer select-none hover:bg-sky-200 transition-colors ${isMinimized ? 'p-2 mb-2' : 'p-3 mb-3'}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleMinimize(e);
+          }}
+        >
+          <div className={`flex items-center gap-2 ${isMinimized ? 'mb-0' : 'mb-1'}`}>
             <ProfilePicture
               src={post.user?.profilePicture}
               alt="user profile"
               className="size-5"
               priority={false}
             />
-            <div className="flex items-center gap-2">
-              <p className="text-xs text-blue-800 font-medium">
-                Posted by{" "}
-                {post.user?.firstName && post.user?.lastName
-                  ? `${post.user.firstName} ${post.user.lastName}`
-                  : post.user?.email
-                  ? post.user.email.split("@")[0]
-                  : "Unknown User"}
-              </p>
+            <div className="flex items-center gap-2 flex-1">
+              {isMinimized ? (
+                <p className="text-xs text-blue-800 font-medium">
+                  Posted by{" "}
+                  {post.user?.firstName && post.user?.lastName
+                    ? `${post.user.firstName} ${post.user.lastName}`
+                    : post.user?.email
+                    ? post.user.email.split("@")[0]
+                    : "Unknown User"}
+                </p>
+              ) : (
+                <p className="text-xs text-blue-800 font-medium">
+                  Posted by{" "}
+                  {post.user?.firstName && post.user?.lastName
+                    ? `${post.user.firstName} ${post.user.lastName}`
+                    : post.user?.email
+                    ? post.user.email.split("@")[0]
+                    : "Unknown User"}
+                </p>
+              )}
               {/* Admin Badge */}
               {post.user?.role === "admin" && (
                 <span className="bg-amber-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
@@ -384,174 +408,176 @@ function AdminPostCard({
               )}
             </div>
           </div>
-          <div className="mt-2 text-xs text-gray-600">
-            <p>ID: {post.user?.studentId || "N/A"}</p>
-            <p>Contact: {post.user?.contactNum || "N/A"}</p>
-            {/* Action buttons moved below contact info */}
-            <div className="flex gap-1 mt-2">
-              {/* Turnover confirmation button - for turnover management */}
-              {onConfirmTurnover &&
-                post.turnoverDetails?.turnoverStatus === "declared" && (
-                  <>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onConfirmTurnover(post, "confirmed");
-                      }}
-                      className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition flex items-center gap-1"
-                      title="Confirm Received - Mark as successfully received"
-                    >
-                      ✓ Confirm Received
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onConfirmTurnover(post, "not_received");
-                      }}
-                      className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition flex items-center gap-1"
-                      title="Mark as Not Received - Item was not turned over"
-                    >
-                      ✗ Not Received
-                    </button>
-                  </>
-                )}
+          {!isMinimized && (
+            <div className="mt-2 text-xs text-gray-600">
+              <p>ID: {post.user?.studentId || "N/A"}</p>
+              <p>Contact: {post.user?.contactNum || "N/A"}</p>
+              {/* Action buttons moved below contact info */}
+              <div className="flex gap-1 mt-2">
+                {/* Turnover confirmation button - for turnover management */}
+                {onConfirmTurnover &&
+                  post.turnoverDetails?.turnoverStatus === "declared" && (
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onConfirmTurnover(post, "confirmed");
+                        }}
+                        className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition flex items-center gap-1"
+                        title="Confirm Received - Mark as successfully received"
+                      >
+                        ✓ Confirm Received
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onConfirmTurnover(post, "not_received");
+                        }}
+                        className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition flex items-center gap-1"
+                        title="Mark as Not Received - Item was not turned over"
+                      >
+                        ✗ Not Received
+                      </button>
+                    </>
+                  )}
 
-              {/* Approve button - for flagged posts */}
-              {onApprove && post.isFlagged && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onApprove(post);
-                  }}
-                  className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
-                  title="Approve Post - Remove flag and make visible"
-                >
-                  Approve
-                </button>
-              )}
-
-              {post.isFlagged && !post.isHidden && onHidePost && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onHidePost(post);
-                  }}
-                  className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition"
-                  title="Hide Post - Hide from public view"
-                >
-                  Hide
-                </button>
-              )}
-
-              {post.isHidden && onUnhidePost && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onUnhidePost(post);
-                  }}
-                  className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
-                  title="Unhide Post - Make visible to public"
-                >
-                  Unhide
-                </button>
-              )}
-
-              {/* Campus Security Collection buttons */}
-              {showCampusSecurityButtons &&
-                onConfirmCampusSecurityCollection &&
-                post.turnoverDetails?.turnoverAction ===
-                  "turnover to Campus Security" && (
-                  <>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onConfirmCampusSecurityCollection(post, "collected");
-                      }}
-                      className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition flex items-center gap-1"
-                      title="Mark as Collected - Item has been collected by owner"
-                    >
-                      ✓ Collected
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onConfirmCampusSecurityCollection(post, "not_available");
-                      }}
-                      className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition flex items-center gap-1"
-                      title="Mark as Not Available - Item was not collected"
-                    >
-                      ✗ Not Available
-                    </button>
-                  </>
-                )}
-
-              {/* Show revert button for completed posts */}
-              {onRevert && (post.status === "resolved" || post.status === "completed") && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRevert(post);
-                  }}
-                  className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition"
-                  title="Revert Post - Move back to pending status"
-                >
-                  Revert
-                </button>
-              )}
-
-              {/* Show activate button for any post that can be reactivated */}
-              {(post.status === "unclaimed" || post.movedToUnclaimed) &&
-                onActivateTicket && (
+                {/* Approve button - for flagged posts */}
+                {onApprove && post.isFlagged && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onActivateTicket(post);
+                      onApprove(post);
                     }}
                     className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
-                    title="Activate - Move back to active status"
+                    title="Approve Post - Remove flag and make visible"
                   >
-                    Activate
+                    Approve
                   </button>
                 )}
 
-              {!onPermanentDelete && !onRestore && !hideDeleteButton && (
-                <button
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  className={`px-2 py-1 text-xs rounded transition ${
-                    isDeleting
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-red-500 hover:bg-red-600 text-white"
-                  }`}
-                  title={isDeleting ? "Deleting..." : "Delete Post"}
-                >
-                  {isDeleting ? (
-                    <span className="flex items-center gap-1">
-                      <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                          fill="none"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        />
-                      </svg>
-                      Deleting...
-                    </span>
-                  ) : (
-                    "Delete"
+                {post.isFlagged && !post.isHidden && onHidePost && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onHidePost(post);
+                    }}
+                    className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition"
+                    title="Hide Post - Hide from public view"
+                  >
+                    Hide
+                  </button>
+                )}
+
+                {post.isHidden && onUnhidePost && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onUnhidePost(post);
+                    }}
+                    className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
+                    title="Unhide Post - Make visible to public"
+                  >
+                    Unhide
+                  </button>
+                )}
+
+                {/* Campus Security Collection buttons */}
+                {showCampusSecurityButtons &&
+                  onConfirmCampusSecurityCollection &&
+                  post.turnoverDetails?.turnoverAction ===
+                    "turnover to Campus Security" && (
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onConfirmCampusSecurityCollection(post, "collected");
+                        }}
+                        className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition flex items-center gap-1"
+                        title="Mark as Collected - Item has been collected by owner"
+                      >
+                        ✓ Collected
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onConfirmCampusSecurityCollection(post, "not_available");
+                        }}
+                        className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition flex items-center gap-1"
+                        title="Mark as Not Available - Item was not collected"
+                      >
+                        ✗ Not Available
+                      </button>
+                    </>
                   )}
-                </button>
-              )}
+
+                {/* Show revert button for completed posts */}
+                {onRevert && (post.status === "resolved" || post.status === "completed") && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRevert(post);
+                    }}
+                    className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition"
+                    title="Revert Post - Move back to pending status"
+                  >
+                    Revert
+                  </button>
+                )}
+
+                {/* Show activate button for any post that can be reactivated */}
+                {(post.status === "unclaimed" || post.movedToUnclaimed) &&
+                  onActivateTicket && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onActivateTicket(post);
+                      }}
+                      className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
+                      title="Activate - Move back to active status"
+                    >
+                      Activate
+                    </button>
+                  )}
+
+                {!onPermanentDelete && !onRestore && !hideDeleteButton && (
+                  <button
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    className={`px-2 py-1 text-xs rounded transition ${
+                      isDeleting
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-red-500 hover:bg-red-600 text-white"
+                    }`}
+                    title={isDeleting ? "Deleting..." : "Delete Post"}
+                  >
+                    {isDeleting ? (
+                      <span className="flex items-center gap-1">
+                        <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                            fill="none"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          />
+                        </svg>
+                        Deleting...
+                      </span>
+                    ) : (
+                      "Delete"
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Status dropdown moved here */}

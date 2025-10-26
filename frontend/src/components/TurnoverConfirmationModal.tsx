@@ -35,7 +35,7 @@ export default function TurnoverConfirmationModal({
 
   const isConfirming = confirmationType === "confirmed";
   const title = isConfirming
-    ? "Confirm Item Receipt"
+    ? "Confirm Item Received"
     : "Mark Item as Not Received";
   const description = isConfirming
     ? "Please confirm that you have received this item from the finder. You can add notes about the item condition below."
@@ -142,7 +142,7 @@ export default function TurnoverConfirmationModal({
                   : "bg-red-600 hover:bg-red-700"
               }`}
             >
-              {isConfirming ? "Confirm Receipt" : "Mark Not Received"}
+              {isConfirming ? "Confirm Received" : "Mark Not Received"}
             </button>
           </div>
         </form>

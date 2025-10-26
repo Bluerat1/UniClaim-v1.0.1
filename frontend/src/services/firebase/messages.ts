@@ -453,26 +453,6 @@ export const messageService = {
         }
     },
 
-    // Update post status
-    async updatePostStatus(postId: string, status: 'pending' | 'resolved' | 'unclaimed'): Promise<void> {
-        try {
-            const postRef = doc(db, 'posts', postId);
-
-            await updateDoc(postRef, {
-                status,
-                updatedAt: serverTimestamp()
-            });
-        } catch (error: any) {
-            console.error('❌ Firebase updatePostStatus failed:', error);
-            console.error('❌ Error details:', {
-                message: error.message,
-                code: error.code,
-                name: error.name
-            });
-            throw new Error(error.message || 'Failed to update post status');
-        }
-    },
-
     // Update conversation post data
     async updateConversationPostData(conversationId: string): Promise<void> {
         try {

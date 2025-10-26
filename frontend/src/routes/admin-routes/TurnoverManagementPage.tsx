@@ -198,7 +198,7 @@ export default function TurnoverManagementPage() {
           notes
         );
 
-        const statusMessage = `Item receipt confirmed for "${postToConfirm.title}"`;
+        const statusMessage = `Item received confirmed for "${postToConfirm.title}"`;
         showToast("success", "Turnover Status Updated", statusMessage);
         console.log(
           "Turnover status updated successfully:",
@@ -319,7 +319,7 @@ export default function TurnoverManagementPage() {
                         <button
                           onClick={() => handleBulkTurnoverConfirm("confirmed")}
                           className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium transition-colors shadow-sm"
-                          title={`Confirm Receipt (${selectedPosts.size})`}
+                          title={`Confirm Received (${selectedPosts.size})`}
                         >
                           ✓ ({selectedPosts.size})
                         </button>

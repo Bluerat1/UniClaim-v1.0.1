@@ -103,7 +103,7 @@ export default function CampusSecurityManagementPage() {
   };
 
   // Handle bulk campus security collection
-  const handleBulkCampusSecurityCollection = async (status: "collected" | "not_available") => {
+  const handleBulkCampusSecurityCollection = async (status: "confirmed" | "not_received") => {
     if (selectedPosts.size === 0) {
       showToast("error", "Error", "Please select posts to process");
       return;
@@ -117,14 +117,14 @@ export default function CampusSecurityManagementPage() {
 
       for (const post of selectedPostObjects) {
         try {
-          if (status === "not_available") {
+          if (status === "not_received") {
             // Delete the post when item is not available at campus security
             const { postService } = await import("../../services/firebase/posts");
             await postService.deletePost(post.id);
           } else {
             // Always update status and transfer ownership when "collected" is clicked
             const { postService } = await import("../../services/firebase/posts");
-            await postService.updateCampusSecurityTurnoverStatus(
+            await postService.updateTurnoverStatus(
               post.id,
               status,
               userData?.uid || "",
@@ -139,11 +139,11 @@ export default function CampusSecurityManagementPage() {
       }
 
       if (errorCount === 0) {
-        const actionText = status === "collected" ? "collected" : "marked as not available";
+        const actionText = status === "confirmed" ? "collected" : "marked as not received";
         showToast("success", "Bulk Collection Complete", `Successfully ${actionText} ${successCount} items`);
       } else {
         showToast("warning", "Bulk Collection Partial",
-          `${status === "collected" ? "Collected" : "Marked not available"} ${successCount} items successfully, ${errorCount} failed`
+          `${status === "confirmed" ? "Collected" : "Marked not received"} ${successCount} items successfully, ${errorCount} failed`
         );
       }
 
@@ -231,9 +231,9 @@ export default function CampusSecurityManagementPage() {
         );
       } else {
         // Always update status and transfer ownership when "collected" is clicked
-        await postService.updateCampusSecurityTurnoverStatus(
+        await postService.updateTurnoverStatus(
           postToConfirm.id,
-          status,
+          status === "collected" ? "confirmed" : "not_received",
           currentUserId,
           notes
         );
@@ -323,7 +323,7 @@ export default function CampusSecurityManagementPage() {
                     selectedPosts.size > 0 && (
                       <div className="flex flex-wrap gap-2">
                         <button
-                          onClick={() => handleBulkCampusSecurityCollection("collected")}
+                          onClick={() => handleBulkCampusSecurityCollection("confirmed")}
                           disabled={selectedPosts.size === 0}
                           className={`p-1.5 rounded transition-colors ${
                             selectedPosts.size > 0
@@ -337,7 +337,7 @@ export default function CampusSecurityManagementPage() {
                           </svg>
                         </button>
                         <button
-                          onClick={() => handleBulkCampusSecurityCollection("not_available")}
+                          onClick={() => handleBulkCampusSecurityCollection("not_received")}
                           disabled={selectedPosts.size === 0}
                           className={`p-1.5 rounded transition-colors ${
                             selectedPosts.size > 0
@@ -475,7 +475,13 @@ export default function CampusSecurityManagementPage() {
           setPostToConfirm(null);
           setAllowedActions(["collected", "not_available"]); // Reset to default
         }}
-        onConfirm={handleCollectionConfirmation}
+        onConfirm={(status, notes) => {
+          if (status === "collected") {
+            handleCollectionConfirmation("collected", notes);
+          } else if (status === "not_available") {
+            handleCollectionConfirmation("not_available", notes);
+          }
+        }}
         post={postToConfirm}
         allowedActions={allowedActions}
       />

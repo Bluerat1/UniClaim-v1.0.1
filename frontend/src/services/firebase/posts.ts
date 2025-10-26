@@ -1035,120 +1035,6 @@ export const postService = {
         }
     },
 
-    // Soft delete post (moves to deleted collection instead of permanent deletion)
-    async deletePost(postId: string, hardDelete: boolean = false, deletedBy?: string): Promise<void> {
-        try {
-            // First try to get the post from the main collection
-            let postRef = doc(db, 'posts', postId);
-            let postSnap = await getDoc(postRef);
-
-            // If not found in posts, check deleted_posts
-            if (!postSnap.exists()) {
-                postRef = doc(db, 'deleted_posts', postId);
-                postSnap = await getDoc(postRef);
-
-                if (!postSnap.exists()) {
-                    throw new Error('Post not found in active or deleted posts');
-                }
-
-                // If we're not doing a hard delete and found in deleted_posts, it's an error
-                if (!hardDelete) {
-                    throw new Error('Cannot soft delete an already deleted post');
-                }
-            }
-
-            // Get post data
-            const postData = postSnap.data() as Post;
-
-            // Add original post images to delete list
-            const allImagesToDelete: string[] = [];
-
-            if (postData.images && postData.images.length > 0) {
-                allImagesToDelete.push(...postData.images as string[]);
-            }
-
-            // Add handover and claim images if they exist
-            if (postData.handoverDetails?.handoverItemPhotos) {
-                postData.handoverDetails.handoverItemPhotos.forEach((photo: { url: string }) => {
-                    if (photo.url) allImagesToDelete.push(photo.url);
-                });
-                if (postData.handoverDetails.handoverIdPhoto) {
-                    allImagesToDelete.push(postData.handoverDetails.handoverIdPhoto);
-                }
-                if (postData.handoverDetails.ownerIdPhoto) {
-                    allImagesToDelete.push(postData.handoverDetails.ownerIdPhoto);
-                }
-            }
-
-            // Add claim images if they exist
-            if (postData.claimDetails?.evidencePhotos) {
-                postData.claimDetails.evidencePhotos.forEach((photo: { url: string }) => {
-                    if (photo.url) allImagesToDelete.push(photo.url);
-                });
-                if (postData.claimDetails.claimerIdPhoto) {
-                    allImagesToDelete.push(postData.claimDetails.claimerIdPhoto);
-                }
-                if (postData.claimDetails.ownerIdPhoto) {
-                    allImagesToDelete.push(postData.claimDetails.ownerIdPhoto);
-                }
-            }
-
-            if (hardDelete) {
-                // Delete all collected images from Cloudinary if any exist
-                if (allImagesToDelete.length > 0) {
-                    console.log(`🗑️ Deleting ${allImagesToDelete.length} total images from Cloudinary`);
-                    // Run in background without awaiting
-                    Promise.all(
-                        allImagesToDelete.map(async (imageUrl: string) => {
-                            try {
-                                const publicId = extractCloudinaryPublicId(imageUrl);
-                                if (publicId) {
-                                    await cloudinaryService.deleteImage(publicId);
-                                }
-                            } catch (error) {
-                                console.error('Failed to delete image:', imageUrl, error);
-                            }
-                        })
-                    ).catch(console.error);
-                }
-
-                // Hard delete - remove completely
-                await deleteDoc(postRef);
-
-                // Delete all conversations related to this post
-                await this.deleteConversationsByPostId(postId);
-
-                // Delete all notifications related to this post
-                try {
-                    await notificationService.deleteNotificationsByPostId(postId);
-                } catch (notificationError) {
-                    console.error('Failed to delete notifications for post:', postId, notificationError);
-                }
-            } else {
-                // Soft delete - move to deleted collection
-                const deletedAt = new Date().toISOString();
-                const deletedByUser = deletedBy || 'system';
-
-                // Add to deleted collection with deletion metadata
-                await setDoc(doc(db, 'deleted_posts', postId), {
-                    ...postData,
-                    deletedAt,
-                    deletedBy: deletedByUser,
-                    originalId: postId, // Keep reference to original ID
-                });
-
-                // Remove from active posts
-                await deleteDoc(postRef);
-
-                // Log the deletion
-                console.log(`♻️ Post ${postId} moved to deleted_posts collection`);
-            }
-        } catch (error: any) {
-            console.error('Post deletion failed:', error);
-            throw new Error(error.message || 'Failed to delete post');
-        }
-    },
-
     // Delete all conversations related to a specific post
     async deleteConversationsByPostId(postId: string): Promise<void> {
         try {
@@ -2228,29 +2114,121 @@ export const postService = {
         }
     },
 
-    // Update Campus Security turnover status (used when admin collects item from Campus Security)
-    async updateCampusSecurityTurnoverStatus(
-        postId: string,
-        status: "collected" | "not_available",
-        collectedBy: string,
-        notes?: string
-    ): Promise<void> {
+    // Update post status for admin operations (used for activation from unclaimed status)
+    async updatePostStatusForAdmin(postId: string, newStatus: string, adminNotes?: string): Promise<void> {
         try {
-            console.log(`🔄 Campus Security: Updating status for post ${postId} to ${status}`);
+            console.log(`🔄 Updating post ${postId} status to: ${newStatus}`);
 
-            if (status === "collected") {
-                // For collected items, call updateTurnoverStatus with "confirmed" status
-                // This will handle the Campus Security to OSA transfer logic
-                await this.updateTurnoverStatus(postId, "confirmed", collectedBy, notes);
-            } else if (status === "not_available") {
-                // For not available items, delete the post
-                await this.deletePost(postId);
-                console.log(`🗑️ Campus Security: Post ${postId} deleted as item was not available`);
+            const postRef = doc(db, 'posts', postId);
+            const postDoc = await getDoc(postRef);
+
+            if (!postDoc.exists()) {
+                throw new Error('Post not found');
+            }
+
+            const postData = postDoc.data();
+
+            // Calculate new expiry date (30 days from now) when activating
+            const newExpiryDate = new Date();
+            newExpiryDate.setDate(newExpiryDate.getDate() + 30);
+
+            // Prepare update data
+            const updateData: any = {
+                status: newStatus,
+                isExpired: false,
+                movedToUnclaimed: false,
+                expiryDate: newExpiryDate,
+                updatedAt: serverTimestamp()
+            };
+
+            // Add admin notes if provided
+            if (adminNotes && adminNotes.trim()) {
+                const actionTimestamp = serverTimestamp();
+                updateData.adminNotes = adminNotes.trim();
+                updateData.adminAction = 'activated';
+                updateData.adminActionAt = actionTimestamp;
+                updateData.updatedAt = actionTimestamp; // ✅ Consistent timestamp
+            }
+
+            // If this is restoring from unclaimed, preserve the original status in history
+            if (postData.status === 'unclaimed' || postData.movedToUnclaimed) {
+                const currentTimestamp = serverTimestamp();
+
+                // Create a simple status change record without complex history
+                updateData.statusChangedAt = currentTimestamp;
+                updateData.statusChangedFrom = postData.status;
+                updateData.statusChangedTo = newStatus;
+                updateData.activationNotes = adminNotes || '';
+                updateData.activatedBy = 'admin';
+
+                updateData.updatedAt = currentTimestamp;
+            }
+
+            await updateDoc(postRef, updateData);
+            console.log(`✅ Post ${postId} status updated to ${newStatus}`);
+
+        } catch (error: any) {
+            console.error('❌ Failed to update post status:', error);
+            throw new Error(error.message || 'Failed to update post status');
+        }
+    },
+
+    // Delete post and associated images from Cloudinary
+    async deletePost(postId: string, isHardDelete: boolean = false, deletedBy?: string): Promise<void> {
+        try {
+            // First get the post to delete its images
+            const postDoc = await getDoc(doc(db, 'posts', postId));
+            if (postDoc.exists()) {
+                const postData = postDoc.data();
+
+                // Delete all images associated with the post from Cloudinary
+                if (postData.images && Array.isArray(postData.images)) {
+                    console.log(`🗑️ Deleting ${postData.images.length} images from Cloudinary for post ${postId}`);
+
+                    // Use Promise.allSettled to handle partial failures gracefully
+                    const deleteResults = await Promise.allSettled(
+                        postData.images.map((imageUrl: string) => {
+                            const publicId = extractCloudinaryPublicId(imageUrl);
+                            return publicId ? cloudinaryService.deleteImage(publicId) : Promise.resolve();
+                        })
+                    );
+
+                    const successful = deleteResults.filter(result => result.status === 'fulfilled').length;
+                    const failed = deleteResults.length - successful;
+
+                    console.log(`✅ Cloudinary deletion: ${successful} succeeded, ${failed} failed`);
+
+                    if (failed > 0) {
+                        console.warn(`⚠️ Some images failed to delete from Cloudinary for post ${postId}`);
+                        // Continue with post deletion even if some images failed to delete
+                    }
+                }
+            }
+
+            if (isHardDelete) {
+                // Hard delete: permanently remove from database
+                await deleteDoc(doc(db, 'posts', postId));
+                console.log(`🗑️ Post ${postId} permanently deleted from database`);
+            } else {
+                // Soft delete: move to deleted_posts collection
+                const postData = postDoc.data();
+
+                // Move post to deleted_posts collection
+                await setDoc(doc(db, 'deleted_posts', postId), {
+                    ...postData,
+                    deletedAt: serverTimestamp(),
+                    deletedBy: deletedBy || 'admin',
+                    originalId: postId // Keep track of original ID for restoration
+                });
+
+                // Remove from main posts collection
+                await deleteDoc(doc(db, 'posts', postId));
+                console.log(`♻️ Post ${postId} soft deleted and moved to deleted_posts`);
             }
 
         } catch (error: any) {
-            console.error('❌ Campus Security: Failed to update status:', error);
-            throw new Error(error.message || 'Failed to update Campus Security status');
+            console.error('❌ Error in deletePost:', error);
+            throw new Error(error.message || 'Failed to delete post');
         }
     },
 };

@@ -8,6 +8,8 @@ import {
 } from "react-icons/hi";
 import { IoLogOutOutline } from "react-icons/io5";
 import Logo from "../assets/uniclaim_logo.png";
+import AdminPostModal from "@/components/AdminPostModal";
+import type { Post } from "@/types/Post";
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -34,6 +36,8 @@ export default function AdminHeader({
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotif, setShowNotif] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [showPostModal, setShowPostModal] = useState(false);
 
   const toggleProfileMenu = () => setShowProfileMenu((prev) => !prev);
   const toggleNotif = () => setShowNotif((prev) => !prev);
@@ -69,16 +73,9 @@ export default function AdminHeader({
         try {
           const post = await postService.getPostById(postId);
           if (post) {
-            // Show toast for post found
-            toast.success("Post loaded successfully.", {
-              position: "top-right",
-              autoClose: 3000,
-              hideProgressBar: false,
-              closeOnClick: true,
-              pauseOnHover: true,
-              draggable: true,
-              progress: undefined,
-            });
+            // Open post modal instead of showing toast
+            setSelectedPost(post);
+            setShowPostModal(true);
             setShowNotif(false); // Close notification panel
           } else {
             // Show toast message for deleted post
@@ -91,7 +88,6 @@ export default function AdminHeader({
               draggable: true,
               progress: undefined,
             });
-            console.log("Post not found, it may have been deleted:", postId);
           }
         } catch (error) {
           console.error("Error fetching post:", error);
@@ -145,11 +141,11 @@ export default function AdminHeader({
     };
 
     if (showProfileMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showProfileMenu]);
 
@@ -161,6 +157,16 @@ export default function AdminHeader({
   const handleUserView = () => {
     switchToUserView();
     navigate("/");
+  };
+
+  const handlePostModalClose = () => {
+    setShowPostModal(false);
+    setSelectedPost(null);
+  };
+
+  const handlePostModalUpdate = (updatedPost: Post) => {
+    // Update the post data if needed
+    setSelectedPost(updatedPost);
   };
 
   return (
@@ -402,6 +408,21 @@ export default function AdminHeader({
         {showPreferences && (
           <NotificationPreferencesModal
             onClose={() => setShowPreferences(false)}
+          />
+        )}
+
+        {/* Admin Post Modal for notifications */}
+        {showPostModal && selectedPost && (
+          <AdminPostModal
+            post={selectedPost}
+            onClose={handlePostModalClose}
+            onPostUpdate={handlePostModalUpdate}
+            showDeleteButton={true}
+            onDelete={(_post) => {
+              // Handle post deletion from modal
+              handlePostModalClose();
+              toast.success("Post deleted successfully");
+            }}
           />
         )}
       </div>

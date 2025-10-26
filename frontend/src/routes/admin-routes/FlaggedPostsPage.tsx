@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAdminPosts } from "../../hooks/usePosts";
 import { useToast } from "../../context/ToastContext";
 import { postService } from "../../services/firebase/posts";
@@ -53,10 +53,8 @@ export default function FlaggedPostsPage() {
   const flaggedPosts = useMemo(() => {
     return posts.filter((post: Post) => post.isFlagged === true);
   }, [posts]);
-
-  // Filtered flagged posts based on search criteria and viewType
   const filteredFlaggedPosts = useMemo(() => {
-    return flaggedPosts.filter((post) => {
+    return flaggedPosts.filter((post: Post) => {
       // Apply viewType filtering first
       let shouldShow = false;
 
@@ -99,6 +97,20 @@ export default function FlaggedPostsPage() {
     viewType,
   ]);
 
+  // Clean up selected posts that are no longer in the filtered list
+  useEffect(() => {
+    const currentFilteredIds = new Set(filteredFlaggedPosts.map((post: Post) => post.id));
+    setSelectedPosts((prev: Set<string>) => {
+      const newSet = new Set<string>();
+      for (const postId of prev) {
+        if (currentFilteredIds.has(postId)) {
+          newSet.add(postId);
+        }
+      }
+      return newSet;
+    });
+  }, [filteredFlaggedPosts]);
+
   // Handle search functionality
   const handleSearch = (searchQuery: string, filters: any) => {
     setQuery(searchQuery);
@@ -129,6 +141,22 @@ export default function FlaggedPostsPage() {
     const { type, post } = confirmAction;
     const postId = post.id;
 
+    // Check if trying to hide an already hidden post
+    if (type === "hide" && post.isHidden) {
+      showToast("error", "Error", "Post is already hidden");
+      setShowConfirmModal(false);
+      setConfirmAction(null);
+      return;
+    }
+
+    // Check if trying to unhide an already visible post
+    if (type === "unhide" && !post.isHidden) {
+      showToast("error", "Error", "Post is already visible");
+      setShowConfirmModal(false);
+      setConfirmAction(null);
+      return;
+    }
+
     try {
       switch (type) {
         case "approve":
@@ -138,6 +166,12 @@ export default function FlaggedPostsPage() {
             "Success",
             "Post approved and unflagged successfully"
           );
+          // Remove from selection since approved posts leave the flagged view
+          setSelectedPosts(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(postId);
+            return newSet;
+          });
           break;
         case "hide":
           await postService.hidePost(postId);
@@ -146,6 +180,7 @@ export default function FlaggedPostsPage() {
             "Success",
             "Post hidden from public view successfully"
           );
+          // Keep in selection since hidden posts remain in flagged view
           break;
         case "unhide":
           await postService.unhidePost(postId);
@@ -154,6 +189,7 @@ export default function FlaggedPostsPage() {
             "Success",
             "Post unhidden and visible to public successfully"
           );
+          // Keep in selection since unhidden posts remain in flagged view
           break;
         case "delete":
           await postService.deletePost(postId, true); // Hard delete instead of soft delete
@@ -162,6 +198,12 @@ export default function FlaggedPostsPage() {
             "Success",
             "Post permanently deleted successfully"
           );
+          // Remove from selection since deleted posts are removed from the view
+          setSelectedPosts(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(postId);
+            return newSet;
+          });
           break;
       }
     } catch (err: any) {
@@ -201,8 +243,16 @@ export default function FlaggedPostsPage() {
   // Helper function to check if any selected posts are hidden
   const hasHiddenPosts = () => {
     return Array.from(selectedPosts).some((postId) => {
-      const post = filteredFlaggedPosts.find((p) => p.id === postId);
+      const post = filteredFlaggedPosts.find((p: Post) => p.id === postId);
       return post?.isHidden === true;
+    });
+  };
+
+  // Helper function to check if any selected posts are not hidden
+  const hasNonHiddenPosts = () => {
+    return Array.from(selectedPosts).some((postId) => {
+      const post = filteredFlaggedPosts.find((p: Post) => p.id === postId);
+      return !post?.isHidden;
     });
   };
 
@@ -224,7 +274,19 @@ export default function FlaggedPostsPage() {
       showToast("error", "Error", "Please select posts to hide");
       return;
     }
-    setBulkAction({ type: "hide", count: selectedPosts.size });
+
+    // Filter selected posts to only include non-hidden ones
+    const postsToHide = Array.from(selectedPosts).filter((postId) => {
+      const post = filteredFlaggedPosts.find((p: Post) => p.id === postId);
+      return !post?.isHidden;
+    });
+
+    if (postsToHide.length === 0) {
+      showToast("error", "Error", "All selected posts are already hidden");
+      return;
+    }
+
+    setBulkAction({ type: "hide", count: postsToHide.length });
     setShowBulkConfirmModal(true);
   };
 
@@ -233,7 +295,19 @@ export default function FlaggedPostsPage() {
       showToast("error", "Error", "Please select posts to unhide");
       return;
     }
-    setBulkAction({ type: "unhide", count: selectedPosts.size });
+
+    // Filter selected posts to only include hidden ones
+    const postsToUnhide = Array.from(selectedPosts).filter((postId) => {
+      const post = filteredFlaggedPosts.find((p: Post) => p.id === postId);
+      return post?.isHidden === true;
+    });
+
+    if (postsToUnhide.length === 0) {
+      showToast("error", "Error", "All selected posts are already visible");
+      return;
+    }
+
+    setBulkAction({ type: "unhide", count: postsToUnhide.length });
     setShowBulkConfirmModal(true);
   };
 
@@ -255,14 +329,34 @@ export default function FlaggedPostsPage() {
     if (!bulkAction || selectedPosts.size === 0) return;
 
     const { type } = bulkAction;
-    const selectedPostIds = Array.from(selectedPosts);
+
+    // For hide and unhide actions, only process posts that need the action
+    const postsToProcess = type === "hide"
+      ? Array.from(selectedPosts).filter((postId) => {
+          const post = filteredFlaggedPosts.find((p: Post) => p.id === postId);
+          return !post?.isHidden;
+        })
+      : type === "unhide"
+      ? Array.from(selectedPosts).filter((postId) => {
+          const post = filteredFlaggedPosts.find((p: Post) => p.id === postId);
+          return post?.isHidden === true;
+        })
+      : Array.from(selectedPosts);
+
+    if (postsToProcess.length === 0) {
+      showToast("error", "Error", "No posts to process");
+      setShowBulkConfirmModal(false);
+      setBulkAction(null);
+      return;
+    }
+
     let successCount = 0;
     let errorCount = 0;
 
     try {
       setActionLoading("bulk");
 
-      for (const postId of selectedPostIds) {
+      for (const postId of postsToProcess) {
         try {
           switch (type) {
             case "approve":
@@ -291,6 +385,8 @@ export default function FlaggedPostsPage() {
           "Success",
           `Successfully processed ${successCount} posts`
         );
+        // Clear selection after successful bulk operations since posts may no longer be in the filtered list
+        setSelectedPosts(new Set());
       } else {
         showToast(
           "warning",
@@ -427,13 +523,22 @@ export default function FlaggedPostsPage() {
                     </button>
                     <button
                       onClick={handleBulkHide}
-                      disabled={selectedPosts.size === 0}
+                      disabled={selectedPosts.size === 0 || !hasNonHiddenPosts()}
                       className={`p-1.5 rounded transition-colors ${
-                        selectedPosts.size > 0
+                        selectedPosts.size > 0 && hasNonHiddenPosts()
                           ? "text-yellow-600 hover:bg-yellow-50"
                           : "text-gray-400 cursor-not-allowed"
                       }`}
-                      title={`Hide ${selectedPosts.size} Selected Posts`}
+                      title={
+                        selectedPosts.size === 0
+                          ? "Please select posts to hide"
+                          : !hasNonHiddenPosts()
+                          ? "All selected posts are already hidden"
+                          : `Hide ${Array.from(selectedPosts).filter((postId) => {
+                              const post = filteredFlaggedPosts.find((p: Post) => p.id === postId);
+                              return !post?.isHidden;
+                            }).length} Selected Posts`
+                      }
                     >
                       <svg
                         className="w-4 h-4"
@@ -452,13 +557,22 @@ export default function FlaggedPostsPage() {
                     {hasHiddenPosts() && (
                       <button
                         onClick={handleBulkUnhide}
-                        disabled={selectedPosts.size === 0}
+                        disabled={selectedPosts.size === 0 || !hasHiddenPosts()}
                         className={`p-1.5 rounded transition-colors ${
-                          selectedPosts.size > 0
+                          selectedPosts.size > 0 && hasHiddenPosts()
                             ? "text-blue-600 hover:bg-blue-50"
                             : "text-gray-400 cursor-not-allowed"
                         }`}
-                        title={`Unhide ${selectedPosts.size} Selected Posts`}
+                        title={
+                          selectedPosts.size === 0
+                            ? "Please select posts to unhide"
+                            : !hasHiddenPosts()
+                            ? "All selected posts are already visible"
+                            : `Unhide ${Array.from(selectedPosts).filter((postId) => {
+                                const post = filteredFlaggedPosts.find((p: Post) => p.id === postId);
+                                return post?.isHidden === true;
+                              }).length} Selected Posts`
+                        }
                       >
                         <svg
                           className="w-4 h-4"
@@ -548,7 +662,7 @@ export default function FlaggedPostsPage() {
                       onUnhidePost={() => handleActionClick("unhide", post)}
                       onApprove={() => handleActionClick("approve", post)}
                       isSelected={selectedPosts.has(post.id)}
-                      onSelectionChange={(post, selected) => {
+                      onSelectionChange={(post: Post, selected: boolean) => {
                         const newSet = new Set(selectedPosts);
                         if (selected) {
                           newSet.add(post.id);
@@ -576,7 +690,7 @@ export default function FlaggedPostsPage() {
                       onUnhidePost={() => handleActionClick("unhide", post)}
                       onApprove={() => handleActionClick("approve", post)}
                       isSelected={selectedPosts.has(post.id)}
-                      onSelectionChange={(post, selected) => {
+                      onSelectionChange={(post: Post, selected: boolean) => {
                         const newSet = new Set(selectedPosts);
                         if (selected) {
                           newSet.add(post.id);
@@ -749,9 +863,9 @@ export default function FlaggedPostsPage() {
                     {bulkAction.type === "approve" &&
                       "This will remove flags from all selected posts and make them visible to all users again."}
                     {bulkAction.type === "hide" &&
-                      "This will hide all selected posts from public view but keep them in the system. They can be unhidden later."}
+                      "This will hide the selected posts that are not already hidden from public view but keep them in the system. They can be unhidden later."}
                     {bulkAction.type === "unhide" &&
-                      "This will make all selected posts visible to all users again. The posts will remain flagged until approved."}
+                      "This will make the selected posts that are hidden visible to all users again. The posts will remain flagged until approved."}
                     {bulkAction.type === "delete" &&
                       "This will permanently delete all selected posts and all associated data. This action cannot be undone."}
                   </p>

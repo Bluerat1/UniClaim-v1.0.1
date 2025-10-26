@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { FiX } from "react-icons/fi";
 import LocationMap from "./LocationMap";
 import type { Post } from "@/types/Post";
@@ -58,16 +58,11 @@ export default function PostModal({
   const navigate = useNavigate(); // Add navigation hook
   const { createConversation } = useMessage(); // Add message context
   const { isAdmin } = useIsAdmin(userData?.uid);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
-  const [showOverlay, setShowOverlay] = useState(true);
-  const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const [imageLoadingError, setImageLoadingError] = useState<string | null>(
     null
   );
-  const inactivityIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastInteractionTimeRef = useRef<number>(Date.now());
 
   // State for turnover confirmation modal
   const [showTurnoverModal, setShowTurnoverModal] = useState(false);
@@ -102,27 +97,6 @@ export default function PostModal({
     };
   }, []);
 
-  // show the overlay a couple of seconds if user doesn't click
-  useEffect(() => {
-    const checkInactivity = () => {
-      const now = Date.now();
-      const secondsSinceLastClick =
-        (now - lastInteractionTimeRef.current) / 1000;
-
-      if (secondsSinceLastClick >= 2) {
-        setShowOverlay(true);
-      }
-    };
-
-    inactivityIntervalRef.current = setInterval(checkInactivity, 1000);
-
-    return () => {
-      if (inactivityIntervalRef.current) {
-        clearInterval(inactivityIntervalRef.current);
-      }
-    };
-  }, []);
-
   useEffect(() => {
     setImageLoadingError(null);
 
@@ -146,22 +120,6 @@ export default function PostModal({
       setImageLoadingError("Failed to load images");
     }
   }, [post.images]);
-
-  // Cleanup timeouts on unmount
-  useEffect(() => {
-    return () => {
-      if (inactivityIntervalRef.current) {
-        clearInterval(inactivityIntervalRef.current);
-      }
-    };
-  }, []);
-
-  const handleImageClick = () => {
-    setShowOverlay(false);
-    setHasUserInteracted(true);
-    lastInteractionTimeRef.current = Date.now();
-    setCurrentIndex((prev) => (prev + 1) % imageUrls.length);
-  };
 
   // Handle send message button click
   const handleSendMessage = async () => {
@@ -321,28 +279,17 @@ export default function PostModal({
             <div className="mt-4 flex items-center justify-center">
               <div className="relative group w-full max-w-md">
                 <img
-                  src={imageUrls[currentIndex]}
-                  alt={`Uploaded ${currentIndex + 1}`}
-                  className="w-full h-auto object-cover rounded cursor-pointer"
-                  onClick={handleImageClick}
-                  title="Click to view next image"
+                  src={imageUrls[0]}
+                  alt="Uploaded image"
+                  className="w-full h-auto object-cover rounded"
                 />
-
-                {showOverlay && imageUrls.length > 1 && !hasUserInteracted && (
-                  <div
-                    className="absolute inset-0 flex items-center justify-center bg-black/45 text-white font-semibold text-sm rounded cursor-pointer animate-soft-blink"
-                    onClick={handleImageClick}
-                  >
-                    Click to view more images
-                  </div>
-                )}
 
                 <div
                   className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full
             block md:hidden
             md:group-hover:block md:pointer-events-none md:select-none"
                 >
-                  {currentIndex + 1}/{imageUrls.length}
+                  {imageUrls.length}
                 </div>
               </div>
             </div>

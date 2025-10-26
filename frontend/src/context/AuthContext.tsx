@@ -35,9 +35,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Listen for authentication state changes
   useEffect(() => {
-    let hasAttemptedAutoLogin = false;
-    let isProcessingAutoLogin = false;
-    let autoLoginTimeout: NodeJS.Timeout | null = null;
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);

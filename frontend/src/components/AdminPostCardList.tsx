@@ -84,6 +84,7 @@ function AdminPostCardList({
   const [showAdminNotesModal, setShowAdminNotesModal] = useState(false);
   const [adminNotes, setAdminNotes] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
+  const [isMinimized, setIsMinimized] = useState(true);
 
   const previewUrl = useMemo(() => {
     if (post.images && post.images.length > 0) {
@@ -142,11 +143,17 @@ function AdminPostCardList({
     setSelectedStatus("");
   };
 
+  const toggleMinimize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsMinimized(!isMinimized);
+  };
+
   return (
     <div className="bg-white rounded shadow/2 overflow-hidden hover:shadow-md/5 transition grid grid-cols-[80px_150px_1fr_300px_1.5fr_auto] gap-4 p-4 items-start relative">
       {/* Selection Checkbox */}
       {onSelectionChange && (
-        <div className="absolute top-2 left-2 z-10">
+        <div className="absolute top-1 right-1 z-20">
           <input
             type="checkbox"
             checked={isSelected}
@@ -154,7 +161,8 @@ function AdminPostCardList({
               e.stopPropagation();
               onSelectionChange(post, e.target.checked);
             }}
-            className="size-5 text-brand border-gray-300 rounded focus:ring-brand"
+            onClick={(e) => e.stopPropagation()}
+            className="size-5 text-brand  focus:border-brand"
           />
         </div>
       )}
@@ -169,10 +177,10 @@ function AdminPostCardList({
             onClick={onClick}
           />
           {post.isFlagged && (
-            <div className="absolute top-1 right-1 text-sm drop-shadow-lg z-10">🚩</div>
+            <div className="absolute top-1 left-1 text-sm drop-shadow-lg z-10">🚩</div>
           )}
           {(post.status === "unclaimed" || post.movedToUnclaimed) && (
-            <div className="absolute top-1 left-1 z-10 scale-75">
+            <div className="absolute top-1 left-8 z-10 scale-75">
               <div className="relative group">
                 <div className="px-1 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-medium rounded drop-shadow-lg flex items-center gap-1">
                   UNCLAIMED
@@ -259,7 +267,13 @@ function AdminPostCardList({
       {/* Creator Column */}
       <div className="min-w-0">
         <div className="p-0 mb-0">
-          <div className="flex items-start gap-3 mb-3">
+          <div
+            className={`flex items-start gap-3 cursor-pointer select-none hover:bg-gray-100 transition-colors ${isMinimized ? 'mb-1' : 'mb-3'}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleMinimize(e);
+            }}
+          >
             <ProfilePicture
               src={post.user?.profilePicture}
               alt="user profile"
@@ -267,19 +281,34 @@ function AdminPostCardList({
               priority={false}
             />
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm text-blue-800">
-                {post.user?.firstName && post.user?.lastName
-                  ? `${post.user.firstName} ${post.user.lastName}`
-                  : post.user?.email
-                  ? post.user.email.split("@")[0]
-                  : "Unknown User"}
-              </p>
-              <p className="text-xs text-gray-600">
-                ID: {post.user?.studentId || "N/A"}
-              </p>
-              <p className="text-xs text-gray-600">
-                Contact: {post.user?.contactNum || "N/A"}
-              </p>
+              {isMinimized ? (
+                <p className="font-medium text-sm text-blue-800">
+                  Posted by{" "}
+                  {post.user?.firstName && post.user?.lastName
+                    ? `${post.user.firstName} ${post.user.lastName}`
+                    : post.user?.email
+                    ? post.user.email.split("@")[0]
+                    : "Unknown User"}
+                </p>
+              ) : (
+                <p className="font-medium text-sm text-blue-800">
+                  {post.user?.firstName && post.user?.lastName
+                    ? `${post.user.firstName} ${post.user.lastName}`
+                    : post.user?.email
+                    ? post.user.email.split("@")[0]
+                    : "Unknown User"}
+                </p>
+              )}
+              {!isMinimized && (
+                <>
+                  <p className="text-xs text-gray-600">
+                    ID: {post.user?.studentId || "N/A"}
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    Contact: {post.user?.contactNum || "N/A"}
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>

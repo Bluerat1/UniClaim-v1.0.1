@@ -72,6 +72,12 @@ export default function AdminHomePage() {
   const [isBulkRestoring, setIsBulkRestoring] = useState(false);
   const [isBulkReverting, setIsBulkReverting] = useState(false);
 
+  // Bulk delete confirmation modal state
+  const [showBulkDeleteConfirmModal, setShowBulkDeleteConfirmModal] = useState(false);
+  const [bulkDeleteAction, setBulkDeleteAction] = useState<{
+    count: number;
+  } | null>(null);
+
   // Delete confirmation modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [postToDelete, setPostToDelete] = useState<Post | null>(null);
@@ -231,51 +237,67 @@ export default function AdminHomePage() {
     setShowDeleteModal(true);
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedPosts.size === 0) {
       showToast("warning", "No Selection", "Please select posts to delete");
       return;
     }
+    setBulkDeleteAction({ count: selectedPosts.size });
+    setShowBulkDeleteConfirmModal(true);
+  };
 
-    if (
-      !confirm(
-        `Are you sure you want to delete ${selectedPosts.size} selected posts? This action cannot be undone.`
-      )
-    ) {
-      return;
-    }
+  // Handle bulk delete confirmation modal close
+  const handleCancelBulkDelete = () => {
+    setShowBulkDeleteConfirmModal(false);
+    setBulkDeleteAction(null);
+  };
+
+  // Handle bulk delete confirmation - actually perform the deletion
+  const handleBulkDeleteConfirm = async () => {
+    if (!bulkDeleteAction || selectedPosts.size === 0) return;
+
+    const selectedPostIds = Array.from(selectedPosts);
+    let successCount = 0;
+    let errorCount = 0;
 
     try {
       setIsBulkDeleting(true);
-      const { postService } = await import("../../services/firebase/posts");
 
-      // Delete all selected posts
-      for (const postId of selectedPosts) {
-        await postService.deletePost(postId, false, userData?.email || "admin");
+      for (const postId of selectedPostIds) {
+        try {
+          const { postService } = await import("../../services/firebase/posts");
+          await postService.deletePost(postId, false, userData?.email || "admin");
+          successCount++;
+        } catch (err) {
+          console.error(`Failed to delete post ${postId}:`, err);
+          errorCount++;
+        }
       }
 
-      showToast(
-        "success",
-        "Bulk Delete Complete",
-        `Successfully deleted ${selectedPosts.size} posts`
-      );
-
-      // Clear selection and refresh
+      if (errorCount === 0) {
+        showToast(
+          "success",
+          "Bulk Delete Complete",
+          `Successfully deleted ${successCount} posts`
+        );
+      } else {
+        showToast(
+          "warning",
+          "Bulk Delete Partial",
+          `Deleted ${successCount} posts successfully, ${errorCount} failed`
+        );
+      }
+    } catch (err: any) {
+      showToast("error", "Bulk Delete Failed", "Failed to delete selected posts");
+    } finally {
+      setIsBulkDeleting(false);
+      setShowBulkDeleteConfirmModal(false);
+      setBulkDeleteAction(null);
+      // Clear selection and update local state
       setSelectedPosts(new Set());
-
-      // Refresh the posts list
       if (viewType === "deleted") {
         fetchDeletedPosts();
       }
-    } catch (error: any) {
-      console.error("Error during bulk delete:", error);
-      showToast(
-        "error",
-        "Bulk Delete Failed",
-        error.message || "Failed to delete selected posts"
-      );
-    } finally {
-      setIsBulkDeleting(false);
     }
   };
 
@@ -1695,6 +1717,75 @@ export default function AdminHomePage() {
         post={postToConfirm}
         confirmationType={confirmationType}
       />
+
+      {/* Bulk Delete Confirmation Modal */}
+      {showBulkDeleteConfirmModal && bulkDeleteAction && (
+        <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-[60]">
+          <div className="relative top-8 mx-auto p-3 w-11/12 md:w-3/4 lg:w-1/2 rounded-md bg-white">
+            <div className="py-2 px-3">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Delete Multiple Posts
+                </h3>
+                <button
+                  onClick={handleCancelBulkDelete}
+                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="space-y-4">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-medium text-gray-900 mb-2">
+                    Bulk Delete Details:
+                  </h4>
+                  <p className="text-sm text-gray-700">
+                    You are about to <strong>delete</strong>{" "}
+                    <strong>{bulkDeleteAction.count}</strong> post
+                    {bulkDeleteAction.count !== 1 ? "s" : ""}.
+                  </p>
+                </div>
+
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    This will move all selected posts to the Recently Deleted section.
+                    Posts can be restored from there if needed.
+                  </p>
+                </div>
+
+                <div className="bg-red-50 p-4 rounded-lg">
+                  <p className="text-sm text-red-800 font-medium">
+                    ⚠️ This action will affect {bulkDeleteAction.count} post
+                    {bulkDeleteAction.count !== 1 ? "s" : ""} and notifications will be sent to the post creators.
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-3 pt-6 border-t">
+                <button
+                  onClick={handleCancelBulkDelete}
+                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBulkDeleteConfirm}
+                  disabled={isBulkDeleting}
+                  className="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isBulkDeleting
+                    ? "Deleting..."
+                    : `Delete ${bulkDeleteAction.count} Posts`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Modal */}
       {editingPost && (
