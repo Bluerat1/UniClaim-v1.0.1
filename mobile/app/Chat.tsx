@@ -25,6 +25,7 @@ import type { Message, RootStackParamList } from "@/types/type";
 import MessageBubble from "@/components/MessageBubble";
 import HandoverModal from "@/components/HandoverModal";
 import ClaimModal from "@/components/ClaimModal";
+import ImagePicker from "@/components/ImagePicker";
 
 type ChatRouteProp = RouteProp<RootStackParamList, "Chat">;
 type ChatNavigationProp = NativeStackNavigationProp<RootStackParamList, "Chat">;
@@ -119,8 +120,14 @@ export default function Chat() {
 
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [showHandoverModal, setShowHandoverModal] = useState(false);
+  const [showImagePickerModal, setShowImagePickerModal] = useState(false);
   const [isClaimSubmitting, setIsClaimSubmitting] = useState(false);
   const [isHandoverSubmitting, setIsHandoverSubmitting] = useState(false);
+
+  // ImagePicker state for ID photo uploads
+  const [imagePickerMessageId, setImagePickerMessageId] = useState<string>("");
+  const [imagePickerMessageType, setImagePickerMessageType] = useState<"handover_request" | "claim_request">("handover_request");
+  const [isImagePickerUploading, setIsImagePickerUploading] = useState(false);
 
   // Image preview state
   const [selectedImage, setSelectedImage] = useState<{
@@ -810,6 +817,49 @@ export default function Chat() {
     }
   };
 
+  // Handle ID photo upload for ImagePicker
+  const handleImagePickerSelect = async (photoUri: string) => {
+    if (!conversationId || !user?.uid || !imagePickerMessageId) return;
+
+    setIsImagePickerUploading(true);
+
+    try {
+      const { cloudinaryService } = await import("../utils/cloudinary");
+      const photoUrl = await cloudinaryService.uploadImage(photoUri, "id_photos");
+
+      if (imagePickerMessageType === "handover_request") {
+        // For handover, first accept the request, then update with photo
+        await handleHandoverResponse(imagePickerMessageId, "accepted");
+        // Update the message with the ID photo URL using the same pattern as claim
+        await updateClaimResponse(conversationId, imagePickerMessageId, "accepted", user.uid, photoUrl);
+      } else if (imagePickerMessageType === "claim_request") {
+        await handleClaimResponse(imagePickerMessageId, "accepted", photoUrl);
+      }
+
+      setShowImagePickerModal(false);
+      setImagePickerMessageId("");
+      setImagePickerMessageType("handover_request");
+    } catch (error) {
+      console.error("Error uploading ID photo:", error);
+      Alert.alert("Error", "Failed to upload ID photo. Please try again.");
+    } finally {
+      setIsImagePickerUploading(false);
+    }
+  };
+
+  const handleImagePickerClose = () => {
+    setShowImagePickerModal(false);
+    setImagePickerMessageId("");
+    setImagePickerMessageType("handover_request");
+  };
+
+  // Function to trigger ImagePicker from MessageBubble
+  const triggerImagePicker = (messageId: string, messageType: "handover_request" | "claim_request") => {
+    setImagePickerMessageId(messageId);
+    setImagePickerMessageType(messageType);
+    setShowImagePickerModal(true);
+  };
+
   // Handle ID photo confirmation (like web version)
   const handleConfirmIdPhotoSuccess = async (messageId: string) => {
     if (!conversationId || !user?.uid || isConfirmationInProgress) return;
@@ -1011,6 +1061,7 @@ export default function Chat() {
                       onClaimResponse={handleClaimResponse}
                       onConfirmIdPhotoSuccess={handleConfirmIdPhotoSuccess}
                       isConfirmationInProgress={isConfirmationInProgress}
+                      triggerImagePicker={triggerImagePicker}
                       onImageClick={(imageUrl, altText) =>
                         setSelectedImage({ uri: imageUrl, alt: altText })
                       }
@@ -1172,6 +1223,17 @@ export default function Chat() {
         isLoading={isHandoverSubmitting}
         postTitle={postTitle}
       />
+
+      {/* ImagePicker Modal for ID photos */}
+      {showImagePickerModal && (
+        <ImagePicker
+          onImageSelect={handleImagePickerSelect}
+          onClose={handleImagePickerClose}
+          isUploading={isImagePickerUploading}
+          title="Upload ID Photo"
+          description="Please provide a photo of your ID as proof that you received the item."
+        />
+      )}
     </SafeAreaView>
   );
 }

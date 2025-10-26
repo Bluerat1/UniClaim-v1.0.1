@@ -10,7 +10,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useMessage } from "@/context/MessageContext";
 import { useToast } from "@/context/ToastContext";
 import type { Message } from "@/types/type";
-import ImagePicker from "@/components/ImagePicker";
 import ProfilePicture from "@/components/ProfilePicture";
 import ProfilePictureSeenIndicator from "@/components/ProfilePictureSeenIndicator";
 import PhotoViewerModal from "@/components/PhotoViewerModal";
@@ -37,6 +36,7 @@ interface MessageBubbleProps {
   onConfirmIdPhotoSuccess?: (messageId: string) => void;
   onMessageSeen?: () => void;
   onImageClick?: (imageUrl: string, altText: string) => void;
+  triggerImagePicker?: (messageId: string, messageType: "handover_request" | "claim_request") => void;
   isConfirmationInProgress?: boolean;
   conversationParticipants?: {
     [uid: string]: {
@@ -59,6 +59,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onConfirmIdPhotoSuccess,
   onMessageSeen,
   onImageClick,
+  triggerImagePicker,
   isConfirmationInProgress = false,
   conversationParticipants = {},
   isLastSeenByOthers = false,
@@ -66,8 +67,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const { deleteMessage } = useMessage();
   const { showToastMessage } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
-  const [showIdPhotoModal, setShowIdPhotoModal] = useState(false);
-  const [isUploadingIdPhoto, setIsUploadingIdPhoto] = useState(false);
   const [showPhotoViewerModal, setShowPhotoViewerModal] = useState(false);
   const [photoViewerImages, setPhotoViewerImages] = useState<string[]>([]);
   const [photoViewerInitialIndex, setPhotoViewerInitialIndex] = useState(0);
@@ -106,9 +105,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const handleHandoverResponse = async (status: "accepted" | "rejected") => {
     if (!onHandoverResponse) return;
 
-    // If accepting, show ID photo modal
+    // If accepting, trigger ImagePicker at Chat level
     if (status === "accepted") {
-      setShowIdPhotoModal(true);
+      if (triggerImagePicker) {
+        triggerImagePicker(message.id, "handover_request");
+      }
       return;
     }
 
@@ -125,30 +126,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       currentUserId,
       callbacks
     );
-  };
-
-  const handleIdPhotoUpload = async (photoUri: string) => {
-    setIsUploadingIdPhoto(true);
-
-    const callbacks: HandoverClaimCallbacks = {
-      onHandoverResponse,
-      onSuccess: (message) => {
-        Alert.alert("Success", message);
-        setShowIdPhotoModal(false);
-      },
-      onError: (error) => Alert.alert("Upload Error", error),
-    };
-
-    await handoverClaimService.handleIdPhotoUploadMobile(
-      photoUri,
-      conversationId,
-      message.id,
-      currentUserId,
-      "handover",
-      callbacks
-    );
-
-    setIsUploadingIdPhoto(false);
   };
 
   const handleConfirmIdPhoto = async () => {
@@ -173,9 +150,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const handleClaimResponse = async (status: "accepted" | "rejected") => {
     if (!onClaimResponse) return;
 
-    // If accepting, show ID photo modal
+    // If accepting, trigger ImagePicker at Chat level
     if (status === "accepted") {
-      setShowIdPhotoModal(true);
+      if (triggerImagePicker) {
+        triggerImagePicker(message.id, "claim_request");
+      }
       return;
     }
 
@@ -196,34 +175,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       currentUserId,
       callbacks
     );
-  };
-
-  const handleClaimIdPhotoUpload = async (photoUri: string) => {
-    setIsUploadingIdPhoto(true);
-
-    const callbacks: HandoverClaimCallbacks = {
-      onClaimResponse: (messageId, status, idPhotoUrl) => {
-        if (onClaimResponse) {
-          onClaimResponse(messageId, status, idPhotoUrl);
-        }
-      },
-      onSuccess: (message) => {
-        showToastMessage(message, "success");
-        setShowIdPhotoModal(false);
-      },
-      onError: (error) => Alert.alert("Upload Error", error),
-    };
-
-    await handoverClaimService.handleIdPhotoUploadMobile(
-      photoUri,
-      conversationId,
-      message.id,
-      currentUserId,
-      "claim",
-      callbacks
-    );
-
-    setIsUploadingIdPhoto(false);
   };
 
   const handleDeleteMessage = async () => {
@@ -747,30 +698,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     );
   };
 
-  // ID Photo Modal using ImagePicker component
-  const renderIdPhotoModal = () => {
-    if (!showIdPhotoModal) return null;
-
-    const uploadHandler =
-      message.messageType === "claim_request"
-        ? handleClaimIdPhotoUpload
-        : handleIdPhotoUpload;
-
-    return (
-      <ImagePicker
-        onImageSelect={uploadHandler}
-        onClose={() => setShowIdPhotoModal(false)}
-        isUploading={isUploadingIdPhoto}
-        title="Upload ID Photo"
-        description="Please provide a photo of your ID as proof that you received the item."
-      />
-    );
-  };
-
   return (
     <View className={`mb-3 ${isOwnMessage ? "items-end" : "items-start"}`}>
-      {renderIdPhotoModal()}
-
       {/* Photo Viewer Modal */}
       <PhotoViewerModal
         visible={showPhotoViewerModal}

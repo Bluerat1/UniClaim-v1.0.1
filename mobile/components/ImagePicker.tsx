@@ -93,7 +93,7 @@ const ImagePicker: React.FC<ImagePickerProps> = ({
   };
 
   return (
-    <View className="absolute inset-0 bg-black justify-center items-center z-50">
+    <View className="absolute inset-0 bg-black/50 justify-center items-center z-50">
       <View className="bg-white rounded-xl p-5 m-5 w-[90%] max-h-[80%]">
         <Text className="text-lg font-manrope-bold mb-2 text-center">
           {title}
