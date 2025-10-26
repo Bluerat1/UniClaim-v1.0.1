@@ -1,7 +1,6 @@
 import { FiX } from "react-icons/fi";
 import { useState, useEffect, useRef } from "react";
 import type { Post } from "@/types/Post";
-import DropdownWithSearch from "./DropdownWithSearch";
 import LocationMap from "./LocationMap";
 
 // Helper function to get status color and text
@@ -46,28 +45,7 @@ const getStatusStyles = (status: string | undefined) => {
 };
 
 // Location options - same as used in mobile version
-const locationOptions = [
-  "Library",
-  "Canteen",
-  "Gymnasium",
-  "Main Entrance",
-  "Computer Laboratory",
-  "Science Building",
-  "Engineering Hall",
-  "Student Lounge",
-  "Registrar Office",
-  "Clinic",
-  "Parking Lot A",
-  "Parking Lot B",
-  "Auditorium",
-  "Basketball Court",
-  "Swimming Pool Area",
-  "Admin Office",
-  "Dormitory",
-  "Innovation Hub",
-  "Covered Court",
-  "Security Office",
-];
+// REMOVED - no longer used since location dropdown is hidden
 
 interface TicketModalProps {
   post: Post;
@@ -113,9 +91,6 @@ const TicketModal = ({
 
   const [editedTitle, setEditedTitle] = useState(post.title);
   const [editedDescription, setEditedDescription] = useState(post.description);
-  const [editedLocation, setEditedLocation] = useState<string | null>(
-    locationOptions.includes(post.location) ? post.location : null
-  );
   const [editedDateTime, setEditedDateTime] = useState(
     typeof post.createdAt === "string"
       ? post.createdAt.slice(0, 16)
@@ -139,9 +114,6 @@ const TicketModal = ({
   useEffect(() => {
     setEditedTitle(post.title);
     setEditedDescription(post.description);
-    setEditedLocation(
-      locationOptions.includes(post.location) ? post.location : null
-    );
     setEditedImages(post.images);
     setNewImageFiles([]);
 
@@ -232,7 +204,7 @@ const TicketModal = ({
       ...post,
       title: editedTitle,
       description: editedDescription,
-      location: editedLocation || "",
+      location: post.location, // Keep original location since we're not editing it
       status: isAdmin ? editedStatus : post.status, // Admin can change status, users cannot
       category: isAdmin ? editedCategory : post.category, // Admin can change category, users cannot
       type: isAdmin ? editedType : post.type, // Admin can change type, users cannot
@@ -506,7 +478,8 @@ const TicketModal = ({
                   </select>
                 ))}
 
-                {/* Location Dropdown */}
+                {/* Location Dropdown - HIDDEN AS REQUESTED */}
+                {/*
                 <div className="col-span-full">
                   <DropdownWithSearch
                     label="Last seen location"
@@ -516,6 +489,7 @@ const TicketModal = ({
                     placeholder="Select a location"
                   />
                 </div>
+                */}
 
                 <textarea
                   value={editedDescription}
@@ -542,10 +516,13 @@ const TicketModal = ({
                         : "Unknown"}
                     </p>
                   </div>
+                  {/* Last seen location - HIDDEN AS REQUESTED */}
+                  {/*
                   <h1 className="text-sm mb-2">Last seen location</h1>
                   <div className="bg-gray-100 p-2 rounded border border-gray-300 mb-3">
                     <p className="text-[12px] text-gray-700">{post.location}</p>
                   </div>
+                  */}
 
                   {/* Location Map */}
                   {post.coordinates && (
