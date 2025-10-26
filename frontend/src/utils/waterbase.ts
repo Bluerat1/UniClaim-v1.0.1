@@ -254,40 +254,45 @@ export const postService = {
 
             // Send notifications to all users about the new post
             try {
-                // Import notification sender dynamically to avoid circular dependencies
-                const { notificationSender } = await import('../services/firebase/notificationSender');
-                const { adminNotificationService } = await import('../services/firebase/adminNotifications');
+                // Check if this is a turnover post - if so, skip notifications until approved
+                if (post.turnoverDetails && post.turnoverDetails.turnoverAction) {
+                    console.log(`📋 Post ${postId} has turnover details (${post.turnoverDetails.turnoverAction}) - skipping notifications until approved`);
+                } else {
+                    // Import notification sender dynamically to avoid circular dependencies
+                    const { notificationSender } = await import('../services/firebase/notificationSender');
+                    const { adminNotificationService } = await import('../services/firebase/adminNotifications');
 
-                // Get creator information for the notification
-                const creatorDoc = await getDoc(doc(db, 'users', creatorId));
-                const creatorData = creatorDoc.exists() ? creatorDoc.data() : null;
-                const creatorName = creatorData ? `${creatorData.firstName} ${creatorData.lastName}` : 'Someone';
-                const creatorEmail = creatorData?.email || 'Unknown';
+                    // Get creator information for the notification
+                    const creatorDoc = await getDoc(doc(db, 'users', creatorId));
+                    const creatorData = creatorDoc.exists() ? creatorDoc.data() : null;
+                    const creatorName = creatorData ? `${creatorData.firstName} ${creatorData.lastName}` : 'Someone';
+                    const creatorEmail = creatorData?.email || 'Unknown';
 
-                // Send notifications to all users
-                await notificationSender.sendNewPostNotification({
-                    id: postId,
-                    title: post.title,
-                    category: post.category,
-                    location: post.location,
-                    type: post.type,
-                    creatorId: creatorId,
-                    creatorName: creatorName
-                });
+                    // Send notifications to all users
+                    await notificationSender.sendNewPostNotification({
+                        id: postId,
+                        title: post.title,
+                        category: post.category,
+                        location: post.location,
+                        type: post.type,
+                        creatorId: creatorId,
+                        creatorName: creatorName
+                    });
 
-                // Send notification to admins about the new post
-                await adminNotificationService.notifyAdminsNewPost({
-                    postId: postId,
-                    postTitle: post.title,
-                    postType: post.type,
-                    postCategory: post.category,
-                    postLocation: post.location,
-                    creatorId: creatorId,
-                    creatorName: creatorName,
-                    creatorEmail: creatorEmail
-                });
+                    // Send notification to admins about the new post
+                    await adminNotificationService.notifyAdminsNewPost({
+                        postId: postId,
+                        postTitle: post.title,
+                        postType: post.type,
+                        postCategory: post.category,
+                        postLocation: post.location,
+                        creatorId: creatorId,
+                        creatorName: creatorName,
+                        creatorEmail: creatorEmail
+                    });
 
-                console.log('Notifications sent to users and admins for new post:', postId);
+                    console.log('Notifications sent to users and admins for new post:', postId);
+                }
             } catch (notificationError) {
                 // Don't fail post creation if notifications fail
                 console.error('Error sending notifications for post:', postId, notificationError);

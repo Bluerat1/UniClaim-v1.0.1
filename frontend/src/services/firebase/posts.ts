@@ -183,6 +183,12 @@ export const postService = {
         (async () => {
             const notificationStart = performance.now();
             try {
+                // Check if this is a turnover post - if so, skip notifications until approved
+                if (post.turnoverDetails && post.turnoverDetails.turnoverAction) {
+                    console.log(`📋 Post ${postId} has turnover details (${post.turnoverDetails.turnoverAction}) - skipping notifications until approved`);
+                    return;
+                }
+
                 // Get creator information for the notification (with caching)
                 const creatorCacheKey = cacheKeys.user(creatorId);
                 let creatorData = userCache.get(creatorCacheKey);
@@ -2107,6 +2113,46 @@ export const postService = {
             await updateDoc(postRef, updateData);
 
             console.log(`✅ Turnover status updated successfully for post ${postId}`);
+
+            // Send notifications to all users if OSA confirmed the post
+            if (status === "confirmed" || status === "transferred") {
+                try {
+                    console.log(`🔔 Sending notifications for ${status} OSA post ${postId}`);
+
+                    // Get the current post data after update
+                    const updatedPostDoc = await getDoc(postRef);
+                    if (updatedPostDoc.exists()) {
+                        const updatedPostData = updatedPostDoc.data() as Post;
+
+                        // Get the admin's information for the notification
+                        let adminName = 'Admin';
+                        if (confirmedBy) {
+                            const adminRef = doc(db, 'users', confirmedBy);
+                            const adminDoc = await getDoc(adminRef);
+                            if (adminDoc.exists()) {
+                                const adminData = adminDoc.data();
+                                adminName = `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim() || 'Admin';
+                            }
+                        }
+
+                        // Send notifications to all users about the confirmed post
+                        await notificationSender.sendNewPostNotification({
+                            id: postId,
+                            title: updatedPostData.title,
+                            category: updatedPostData.category,
+                            location: updatedPostData.location,
+                            type: updatedPostData.type,
+                            creatorId: updatedPostData.creatorId,
+                            creatorName: adminName
+                        });
+
+                        console.log(`✅ Notifications sent for ${status} OSA post ${postId}`);
+                    }
+                } catch (notificationError) {
+                    console.error(`❌ Failed to send notifications for ${status} post ${postId}:`, notificationError);
+                    // Don't fail the operation if notification fails
+                }
+            }
 
         } catch (error: any) {
             console.error('❌ Failed to update turnover status:', error);

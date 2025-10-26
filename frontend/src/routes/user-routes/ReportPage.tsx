@@ -483,6 +483,12 @@ export default function ReportPage() {
           },
           onSuccess: async (postId: string, post: any) => {
             try {
+              // Check if this is a turnover post - if so, skip notifications until approved
+              if (post.turnoverDetails && post.turnoverDetails.turnoverAction) {
+                console.log(`📋 Post ${postId} has turnover details (${post.turnoverDetails.turnoverAction}) - skipping notifications until approved`);
+                return;
+              }
+
               // Send notifications in the background
               await Promise.all([
                 // Send notifications to all users

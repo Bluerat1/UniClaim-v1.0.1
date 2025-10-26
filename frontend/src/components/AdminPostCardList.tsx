@@ -525,8 +525,8 @@ function AdminPostCardList({
 
       {/* Admin Notes Modal */}
       {showAdminNotesModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">Admin Notes</h3>
             <p className="text-sm text-gray-600 mb-4">
               Adding notes for changing status from "{post.status}" to "
@@ -535,19 +535,26 @@ function AdminPostCardList({
             <textarea
               value={adminNotes}
               onChange={(e) => setAdminNotes(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
               placeholder="Optional notes for this status change..."
               className="w-full p-3 border rounded-lg resize-none h-24 text-sm"
               maxLength={500}
             />
             <div className="flex justify-end gap-3 mt-4">
               <button
-                onClick={handleAdminNotesCancel}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAdminNotesCancel();
+                }}
                 className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded"
               >
                 Cancel
               </button>
               <button
-                onClick={handleAdminNotesConfirm}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAdminNotesConfirm();
+                }}
                 className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
               >
                 Confirm Status Change

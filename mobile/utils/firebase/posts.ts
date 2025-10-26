@@ -393,6 +393,12 @@ export const postService = {
             // This runs asynchronously and doesn't block post creation
             setTimeout(async () => {
                 try {
+                    // Check if this is a turnover post - if so, skip notifications until approved
+                    if (enhancedPostData.turnoverDetails && enhancedPostData.turnoverDetails.turnoverAction) {
+                        console.log(`📋 Mobile post ${postRef.id} has turnover details (${enhancedPostData.turnoverDetails.turnoverAction}) - skipping notifications until approved`);
+                        return;
+                    }
+
                     // Get creator information for the notification
                     const creatorDoc = await getDoc(doc(db, 'users', postData.creatorId || postData.user?.uid));
                     const creatorData = creatorDoc.exists() ? creatorDoc.data() : null;
