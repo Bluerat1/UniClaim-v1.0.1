@@ -2114,12 +2114,74 @@ export const postService = {
 
             console.log(`✅ Turnover status updated successfully for post ${postId}`);
 
-            // Send notifications to all users if OSA confirmed the post
+            // Update existing conversations to reflect the new post creator
+            if (status === "confirmed" && (postData.turnoverDetails?.turnoverAction === "turnover to OSA" || postData.turnoverDetails?.turnoverAction === "turnover to Campus Security")) {
+                try {
+                    console.log(`🔄 Updating conversations for post ${postId} to reflect new creator`);
+
+                    // Query all conversations for this post
+                    const { collection, query, where, getDocs } = await import('firebase/firestore');
+                    const conversationsQuery = query(
+                        collection(db, 'conversations'),
+                        where('postId', '==', postId)
+                    );
+                    const conversationsSnapshot = await getDocs(conversationsQuery);
+
+                    if (!conversationsSnapshot.empty) {
+                        const { updateDoc, doc } = await import('firebase/firestore');
+
+                        // Update each conversation
+                        for (const convDoc of conversationsSnapshot.docs) {
+                            const conversationRef = doc(db, 'conversations', convDoc.id);
+                            const conversationData = convDoc.data();
+
+                            // Get the new admin's information
+                            const adminRef = doc(db, 'users', confirmedBy);
+                            const adminDoc = await getDoc(adminRef);
+
+                            if (adminDoc.exists()) {
+                                const adminData = adminDoc.data();
+
+                                // Update conversation participants and post creator info
+                                const updatedParticipants = {
+                                    ...conversationData.participants
+                                };
+
+                                // Update the post owner participant with new admin info
+                                if (updatedParticipants[postData.creatorId]) {
+                                    updatedParticipants[confirmedBy] = {
+                                        uid: confirmedBy,
+                                        firstName: adminData.firstName || '',
+                                        lastName: adminData.lastName || '',
+                                        profilePicture: adminData.profilePicture || null,
+                                        joinedAt: updatedParticipants[postData.creatorId]?.joinedAt || serverTimestamp()
+                                    };
+                                    delete updatedParticipants[postData.creatorId];
+                                }
+
+                                await updateDoc(conversationRef, {
+                                    postOwnerId: confirmedBy,
+                                    postCreatorId: confirmedBy,
+                                    participants: updatedParticipants,
+                                    updatedAt: serverTimestamp()
+                                });
+
+                                console.log(`✅ Updated conversation ${convDoc.id} with new creator`);
+                            }
+                        }
+                    }
+                } catch (conversationUpdateError) {
+                    console.warn(`⚠️ Failed to update conversations for post ${postId}:`, conversationUpdateError);
+                    // Don't fail the main operation if conversation updates fail
+                }
+            }
+
+            // Send notifications to all users about the status change
             if (status === "confirmed" || status === "transferred") {
                 try {
-                    console.log(`🔔 Sending notifications for ${status} OSA post ${postId}`);
+                    console.log(`🔔 Sending status change notification for ${status} post ${postId}`);
 
-                    // Get the current post data after update
+                    // Get the updated post data for the notification
                     const updatedPostDoc = await getDoc(postRef);
                     if (updatedPostDoc.exists()) {
                         const updatedPostData = updatedPostDoc.data() as Post;
@@ -2135,21 +2197,22 @@ export const postService = {
                             }
                         }
 
-                        // Send notifications to all users about the confirmed post
-                        await notificationSender.sendNewPostNotification({
-                            id: postId,
-                            title: updatedPostData.title,
-                            category: updatedPostData.category,
-                            location: updatedPostData.location,
-                            type: updatedPostData.type,
+                        // Send status change notification instead of new post notification
+                        await notificationSender.sendStatusChangeNotification({
+                            postId: postId,
+                            postTitle: updatedPostData.title,
+                            postType: updatedPostData.type,
                             creatorId: updatedPostData.creatorId,
-                            creatorName: adminName
+                            creatorName: adminName,
+                            oldStatus: postData.turnoverDetails?.turnoverStatus || 'declared',
+                            newStatus: status,
+                            adminName: adminName
                         });
 
-                        console.log(`✅ Notifications sent for ${status} OSA post ${postId}`);
+                        console.log(`✅ Status change notification sent for ${status} post ${postId}`);
                     }
                 } catch (notificationError) {
-                    console.error(`❌ Failed to send notifications for ${status} post ${postId}:`, notificationError);
+                    console.error(`❌ Failed to send status change notification for ${status} post ${postId}:`, notificationError);
                     // Don't fail the operation if notification fails
                 }
             }
