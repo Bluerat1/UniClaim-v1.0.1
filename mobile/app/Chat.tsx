@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   FlatList,
@@ -1077,7 +1077,7 @@ export default function Chat() {
 
           {/* Input Area with bottom spacing */}
           <View
-            className={`bg-white px-4 pt-2 ${isKeyboardVisible ? "pb-14" : "pb-0"}`}
+            className={`bg-white px-4 pt-2 ${isKeyboardVisible ? "pb-16" : "pb-0"}`}
           >
             <View className="flex-row items-center gap-3">
               <View className="flex-1">
