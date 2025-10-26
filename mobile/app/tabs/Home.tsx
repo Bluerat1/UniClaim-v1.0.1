@@ -52,8 +52,8 @@ export default function Home() {
   const resolvedPostsHook = useResolvedPosts();
 
   // Handle different return types from hooks
-  const { posts, loading, error, isInitialLoad } = isResolvedTab
-    ? { ...resolvedPostsHook, isInitialLoad: false } // resolved hook doesn't have isInitialLoad
+  const { posts, loading, error, isInitialLoad, invalidateCache } = isResolvedTab
+    ? { ...resolvedPostsHook, isInitialLoad: false, invalidateCache: () => {} } // resolved hook doesn't have isInitialLoad or invalidateCache yet
     : postsHook;
 
   // Simple scroll handling (like web version)
@@ -330,7 +330,6 @@ export default function Home() {
             </TouchableOpacity>
           </View>
         ) : isInitialLoad && loading ? (
-          // Show skeleton loading only on first load
           <PostCardSkeletonList count={5} />
         ) : (
           <FlatList
@@ -343,7 +342,7 @@ export default function Home() {
                 descriptionSearch={descriptionSearch}
               />
             )}
-            scrollEventThrottle={16} // Optimize scroll performance
+            scrollEventThrottle={16}
             ListEmptyComponent={
               <View className="items-center justify-center mt-10">
                 <Text className="text-gray-500 text-base font-manrope-medium">

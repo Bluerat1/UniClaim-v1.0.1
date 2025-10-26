@@ -168,7 +168,18 @@ export default function PostCardMenu({
           <View
             className="absolute top-0 right-12 bg-white rounded-lg shadow-lg border border-gray-200 w-48"
             style={{ zIndex: 50 }}
+            pointerEvents="auto"
           >
+            {/* Close button */}
+            <View className="flex-row justify-end p-2 border-b border-gray-200">
+              <TouchableOpacity
+                onPress={() => closeMenu()}
+                className="p-1"
+              >
+                <Ionicons name="close" size={16} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
             {/* Send Message Button */}
             <TouchableOpacity
               onPress={() => {
@@ -217,7 +228,7 @@ export default function PostCardMenu({
                 postOwnerId === user?.uid ||
                 postStatus === "resolved"
               }
-              className={`flex-row items-center px-4 py-3 mr-3 ${
+              className={`flex-row items-center px-4 py-3 ${
                 isAlreadyFlaggedByUser ||
                 postOwnerId === user?.uid ||
                 postStatus === "resolved"

@@ -6,12 +6,16 @@ interface ImagePickerProps {
   onImageSelect: (imageUri: string) => void;
   onClose: () => void;
   isUploading?: boolean;
+  title?: string;
+  description?: string;
 }
 
 const ImagePicker: React.FC<ImagePickerProps> = ({
   onImageSelect,
   onClose,
   isUploading = false,
+  title = "Upload ID Photo",
+  description = "Please provide a photo of your ID as proof that you received the item.",
 }) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
@@ -89,13 +93,13 @@ const ImagePicker: React.FC<ImagePickerProps> = ({
   };
 
   return (
-    <View className="absolute inset-0 bg-black/70 justify-center items-center z-50">
-      <View className="bg-white rounded-lg p-4 mx-4 max-w-[320px] w-full">
+    <View className="absolute inset-0 bg-black justify-center items-center z-50">
+      <View className="bg-white rounded-xl p-5 m-5 w-[90%] max-h-[80%]">
         <Text className="text-lg font-manrope-bold mb-2 text-center">
-          Upload ID Photo
+          {title}
         </Text>
         <Text className="text-sm font-inter text-gray-500 mb-4 text-center">
-          Please provide a photo of your ID as proof that you received the item.
+          {description}
         </Text>
 
         {/* Action Buttons */}

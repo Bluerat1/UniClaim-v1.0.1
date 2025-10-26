@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   FlatList,
@@ -19,6 +19,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useMessage } from "@/context/MessageContext";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/context/ToastContext";
 import ProfilePicture from "@/components/ProfilePicture";
 import type { Message, RootStackParamList } from "@/types/type";
 import MessageBubble from "@/components/MessageBubble";
@@ -103,6 +104,9 @@ export default function Chat() {
   } = useMessage();
 
   const { user, userData } = useAuth();
+
+  // Add toast context
+  const { showToastMessage } = useToast();
 
   // Simple state management
   const [messages, setMessages] = useState<Message[]>([]);
@@ -690,7 +694,7 @@ export default function Chat() {
         data.itemPhotos
       );
       setShowHandoverModal(false);
-      Alert.alert("Success", "Handover request sent successfully!");
+      showToastMessage("Handover request sent successfully!", "success");
     } catch {
       Alert.alert(
         "Error",
@@ -726,7 +730,7 @@ export default function Chat() {
         data.evidencePhotos
       );
       setShowClaimModal(false);
-      Alert.alert("Success", "Claim request sent successfully!");
+      showToastMessage("Claim request sent successfully!", "success");
     } catch {
       Alert.alert("Error", "Failed to send claim request. Please try again.");
     } finally {
@@ -742,7 +746,7 @@ export default function Chat() {
     // MessageBubble handles the actual logic
     // This function is called by MessageBubble after successful rejection
     if (status === "rejected") {
-      Alert.alert("Success", "Handover request rejected!");
+      showToastMessage("Handover request rejected!", "success");
     }
   };
 
@@ -794,9 +798,9 @@ export default function Chat() {
         }, 2000); // Increased delay to allow Firebase to fully update
       }
 
-      Alert.alert(
-        "Success",
-        `Claim request ${status === "accepted" ? "accepted - awaiting verification" : status}!`
+      showToastMessage(
+        `Claim request ${status === "accepted" ? "accepted - awaiting verification" : status}!`,
+        "success"
       );
     } catch {
       Alert.alert(
@@ -825,15 +829,15 @@ export default function Chat() {
     try {
       if (message.messageType === "handover_request") {
         await confirmHandoverIdPhoto(conversationId, messageId, user.uid);
-        Alert.alert(
-          "Success",
-          "Handover ID photo confirmed! The post is now marked as completed."
+        showToastMessage(
+          "Handover ID photo confirmed! The post is now marked as completed.",
+          "success"
         );
       } else if (message.messageType === "claim_request") {
         await confirmClaimIdPhoto(conversationId, messageId, user.uid);
-        Alert.alert(
-          "Success",
-          "Claim ID photo confirmed! The post is now marked as completed."
+        showToastMessage(
+          "Claim ID photo confirmed! The post is now marked as completed.",
+          "success"
         );
       }
 

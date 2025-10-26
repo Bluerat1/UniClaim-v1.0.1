@@ -256,6 +256,8 @@ export default function ClaimModal({
           onImageSelect={handleIdPhotoSelect}
           onClose={() => setShowIdPhotoPicker(false)}
           isUploading={false}
+          title="Upload ID Photo"
+          description="Please provide a photo of your ID as proof that you received the item."
         />
       )}
       {showEvidencePhotoPicker && (
@@ -263,6 +265,8 @@ export default function ClaimModal({
           onImageSelect={handleEvidencePhotoSelect}
           onClose={() => setShowEvidencePhotoPicker(false)}
           isUploading={false}
+          title="Upload Evidence Photo"
+          description="Please provide photos that prove this item belongs to you."
         />
       )}
     </View>

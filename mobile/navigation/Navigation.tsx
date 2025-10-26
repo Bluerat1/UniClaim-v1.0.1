@@ -16,6 +16,8 @@ const ScreenLoader = () => (
 // Components
 import CustomTabs from "../components/BottomTabs";
 import ScreenWrapper from "../components/ScreenWrapper";
+import Toast from "../components/Toast";
+import { useToast } from "../context/ToastContext";
 
 // Screens - keeping direct imports for React Native compatibility
 import Chat from "@/app/Chat";
@@ -45,6 +47,23 @@ const withScreenWrapper = <P extends object>(Component: React.ComponentType<P>) 
   );
 };
 
+// Navigation wrapper component that includes Toast
+const NavigationWrapper = ({ children, toastProps }: {
+  children: React.ReactNode;
+  toastProps: { showToast: boolean; toastMessage: string; toastType: string; toastDuration: number; }
+}) => (
+  <>
+    {children}
+    <Toast
+      visible={toastProps.showToast}
+      message={toastProps.toastMessage}
+      type={toastProps.toastType as any}
+      duration={toastProps.toastDuration}
+      onClose={() => {}}
+    />
+  </>
+);
+
 interface NavigationProps {
   hasSeenOnBoarding: boolean;
   setHasSeenOnBoarding: React.Dispatch<React.SetStateAction<boolean>>;
@@ -70,6 +89,9 @@ export default function Navigation({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const { user, userData, isBanned, isAuthenticated, needsEmailVerification, loading, loginAttemptFailed } = useAuth();
 
+  // Add toast context
+  const { showToast, toastMessage, toastType, toastDuration } = useToast();
+
   // Force re-render when authentication state changes
   const [renderKey, setRenderKey] = useState(0);
 
@@ -89,19 +111,21 @@ export default function Navigation({
       loading,
       loginAttemptFailed
     });
-  }, [renderKey, isAuthenticated, user, userData, isBanned, needsEmailVerification, loading, loginAttemptFailed]);
+  }, [renderKey, isAuthenticated, user, userData, isBanned, needsEmailVerification, loading, loginAttemptFailed, showToast, toastMessage, toastType, toastDuration]);
 
   // If AuthContext is still loading, show loading screen
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-white justify-center items-center px-6">
-        <View className="items-center">
-          <ActivityIndicator size="large" color="#1e40af" />
-          <Text className="text-lg font-manrope-bold text-brand mt-4">
-            Loading...
-          </Text>
-        </View>
-      </SafeAreaView>
+      <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
+        <SafeAreaView className="flex-1 bg-white justify-center items-center px-6">
+          <View className="items-center">
+            <ActivityIndicator size="large" color="#1e40af" />
+            <Text className="text-lg font-manrope-bold text-brand mt-4">
+              Loading...
+            </Text>
+          </View>
+        </SafeAreaView>
+      </NavigationWrapper>
     );
   }
 
@@ -126,78 +150,284 @@ export default function Navigation({
   // Prevent banned users from accessing main app - redirect to index screen
   if (user && isBanned) {
     return (
-      <Stack.Navigator
-        key={`banned-navigation-${renderKey}`}
-        initialRouteName="Index"
-        screenOptions={{ headerShown: false, animation: "fade" }}
-      >
-        <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
-        <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
-        <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
-        <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
-        <Stack.Screen name="EmailVerification">
-          {() => (
-            <Suspense fallback={<ScreenLoader />}>
-              <EmailVerification />
-            </Suspense>
-          )}
-        </Stack.Screen>
-      </Stack.Navigator>
+      <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
+        <Stack.Navigator
+          key={`banned-navigation-${renderKey}`}
+          initialRouteName="Index"
+          screenOptions={{ headerShown: false, animation: "fade" }}
+        >
+          <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
+          <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
+          <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
+          <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
+          <Stack.Screen name="EmailVerification">
+            {() => (
+              <Suspense fallback={<ScreenLoader />}>
+                <EmailVerification />
+              </Suspense>
+            )}
+          </Stack.Screen>
+        </Stack.Navigator>
+      </NavigationWrapper>
     );
   }
 
   // If user is not authenticated and login attempt failed, show login screen
   if (!isAuthenticated && !user && loginAttemptFailed) {
     return (
-      <Stack.Navigator
-        key={`login-failed-navigation-${renderKey}`}
-        initialRouteName="Login"
-        screenOptions={{ headerShown: false, animation: "fade" }}
-      >
-        <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
-        <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
-        <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
-        <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
-        <Stack.Screen name="EmailVerification">
-          {() => (
-            <Suspense fallback={<ScreenLoader />}>
-              <EmailVerification />
-            </Suspense>
-          )}
-        </Stack.Screen>
-      </Stack.Navigator>
+      <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
+        <Stack.Navigator
+          key={`login-failed-navigation-${renderKey}`}
+          initialRouteName="Login"
+          screenOptions={{ headerShown: false, animation: "fade" }}
+        >
+          <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
+          <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
+          <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
+          <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
+          <Stack.Screen name="EmailVerification">
+            {() => (
+              <Suspense fallback={<ScreenLoader />}>
+                <EmailVerification />
+              </Suspense>
+            )}
+          </Stack.Screen>
+        </Stack.Navigator>
+      </NavigationWrapper>
     );
   }
 
-  // If user is fully authenticated, show main app (HIGHEST PRIORITY)
-  if (isAuthenticated && user && !isBanned) {
-        console.log('🚀 Navigation: User authenticated, routing to main app');
-        console.log('🔄 Navigation: isAuthenticated:', isAuthenticated, 'user:', !!user, 'isBanned:', isBanned);
+  // If user is logged in (either fully authenticated or needs verification), show main app
+  // This allows new users to access basic functionality before email verification
+  if (user && !isBanned) {
+        console.log('🚀 Navigation: User logged in, routing to main app');
+        console.log('🔄 Navigation: isAuthenticated:', isAuthenticated, 'user:', !!user, 'isBanned:', isBanned, 'needsEmailVerification:', needsEmailVerification);
         return (
+      <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
+        <Stack.Navigator
+          key={`authenticated-navigation-${renderKey}`}
+          initialRouteName="RootBottomTabs"
+          screenOptions={{ headerShown: false, animation: "fade" }}
+        >
+          <Stack.Screen
+            name="RootBottomTabs"
+            component={withScreenWrapper(CustomTabs)}
+          />
+          <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
+          <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
+          <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
+          <Stack.Screen name="EmailVerification">
+            {() => (
+              <Suspense fallback={<ScreenLoader />}>
+                <EmailVerification />
+              </Suspense>
+            )}
+          </Stack.Screen>
+          {/* Add screens that need to be accessible from tab screens */}
+          <Stack.Screen name="PostDetails">
+            {() => (
+              <Suspense fallback={<ScreenLoader />}>
+                <PostDetails />
+              </Suspense>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="Message">
+            {() => (
+              <Suspense fallback={<ScreenLoader />}>
+                <Message />
+              </Suspense>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="Chat">
+            {() => (
+              <Suspense fallback={<ScreenLoader />}>
+                <Chat />
+              </Suspense>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="ClaimFormScreen">
+            {() => (
+              <Suspense fallback={<ScreenLoader />}>
+                <ClaimFormScreen />
+              </Suspense>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="PhotoCaptureScreen">
+            {() => (
+              <Suspense fallback={<ScreenLoader />}>
+                <PhotoCaptureScreen />
+              </Suspense>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="ItemDetails">
+            {(props) => (
+              <ScreenWrapper statusBarStyle="dark-content" statusBarBg="#fff">
+                <ItemDetails
+                  {...props}
+                  images={images}
+                  setImages={setImages}
+                  showLostInfo={showLostInfo}
+                  showFoundInfo={showFoundInfo}
+                  setShowLostInfo={setShowLostInfo}
+                  setShowFoundInfo={setShowFoundInfo}
+                  title={title}
+                  setTitle={setTitle}
+                  description={description}
+                  setDescription={setDescription}
+                  reportType={reportType}
+                  setReportType={setReportType}
+                  foundAction={foundAction}
+                  setFoundAction={setFoundAction}
+                  selectedDate={selectedDate}
+                  setSelectedDate={setSelectedDate}
+                  selectedLocation={selectedLocation}
+                  setSelectedLocation={setSelectedLocation}
+                  selectedCategory={selectedCategory}
+                  setSelectedCategory={setSelectedCategory}
+                />
+              </ScreenWrapper>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="USTPMapScreen">
+            {() => (
+              <Suspense fallback={<ScreenLoader />}>
+                <USTPMapScreen />
+              </Suspense>
+            )}
+          </Stack.Screen>
+        </Stack.Navigator>
+      </NavigationWrapper>
+    );
+  }
+
+  // If user needs email verification, show email verification screen
+  if (shouldShowEmailVerification) {
+    console.log('🚀 Navigation: RETURNING email verification stack (PRIORITY 2)');
+    return (
+      <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
+        <Stack.Navigator
+          key={`email-verification-navigation-${renderKey}`}
+          initialRouteName="EmailVerification"
+          screenOptions={{ headerShown: false, animation: "fade" }}
+        >
+          <Stack.Screen name="EmailVerification">
+            {() => (
+              <Suspense fallback={<ScreenLoader />}>
+                <EmailVerification />
+              </Suspense>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
+          <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
+          <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
+          <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
+        </Stack.Navigator>
+      </NavigationWrapper>
+    );
+  }
+
+  // If user is not authenticated, show index screen
+  // Handle account deletion case: if user exists but userData is null (account deleted), show Index
+  if (!isAuthenticated && (!user || (user && userData === null)) && !needsEmailVerification && !loginAttemptFailed) {
+    console.log('🚀 Navigation: RETURNING index stack (PRIORITY 4)');
+    return (
+      <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
+        <Stack.Navigator
+          key={`index-navigation-${renderKey}`}
+          initialRouteName="Index"
+          screenOptions={{ headerShown: false, animation: "fade" }}
+        >
+          <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
+          <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
+          <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
+          <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
+          <Stack.Screen name="EmailVerification">
+            {() => (
+              <Suspense fallback={<ScreenLoader />}>
+                <EmailVerification />
+              </Suspense>
+            )}
+          </Stack.Screen>
+        </Stack.Navigator>
+      </NavigationWrapper>
+    );
+  }
+
+  const initial = shouldShowOnboarding
+    ? "OnBoarding"
+    : shouldShowIndex
+      ? "Index"
+      : isAuthenticated && user && !isBanned
+        ? "RootBottomTabs"
+        : shouldShowEmailVerification
+          ? "EmailVerification"
+          : (!isAuthenticated && (!user || (user && userData === null)))
+            ? "Index" // Handle account deletion case: redirect to Index if user exists but account deleted
+            : "Index"; // Fallback to Index if no other condition matches
+
+  console.log('🚀 Navigation: Initial route:', initial);
+
+  return (
+    <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
       <Stack.Navigator
-        key={`authenticated-navigation-${renderKey}`}
-        initialRouteName="RootBottomTabs"
+        key={`main-navigation-${renderKey}`}
+        initialRouteName={initial}
         screenOptions={{ headerShown: false, animation: "fade" }}
       >
+        {/* Entry Screens */}
+        <Stack.Screen name="OnBoarding">
+          {() => (
+            <Suspense fallback={<ScreenLoader />}>
+              <OnBoarding onFinish={() => setHasSeenOnBoarding(true)} />
+            </Suspense>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="Index">
+          {() => (
+            <Suspense fallback={<ScreenLoader />}>
+              <Index onContinue={() => setHasPassedIndex(true)} />
+            </Suspense>
+          )}
+        </Stack.Screen>
+
+        {/* Main Screens */}
         <Stack.Screen
           name="RootBottomTabs"
           component={withScreenWrapper(CustomTabs)}
         />
-        <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
-        <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
-        <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
-        <Stack.Screen name="EmailVerification">
+        <Stack.Screen name="Login">
           {() => (
             <Suspense fallback={<ScreenLoader />}>
-              <EmailVerification />
+              <Login />
             </Suspense>
           )}
         </Stack.Screen>
-        {/* Add screens that need to be accessible from tab screens */}
-        <Stack.Screen name="PostDetails">
+        <Stack.Screen name="Register">
           {() => (
             <Suspense fallback={<ScreenLoader />}>
-              <PostDetails />
+              <Register />
+            </Suspense>
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="Home">
+          {() => (
+            <Suspense fallback={<ScreenLoader />}>
+              <Home />
+            </Suspense>
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="Report">
+          {() => (
+            <Suspense fallback={<ScreenLoader />}>
+              <Report />
+            </Suspense>
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="Profile">
+          {() => (
+            <Suspense fallback={<ScreenLoader />}>
+              <Profile />
             </Suspense>
           )}
         </Stack.Screen>
@@ -205,6 +435,27 @@ export default function Navigation({
           {() => (
             <Suspense fallback={<ScreenLoader />}>
               <Message />
+            </Suspense>
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="ForgotPassword">
+          {() => (
+            <Suspense fallback={<ScreenLoader />}>
+              <ForgotPassword />
+            </Suspense>
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="EmailVerification">
+          {() => (
+            <Suspense fallback={<ScreenLoader />}>
+              <EmailVerification />
+            </Suspense>
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="PostDetails">
+          {() => (
+            <Suspense fallback={<ScreenLoader />}>
+              <PostDetails />
             </Suspense>
           )}
         </Stack.Screen>
@@ -229,6 +480,8 @@ export default function Navigation({
             </Suspense>
           )}
         </Stack.Screen>
+
+        {/* ✅ FIXED: Pass props using render function */}
         <Stack.Screen name="ItemDetails">
           {(props) => (
             <ScreenWrapper statusBarStyle="dark-content" statusBarBg="#fff">
@@ -266,222 +519,6 @@ export default function Navigation({
           )}
         </Stack.Screen>
       </Stack.Navigator>
-    );
-  }
-
-  // If user needs email verification, show email verification screen
-  if (shouldShowEmailVerification) {
-    console.log('🚀 Navigation: RETURNING email verification stack (PRIORITY 2)');
-    return (
-      <Stack.Navigator
-        key={`email-verification-navigation-${renderKey}`}
-        initialRouteName="EmailVerification"
-        screenOptions={{ headerShown: false, animation: "fade" }}
-      >
-        <Stack.Screen name="EmailVerification">
-          {() => (
-            <Suspense fallback={<ScreenLoader />}>
-              <EmailVerification />
-            </Suspense>
-          )}
-        </Stack.Screen>
-        <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
-        <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
-        <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
-        <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
-      </Stack.Navigator>
-    );
-  }
-
-  // If user is not authenticated, show index screen
-  // Handle account deletion case: if user exists but userData is null (account deleted), show Index
-  if (!isAuthenticated && (!user || (user && userData === null)) && !needsEmailVerification && !loginAttemptFailed) {
-    console.log('🚀 Navigation: RETURNING index stack (PRIORITY 4)');
-    return (
-      <Stack.Navigator
-        key={`index-navigation-${renderKey}`}
-        initialRouteName="Index"
-        screenOptions={{ headerShown: false, animation: "fade" }}
-      >
-        <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
-        <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
-        <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
-        <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
-        <Stack.Screen name="EmailVerification">
-          {() => (
-            <Suspense fallback={<ScreenLoader />}>
-              <EmailVerification />
-            </Suspense>
-          )}
-        </Stack.Screen>
-      </Stack.Navigator>
-    );
-  }
-
-  const initial = shouldShowOnboarding
-    ? "OnBoarding"
-    : shouldShowIndex
-      ? "Index"
-      : isAuthenticated && user && !isBanned
-        ? "RootBottomTabs"
-        : shouldShowEmailVerification
-          ? "EmailVerification"
-          : (!isAuthenticated && (!user || (user && userData === null)))
-            ? "Index" // Handle account deletion case: redirect to Index if user exists but account deleted
-            : "Index"; // Fallback to Index if no other condition matches
-
-  console.log('🚀 Navigation: Initial route:', initial);
-
-  return (
-    <Stack.Navigator
-      key={`main-navigation-${renderKey}`}
-      initialRouteName={initial}
-      screenOptions={{ headerShown: false, animation: "fade" }}
-    >
-      {/* Entry Screens */}
-      <Stack.Screen name="OnBoarding">
-        {() => (
-          <Suspense fallback={<ScreenLoader />}>
-            <OnBoarding onFinish={() => setHasSeenOnBoarding(true)} />
-          </Suspense>
-        )}
-      </Stack.Screen>
-
-      <Stack.Screen name="Index">
-        {() => (
-          <Suspense fallback={<ScreenLoader />}>
-            <Index onContinue={() => setHasPassedIndex(true)} />
-          </Suspense>
-        )}
-      </Stack.Screen>
-
-      {/* Main Screens */}
-      <Stack.Screen
-        name="RootBottomTabs"
-        component={withScreenWrapper(CustomTabs)}
-      />
-      <Stack.Screen name="Login">
-        {() => (
-          <Suspense fallback={<ScreenLoader />}>
-            <Login />
-          </Suspense>
-        )}
-      </Stack.Screen>
-      <Stack.Screen name="Register">
-        {() => (
-          <Suspense fallback={<ScreenLoader />}>
-            <Register />
-          </Suspense>
-        )}
-      </Stack.Screen>
-      <Stack.Screen name="Home">
-        {() => (
-          <Suspense fallback={<ScreenLoader />}>
-            <Home />
-          </Suspense>
-        )}
-      </Stack.Screen>
-      <Stack.Screen name="Report">
-        {() => (
-          <Suspense fallback={<ScreenLoader />}>
-            <Report />
-          </Suspense>
-        )}
-      </Stack.Screen>
-      <Stack.Screen name="Profile">
-        {() => (
-          <Suspense fallback={<ScreenLoader />}>
-            <Profile />
-          </Suspense>
-        )}
-      </Stack.Screen>
-      <Stack.Screen name="Message">
-        {() => (
-          <Suspense fallback={<ScreenLoader />}>
-            <Message />
-          </Suspense>
-        )}
-      </Stack.Screen>
-      <Stack.Screen name="ForgotPassword">
-        {() => (
-          <Suspense fallback={<ScreenLoader />}>
-            <ForgotPassword />
-          </Suspense>
-        )}
-      </Stack.Screen>
-      <Stack.Screen name="EmailVerification">
-        {() => (
-          <Suspense fallback={<ScreenLoader />}>
-            <EmailVerification />
-          </Suspense>
-        )}
-      </Stack.Screen>
-      <Stack.Screen name="PostDetails">
-        {() => (
-          <Suspense fallback={<ScreenLoader />}>
-            <PostDetails />
-          </Suspense>
-        )}
-      </Stack.Screen>
-      <Stack.Screen name="Chat">
-        {() => (
-          <Suspense fallback={<ScreenLoader />}>
-            <Chat />
-          </Suspense>
-        )}
-      </Stack.Screen>
-      <Stack.Screen name="ClaimFormScreen">
-        {() => (
-          <Suspense fallback={<ScreenLoader />}>
-            <ClaimFormScreen />
-          </Suspense>
-        )}
-      </Stack.Screen>
-      <Stack.Screen name="PhotoCaptureScreen">
-        {() => (
-          <Suspense fallback={<ScreenLoader />}>
-            <PhotoCaptureScreen />
-          </Suspense>
-        )}
-      </Stack.Screen>
-
-      {/* ✅ FIXED: Pass props using render function */}
-      <Stack.Screen name="ItemDetails">
-        {(props) => (
-          <ScreenWrapper statusBarStyle="dark-content" statusBarBg="#fff">
-            <ItemDetails
-              {...props}
-              images={images}
-              setImages={setImages}
-              showLostInfo={showLostInfo}
-              showFoundInfo={showFoundInfo}
-              setShowLostInfo={setShowLostInfo}
-              setShowFoundInfo={setShowFoundInfo}
-              title={title}
-              setTitle={setTitle}
-              description={description}
-              setDescription={setDescription}
-              reportType={reportType}
-              setReportType={setReportType}
-              foundAction={foundAction}
-              setFoundAction={setFoundAction}
-              selectedDate={selectedDate}
-              setSelectedDate={setSelectedDate}
-              selectedLocation={selectedLocation}
-              setSelectedLocation={setSelectedLocation}
-              selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
-            />
-          </ScreenWrapper>
-        )}
-      </Stack.Screen>
-      <Stack.Screen name="USTPMapScreen">
-        {() => (
-          <Suspense fallback={<ScreenLoader />}>
-            <USTPMapScreen />
-          </Suspense>
-        )}
-      </Stack.Screen>
-    </Stack.Navigator>
+    </NavigationWrapper>
   );
 }

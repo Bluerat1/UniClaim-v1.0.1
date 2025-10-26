@@ -195,6 +195,7 @@ export interface Post {
       profilePicture?: string | null; // Original finder's profile picture
     };
     turnoverAction: "turnover to OSA" | "turnover to Campus Security";
+    originalTurnoverAction?: "turnover to OSA" | "turnover to Campus Security"; // Track original action for transfers
     turnoverDecisionAt: any;          // When the turnover decision was made (Firebase timestamp)
     turnoverReason?: string;          // Optional reason for turnover
 

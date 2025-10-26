@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useMessage } from "@/context/MessageContext";
+import { useToast } from "@/context/ToastContext";
 import type { Message } from "@/types/type";
 import ImagePicker from "@/components/ImagePicker";
 import ProfilePicture from "@/components/ProfilePicture";
@@ -63,6 +64,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   isLastSeenByOthers = false,
 }) => {
   const { deleteMessage } = useMessage();
+  const { showToastMessage } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showIdPhotoModal, setShowIdPhotoModal] = useState(false);
   const [isUploadingIdPhoto, setIsUploadingIdPhoto] = useState(false);
@@ -206,7 +208,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         }
       },
       onSuccess: (message) => {
-        Alert.alert("Success", message);
+        showToastMessage(message, "success");
         setShowIdPhotoModal(false);
       },
       onError: (error) => Alert.alert("Upload Error", error),
@@ -759,6 +761,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         onImageSelect={uploadHandler}
         onClose={() => setShowIdPhotoModal(false)}
         isUploading={isUploadingIdPhoto}
+        title="Upload ID Photo"
+        description="Please provide a photo of your ID as proof that you received the item."
       />
     );
   };

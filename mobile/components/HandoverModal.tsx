@@ -255,6 +255,8 @@ export default function HandoverModal({
           onImageSelect={handleIdPhotoSelect}
           onClose={() => setShowIdPhotoPicker(false)}
           isUploading={false}
+          title="Upload ID Photo"
+          description="Please provide a photo of your ID as proof that you received the item."
         />
       )}
       {showItemPhotoPicker && (
@@ -262,6 +264,8 @@ export default function HandoverModal({
           onImageSelect={handleItemPhotoSelect}
           onClose={() => setShowItemPhotoPicker(false)}
           isUploading={false}
+          title="Upload Item Photo"
+          description="Please provide photos of the item to be handed over."
         />
       )}
     </View>

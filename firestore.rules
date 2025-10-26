@@ -21,19 +21,20 @@ service cloud.firestore {
       // Allow users to create their own document during registration
       allow create: if request.auth != null && request.auth.uid == userId;
 
-      // Allow users to write their own document (but not when banned)
-      // Handle cases where status field might not exist yet (new users)
-      allow write: if request.auth != null && request.auth.uid == userId &&
-        (resource.data.status == null || (resource.data.status != 'deactivated' && resource.data.status != 'banned'));
-
       // Allow email verification updates for authenticated users
       // This allows users to update their emailVerified status during verification
       allow update: if request.auth != null && request.auth.uid == userId &&
+        (resource.data.status == null || (resource.data.status != 'deactivated' && resource.data.status != 'banned')) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['emailVerified', 'updatedAt']);
 
       // Allow push token updates for authenticated users (for notification setup)
       allow update: if request.auth != null && request.auth.uid == userId &&
+        (resource.data.status == null || (resource.data.status != 'deactivated' && resource.data.status != 'banned')) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pushToken', 'pushTokenUpdatedAt']);
+
+      // Allow profile updates for authenticated users (for profile editing)
+      // Users can update their basic profile information
+      allow update: if request.auth != null && request.auth.uid == userId;
 
       // Allow users to delete their own document (for account deletion)
       // Simplified rule - users can always delete their own document
@@ -62,9 +63,10 @@ service cloud.firestore {
 
       // Users can update their own posts, OR admins can update any post
       // FIXED: Case-insensitive email comparison to handle different cases
+      // Allow new users to update their posts before email verification
       allow update: if request.auth != null
         && request.auth.uid != null
-        && (resource.data.user.email.lower() == request.auth.token.email.lower() || isAdmin());
+        && (resource.data.user.email.lower() == request.auth.token.email.lower() || isAdmin() || isNewUser());
       
       // Allow any authenticated user to flag posts (for flagging system)
       // This allows users to add/update flagging fields on any post
@@ -74,8 +76,9 @@ service cloud.firestore {
 
       // Users can delete their own posts, or admins can delete any post
       // FIXED: Case-insensitive email comparison for consistency
+      // Allow new users to delete their own posts
       allow delete: if request.auth != null
-        && (resource.data.user.email.lower() == request.auth.token.email.lower() || isAdmin());
+        && (resource.data.user.email.lower() == request.auth.token.email.lower() || isAdmin() || isNewUser());
     }
     
     // SIMPLIFIED: Conversations collection for messaging
@@ -237,7 +240,14 @@ service cloud.firestore {
         && data.description is string && data.description.size() > 0
         && data.category is string && data.category.size() > 0
         && data.location is string && data.location.size() > 0
-        && (data.user.email == request.auth.token.email || data.user.email == 'cs@uniclaim.com');
+        && (data.user.email == request.auth.token.email || data.user.email == 'cs@uniclaim.com' || isNewUser());
+    }
+    
+    function isNewUser() {
+      // Check if user exists in database and if their email is verified
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        !get(/databases/$(database)/documents/users/$(request.auth.uid)).data.emailVerified;
     }
     
     function isAdmin() {

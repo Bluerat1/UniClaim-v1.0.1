@@ -23,6 +23,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view
 import PageLayout from "../../layout/PageLayout";
 import type { RootStackParamList } from "../../types/type";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import { profileUpdateService } from "../../utils/profileUpdateService";
 import {
   cloudinaryService,
@@ -42,6 +43,7 @@ export default function Profile() {
   const [isLoading, setIsLoading] = useState(false);
   const navigation = useNavigation<NavigationProp>();
   const { logout, userData, user, refreshUserData, isAuthenticated } = useAuth();
+  const { showToastMessage } = useToast();
 
   // Delete account states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -237,11 +239,11 @@ export default function Profile() {
               userData.profilePicture
             );
             if (deletionSuccess) {
-              Alert.alert("Success", "Profile picture removed successfully!");
+              showToastMessage("Profile picture removed successfully!", "success");
             } else {
-              Alert.alert(
-                "Warning",
-                "Profile picture removed, but there was an issue deleting it from storage."
+              showToastMessage(
+                "Profile picture removed, but there was an issue deleting it from storage.",
+                "warning"
               );
             }
           } catch (deleteError: any) {
@@ -295,7 +297,7 @@ export default function Profile() {
       // Refresh user data to ensure UI shows updated information
       await refreshUserData();
 
-      Alert.alert("Success", "Profile updated successfully!");
+      showToastMessage("Profile updated successfully!", "success");
       setIsEditing(false);
       setHasImageChanged(false);
     } catch (error: any) {
@@ -543,9 +545,9 @@ export default function Profile() {
 
             setHasImageChanged(true);
 
-            Alert.alert(
-              "Profile Picture Marked for Removal",
-              "Your profile picture is marked for removal and will be deleted when you save changes."
+            showToastMessage(
+              "Your profile picture is marked for removal and will be deleted when you save changes.",
+              "info"
             );
           },
         },

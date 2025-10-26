@@ -43,18 +43,7 @@ export const PostCardMenuProvider = ({ children }: { children: ReactNode }) => {
       }}
     >
       {children}
-      {/* Global backdrop that appears when any menu is open */}
-      {openMenuId && (
-        <TouchableOpacity
-          className="absolute inset-0"
-          style={{
-            zIndex: 30,
-            backgroundColor: 'transparent'
-          }}
-          onPress={closeMenu}
-          activeOpacity={1}
-        />
-      )}
+      {/* No backdrop - menu closes when user taps the menu button again or navigates away */}
     </PostCardMenuContext.Provider>
   );
 };

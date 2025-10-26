@@ -18,7 +18,7 @@ import type { Post } from "@/types/type";
 import * as ImagePicker from "expo-image-picker";
 import CustomDropdownWithSearch from "./DropdownWithSearch";
 import { cleanupRemovedPostImages } from "@/utils/cloudinary";
-import { USTP_LOCATIONS } from "../constants";
+import { ITEM_CATEGORIES } from '../constants';
 
 interface EditTicketModalProps {
   post: Post;
@@ -208,10 +208,7 @@ export default function EditTicketModal({
   // Form state
   const [editedTitle, setEditedTitle] = useState(post.title);
   const [editedDescription, setEditedDescription] = useState(post.description);
-  const [editedLocation, setEditedLocation] = useState<string | null>(
-    // If the current location is in our predefined list, use it; otherwise set to null
-    USTP_LOCATIONS.includes(post.location) ? post.location : null
-  );
+  const [editedCategory, setEditedCategory] = useState<string | null>(post.category);
 
   // Image state - handle both string URLs and File objects
   const [editedImages, setEditedImages] = useState<string[]>(
@@ -226,8 +223,6 @@ export default function EditTicketModal({
     deleted: string[];
     failed: string[];
   }>({ isCleaning: false, deleted: [], failed: [] });
-
-  // Check permissions when component mounts
   React.useEffect(() => {
     const checkPermissions = async () => {
       try {
@@ -251,10 +246,7 @@ export default function EditTicketModal({
   React.useEffect(() => {
     setEditedTitle(post.title);
     setEditedDescription(post.description);
-    setEditedLocation(
-      // If the current location is in our predefined list, use it; otherwise set to null
-      USTP_LOCATIONS.includes(post.location) ? post.location : null
-    );
+    setEditedCategory(post.category);
     setEditedImages(
       post.images.map((img) => {
         if (typeof img === "string") return img;
@@ -274,8 +266,8 @@ export default function EditTicketModal({
       Alert.alert("Error", "Description is required");
       return;
     }
-    if (!editedLocation) {
-      Alert.alert("Error", "Location is required");
+    if (!editedCategory) {
+      Alert.alert("Error", "Category is required");
       return;
     }
 
@@ -320,7 +312,7 @@ export default function EditTicketModal({
       ...post,
       title: editedTitle.trim(),
       description: editedDescription.trim(),
-      location: editedLocation,
+      category: editedCategory,
       images: editedImages, // This should contain the updated image array
     };
 
@@ -332,10 +324,7 @@ export default function EditTicketModal({
     // Reset form to original values
     setEditedTitle(post.title);
     setEditedDescription(post.description);
-    setEditedLocation(
-      // If the current location is in our predefined list, use it; otherwise set to null
-      USTP_LOCATIONS.includes(post.location) ? post.location : null
-    );
+    setEditedCategory(post.category);
     setEditedImages(
       post.images.map((img) => {
         if (typeof img === "string") return img;
@@ -500,17 +489,17 @@ export default function EditTicketModal({
             />
           </View>
 
-          {/* Location Selection */}
+          {/* Category Selection */}
           <View style={styles.formSection}>
             <Text style={styles.sectionLabel}>
-              Location *
+              Category *
             </Text>
             <CustomDropdownWithSearch
               label=""
-              data={USTP_LOCATIONS}
-              selected={editedLocation}
-              setSelected={setEditedLocation}
-              placeholder="Select a place"
+              data={ITEM_CATEGORIES}
+              selected={editedCategory}
+              setSelected={setEditedCategory}
+              placeholder="Select a category"
             />
           </View>
 

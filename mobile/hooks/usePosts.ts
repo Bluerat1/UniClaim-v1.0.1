@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { postService } from '../utils/firebase';
+import { invalidatePostCaches } from '../utils/firebase/posts';
 import type { Post } from '../types/type';
 import { useAuth } from '../context/AuthContext';
 
 // Global cache to persist data between component unmounts
 const globalPostCache = new Map<string, { posts: Post[], timestamp: number }>();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 30 * 1000; // 30 seconds (reduced for more responsive real-time updates)
 
 // Custom hook for real-time posts with smart caching
 export const usePosts = () => {
@@ -17,9 +18,11 @@ export const usePosts = () => {
     const cacheKey = 'all-posts';
     const unsubscribeRef = useRef<(() => void) | null>(null);
 
-    // Check if we have valid cached data
-    const cachedData = globalPostCache.get(cacheKey);
-    const hasValidCache = cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION;
+    // Function to invalidate cache and force refresh
+    const invalidateCache = () => {
+        globalPostCache.delete(cacheKey);
+        console.log('🧹 Invalidated global post cache in usePosts hook');
+    };
 
     useEffect(() => {
         // If user is not logged in at all, clear posts and don't set up listeners
@@ -41,14 +44,8 @@ export const usePosts = () => {
         }
 
         // User is logged in (authenticated or needs email verification) - set up listeners
-        // If we have valid cached data, use it immediately
-        if (hasValidCache) {
-            setPosts(cachedData.posts);
-            setLoading(false);
-            setIsInitialLoad(false);
-        } else {
-            setLoading(true);
-        }
+        // Always set up the listener immediately for real-time updates
+        setLoading(true);
 
         // Subscribe to real-time updates directly (like web version)
         // Using getActivePosts instead of getAllPosts for consistent ordering
@@ -73,31 +70,35 @@ export const usePosts = () => {
                 unsubscribeRef.current = null;
             }
         };
-    }, [user, hasValidCache]);
+    }, [user]); // Only depend on user, not cache validity
 
     return {
         posts,
         loading: isInitialLoad ? loading : false, // Only show loading on first load
         error,
-        isInitialLoad
+        isInitialLoad,
+        invalidateCache // Expose cache invalidation function
     };
 };
 
 // Custom hook for posts by type with caching
 export const usePostsByType = (type: 'lost' | 'found') => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
     const cacheKey = `posts-${type}`;
     const unsubscribeRef = useRef<(() => void) | null>(null);
 
-    const cachedData = globalPostCache.get(cacheKey);
-    const hasValidCache = cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION;
+    // Function to invalidate cache and force refresh
+    const invalidateCache = () => {
+        globalPostCache.delete(cacheKey);
+        console.log(`🧹 Invalidated ${cacheKey} cache in usePostsByType hook`);
+    };
 
     useEffect(() => {
-        // If user is not authenticated, clear posts and don't set up listeners
-        if (!isAuthenticated) {
+        // If user is not logged in at all, clear posts and don't set up listeners
+        if (!user) {
             // Clear posts
             setPosts([]);
             setLoading(false);
@@ -114,14 +115,8 @@ export const usePostsByType = (type: 'lost' | 'found') => {
             return;
         }
 
-        // User is authenticated - set up listeners
-        if (hasValidCache) {
-            setPosts(cachedData.posts);
-            setLoading(false);
-            setIsInitialLoad(false);
-        } else {
-            setLoading(true);
-        }
+        // User is logged in (authenticated or needs email verification) - set up listeners
+        setLoading(true);
 
         const unsubscribe = postService.getPostsByType(type, (fetchedPosts) => {
             setPosts(fetchedPosts);
@@ -143,25 +138,26 @@ export const usePostsByType = (type: 'lost' | 'found') => {
                 unsubscribeRef.current = null;
             }
         };
-    }, [type, isAuthenticated, hasValidCache]);
+    }, [type, user]);
 
     return {
         posts,
         loading: isInitialLoad ? loading : false,
-        isInitialLoad
+        isInitialLoad,
+        invalidateCache // Expose cache invalidation function
     };
 };
 
 // Custom hook for posts by category
 export const usePostsByCategory = (category: string) => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const unsubscribeRef = useRef<(() => void) | null>(null);
 
     useEffect(() => {
-        // If user is not authenticated, clear posts and don't set up listeners
-        if (!isAuthenticated) {
+        // If user is not logged in at all, clear posts and don't set up listeners
+        if (!user) {
             // Clear posts
             setPosts([]);
             setLoading(false);
@@ -174,7 +170,7 @@ export const usePostsByCategory = (category: string) => {
             return;
         }
 
-        // User is authenticated
+        // User is logged in (authenticated or needs email verification)
         if (!category) {
             setPosts([]);
             setLoading(false);
@@ -200,21 +196,21 @@ export const usePostsByCategory = (category: string) => {
                 unsubscribeRef.current = null;
             }
         };
-    }, [category, isAuthenticated]);
+    }, [category, user]);
 
     return { posts, loading };
 };
 
-// Custom hook for user's posts
-export const useUserPosts = (userEmail: string) => {
-    const { isAuthenticated } = useAuth();
+// Custom hook for posts by location
+export const usePostsByLocation = (location: string) => {
+    const { isAuthenticated, user } = useAuth();
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const unsubscribeRef = useRef<(() => void) | null>(null);
 
     useEffect(() => {
-        // If user is not authenticated, clear posts and don't set up listeners
-        if (!isAuthenticated) {
+        // If user is not logged in at all, clear posts and don't set up listeners
+        if (!user) {
             // Clear posts
             setPosts([]);
             setLoading(false);
@@ -227,7 +223,57 @@ export const useUserPosts = (userEmail: string) => {
             return;
         }
 
-        // User is authenticated
+        // User is logged in (authenticated or needs email verification)
+        if (!location) {
+            setPosts([]);
+            setLoading(false);
+            return;
+        }
+
+        setLoading(true);
+
+        const unsubscribe = postService.getPostsByLocation(location, (fetchedPosts) => {
+            setPosts(fetchedPosts);
+            setLoading(false);
+        });
+
+        // Store unsubscribe function for cleanup
+        unsubscribeRef.current = unsubscribe;
+
+        return () => {
+            if (unsubscribe) {
+                unsubscribe();
+                unsubscribeRef.current = null;
+            }
+        };
+    }, [location, user]);
+
+    return { posts, loading };
+};
+
+// Custom hook for user's posts
+export const useUserPosts = (userEmail: string) => {
+    const { isAuthenticated, user } = useAuth();
+    const [posts, setPosts] = useState<Post[]>([]);
+    const [loading, setLoading] = useState(true);
+    const unsubscribeRef = useRef<(() => void) | null>(null);
+
+    useEffect(() => {
+        // If user is not logged in at all, clear posts and don't set up listeners
+        if (!user) {
+            // Clear posts
+            setPosts([]);
+            setLoading(false);
+
+            // Clean up any existing listener
+            if (unsubscribeRef.current) {
+                unsubscribeRef.current();
+                unsubscribeRef.current = null;
+            }
+            return;
+        }
+
+        // User is logged in (authenticated or needs email verification)
         if (!userEmail) {
             setPosts([]);
             setLoading(false);
@@ -250,14 +296,14 @@ export const useUserPosts = (userEmail: string) => {
                 unsubscribeRef.current = null;
             }
         };
-    }, [userEmail, isAuthenticated]);
+    }, [userEmail, user]);
 
     return { posts, loading };
 };
 
 // Custom hook for user's posts with setPosts functionality
 export const useUserPostsWithSet = (userEmail: string) => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const unsubscribeRef = useRef<(() => void) | null>(null);
@@ -267,8 +313,8 @@ export const useUserPostsWithSet = (userEmail: string) => {
         // Set mounted flag
         isMountedRef.current = true;
 
-        // If user is not authenticated, clear posts and don't set up listeners
-        if (!isAuthenticated) {
+        // If user is not logged in at all, clear posts and don't set up listeners
+        if (!user) {
             if (isMountedRef.current) {
                 setPosts([]);
                 setLoading(false);
@@ -282,7 +328,7 @@ export const useUserPostsWithSet = (userEmail: string) => {
             return;
         }
 
-        // User is authenticated
+        // User is logged in (authenticated or needs email verification)
         if (!userEmail) {
             if (isMountedRef.current) {
                 setPosts([]);
@@ -316,7 +362,7 @@ export const useUserPostsWithSet = (userEmail: string) => {
                 unsubscribeRef.current = null;
             }
         };
-    }, [userEmail, isAuthenticated]);
+    }, [userEmail, user]);
 
     return { posts, setPosts, loading };
 };

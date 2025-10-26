@@ -29,7 +29,7 @@ let connectionListeners: (() => void)[] = [];
 
 // Query result cache for frequently accessed data
 const queryCache = new Map<string, { data: any, timestamp: number, expiry: number }>();
-const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes for query results
+const CACHE_DURATION = 30 * 1000; // 30 seconds (reduced for more responsive real-time updates)
 const MAX_CACHE_SIZE = 50; // Prevent memory leaks
 
 // Cache management functions
@@ -62,6 +62,16 @@ const getCache = (key: string) => {
   return null;
 };
 
+// Centralized cache invalidation function
+const invalidatePostCaches = (postId?: string) => {
+  // Clear all caches to ensure fresh data
+  queryCache.clear();
+
+  // Note: In a production app, we might want to implement a more sophisticated
+  // cache invalidation strategy that only clears affected caches
+  console.log(`🧹 Invalidated all post caches${postId ? ` after updating post ${postId}` : ''}`);
+};
+
 // Connection state management
 export const setOnlineStatus = (online: boolean) => {
   isOnline = online;
@@ -76,6 +86,9 @@ export const setOnlineStatus = (online: boolean) => {
   }
 };
 
+// Export cache invalidation function for use by hooks and other modules
+export { invalidatePostCaches };
+
 // Post service with performance optimizations
 export const postService = {
     // Get all posts (deprecated - use getActivePosts instead)
@@ -89,12 +102,9 @@ export const postService = {
         const now = new Date();
         const cacheKey = getCacheKey('posts', ['active', now.toISOString().split('T')[0]]);
 
-        // Check cache first
+        // Check cache first for immediate response
         const cachedData = getCache(cacheKey);
-        if (cachedData && isOnline) {
-            callback(cachedData);
-            return () => {}; // Return empty unsubscribe function
-        }
+        let listenerActive = false;
 
         // Create query for active posts only (not moved to unclaimed)
         const q = query(
@@ -134,7 +144,7 @@ export const postService = {
             // Cache the results
             setCache(cacheKey, activePosts);
 
-            console.log('📱 Mobile getActivePosts:', {
+            console.log('📱 Mobile getActivePosts real-time update:', {
                 totalPosts: posts.length,
                 activePosts: activePosts.length,
                 queryResults: posts.slice(0, 3).map(p => ({
@@ -150,12 +160,20 @@ export const postService = {
             });
 
             callback(activePosts);
+            listenerActive = true;
         }, (error) => {
             console.error('❌ Firebase getActivePosts failed:', error);
             // Return cached data if available, otherwise empty array
             const cachedData = getCache(cacheKey);
             callback(cachedData || []);
         });
+
+        // If we have cached data, return it immediately but keep the listener active
+        if (cachedData && isOnline) {
+            console.log('📱 Using cached data for getActivePosts, listener will provide real-time updates');
+            // Still call callback immediately with cached data
+            callback(cachedData);
+        }
 
         return unsubscribe;
     },
@@ -295,12 +313,8 @@ export const postService = {
     getResolvedPosts(callback: (posts: any[]) => void) {
         const cacheKey = getCacheKey('posts', ['resolved']);
 
-        // Check cache first
+        // Check cache first for immediate response
         const cachedData = getCache(cacheKey);
-        if (cachedData && isOnline) {
-            callback(cachedData);
-            return () => {};
-        }
 
         const q = query(
             collection(db, 'posts'),
@@ -309,7 +323,7 @@ export const postService = {
             limit(50)
         );
 
-        return onSnapshot(q, (snapshot) => {
+        const unsubscribe = onSnapshot(q, (snapshot) => {
             const posts = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
@@ -324,6 +338,15 @@ export const postService = {
             const cachedData = getCache(cacheKey);
             callback(cachedData || []);
         });
+
+        // If we have cached data, return it immediately but keep the listener active
+        if (cachedData && isOnline) {
+            console.log('📱 Using cached data for getResolvedPosts, listener will provide real-time updates');
+            // Still call callback immediately with cached data
+            callback(cachedData);
+        }
+
+        return unsubscribe;
     },
 
     // Create new post
@@ -443,8 +466,8 @@ export const postService = {
                 creatorId: enhancedPostData.creatorId
             });
 
-            // Clear cache to ensure the new post appears immediately
-            queryCache.clear();
+            // Invalidate cache to ensure the new post appears immediately
+            invalidatePostCaches(postRef.id);
 
             return postRef.id;
         } catch (error: any) {
@@ -459,6 +482,9 @@ export const postService = {
                 ...updates,
                 updatedAt: serverTimestamp()
             });
+
+            // Invalidate caches to ensure fresh data is fetched after updates
+            invalidatePostCaches(postId);
         } catch (error: any) {
             throw new Error(error.message || 'Failed to update post');
         }
@@ -485,6 +511,9 @@ export const postService = {
             
             // Then delete the post document
             await deleteDoc(doc(db, 'posts', postId));
+
+            // Invalidate caches to ensure fresh data is fetched after deletion
+            invalidatePostCaches(postId);
         } catch (error: any) {
             console.error('Error in deletePost:', error);
             throw new Error(error.message || 'Failed to delete post');
@@ -578,6 +607,9 @@ export const postService = {
                 resolvedAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
             });
+
+            // Invalidate caches to ensure fresh data is fetched after updates
+            invalidatePostCaches(postId);
         } catch (error: any) {
             throw new Error(error.message || 'Failed to mark post as resolved');
         }
@@ -629,6 +661,9 @@ export const postService = {
                 updatedAt: serverTimestamp()
             });
 
+            // Invalidate caches to ensure fresh data is fetched after updates
+            invalidatePostCaches(postId);
+
             console.log(`✅ Post ${postId} flagged by user ${userId} for reason: ${reason}`);
         } catch (error: any) {
             console.error('❌ Firebase flagPost failed:', error);
@@ -655,6 +690,9 @@ export const postService = {
                 updatedAt: serverTimestamp()
             });
 
+            // Invalidate caches to ensure fresh data is fetched after updates
+            invalidatePostCaches(postId);
+
             console.log(`✅ Post ${postId} unflagged`);
         } catch (error: any) {
             console.error('❌ Firebase unflagPost failed:', error);
@@ -678,6 +716,9 @@ export const postService = {
                 updatedAt: serverTimestamp()
             });
 
+            // Invalidate caches to ensure fresh data is fetched after updates
+            invalidatePostCaches(postId);
+
             console.log(`✅ Post ${postId} hidden from public view`);
         } catch (error: any) {
             console.error('❌ Firebase hidePost failed:', error);
@@ -700,6 +741,9 @@ export const postService = {
                 isHidden: false,
                 updatedAt: serverTimestamp()
             });
+
+            // Invalidate caches to ensure fresh data is fetched after updates
+            invalidatePostCaches(postId);
 
             console.log(`✅ Post ${postId} unhidden and visible to public`);
         } catch (error: any) {

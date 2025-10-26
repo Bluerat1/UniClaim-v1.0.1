@@ -13,6 +13,7 @@ export { messageService } from './messages';
 
 // Posts and items services
 export { postService } from './posts';
+export { invalidatePostCaches } from './posts';
 
 // Utility functions
 export { getFirebaseErrorMessage } from './utils';

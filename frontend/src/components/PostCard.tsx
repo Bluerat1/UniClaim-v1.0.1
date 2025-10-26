@@ -3,7 +3,6 @@ import type { Post } from "@/types/Post";
 import ProfilePicture from "./ProfilePicture";
 import PostCardMenu from "./PostCardMenu";
 import TurnoverConfirmationModal from "./TurnoverConfirmationModal";
-import ImageModal from "./ImageModal";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { usePostCreatorData } from "@/hooks/usePostCreatorData";
 
@@ -71,10 +70,6 @@ function PostCard({
   const [confirmationType, setConfirmationType] = useState<
     "confirmed" | "not_received" | null
   >(null);
-
-  // State for image modal
-  const [showImageModal, setShowImageModal] = useState(false);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   const previewUrl = useMemo(() => {
     if (post.images && post.images.length > 0) {
@@ -147,16 +142,14 @@ function PostCard({
           src={previewUrl}
           alt="post"
           className="w-full h-85 object-cover lg:h-70 relative cursor-pointer hover:opacity-90 transition-opacity"
-          onClick={() => {
-            if (allImageUrls.length > 0) {
-              setShowImageModal(true);
-              setSelectedImageIndex(0);
-            }
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent the card's onClick from firing
+            onClick(); // Call the PostModal instead of ImageModal
           }}
           title={
             allImageUrls.length > 1
-              ? `Click to view ${allImageUrls.length} images`
-              : "Click to view full size"
+              ? `Click to view ${allImageUrls.length} images and post details`
+              : "Click to view post details"
           }
         />
       ) : (
@@ -523,16 +516,6 @@ function PostCard({
               </div>
             </div>
           )}
-
-        {/* Image Modal */}
-        {showImageModal && allImageUrls.length > 0 && (
-          <ImageModal
-            images={allImageUrls}
-            initialIndex={selectedImageIndex}
-            altText={post.title}
-            onClose={() => setShowImageModal(false)}
-          />
-        )}
 
         {/* Turnover Confirmation Modal */}
         <TurnoverConfirmationModal

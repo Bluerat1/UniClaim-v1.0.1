@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import type { RootStackParamList } from "../../types/type";
 import LocationMapView from "../../components/LocationMapView";
 import { useAuth } from "../../context/AuthContext";
+import ProfilePicture from "../../components/ProfilePicture";
 
 type PostDetailsRouteProp = RouteProp<RootStackParamList, "PostDetails">;
 
@@ -27,6 +28,34 @@ export default function PostDetailsScreen() {
   // Check if current user is the creator of this post
   const isCurrentUserCreator =
     userData?.uid === post.creatorId || userData?.uid === post.postedById;
+
+  // Helper function to format dates consistently
+  const formatDateTime = (datetime: string | Date | { seconds: number; nanoseconds: number } | any) => {
+    let date: Date;
+
+    if (datetime && typeof datetime === "object" && "seconds" in datetime) {
+      // Handle Firestore Timestamp objects
+      date = new Date(datetime.seconds * 1000 + datetime.nanoseconds / 1000000);
+    } else if (typeof datetime === "string") {
+      date = new Date(datetime);
+    } else {
+      date = datetime as Date;
+    }
+
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return "Invalid Date";
+    }
+
+    return date.toLocaleString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
 
   return (
     <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-white">
@@ -157,28 +186,59 @@ export default function PostDetailsScreen() {
         {/* Keep/Turnover Display for Found Items Only */}
         {post.type === "found" && post.foundAction && (
           <View className="mt-1 mb-3">
-            <Text className="mb-2 font-manrope-semibold">Keep or Turnover</Text>
-            <View
-              className={`justify-center w-full p-3 h-[3.5rem] border rounded-md ${
-                post.foundAction === "keep"
-                  ? "bg-zinc-100 border-zinc-200"
-                  : "bg-zinc-100 border-zinc-200"
-              }`}
-            >
-              <Text
-                className={`text-base capitalize font-manrope-medium ${
-                  post.foundAction === "keep" ? "text-black" : "text-black"
-                }`}
-              >
+            <Text className="mb-2 font-manrope-semibold">Found Item Action</Text>
+            <View className="bg-blue-50 border border-blue-200 rounded-md p-3">
+              <Text className="text-base font-manrope-medium text-blue-700">
                 {post.foundAction === "keep"
-                  ? "Keep"
+                  ? "The finder will keep this item and return it themselves"
+                  : post.turnoverDetails &&
+                    post.turnoverDetails.originalTurnoverAction === "turnover to Campus Security" &&
+                    post.turnoverDetails.turnoverAction === "turnover to OSA"
+                  ? "This item was transferred to OSA"
                   : post.foundAction === "turnover to OSA"
-                    ? "OSA"
-                    : "Campus Security"}
+                  ? "This item was turned over to OSA office"
+                  : "This item was turned over to Campus Security"}
               </Text>
             </View>
           </View>
         )}
+
+        {/* Item Holder Transfer Section - Show when item transferred from Campus Security to OSA */}
+        {post.turnoverDetails &&
+          post.turnoverDetails.turnoverAction === "turnover to OSA" &&
+          post.turnoverDetails.turnoverStatus === "transferred" &&
+          post.turnoverDetails.originalTurnoverAction === "turnover to Campus Security" && (
+            <View className="mt-3 mb-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <View className="flex-row items-center gap-2 mb-3">
+                <View className="w-2 h-2 bg-blue-500 rounded-full"></View>
+                <Text className="text-base font-manrope-bold text-blue-800">🔄 Item Holder Transfer</Text>
+              </View>
+              <View className="space-y-2">
+                <View className="flex-row items-center">
+                  <Text className="text-sm font-manrope-semibold text-blue-800 w-20">Status:</Text>
+                  <Text className="text-sm font-manrope-medium text-blue-700 flex-1">
+                    Item has been transferred from Campus Security to OSA (Admin)
+                  </Text>
+                </View>
+                <View className="flex-row items-center">
+                  <Text className="text-sm font-manrope-semibold text-blue-800 w-20">Transfer Date:</Text>
+                  <Text className="text-sm font-manrope-medium text-blue-700 flex-1">
+                    {post.turnoverDetails.turnoverDecisionAt
+                      ? formatDateTime(post.turnoverDetails.turnoverDecisionAt)
+                      : "N/A"}
+                  </Text>
+                </View>
+                {post.turnoverDetails.turnoverReason && (
+                  <View className="flex-row items-start">
+                    <Text className="text-sm font-manrope-semibold text-blue-800 w-20">Reason:</Text>
+                    <Text className="text-sm font-manrope-medium text-blue-700 flex-1">
+                      {post.turnoverDetails.turnoverReason}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
 
         <View className="mt-1 mb-3">
           <Text className="mb-2 font-manrope-semibold">Description</Text>
@@ -271,7 +331,88 @@ export default function PostDetailsScreen() {
           )}
         </View>
 
-        {/* contact-details */}
+        {/* Turnover Information Section */}
+        {post.turnoverDetails && (
+          <View className="mt-4 mb-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <View className="flex-row items-center gap-2 mb-3">
+              <Text className="text-blue-600 text-lg">🔄</Text>
+              <Text className="text-base font-manrope-bold text-blue-800">Turnover Information</Text>
+            </View>
+            <View className="space-y-2">
+              {/* Original Finder Information */}
+              <View className="flex-row items-center gap-2">
+                <Text className="text-sm font-manrope-semibold text-blue-800">Originally found by:</Text>
+                <ProfilePicture
+                  src={post.turnoverDetails.originalFinder.profilePicture}
+                  size="xs"
+                />
+                <Text className="text-sm font-manrope-medium text-blue-700">
+                  {post.turnoverDetails.originalFinder.firstName} {post.turnoverDetails.originalFinder.lastName}
+                </Text>
+              </View>
+
+              {/* Status */}
+              <View className="flex-row items-center">
+                <Text className="text-sm font-manrope-semibold text-blue-800 w-16">Status:</Text>
+                <Text className="text-sm font-manrope-medium text-blue-700 flex-1">
+                  {post.turnoverDetails.turnoverStatus === "declared"
+                    ? "Declared - Awaiting Confirmation"
+                    : post.turnoverDetails.turnoverStatus === "confirmed"
+                    ? "Confirmed - Item Received"
+                    : post.turnoverDetails.turnoverStatus === "not_received"
+                    ? "Not Received - Item Deleted"
+                    : post.turnoverDetails.turnoverAction === "turnover to Campus Security"
+                    ? "Turned over to Campus Security"
+                    : post.turnoverDetails.turnoverAction === "turnover to OSA"
+                    ? "Turned over to OSA"
+                    : post.turnoverDetails.turnoverStatus}
+                </Text>
+              </View>
+
+              {/* Turned over to */}
+              <View className="flex-row items-center">
+                <Text className="text-sm font-manrope-semibold text-blue-800 w-16">Turned over to:</Text>
+                <Text className="text-sm font-manrope-medium text-blue-700 flex-1">
+                  {post.turnoverDetails.turnoverAction === "turnover to OSA"
+                    ? "OSA"
+                    : post.turnoverDetails.originalTurnoverAction === "turnover to Campus Security"
+                    ? "Campus Security"
+                    : "Campus Security"}
+                </Text>
+              </View>
+
+              {/* Turnover Date */}
+              <View className="flex-row items-center">
+                <Text className="text-sm font-manrope-semibold text-blue-800 w-16">Date:</Text>
+                <Text className="text-sm font-manrope-medium text-blue-700 flex-1">
+                  {post.turnoverDetails.turnoverDecisionAt
+                    ? formatDateTime(post.turnoverDetails.turnoverDecisionAt)
+                    : "N/A"}
+                </Text>
+              </View>
+
+              {/* Reason */}
+              {post.turnoverDetails.turnoverReason && (
+                <View className="flex-row items-start">
+                  <Text className="text-sm font-manrope-semibold text-blue-800 w-16">Reason:</Text>
+                  <Text className="text-sm font-manrope-medium text-blue-700 flex-1">
+                    {post.turnoverDetails.turnoverReason}
+                  </Text>
+                </View>
+              )}
+
+              {/* Confirmation Notes */}
+              {post.turnoverDetails.confirmationNotes && (
+                <View className="flex-row items-start">
+                  <Text className="text-sm font-manrope-semibold text-blue-800 w-16">Notes:</Text>
+                  <Text className="text-sm font-manrope-medium text-blue-700 flex-1">
+                    {post.turnoverDetails.confirmationNotes}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
         <View className="flex-row items-center gap-2 mt-5 mb-3">
           <MaterialCommunityIcons
             name="account-details"

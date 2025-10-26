@@ -36,7 +36,6 @@ export default function SearchWithToggle({
 }: Props) {
   const [filterVisible, setFilterVisible] = useState(false);
   const [categoryExpanded, setCategoryExpanded] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
   const toggleFilter = () => {
@@ -54,6 +53,10 @@ export default function SearchWithToggle({
     fn();
   };
 
+  const handleLocationSelect = (value: string | null) => {
+    setLocationSearch(value || "");
+  };
+
   const rotation = rotateAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "180deg"],
@@ -66,7 +69,6 @@ export default function SearchWithToggle({
     setLocationSearch("");
     setDescriptionSearch("");
     setCategoryExpanded(false);
-    setSelectedLocation(null);
   };
 
   const InputDropdown = ({
@@ -209,8 +211,8 @@ export default function SearchWithToggle({
           <CustomDropdownWithSearch
             label="Last Known Location"
             data={USTP_LOCATIONS}
-            selected={selectedLocation}
-            setSelected={setSelectedLocation}
+            selected={locationSearch}
+            setSelected={handleLocationSelect}
             placeholder="Select a place"
           />
         </View>
