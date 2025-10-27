@@ -44,8 +44,42 @@ const getStatusStyles = (status: string | undefined) => {
   }
 };
 
-// Location options - same as used in mobile version
-// REMOVED - no longer used since location dropdown is hidden
+// Helper function to safely convert date to datetime-local format
+const getDateTimeForInput = (dateValue: string | Date | any): string => {
+  if (!dateValue) {
+    return new Date().toISOString().slice(0, 16);
+  }
+
+  try {
+    const date = new Date(dateValue);
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      return new Date().toISOString().slice(0, 16);
+    }
+    return date.toISOString().slice(0, 16);
+  } catch (error) {
+    // If there's any error, return current date
+    return new Date().toISOString().slice(0, 16);
+  }
+};
+
+// Helper function to safely format date for display
+const getSafeDateDisplay = (dateValue: string | Date | any): string => {
+  if (!dateValue) {
+    return "Unknown";
+  }
+
+  try {
+    const date = new Date(dateValue);
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      return "Unknown";
+    }
+    return date.toLocaleString();
+  } catch (error) {
+    return "Unknown";
+  }
+};
 
 interface TicketModalProps {
   post: Post;
@@ -91,11 +125,7 @@ const TicketModal = ({
 
   const [editedTitle, setEditedTitle] = useState(post.title);
   const [editedDescription, setEditedDescription] = useState(post.description);
-  const [editedDateTime, setEditedDateTime] = useState(
-    typeof post.createdAt === "string"
-      ? post.createdAt.slice(0, 16)
-      : new Date(post.createdAt || "").toISOString().slice(0, 16)
-  );
+  const [editedDateTime, setEditedDateTime] = useState(getDateTimeForInput(post.createdAt));
 
   // Admin-editable fields
   const [editedStatus, setEditedStatus] = useState(post.status);
@@ -116,6 +146,7 @@ const TicketModal = ({
     setEditedDescription(post.description);
     setEditedImages(post.images);
     setNewImageFiles([]);
+    setEditedDateTime(getDateTimeForInput(post.createdAt));
 
     // Reset admin fields
     setEditedStatus(post.status);
@@ -511,9 +542,7 @@ const TicketModal = ({
                   <h1 className="text-sm mb-2">Date and Time</h1>
                   <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2">
                     <p className="text-[12px]">
-                      {post.createdAt
-                        ? new Date(post.createdAt).toLocaleString()
-                        : "Unknown"}
+                      {getSafeDateDisplay(post.createdAt)}
                     </p>
                   </div>
                   {/* Last seen location - HIDDEN AS REQUESTED */}
@@ -625,7 +654,7 @@ const TicketModal = ({
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium text-orange-800">Confirmed Date:</span>
                             <span className="text-sm text-orange-700">
-                              {new Date(post.turnoverDetails.confirmedAt).toLocaleDateString()}
+                              {getSafeDateDisplay(post.turnoverDetails.confirmedAt)}
                             </span>
                           </div>
                         )}

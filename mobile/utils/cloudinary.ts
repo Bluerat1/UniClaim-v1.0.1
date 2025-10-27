@@ -1,6 +1,14 @@
 // Cloudinary configuration for React Native/Expo
 // Using fetch-only approach for better React Native compatibility
 
+// Import environment variables using @env (from react-native-dotenv)
+import {
+  EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME,
+  EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET,
+  EXPO_PUBLIC_CLOUDINARY_API_KEY,
+  EXPO_PUBLIC_CLOUDINARY_API_SECRET,
+} from '@env';
+
 // Configuration values from environment variables (Expo format)
 // 
 // SETUP REQUIRED: For mobile app to work, you need to create a .env file in the mobile directory
@@ -14,10 +22,10 @@
 // - EXPO_PUBLIC_CLOUDINARY_API_KEY=your_api_key_here  
 // - EXPO_PUBLIC_CLOUDINARY_API_SECRET=your_api_secret_here
 //
-const CLOUDINARY_CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || 'your-cloud-name';
-const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'uniclaim_uploads';
-const CLOUDINARY_API_KEY = process.env.EXPO_PUBLIC_CLOUDINARY_API_KEY || '';
-const CLOUDINARY_API_SECRET = process.env.EXPO_PUBLIC_CLOUDINARY_API_SECRET || '';
+const CLOUDINARY_CLOUD_NAME = EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || 'your-cloud-name';
+const UPLOAD_PRESET = EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'uniclaim_uploads';
+const CLOUDINARY_API_KEY = EXPO_PUBLIC_CLOUDINARY_API_KEY || '';
+const CLOUDINARY_API_SECRET = EXPO_PUBLIC_CLOUDINARY_API_SECRET || '';
 
 
 

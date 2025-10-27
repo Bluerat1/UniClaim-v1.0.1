@@ -49,6 +49,10 @@
         "projectId": "9ee38d41-83ad-4306-bff2-97c396db3856"
       }
     },
+    "env": {
+      "NODE_ENV": "production",
+      "EXPO_PUBLIC_APP_ENV": "production"
+    },
     "owner": "bluerat12"
   }
 }
