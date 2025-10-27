@@ -12,11 +12,7 @@ import {
   EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   EXPO_PUBLIC_FIREBASE_APP_ID,
   EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
-  // Cloudinary environment variables
-  EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME,
-  EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET,
-  EXPO_PUBLIC_CLOUDINARY_API_KEY,
-  EXPO_PUBLIC_CLOUDINARY_API_SECRET,
+  // Note: Cloudinary variables removed to fix build error - will be imported in cloudinary.ts
 } from '@env';
 
 // Firebase configuration from environment variables

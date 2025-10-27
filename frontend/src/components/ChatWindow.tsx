@@ -1086,27 +1086,41 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
 
-  const getPostCreatorProfilePicture = (conversation: Conversation) => {
-    if (!conversation.postCreatorId || !conversation.participants[conversation.postCreatorId]) {
+  const getOtherParticipantProfilePicture = (conversation: Conversation) => {
+    if (!conversation.participants || !userData?.uid) {
       return null;
     }
 
-    const creator = conversation.participants[conversation.postCreatorId];
-    return creator.profilePicture || creator.profileImageUrl || null;
+    // Find the other participant (excluding current user)
+    const otherParticipant = Object.entries(conversation.participants).find(
+      ([uid]) => uid !== userData.uid
+    );
+
+    if (!otherParticipant) {
+      return null;
+    }
+
+    const [, participant] = otherParticipant;
+    return participant.profilePicture || participant.profileImageUrl || null;
   };
 
-  const getPostCreatorName = (conversation: Conversation) => {
-    if (!conversation.postCreatorId) {
+  const getOtherParticipantName = (conversation: Conversation) => {
+    if (!userData?.uid) {
       return "Unknown User";
     }
 
-    if (!conversation.participants[conversation.postCreatorId]) {
+    // Find the other participant (excluding current user)
+    const otherParticipant = Object.entries(conversation.participants).find(
+      ([uid]) => uid !== userData.uid
+    );
+
+    if (!otherParticipant) {
       return "Unknown User";
     }
 
-    const creator = conversation.participants[conversation.postCreatorId];
-    const firstName = creator.firstName || "";
-    const lastName = creator.lastName || "";
+    const [, participant] = otherParticipant;
+    const firstName = participant.firstName || "";
+    const lastName = participant.lastName || "";
 
     if (!firstName && !lastName) {
       return "Unknown User";
@@ -1253,13 +1267,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             </div>
             <div className="flex items-center gap-3 mt-1">
               <ProfilePicture
-                src={getPostCreatorProfilePicture(conversation)}
-                alt="post creator profile"
+                src={getOtherParticipantProfilePicture(conversation)}
+                alt="other participant profile"
                 className="size-8"
               />
               <p className="text-sm text-gray-500">
-                {getPostCreatorName(conversation)}
-                {conversation.isAdminPost && " (Admin)"}
+                {getOtherParticipantName(conversation)}
               </p>
             </div>
           </div>

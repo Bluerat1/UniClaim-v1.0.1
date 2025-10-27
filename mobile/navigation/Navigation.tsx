@@ -20,10 +20,10 @@ import ScreenWrapper from "../components/ScreenWrapper";
 import Toast from "../components/Toast";
 import { useToast } from "../context/ToastContext";
 
-// Screens - keeping direct imports for React Native compatibility
-import Chat from "@/app/Chat";
-import EmailVerification from "@/app/tabs/EmailVerification";
-import ForgotPassword from "@/app/tabs/ForgotPassword";
+// Screens - using relative imports for EAS build compatibility
+import Chat from "../app/Chat";
+import EmailVerification from "../app/tabs/EmailVerification";
+import ForgotPassword from "../app/tabs/ForgotPassword";
 import Home from "../app/tabs/Home";
 import Index from "../app/tabs/index";
 import ItemDetails from "../app/tabs/ItemDetails";

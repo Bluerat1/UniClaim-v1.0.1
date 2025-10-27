@@ -252,7 +252,7 @@ export default function Header() {
               style={{
                 position: "absolute",
                 top: 0,
-                bottom: 0,
+                bottom: "5%",
                 right: 0,
                 width: SCREEN_WIDTH * 1.0,
                 backgroundColor: "white",

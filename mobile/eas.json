@@ -25,7 +25,9 @@
         "production": {
             "env": {
                 "NODE_ENV": "production",
-                "EXPO_PUBLIC_APP_ENV": "production"
+                "EXPO_PUBLIC_APP_ENV": "production",
+                "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME": "@eas/CLOUDINARY_CLOUD_NAME",
+                "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "@eas/CLOUDINARY_UPLOAD_PRESET"
             }
         }
     },

@@ -17,15 +17,15 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
-import { useMessage } from "@/context/MessageContext";
-import { useAuth } from "@/context/AuthContext";
-import { useToast } from "@/context/ToastContext";
-import ProfilePicture from "@/components/ProfilePicture";
-import type { Message, RootStackParamList } from "@/types/type";
-import MessageBubble from "@/components/MessageBubble";
-import HandoverModal from "@/components/HandoverModal";
-import ClaimModal from "@/components/ClaimModal";
-import ImagePicker from "@/components/ImagePicker";
+import { useMessage } from "../context/MessageContext";
+import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
+import ProfilePicture from "../components/ProfilePicture";
+import type { Message, RootStackParamList } from "../types/type";
+import MessageBubble from "../components/MessageBubble";
+import HandoverModal from "../components/HandoverModal";
+import ClaimModal from "../components/ClaimModal";
+import ImagePicker from "../components/ImagePicker";
 
 type ChatRouteProp = RouteProp<RootStackParamList, "Chat">;
 type ChatNavigationProp = NativeStackNavigationProp<RootStackParamList, "Chat">;
@@ -174,7 +174,7 @@ export default function Chat() {
   const fetchPostData = async (postId: string) => {
     try {
       const { getDoc, doc } = await import("firebase/firestore");
-      const { db } = await import("@/utils/firebase/config");
+      const { db } = await import("../utils/firebase/config");
       const postDoc = await getDoc(doc(db, "posts", postId));
       if (postDoc.exists()) {
         return postDoc.data();
@@ -193,7 +193,7 @@ export default function Chat() {
   ) => {
     try {
       const { updateDoc, doc } = await import("firebase/firestore");
-      const { db } = await import("@/utils/firebase/config");
+      const { db } = await import("../utils/firebase/config");
       await updateDoc(doc(db, "conversations", conversationId), {
         postType: updatedData.postType,
         postStatus: updatedData.postStatus,
@@ -493,7 +493,7 @@ export default function Chat() {
     const setupListener = async () => {
       try {
         const { doc, onSnapshot } = await import("firebase/firestore");
-        const { db } = await import("@/utils/firebase/config");
+        const { db } = await import("../utils/firebase/config");
 
         const conversationRef = doc(db, "conversations", conversationId);
         unsubscribe = onSnapshot(

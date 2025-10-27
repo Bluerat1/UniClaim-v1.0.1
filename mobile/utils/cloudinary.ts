@@ -10,20 +10,9 @@ import {
 } from '@env';
 
 // Configuration values from environment variables (Expo format)
-// 
-// SETUP REQUIRED: For mobile app to work, you need to create a .env file in the mobile directory
-// with these variables, or the upload will fail with configuration errors.
-//
-// Required variables:
-// - EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME=your_cloud_name_here
-// - EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET=uniclaim_uploads
-//
-// Required for image deletion:
-// - EXPO_PUBLIC_CLOUDINARY_API_KEY=your_api_key_here  
-// - EXPO_PUBLIC_CLOUDINARY_API_SECRET=your_api_secret_here
-//
-const CLOUDINARY_CLOUD_NAME = EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || 'your-cloud-name';
-const UPLOAD_PRESET = EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'uniclaim_uploads';
+// Fallback to empty strings if not available
+const CLOUDINARY_CLOUD_NAME = EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
+const UPLOAD_PRESET = EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '';
 const CLOUDINARY_API_KEY = EXPO_PUBLIC_CLOUDINARY_API_KEY || '';
 const CLOUDINARY_API_SECRET = EXPO_PUBLIC_CLOUDINARY_API_SECRET || '';
 
@@ -126,12 +115,12 @@ export const cloudinaryService = {
     async uploadImage(uri: string, folder: string = 'posts'): Promise<string> {
         try {
             // Check if required environment variables are set
-            if (!CLOUDINARY_CLOUD_NAME || CLOUDINARY_CLOUD_NAME === 'your-cloud-name') {
-                throw new Error(`Cloudinary cloud name not configured. Current value: "${CLOUDINARY_CLOUD_NAME}". Please set EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME in your .env file`);
+            if (!CLOUDINARY_CLOUD_NAME) {
+                throw new Error(`Cloudinary cloud name not configured. Please set EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME in your .env file`);
             }
 
             if (!UPLOAD_PRESET) {
-                throw new Error(`Cloudinary upload preset not configured. Current value: "${UPLOAD_PRESET}". Please set EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET in your .env file`);
+                throw new Error(`Cloudinary upload preset not configured. Please set EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET in your .env file`);
             }
 
             // Create form data for React Native upload
