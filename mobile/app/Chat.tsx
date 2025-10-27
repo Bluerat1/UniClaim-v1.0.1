@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   FlatList,
@@ -126,7 +126,9 @@ export default function Chat() {
 
   // ImagePicker state for ID photo uploads
   const [imagePickerMessageId, setImagePickerMessageId] = useState<string>("");
-  const [imagePickerMessageType, setImagePickerMessageType] = useState<"handover_request" | "claim_request">("handover_request");
+  const [imagePickerMessageType, setImagePickerMessageType] = useState<
+    "handover_request" | "claim_request"
+  >("handover_request");
   const [isImagePickerUploading, setIsImagePickerUploading] = useState(false);
 
   // Image preview state
@@ -825,13 +827,22 @@ export default function Chat() {
 
     try {
       const { cloudinaryService } = await import("../utils/cloudinary");
-      const photoUrl = await cloudinaryService.uploadImage(photoUri, "id_photos");
+      const photoUrl = await cloudinaryService.uploadImage(
+        photoUri,
+        "id_photos"
+      );
 
       if (imagePickerMessageType === "handover_request") {
         // For handover, first accept the request, then update with photo
         await handleHandoverResponse(imagePickerMessageId, "accepted");
         // Update the message with the ID photo URL using the same pattern as claim
-        await updateClaimResponse(conversationId, imagePickerMessageId, "accepted", user.uid, photoUrl);
+        await updateClaimResponse(
+          conversationId,
+          imagePickerMessageId,
+          "accepted",
+          user.uid,
+          photoUrl
+        );
       } else if (imagePickerMessageType === "claim_request") {
         await handleClaimResponse(imagePickerMessageId, "accepted", photoUrl);
       }
@@ -854,7 +865,10 @@ export default function Chat() {
   };
 
   // Function to trigger ImagePicker from MessageBubble
-  const triggerImagePicker = (messageId: string, messageType: "handover_request" | "claim_request") => {
+  const triggerImagePicker = (
+    messageId: string,
+    messageType: "handover_request" | "claim_request"
+  ) => {
     setImagePickerMessageId(messageId);
     setImagePickerMessageType(messageType);
     setShowImagePickerModal(true);
@@ -921,7 +935,7 @@ export default function Chat() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
+    <SafeAreaView className="flex-1 bg-white" edges={["top", "bottom"]}>
       {/* Header - Stays fixed at top */}
       <View className="bg-white border-b border-gray-200 pb-4 px-4 mt-3 flex-row items-center">
         <TouchableOpacity onPress={() => navigation.goBack()} className="mr-3">
@@ -1132,7 +1146,7 @@ export default function Chat() {
 
           {/* Input Area with bottom spacing */}
           <View
-            className={`bg-white px-4 pt-2 ${isKeyboardVisible ? "pb-16" : "pb-0"}`}
+            className={`bg-white px-4 pt-2 ${isKeyboardVisible ? "pb-[15px]" : "pb-0"}`}
           >
             <View className="flex-row items-center gap-3">
               <View className="flex-1">
