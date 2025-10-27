@@ -89,6 +89,7 @@ export default function Chat() {
     postType,
     postStatus,
     foundAction,
+    postCreatorId, // Add postCreatorId parameter
   } = route.params;
 
   const {
@@ -383,7 +384,7 @@ export default function Chat() {
         }
 
         // Check if conversation data has the required fields, if not, fetch from post
-        if (data && (!data.postType || !data.postStatus)) {
+        if (data && (!data.postType || !data.postStatus || !data.postCreatorId)) {
           // Fetch post data to get the correct values
           if (data.postId) {
             fetchPostData(data.postId)
@@ -401,7 +402,8 @@ export default function Chat() {
                     postCreatorId:
                       postData.creatorId ||
                       data.postCreatorId ||
-                      data.postOwnerId,
+                      data.postOwnerId ||
+                      postData.postedById,
                   };
                   setConversationData(updatedConversationData);
                   isLoadingRef.current = false;
@@ -647,9 +649,16 @@ export default function Chat() {
     // Use conversation data if available, otherwise fall back to route params
     const currentPostType = conversationData?.postType || postType;
     const currentPostStatus = conversationData?.postStatus || postStatus;
+    const currentPostCreatorId = conversationData?.postCreatorId || postCreatorId || postOwnerId;
 
-    if (!userData || !postOwnerId) return false;
-    if (postOwnerId === userData.uid) return false;
+    if (!userData || !currentPostCreatorId) return false;
+
+    // Only show if current user is messaging the actual post creator
+    if (postOwnerId !== currentPostCreatorId) return false;
+
+    // Don't show if current user is the post creator
+    if (currentPostCreatorId === userData.uid) return false;
+
     if (currentPostType !== "lost") return false;
     if (currentPostStatus !== "pending") return false;
     return true;
@@ -659,10 +668,17 @@ export default function Chat() {
     // Use conversation data if available, otherwise fall back to route params
     const currentPostType = conversationData?.postType || postType;
     const currentPostStatus = conversationData?.postStatus || postStatus;
+    const currentPostCreatorId = conversationData?.postCreatorId || postCreatorId || postOwnerId;
     const currentFoundAction = conversationData?.foundAction || foundAction;
 
-    if (!userData || !postOwnerId) return false;
-    if (postOwnerId === userData.uid) return false;
+    if (!userData || !currentPostCreatorId) return false;
+
+    // Only show if current user is messaging the actual post creator
+    if (postOwnerId !== currentPostCreatorId) return false;
+
+    // Don't show if current user is the post creator
+    if (currentPostCreatorId === userData.uid) return false;
+
     if (currentPostType !== "found") return false;
     if (currentPostStatus !== "pending") return false;
 

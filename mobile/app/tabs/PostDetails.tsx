@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import type { RootStackParamList } from "../../types/type";
 import LocationMapView from "../../components/LocationMapView";
 import { useAuth } from "../../context/AuthContext";
+import { useMessage } from "../../context/MessageContext";
 import ProfilePicture from "../../components/ProfilePicture";
 
 type PostDetailsRouteProp = RouteProp<RootStackParamList, "PostDetails">;
@@ -21,6 +22,7 @@ export default function PostDetailsScreen() {
   const route = useRoute<PostDetailsRouteProp>();
   const { post } = route.params;
   const { userData } = useAuth();
+  const { createConversation } = useMessage();
 
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -57,6 +59,73 @@ export default function PostDetailsScreen() {
     });
   };
 
+  // Handle send message to original finder button click
+  const handleSendMessageToOriginalFinder = async () => {
+    if (!userData) {
+      Alert.alert("Login Required", "Please log in to send messages.", [
+        { text: "OK" },
+      ]);
+      return;
+    }
+
+    if (!post.turnoverDetails?.originalFinder) {
+      Alert.alert(
+        "Information Unavailable",
+        "Original finder information is not available.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    if (userData.uid === post.turnoverDetails.originalFinder.uid) {
+      Alert.alert(
+        "Cannot Message Yourself",
+        "You cannot send a message to yourself. This is your own post.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    try {
+      const originalFinder = post.turnoverDetails.originalFinder;
+      const originalFinderId = originalFinder.uid;
+
+      if (!originalFinderId) {
+        throw new Error("Cannot identify original finder");
+      }
+
+      // Create conversation with original finder
+      const conversationId = await createConversation(
+        post.id,
+        post.title,
+        originalFinderId, // Original finder's ID as postOwnerId
+        userData.uid, // Current user's UID
+        userData, // Current user's data
+        originalFinder // Original finder's data as postOwnerUserData
+      );
+
+      // Navigate to Chat screen with the conversation
+      (navigation as any).navigate("Chat", {
+        conversationId: conversationId,
+        postTitle: post.title,
+        postId: post.id,
+        postOwnerId: originalFinderId,
+        postOwnerUserData: originalFinder,
+        postType: post.type,
+        postStatus: post.status || "pending",
+        foundAction: post.foundAction,
+        postCreatorId: post.creatorId || post.postedById, // Pass the actual post creator ID
+      });
+    } catch (error: any) {
+      console.error("Error creating conversation with original finder:", error);
+      Alert.alert(
+        "Error",
+        `Failed to start conversation: ${error.message}`,
+        [{ text: "OK" }]
+      );
+    }
+  };
+
   return (
     <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-white">
       {/* X Close Icon */}
@@ -85,18 +154,6 @@ export default function PostDetailsScreen() {
               // Try to get postOwnerId from multiple sources
               let postOwnerId = post.creatorId || post.postedById;
 
-              // Fallback: if postedById is missing, try to get it from the user object
-              if (!postOwnerId && post.user) {
-                // For now, we'll show an alert, but in the future we could implement
-                // a way to get the user ID from the user object or other means
-                Alert.alert(
-                  "Messaging Unavailable",
-                  "Unable to start conversation. Post owner information is missing. This post was created before messaging was enabled.",
-                  [{ text: "OK" }]
-                );
-                return;
-              }
-
               // Navigate to Chat screen with post details
               if (postOwnerId) {
                 (navigation as any).navigate("Chat", {
@@ -107,6 +164,7 @@ export default function PostDetailsScreen() {
                   postType: post.type, // Pass post type (lost/found)
                   postStatus: post.status || "pending", // Pass post status
                   foundAction: post.foundAction, // Pass found action for found items
+                  postCreatorId: post.creatorId || post.postedById, // Pass the actual post creator ID
                 });
               } else {
                 // Fallback: show alert that messaging is not available
@@ -349,6 +407,15 @@ export default function PostDetailsScreen() {
                 <Text className="text-sm font-manrope-medium text-blue-700">
                   {post.turnoverDetails.originalFinder.firstName} {post.turnoverDetails.originalFinder.lastName}
                 </Text>
+                {/* Message button - only show if user is not the creator and not the original finder */}
+                {!isCurrentUserCreator && userData?.uid !== post.turnoverDetails.originalFinder.uid && post.status !== "resolved" && (
+                  <TouchableOpacity
+                    className="ml-2 px-2 py-1 bg-brand rounded-md"
+                    onPress={handleSendMessageToOriginalFinder}
+                  >
+                    <Text className="text-white text-xs font-manrope-medium">Message</Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               {/* Status */}

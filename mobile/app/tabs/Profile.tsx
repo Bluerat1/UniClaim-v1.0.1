@@ -553,7 +553,7 @@ export default function Profile() {
         },
       ]
     );
-  }, [userData?.profilePicture]);
+  }, [userData?.profilePicture, showToastMessage]);
 
   const renderField = (
     iconName: keyof typeof AntDesign.glyphMap | keyof typeof Ionicons.glyphMap,

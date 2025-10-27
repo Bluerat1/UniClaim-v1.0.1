@@ -8,7 +8,6 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useMessage } from "@/context/MessageContext";
-import { useToast } from "@/context/ToastContext";
 import type { Message } from "@/types/type";
 import ProfilePicture from "@/components/ProfilePicture";
 import ProfilePictureSeenIndicator from "@/components/ProfilePictureSeenIndicator";
@@ -65,7 +64,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   isLastSeenByOthers = false,
 }) => {
   const { deleteMessage } = useMessage();
-  const { showToastMessage } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showPhotoViewerModal, setShowPhotoViewerModal] = useState(false);
   const [photoViewerImages, setPhotoViewerImages] = useState<string[]>([]);

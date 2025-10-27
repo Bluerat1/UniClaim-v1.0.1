@@ -11,12 +11,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../utils/firebase';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 export default function EmailVerification() {
   const { user, refreshUserData, isAuthenticated, handleEmailVerificationComplete, needsEmailVerification, logout } = useAuth();
-  const navigation = useNavigation<NativeStackNavigationProp<any>>();
 
   const [isLoading, setIsLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);

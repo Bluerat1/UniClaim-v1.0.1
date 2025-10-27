@@ -52,8 +52,8 @@ export default function Home() {
   const resolvedPostsHook = useResolvedPosts();
 
   // Handle different return types from hooks
-  const { posts, loading, error, isInitialLoad, invalidateCache } = isResolvedTab
-    ? { ...resolvedPostsHook, isInitialLoad: false, invalidateCache: () => {} } // resolved hook doesn't have isInitialLoad or invalidateCache yet
+  const { posts, loading, error, isInitialLoad } = isResolvedTab
+    ? { ...resolvedPostsHook, isInitialLoad: false } // resolved hook doesn't have isInitialLoad or invalidateCache yet
     : postsHook;
 
   // Simple scroll handling (like web version)

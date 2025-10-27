@@ -7,7 +7,7 @@ import "../global.css";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 // screens
-import Navigation from "@/navigation/Navigation";
+import Navigation from "../navigation/Navigation";
 
 // components
 import { SafeAreaProvider } from "react-native-safe-area-context";

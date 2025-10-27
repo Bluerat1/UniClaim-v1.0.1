@@ -96,7 +96,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let hasAttemptedAutoLogin = false;
     let isProcessingAutoLogin = false;
-    let autoLoginTimeout: NodeJS.Timeout | null = null;
+    let autoLoginTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
       
@@ -433,7 +433,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             } finally {
               isProcessingAutoLogin = false;
             }
-          }, 1000) as unknown as NodeJS.Timeout; // 1 second delay to prevent race conditions
+          }, 1000);
         } else {
                     // Already attempted auto-login, user is truly not authenticated
           setLoading(false);
