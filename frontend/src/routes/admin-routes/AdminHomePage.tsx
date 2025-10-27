@@ -263,10 +263,20 @@ export default function AdminHomePage() {
     try {
       setIsBulkDeleting(true);
 
+      // Use hard delete if we're in the deleted view (permanently delete), otherwise soft delete
+      const isHardDelete = viewType === "deleted";
+
       for (const postId of selectedPostIds) {
         try {
           const { postService } = await import("../../services/firebase/posts");
-          await postService.deletePost(postId, false, userData?.email || "admin");
+
+          if (isHardDelete) {
+            // When on deleted view, posts are in deleted_posts collection, so use permanentlyDeletePost
+            await postService.permanentlyDeletePost(postId);
+          } else {
+            // When on other views, posts are in main posts collection, use regular deletePost
+            await postService.deletePost(postId, isHardDelete, userData?.email || "admin");
+          }
           successCount++;
         } catch (err) {
           console.error(`Failed to delete post ${postId}:`, err);
@@ -275,17 +285,33 @@ export default function AdminHomePage() {
       }
 
       if (errorCount === 0) {
+        const willSwitchView = successCount > 0 && !isHardDelete && (viewType === "all" || viewType === "lost" || viewType === "found");
+        const didHardDeleteFromDeleted = successCount > 0 && isHardDelete && viewType === "deleted";
+
         showToast(
           "success",
           "Bulk Delete Complete",
-          `Successfully deleted ${successCount} posts`
+          `Successfully ${isHardDelete ? 'permanently deleted' : 'moved'} ${successCount} posts${isHardDelete ? '' : ' to Recently Deleted'}${willSwitchView ? ". View switched to Recently Deleted." : didHardDeleteFromDeleted ? ". List refreshed." : isHardDelete ? '' : ". Check Recently Deleted tab to see them."}`
         );
       } else {
+        const willSwitchView = successCount > 0 && !isHardDelete && (viewType === "all" || viewType === "lost" || viewType === "found");
+        const didHardDeleteFromDeleted = successCount > 0 && isHardDelete && viewType === "deleted";
+
         showToast(
           "warning",
           "Bulk Delete Partial",
-          `Deleted ${successCount} posts successfully, ${errorCount} failed`
+          `${isHardDelete ? 'Permanently deleted' : 'Moved'} ${successCount} posts successfully, ${errorCount} failed${willSwitchView ? ". View switched to Recently Deleted." : didHardDeleteFromDeleted ? ". List refreshed." : ""}`
         );
+      }
+
+      // Switch to deleted view after successful bulk deletion so users can see recently deleted items
+      // Only switch if doing soft delete and currently on main item report views (all, lost, found)
+      if (successCount > 0 && !isHardDelete && (viewType === "all" || viewType === "lost" || viewType === "found")) {
+        setViewType("deleted");
+        fetchDeletedPosts();
+      } else if (successCount > 0 && isHardDelete) {
+        // If we did hard delete from deleted view, refresh the deleted posts list
+        fetchDeletedPosts();
       }
     } catch (err: any) {
       showToast("error", "Bulk Delete Failed", "Failed to delete selected posts");
@@ -1110,7 +1136,7 @@ export default function AdminHomePage() {
 
       try {
         const { postService } = await import("../../services/firebase/posts");
-        await postService.permanentlyDeletePost(post.id);
+        await postService.deletePost(post.id, true, userData?.email || "admin");
 
         // Update the UI by removing the deleted post from the list
         setDeletedPosts((prev) => prev.filter((p) => p.id !== post.id));
@@ -1143,6 +1169,7 @@ export default function AdminHomePage() {
                   ? `${userData.firstName} ${userData.lastName}`
                   : userData?.email?.split("@")[0] || "Admin",
               deletionType: "permanent",
+              originalFinder: post.turnoverDetails?.originalFinder,
             });
             console.log("✅ Permanent delete notification sent to user");
           } catch (notificationError) {
@@ -1726,7 +1753,7 @@ export default function AdminHomePage() {
               {/* Modal Header */}
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-semibold text-gray-900">
-                  Delete Multiple Posts
+                  {viewType === "deleted" ? "Permanently Delete Multiple Posts" : "Delete Multiple Posts"}
                 </h3>
                 <button
                   onClick={handleCancelBulkDelete}
@@ -1743,16 +1770,18 @@ export default function AdminHomePage() {
                     Bulk Delete Details:
                   </h4>
                   <p className="text-sm text-gray-700">
-                    You are about to <strong>delete</strong>{" "}
+                    You are about to <strong>{viewType === "deleted" ? "permanently delete" : "move"}</strong>{" "}
                     <strong>{bulkDeleteAction.count}</strong> post
-                    {bulkDeleteAction.count !== 1 ? "s" : ""}.
+                    {bulkDeleteAction.count !== 1 ? "s" : ""}{viewType === "deleted" ? " from the system" : " to Recently Deleted"}.
                   </p>
                 </div>
 
-                <div className="bg-yellow-50 p-4 rounded-lg">
-                  <p className="text-sm text-yellow-800">
-                    This will move all selected posts to the Recently Deleted section.
-                    Posts can be restored from there if needed.
+                <div className={`p-4 rounded-lg ${viewType === "deleted" ? "bg-red-50" : "bg-blue-50"}`}>
+                  <p className={`text-sm ${viewType === "deleted" ? "text-red-800" : "text-blue-800"}`}>
+                    {viewType === "deleted"
+                      ? "This will permanently delete all selected posts from the system. This action cannot be undone."
+                      : "This will move all selected posts to the Recently Deleted section. Posts can be restored from there if needed, or permanently deleted later."
+                    }
                   </p>
                 </div>
 
@@ -1779,7 +1808,7 @@ export default function AdminHomePage() {
                 >
                   {isBulkDeleting
                     ? "Deleting..."
-                    : `Delete ${bulkDeleteAction.count} Posts`}
+                    : `${viewType === "deleted" ? "Permanently Delete" : "Move"} ${bulkDeleteAction.count} Posts${viewType === "deleted" ? "" : " to Recently Deleted"}`}
                 </button>
               </div>
             </div>

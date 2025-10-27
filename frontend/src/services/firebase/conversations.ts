@@ -70,7 +70,6 @@ export const ghostConversationService = {
         }
     },
 
-    // Detect orphaned messages (messages without parent conversations)
     async detectOrphanedMessages(): Promise<{ conversationId: string; messageId: string; reason: string }[]> {
         try {
             const orphanedMessages: { conversationId: string; messageId: string; reason: string }[] = [];
@@ -276,6 +275,32 @@ export const ghostConversationService = {
         } catch (error: any) {
             console.error('Conversation integrity validation failed:', error);
             throw new Error(`Failed to validate conversation integrity: ${error.message}`);
+        }
+    },
+
+    // Find all conversations for a specific post
+    async findConversationsByPostId(postId: string): Promise<{ conversationId: string; postId: string }[]> {
+        try {
+            const conversationsSnapshot = await getDocs(collection(db, 'conversations'));
+            const matchingConversations: { conversationId: string; postId: string }[] = [];
+
+            // Check each conversation for matching postId
+            for (const convDoc of conversationsSnapshot.docs) {
+                const convData = convDoc.data();
+
+                if (convData.postId === postId) {
+                    matchingConversations.push({
+                        conversationId: convDoc.id,
+                        postId: postId
+                    });
+                }
+            }
+
+            return matchingConversations;
+
+        } catch (error: any) {
+            console.error(`Failed to find conversations for post ${postId}:`, error);
+            throw new Error(`Failed to find conversations for post: ${error.message}`);
         }
     }
 };

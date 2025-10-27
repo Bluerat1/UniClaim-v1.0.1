@@ -2284,13 +2284,14 @@ export const postService = {
 
     // Delete post and associated images from Cloudinary
     async deletePost(postId: string, isHardDelete: boolean = false, deletedBy?: string): Promise<void> {
+        let postDoc: any = null;
         try {
             // First get the post to delete its images
-            const postDoc = await getDoc(doc(db, 'posts', postId));
+            postDoc = await getDoc(doc(db, 'posts', postId));
             if (postDoc.exists()) {
                 const postData = postDoc.data();
 
-                // Delete all images associated with the post from Cloudinary
+                // Delete all images associated with the post from Cloudinary (with graceful 404 handling)
                 if (postData.images && Array.isArray(postData.images)) {
                     console.log(`🗑️ Deleting ${postData.images.length} images from Cloudinary for post ${postId}`);
 
@@ -2298,19 +2299,75 @@ export const postService = {
                     const deleteResults = await Promise.allSettled(
                         postData.images.map((imageUrl: string) => {
                             const publicId = extractCloudinaryPublicId(imageUrl);
-                            return publicId ? cloudinaryService.deleteImage(publicId) : Promise.resolve();
+                            if (!publicId) {
+                                return Promise.resolve({ success: true, reason: 'No public ID found' });
+                            }
+
+                            // Create a wrapper that handles 404 errors gracefully
+                            return cloudinaryService.deleteImage(publicId).catch((error: any) => {
+                                // If it's a 404 error (image doesn't exist), treat it as successful
+                                if (error.message && (error.message.includes('404') || error.message.includes('Not Found'))) {
+                                    console.log(`✅ Image ${publicId} not found in Cloudinary (404) - treating as successful deletion`);
+                                    return { success: true, reason: 'Image not found in Cloudinary' };
+                                }
+                                // For other errors, re-throw
+                                throw error;
+                            }).then((result) => {
+                                if (typeof result === 'object' && result.success) {
+                                    return result;
+                                }
+                                return { success: true, reason: 'Deleted successfully' };
+                            });
                         })
                     );
 
                     const successful = deleteResults.filter(result => result.status === 'fulfilled').length;
-                    const failed = deleteResults.length - successful;
+                    const failed = deleteResults.filter(result => result.status === 'rejected').length;
 
                     console.log(`✅ Cloudinary deletion: ${successful} succeeded, ${failed} failed`);
 
                     if (failed > 0) {
                         console.warn(`⚠️ Some images failed to delete from Cloudinary for post ${postId}`);
-                        // Continue with post deletion even if some images failed to delete
                     }
+                }
+            }
+
+            // Clean up conversations associated with this post (only for hard delete)
+            if (isHardDelete) {
+                try {
+                    console.log(`🧹 Cleaning up conversations for post ${postId}`);
+                    const { ghostConversationService } = await import('./conversations');
+                    const conversations = await ghostConversationService.findConversationsByPostId(postId);
+
+                    if (conversations.length > 0) {
+                        console.log(`Found ${conversations.length} conversations to clean up for post ${postId}`);
+
+                        // Clean up each conversation and its messages
+                        for (const conversation of conversations) {
+                            try {
+                                const { conversationCleanupService } = await import('../../utils/conversationCleanupService');
+                                await conversationCleanupService.cleanupConversation(conversation.conversationId);
+                                console.log(`✅ Cleaned up conversation ${conversation.conversationId}`);
+                            } catch (convError: any) {
+                                console.warn(`⚠️ Failed to cleanup conversation ${conversation.conversationId}:`, convError);
+                                // Continue with other conversations even if one fails
+                            }
+                        }
+                    }
+                } catch (error: any) {
+                    console.warn(`⚠️ Failed to cleanup conversations for post ${postId}:`, error);
+                    // Continue with post deletion even if conversation cleanup fails
+                }
+
+                // Clean up notifications associated with this post
+                try {
+                    console.log(`🧹 Cleaning up notifications for post ${postId}`);
+                    const { notificationService } = await import('./notifications');
+                    await notificationService.deleteNotificationsByPostId(postId);
+                    console.log(`✅ Cleaned up notifications for post ${postId}`);
+                } catch (error: any) {
+                    console.warn(`⚠️ Failed to cleanup notifications for post ${postId}:`, error);
+                    // Continue with post deletion even if notification cleanup fails
                 }
             }
 
@@ -2320,7 +2377,7 @@ export const postService = {
                 console.log(`🗑️ Post ${postId} permanently deleted from database`);
             } else {
                 // Soft delete: move to deleted_posts collection
-                const postData = postDoc.data();
+                const postData = postDoc?.data();
 
                 // Move post to deleted_posts collection
                 await setDoc(doc(db, 'deleted_posts', postId), {

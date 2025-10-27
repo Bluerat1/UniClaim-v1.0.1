@@ -1,11 +1,11 @@
 // app/tabs/ForgotPassword.tsx
-import { useRouter } from "expo-router";
+import { useNavigation } from "@react-navigation/native";
 import React, { useState } from "react";
 import { Alert, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { authService } from "../../utils/firebase/auth";
 
 const ForgotPassword = () => {
-  const router = useRouter();
+  const navigation = useNavigation();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -38,7 +38,7 @@ const ForgotPassword = () => {
             text: "OK",
             onPress: () => {
               setEmail("");
-              router.back();
+              navigation.goBack();
             }
           }
         ]
@@ -98,7 +98,7 @@ const ForgotPassword = () => {
 
       <TouchableOpacity
         className="h-[3.5rem] mt-1 items-center justify-center border border-brand rounded-lg"
-        onPress={() => router.back()}
+        onPress={() => navigation.goBack()}
       >
         <Text className="text-brand text-center font-[ManropeSemiBold]">
           Back to Login

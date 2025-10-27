@@ -139,22 +139,19 @@ export class NotificationSender {
         creatorName: string;
         adminName?: string;
         deletionType?: 'soft' | 'permanent';
+        originalFinder?: {
+            uid: string;
+            firstName: string;
+            lastName: string;
+        };
     }): Promise<void> {
         try {
             console.log('🚀 Sending post deletion notification for post:', postData.postTitle);
 
             const deletionTypeText = postData.deletionType === 'permanent' ? 'permanently deleted' : 'moved to Recently Deleted';
 
-            // Check if this post has been turned over and use the original finder instead
-            // We need to fetch the post data to check for turnoverDetails
-            const { postService } = await import('./posts');
-            const post = await postService.getPostById(postData.postId);
-
-            if (!post) {
-                throw new Error('Post not found for deletion notification');
-            }
-
-            const notificationRecipientId = post.turnoverDetails?.originalFinder?.uid || postData.creatorId;
+            // Use the provided creatorId or originalFinder info instead of fetching from database
+            const notificationRecipientId = postData.originalFinder?.uid || postData.creatorId;
 
             // Send notification to the post creator (or original finder if post was turned over)
             await this.sendNotificationToUser(notificationRecipientId, {
@@ -165,8 +162,8 @@ export class NotificationSender {
                 postTitle: postData.postTitle,
                 postType: postData.postType,
                 creatorId: notificationRecipientId,
-                creatorName: post.turnoverDetails?.originalFinder ?
-                    `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}` :
+                creatorName: postData.originalFinder ?
+                    `${postData.originalFinder.firstName} ${postData.originalFinder.lastName}` :
                     postData.creatorName,
                 data: {
                     adminName: postData.adminName,

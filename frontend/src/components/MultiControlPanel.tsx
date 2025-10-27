@@ -154,10 +154,16 @@ export default function MultiControlPanel({
               selectedCount > 0
                 ? isBulkDeleting
                   ? "text-gray-400 cursor-not-allowed"
+                  : viewType === "deleted"
+                  ? "text-red-700 hover:bg-red-50"
                   : "text-red-600 hover:bg-red-50"
                 : "text-gray-400 cursor-not-allowed"
             }`}
-            title="Delete Selected"
+            title={
+              viewType === "deleted"
+                ? "Permanently Delete Selected"
+                : "Move Selected to Recently Deleted"
+            }
           >
             <svg
               className="w-4 h-4"

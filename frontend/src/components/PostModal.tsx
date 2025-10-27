@@ -602,7 +602,8 @@ export default function PostModal({
           {/* Turnover Confirmation Buttons - Show only for posts awaiting OSA confirmation */}
           {post.turnoverDetails &&
             post.turnoverDetails.turnoverStatus === "declared" &&
-            post.turnoverDetails.turnoverAction === "turnover to OSA" && (
+            post.turnoverDetails.turnoverAction === "turnover to OSA" &&
+            isAdmin && (
               <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-blue-600 text-xl">🔄</span>
