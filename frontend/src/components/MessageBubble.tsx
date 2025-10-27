@@ -20,7 +20,14 @@ interface MessageBubbleProps {
   currentUserId: string;
   postOwnerId?: string; // Add post owner ID for handover confirmation logic
   isLastSeenMessage?: boolean; // Indicates if this is the most recent message that has been seen by other users
-  conversationParticipants?: { [uid: string]: { profilePicture?: string; profileImageUrl?: string; firstName: string; lastName: string; } };
+  conversationParticipants?: {
+    [uid: string]: {
+      profilePicture?: string;
+      profileImageUrl?: string;
+      firstName: string;
+      lastName: string;
+    };
+  };
   onHandoverResponse?: (
     messageId: string,
     status: "accepted" | "rejected"
@@ -75,7 +82,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     if (!message.readBy || message.readBy.length === 0) return false;
 
     // Check if any user other than the current user has read this message
-    return message.readBy.some(userId => userId !== currentUserId);
+    return message.readBy.some((userId) => userId !== currentUserId);
   };
 
   // Convert readBy user IDs to user objects with profile data
@@ -89,11 +96,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         return {
           uid,
           profilePicture: participant?.profilePicture || null,
-          firstName: participant?.firstName || 'Unknown',
-          lastName: participant?.lastName || 'User',
+          firstName: participant?.firstName || "Unknown",
+          lastName: participant?.lastName || "User",
         };
       })
-      .filter(reader => reader !== null);
+      .filter((reader) => reader !== null);
   };
   useEffect(() => {
     if (!messageRef.current || !onMessageSeen || hasBeenSeen || isOwnMessage)
@@ -129,13 +136,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     }
 
     // For rejection, check if this is after ID photo confirmation
-    if (message.handoverData?.status === "pending_confirmation" || message.handoverData?.ownerIdPhoto) {
+    if (
+      message.handoverData?.status === "pending_confirmation" ||
+      message.handoverData?.ownerIdPhoto
+    ) {
       console.log("🔄 Rejecting handover after ID photo confirmation");
       try {
         await handoverClaimService.updateHandoverResponse(
           conversationId,
           message.id,
-          'rejected',
+          "rejected",
           currentUserId
         );
         onHandoverResponse(message.id, "rejected");
@@ -258,10 +268,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       onConfirmIdPhotoSuccess?.(message.id);
 
       // Show success toast
-      showToast('success', 'Handover Confirmed', 'Handover has been successfully processed and confirmed!');
+      showToast(
+        "success",
+        "Handover Confirmed",
+        "Handover has been successfully processed and confirmed!"
+      );
     } catch (error) {
       console.error("Error confirming ID photo:", error);
-      showToast('error', "Failed to confirm handover. Please try again.");
+      showToast("error", "Failed to confirm handover. Please try again.");
     }
   };
 
@@ -283,13 +297,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     }
 
     // For rejection, check if this is after ID photo confirmation
-    if (message.claimData?.status === "pending_confirmation" || message.claimData?.ownerIdPhoto) {
+    if (
+      message.claimData?.status === "pending_confirmation" ||
+      message.claimData?.ownerIdPhoto
+    ) {
       console.log("🔄 Rejecting claim after ID photo confirmation");
       try {
         await messageService.updateClaimResponse(
           conversationId,
           message.id,
-          'rejected',
+          "rejected",
           currentUserId
         );
         onClaimResponse(message.id, "rejected");
@@ -316,7 +333,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     const msgId = message.id;
 
     const callbacks: HandoverClaimCallbacks = {
-      onHandoverResponse: (_messageId: string, _status: 'accepted' | 'rejected') => {
+      onHandoverResponse: (
+        _messageId: string,
+        _status: "accepted" | "rejected"
+      ) => {
         // Handle handover response after ID photo upload
         setShowIdPhotoModal(false);
         setSelectedIdPhoto(null);
@@ -335,7 +355,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           // Force refresh hint for parent component
         }, 200);
       },
-      onClaimResponse: (_messageId: string, _status: 'accepted' | 'rejected') => {
+      onClaimResponse: (
+        _messageId: string,
+        _status: "accepted" | "rejected"
+      ) => {
         // Handle claim response after ID photo upload
         if (onClaimResponse) {
           onClaimResponse(_messageId, _status);
@@ -384,10 +407,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       onConfirmIdPhotoSuccess?.(message.id);
 
       // Show success toast
-      showToast('success', 'Claim Confirmed', 'Claim has been successfully processed and confirmed!');
+      showToast(
+        "success",
+        "Claim Confirmed",
+        "Claim has been successfully processed and confirmed!"
+      );
     } catch (error) {
       console.error("Error confirming claim ID photo:", error);
-      showToast('error', "Failed to confirm claim ID photo. Please try again.");
+      showToast("error", "Failed to confirm claim ID photo. Please try again.");
     }
   };
 
@@ -442,9 +469,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 src={handoverData.idPhotoUrl}
                 alt="Finder ID Photo"
                 className="w-24 h-16 rounded object-cover cursor-pointer hover:opacity-90 transition-opacity group"
-                onClick={() =>
-                  handleImageClick(handoverData.idPhotoUrl!)
-                }
+                onClick={() => handleImageClick(handoverData.idPhotoUrl!)}
                 title="Click to view full size"
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all rounded flex items-center justify-center pointer-events-none">
@@ -490,9 +515,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       className="w-24 h-16 rounded object-cover cursor-pointer hover:opacity-90 transition-opacity group"
                       onClick={() => {
                         try {
-                          handleImageClick(
-                            handoverData.ownerIdPhoto!
-                          );
+                          handleImageClick(handoverData.ownerIdPhoto!);
                         } catch (clickError) {
                           console.error(
                             "❌ Error in owner photo click:",
@@ -543,9 +566,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       src={photo.url}
                       alt={`Item Photo ${index + 1}`}
                       className="w-full h-32 rounded object-cover cursor-pointer hover:opacity-90 transition-opacity group"
-                      onClick={() =>
-                        handleImageClick(photo.url)
-                      }
+                      onClick={() => handleImageClick(photo.url)}
                       title="Click to view full size"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all rounded flex items-center justify-center pointer-events-none">
@@ -688,9 +709,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 src={claimData.idPhotoUrl}
                 alt="Claimer ID Photo"
                 className="w-24 h-16 rounded object-cover cursor-pointer hover:opacity-90 transition-opacity group"
-                onClick={() =>
-                  handleImageClick(claimData.idPhotoUrl!)
-                }
+                onClick={() => handleImageClick(claimData.idPhotoUrl!)}
                 title="Click to view full size"
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all rounded flex items-center justify-center pointer-events-none">
@@ -728,9 +747,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 src={claimData.ownerIdPhoto}
                 alt="Owner ID Photo"
                 className="w-24 h-16 rounded object-cover cursor-pointer hover:opacity-90 transition-opacity group"
-                onClick={() =>
-                  handleImageClick(claimData.ownerIdPhoto!)
-                }
+                onClick={() => handleImageClick(claimData.ownerIdPhoto!)}
                 title="Click to view full size"
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all rounded flex items-center justify-center pointer-events-none">
@@ -760,11 +777,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       src={photo.url}
                       alt={`Evidence Photo ${index + 1}`}
                       className="w-full h-32 rounded object-cover cursor-pointer hover:opacity-90 transition-opacity group"
-                      onClick={() =>
-                        handleImageClick(
-                          photo.url
-                        )
-                      }
+                      onClick={() => handleImageClick(photo.url)}
                       title="Click to view full size"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all rounded flex items-center justify-center pointer-events-none">
@@ -799,11 +812,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       src={photo.url}
                       alt={`Verification Photo ${index + 1}`}
                       className="w-full h-32 rounded object-cover cursor-pointer hover:opacity-90 transition-opacity group"
-                      onClick={() =>
-                        handleImageClick(
-                          photo.url
-                        )
-                      }
+                      onClick={() => handleImageClick(photo.url)}
                       title="Click to view full size"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all rounded flex items-center justify-center pointer-events-none">
@@ -1020,8 +1029,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       message.senderId !== currentUserId &&
       (userRole === "admin" || userRole === "campus_security");
     return (
-      <div className="fixed inset-0 bg-black/50 flex h-screen items-center justify-center z-[1000]" onClick={() => setShowIdPhotoModal(false)}>
-        <div className="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full mx-4 relative z-[1000]" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="fixed inset-0 bg-black/50 flex h-screen items-center justify-center z-[1000]"
+        onClick={() => setShowIdPhotoModal(false)}
+      >
+        <div
+          className="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full mx-4 relative z-[1000]"
+          onClick={(e) => e.stopPropagation()}
+        >
           <h3 className="text-lg font-semibold mb-4">
             {isAdminAcceptingClaim
               ? "Confirm ID Photo"
@@ -1045,7 +1060,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                   <img
                     src={message.claimData.idPhotoUrl}
                     alt="Claimant's ID"
-                    className="max-w-full h-50 lg:h-full rounded border border-gray-200"
+                    className="max-w-full h-50 lg:h-80 rounded border border-gray-200"
                   />
                 </div>
               )}
@@ -1068,10 +1083,17 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         message.id,
                         currentUserId
                       );
-                      showToast('success', 'ID Photo Confirmed', 'ID photo has been confirmed successfully!');
+                      showToast(
+                        "success",
+                        "ID Photo Confirmed",
+                        "ID photo has been confirmed successfully!"
+                      );
                     } catch (error) {
                       console.error("Error confirming claim:", error);
-                      showToast('error', "Failed to confirm claim. Please try again.");
+                      showToast(
+                        "error",
+                        "Failed to confirm claim. Please try again."
+                      );
                     } finally {
                       setIsUploadingIdPhoto(false);
                     }
@@ -1113,7 +1135,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         className="w-full px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50"
                         disabled={isUploadingIdPhoto}
                       >
-                        {isUploadingIdPhoto ? "Uploading..." : "Confirm & Upload"}
+                        {isUploadingIdPhoto
+                          ? "Uploading..."
+                          : "Confirm & Upload"}
                       </button>
                       <button
                         onClick={handleCancelPreview}
@@ -1197,11 +1221,25 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 conversationParticipants[message.senderId]?.profilePicture ||
                 conversationParticipants[message.senderId]?.profileImageUrl
               }
-              alt={`${message.senderName || `${conversationParticipants[message.senderId]?.firstName || 'Unknown'} ${conversationParticipants[message.senderId]?.lastName || 'User'}`} profile`}
+              alt={`${
+                message.senderName ||
+                `${
+                  conversationParticipants[message.senderId]?.firstName ||
+                  "Unknown"
+                } ${
+                  conversationParticipants[message.senderId]?.lastName || "User"
+                }`
+              } profile`}
               className="size-6"
             />
             <div className="text-xs font-medium text-gray-600">
-              {message.senderName || `${conversationParticipants[message.senderId]?.firstName || 'Unknown'} ${conversationParticipants[message.senderId]?.lastName || 'User'}`}
+              {message.senderName ||
+                `${
+                  conversationParticipants[message.senderId]?.firstName ||
+                  "Unknown"
+                } ${
+                  conversationParticipants[message.senderId]?.lastName || "User"
+                }`}
             </div>
           </div>
         </div>
@@ -1268,7 +1306,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
             <h3 className="text-lg font-semibold mb-4">Delete Message</h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this message? This action cannot be undone.
+              Are you sure you want to delete this message? This action cannot
+              be undone.
             </p>
             <div className="flex justify-end space-x-3">
               <button
