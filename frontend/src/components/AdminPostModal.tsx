@@ -80,6 +80,7 @@ export default function AdminPostModal({
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [imageLoadingError, setImageLoadingError] = useState<string | null>(
     null
@@ -107,6 +108,8 @@ export default function AdminPostModal({
 
   useEffect(() => {
     setImageLoadingError(null);
+    setCurrentImageIndex(0); // Reset to first image when new images are loaded
+
     try {
       const urls = post.images.map((img) =>
         typeof img === "string" ? img : URL.createObjectURL(img)
@@ -187,6 +190,39 @@ export default function AdminPostModal({
       onClose();
     }
   };
+
+  // Image navigation functions
+  const goToPreviousImage = () => {
+    if (imageUrls.length > 1) {
+      setCurrentImageIndex((prev) =>
+        prev === 0 ? imageUrls.length - 1 : prev - 1
+      );
+    }
+  };
+
+  const goToNextImage = () => {
+    if (imageUrls.length > 1) {
+      setCurrentImageIndex((prev) =>
+        prev === imageUrls.length - 1 ? 0 : prev + 1
+      );
+    }
+  };
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (imageUrls.length <= 1) return;
+
+      if (e.key === 'ArrowLeft') {
+        goToPreviousImage();
+      } else if (e.key === 'ArrowRight') {
+        goToNextImage();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, [imageUrls.length]);
 
   return (
     <div
@@ -418,15 +454,64 @@ export default function AdminPostModal({
         {imageUrls.length > 0 && (
           <div className="mt-3 flex items-center justify-center">
             <div className="relative group w-full max-w-md">
+              {/* Previous button */}
+              {imageUrls.length > 1 && (
+                <button
+                  onClick={goToPreviousImage}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  aria-label="Previous image"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              )}
+
+              {/* Main image */}
               <img
-                src={imageUrls[0]}
-                alt="Uploaded image"
-                className="w-full h-auto object-cover rounded"
+                src={imageUrls[currentImageIndex]}
+                alt={`Uploaded image ${currentImageIndex + 1}`}
+                className="w-full h-auto object-cover rounded cursor-pointer"
+                onClick={(e) => {
+                  // Click on left half to go previous, right half to go next
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const clickX = e.clientX - rect.left;
+                  const isLeftHalf = clickX < rect.width / 2;
+
+                  if (imageUrls.length > 1) {
+                    if (isLeftHalf) {
+                      goToPreviousImage();
+                    } else {
+                      goToNextImage();
+                    }
+                  }
+                }}
               />
 
+              {/* Next button */}
+              {imageUrls.length > 1 && (
+                <button
+                  onClick={goToNextImage}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  aria-label="Next image"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              )}
+
+              {/* Image counter and current index */}
               <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
-                {imageUrls.length}
+                {currentImageIndex + 1} / {imageUrls.length}
               </div>
+
+              {/* Click hint for mobile */}
+              {imageUrls.length > 1 && (
+                <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full opacity-0 md:opacity-100 md:pointer-events-none md:select-none">
+                  Tap sides to navigate
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -440,6 +525,7 @@ export default function AdminPostModal({
               <button
                 onClick={() => {
                   setImageLoadingError(null);
+                  setCurrentImageIndex(0); // Reset to first image
                   const urls = post.images.map((img) =>
                     typeof img === "string" ? img : URL.createObjectURL(img)
                   );

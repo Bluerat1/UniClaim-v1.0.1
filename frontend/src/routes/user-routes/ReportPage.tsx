@@ -489,7 +489,7 @@ export default function ReportPage() {
                 return;
               }
 
-              // Send notifications in the background
+              // Send notifications in the background (only for non-turnover posts)
               await Promise.all([
                 // Send notifications to all users
                 notificationSender.sendNewPostNotification({
