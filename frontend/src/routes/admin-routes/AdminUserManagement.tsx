@@ -31,10 +31,6 @@ const AdminUserManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
   // Search state with debouncing
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
@@ -82,7 +78,7 @@ const AdminUserManagement: React.FC = () => {
       setLoading(true);
       setError(null);
       const usersRef = collection(db, "users");
-      const q = query(usersRef, orderBy("createdAt", "desc"), limit(100)); // Increased limit for better pagination
+      const q = query(usersRef, orderBy("createdAt", "desc"), limit(1000)); // Load all users
       const snapshot = await getDocs(q);
 
       const userData: User[] = [];
@@ -131,31 +127,11 @@ const AdminUserManagement: React.FC = () => {
     return filtered;
   }, [users, statusFilter, debouncedSearchQuery]);
 
-  // Pagination logic
-  const totalUsersToShow = Math.min(
-    filteredUsers.length,
-    currentPage * itemsPerPage
-  );
-  const hasMoreUsers = filteredUsers.length > totalUsersToShow;
-
-  // Function to load more users when scrolling
-  const handleLoadMore = useCallback(() => {
-    if (hasMoreUsers && !loading) {
-      setCurrentPage((prev) => prev + 1);
-    }
-  }, [hasMoreUsers, loading]);
-
-  // Reset pagination when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [debouncedSearchQuery, statusFilter]);
-
   // Handle clear search
   const handleClearSearch = useCallback(() => {
     setSearchQuery("");
     setStatusFilter("All");
-    setCurrentPage(1);
-  }, [setCurrentPage]);
+  }, []);
 
   // View user functions
   const handleViewUser = (user: User) => {
@@ -420,7 +396,7 @@ const AdminUserManagement: React.FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredUsers.slice(0, totalUsersToShow).map((user) => (
+                    filteredUsers.map((user) => (
                       <tr key={user.uid} className="hover:bg-brand/8">
                         <td className="px-6 py-4 whitespace-nowrap w-1/5">
                           <div className="flex items-center">
@@ -496,19 +472,6 @@ const AdminUserManagement: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Load More Button */}
-      {hasMoreUsers && !loading && (
-        <div className="flex justify-center mt-6">
-          <button
-            onClick={handleLoadMore}
-            className="px-4 py-3 bg-brand text-white rounded-md hover:bg-yellow-600 transition-colors shadow-sm"
-          >
-            Load More Users ({filteredUsers.length - totalUsersToShow}{" "}
-            remaining)
-          </button>
-        </div>
-      )}
 
       {/* Ban User Modal */}
       {showBanModal && banningUser && (

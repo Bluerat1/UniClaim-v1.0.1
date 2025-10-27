@@ -1136,7 +1136,7 @@ export default function AdminHomePage() {
 
       try {
         const { postService } = await import("../../services/firebase/posts");
-        await postService.deletePost(post.id, true, userData?.email || "admin");
+        await postService.permanentlyDeletePost(post.id);
 
         // Update the UI by removing the deleted post from the list
         setDeletedPosts((prev) => prev.filter((p) => p.id !== post.id));
