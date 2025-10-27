@@ -8,11 +8,11 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import PageLayout from "@/layout/PageLayout";
-import { useMessage } from "@/context/MessageContext";
-import { useAuth } from "@/context/AuthContext";
-import ProfilePicture from "@/components/ProfilePicture";
-import type { Conversation , RootStackParamList } from "@/types/type";
+import PageLayout from "../../layout/PageLayout";
+import { useMessage } from "../../context/MessageContext";
+import { useAuth } from "../../context/AuthContext";
+import ProfilePicture from "../../components/ProfilePicture";
+import type { Conversation , RootStackParamList } from "../../types/type";
 
 
 type MessageNavigationProp = NativeStackNavigationProp<

@@ -1,4 +1,4 @@
-import ImageCarousel from "@/components/ImageCarousel";
+import ImageCarousel from "../../components/ImageCarousel";
 import {
   Ionicons,
   MaterialCommunityIcons,

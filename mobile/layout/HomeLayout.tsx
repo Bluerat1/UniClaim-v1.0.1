@@ -1,4 +1,4 @@
-import Header from "@/components/Header";
+import Header from "../components/Header";
 import React, { PropsWithChildren } from "react";
 import { View } from "react-native";
 

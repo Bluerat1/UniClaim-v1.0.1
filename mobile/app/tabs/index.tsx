@@ -1,4 +1,4 @@
-import ScreenWrapper from "@/components/ScreenWrapper";
+import ScreenWrapper from "../../components/ScreenWrapper";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React from "react";

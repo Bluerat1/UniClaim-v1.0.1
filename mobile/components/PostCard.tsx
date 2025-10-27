@@ -3,10 +3,10 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useState, useCallback } from 'react';
 import { TouchableOpacity, View, Text, Image as RNImage, ActivityIndicator } from 'react-native';
-import type { Post, RootStackParamList } from "@/types/type";
-import ProfilePicture from "./ProfilePicture";
-import { useAdminStatus } from "@/hooks/useAdminStatus";
+import type { Post, RootStackParamList } from "../types/type";
+import { useAdminStatus } from "../hooks/useAdminStatus";
 import PostCardMenu from "./PostCardMenu";
+import ProfilePicture from "./ProfilePicture";
 
 type Props = {
   post: Post;

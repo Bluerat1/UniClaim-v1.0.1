@@ -1,4 +1,5 @@
 import type { Post } from "@/types/Post";
+import { useEffect, useState } from "react";
 
 interface PostCardProps {
   post: Post;
@@ -6,10 +7,42 @@ interface PostCardProps {
 }
 
 const TicketCard = ({ post, onClick }: PostCardProps) => {
-  const firstImg =
-    typeof post.images[0] === "string"
-      ? post.images[0]
-      : URL.createObjectURL(post.images[0]);
+  const [imageError, setImageError] = useState(false);
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+
+  // Handle image display with proper validation
+  const firstImg = (() => {
+    // Check if images array exists and has elements
+    if (!post.images || post.images.length === 0) {
+      return "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE0MCIgdmlld0JveD0iMCAwIDIwMCAxNDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIxNDAiIGZpbGw9IiNGM0Y0RjYiLz48dGV4dCB4PSIxMDAiIHk9IjcwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOENBOUE5IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCI+Tm8gSW1hZ2UgQXZhaWxhYmxlPC90ZXh0Pjwvc3ZnPg==";
+    }
+
+    const firstImage = post.images[0];
+
+    // If it's a string (URL), use it directly
+    if (typeof firstImage === "string") {
+      return firstImage;
+    }
+
+    // If it's a File object, create object URL
+    if (firstImage && typeof firstImage === "object" && "type" in firstImage) {
+      const url = URL.createObjectURL(firstImage as File | Blob);
+      setObjectUrl(url);
+      return url;
+    }
+
+    // Fallback for any other case
+    return "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE0MCIgdmlld0JveD0iMCAwIDIwMCAxNDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIxNDAiIGZpbGw9IiNGM0Y0RjYiLz48dGV4dCB4PSIxMDAiIHk9IjcwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOENBOUE5IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCI+Tm8gSW1hZ2UgQXZhaWxhYmxlPC90ZXh0Pjwvc3ZnPg==";
+  })();
+
+  // Cleanup object URL on unmount
+  useEffect(() => {
+    return () => {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [objectUrl]);
 
   return (
     <div
@@ -18,9 +51,10 @@ const TicketCard = ({ post, onClick }: PostCardProps) => {
     >
       <div className="relative">
         <img
-          src={firstImg}
+          src={imageError ? "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE0MCIgdmlld0JveD0iMCAwIDIwMCAxNDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIxNDAiIGZpbGw9IiNGM0Y0RjYiLz48dGV4dCB4PSIxMDAiIHk9IjcwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOENBOUE5IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCI+Tm8gSW1hZ2UgQXZhaWxhYmxlPC90ZXh0Pjwvc3ZnPg==" : firstImg}
           alt="ticket_thumbnail"
           className="w-full h-70 object-cover rounded-t"
+          onError={() => setImageError(true)}
         />
         <div className="absolute top-2 right-2 flex flex-row gap-2">
           {post.type === "found" && post.foundAction && (

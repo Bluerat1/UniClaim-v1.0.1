@@ -7,15 +7,15 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useMessage } from "@/context/MessageContext";
-import type { Message } from "@/types/type";
-import ProfilePicture from "@/components/ProfilePicture";
-import ProfilePictureSeenIndicator from "@/components/ProfilePictureSeenIndicator";
-import PhotoViewerModal from "@/components/PhotoViewerModal";
+import { useMessage } from "../context/MessageContext";
+import type { Message } from "../types/type";
+import ProfilePicture from "./ProfilePicture";
+import ProfilePictureSeenIndicator from "./ProfilePictureSeenIndicator";
+import PhotoViewerModal from "./PhotoViewerModal";
 import {
   handoverClaimService,
   type HandoverClaimCallbacks,
-} from "@/utils/handoverClaimService";
+} from "../utils/handoverClaimService";
 
 interface MessageBubbleProps {
   message: Message;

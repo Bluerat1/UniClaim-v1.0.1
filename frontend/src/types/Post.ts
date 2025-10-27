@@ -21,10 +21,10 @@ export interface Post {
   };
   createdAt?: string | Date | any; // Firebase timestamp or Date
   updatedAt?: string | Date | any; // Firebase timestamp or Date
-  // Admin notes for status changes
-  adminNotes?: string;
-  // Revert reason for when posts are reverted by admin
-  revertReason?: string;
+  // Status of the post (pending, resolved, unclaimed, completed)
+  status?: "pending" | "resolved" | "unclaimed" | "completed";
+  // For found items, what action was taken
+  foundAction?: "keep" | "turnover to OSA" | "turnover to Campus Security";
   // New fields for 30-day lifecycle system
   expiryDate?: string | Date | any; // When the post expires (30 days from creation)
   isExpired?: boolean; // Boolean flag for quick filtering

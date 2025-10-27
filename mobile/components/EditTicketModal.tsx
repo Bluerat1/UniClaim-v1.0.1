@@ -14,10 +14,10 @@ import {
   StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import type { Post } from "@/types/type";
+import type { Post } from "../types/type";
 import * as ImagePicker from "expo-image-picker";
 import CustomDropdownWithSearch from "./DropdownWithSearch";
-import { cleanupRemovedPostImages } from "@/utils/cloudinary";
+import { cleanupRemovedPostImages } from "../utils/cloudinary";
 import { ITEM_CATEGORIES } from '../constants';
 
 interface EditTicketModalProps {

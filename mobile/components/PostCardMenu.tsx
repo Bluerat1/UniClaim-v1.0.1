@@ -9,12 +9,12 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useAuth } from "@/context/AuthContext";
-import { usePostCardMenu } from "@/context/PostCardMenuContext";
-import { messageService } from "@/utils/firebase/messages";
-import { postService } from "@/utils/firebase/posts";
+import { useAuth } from "../context/AuthContext";
+import { usePostCardMenu } from "../context/PostCardMenuContext";
+import { messageService } from "../utils/firebase/messages";
+import { postService } from "../utils/firebase/posts";
 import FlagModal from "./FlagModal";
-import type { RootStackParamList } from "@/types/type";
+import type { RootStackParamList } from "../types/type";
 
 interface PostCardMenuProps {
   postId: string;

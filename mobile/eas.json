@@ -9,7 +9,11 @@
             "distribution": "internal",
             "env": {
                 "NODE_ENV": "development",
-                "EXPO_PUBLIC_APP_ENV": "development"
+                "EXPO_PUBLIC_APP_ENV": "development",
+                "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME": "@eas/CLOUDINARY_CLOUD_NAME",
+                "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "@eas/CLOUDINARY_UPLOAD_PRESET",
+                "EXPO_PUBLIC_CLOUDINARY_API_KEY": "@eas/CLOUDINARY_API_KEY",
+                "EXPO_PUBLIC_CLOUDINARY_API_SECRET": "@eas/CLOUDINARY_API_SECRET"
             }
         },
         "preview": {
@@ -19,7 +23,11 @@
             },
             "env": {
                 "NODE_ENV": "production",
-                "EXPO_PUBLIC_APP_ENV": "production"
+                "EXPO_PUBLIC_APP_ENV": "production",
+                "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME": "@eas/CLOUDINARY_CLOUD_NAME",
+                "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "@eas/CLOUDINARY_UPLOAD_PRESET",
+                "EXPO_PUBLIC_CLOUDINARY_API_KEY": "@eas/CLOUDINARY_API_KEY",
+                "EXPO_PUBLIC_CLOUDINARY_API_SECRET": "@eas/CLOUDINARY_API_SECRET"
             }
         },
         "production": {
@@ -27,7 +35,9 @@
                 "NODE_ENV": "production",
                 "EXPO_PUBLIC_APP_ENV": "production",
                 "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME": "@eas/CLOUDINARY_CLOUD_NAME",
-                "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "@eas/CLOUDINARY_UPLOAD_PRESET"
+                "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "@eas/CLOUDINARY_UPLOAD_PRESET",
+                "EXPO_PUBLIC_CLOUDINARY_API_KEY": "@eas/CLOUDINARY_API_KEY",
+                "EXPO_PUBLIC_CLOUDINARY_API_SECRET": "@eas/CLOUDINARY_API_SECRET"
             }
         }
     },

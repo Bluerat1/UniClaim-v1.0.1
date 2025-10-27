@@ -1,4 +1,4 @@
-import PageLayout from "@/layout/PageLayout";
+import PageLayout from "../../layout/PageLayout";
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { useFocusEffect , useNavigation } from "@react-navigation/native";
 import {
@@ -13,18 +13,18 @@ import {
 } from "react-native";
 
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useAuth } from "@/context/AuthContext";
-import { useUserPostsWithSet } from "@/hooks/usePosts";
-import type { Post } from "@/types/type";
-import { postService , messageService } from "@/utils/firebase";
+import { useAuth } from "../../context/AuthContext";
+import { useUserPostsWithSet } from "../../hooks/usePosts";
+import type { Post } from "../../types/type";
+import { postService , messageService } from "../../utils/firebase";
 
 
-import { db } from "@/utils/firebase/config";
+import { db } from "../../utils/firebase/config";
 import { collection, query, getDocs, deleteDoc, doc } from "firebase/firestore";
-import { handoverClaimService } from "@/utils/handoverClaimService";
-import { notificationSender } from "@/utils/firebase/notificationSender";
-import { deleteMessageImages, extractMessageImages } from "@/utils/cloudinary";
-import EditTicketModal from "@/components/EditTicketModal";
+import { handoverClaimService } from "../../utils/handoverClaimService";
+import { notificationSender } from "../../utils/firebase/notificationSender";
+import { deleteMessageImages, extractMessageImages } from "../../utils/cloudinary";
+import EditTicketModal from "../../components/EditTicketModal";
 import { Ionicons } from "@expo/vector-icons";
 const useDebounce = (value: string, delay: number) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -327,7 +327,7 @@ export default function Ticket() {
           if (!conversationParticipants[request.conversationId]) {
             try {
               const { doc, getDoc } = await import("firebase/firestore");
-              const { db } = await import("@/utils/firebase/config");
+              const { db } = await import("../../utils/firebase/config");
 
               const conversationRef = doc(
                 db,
