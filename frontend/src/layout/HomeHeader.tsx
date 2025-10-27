@@ -91,11 +91,11 @@ export default function HomeHeader({
     };
 
     if (showProfileMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showProfileMenu]);
 
@@ -110,11 +110,17 @@ export default function HomeHeader({
 
     // Handle claim_response and handover_response notifications - navigate to completed post if postId is available
     if (
-      (notification.type === "claim_response" || notification.type === "handover_response" ||
-       (notification.type === "message" && (notification.data?.responseType === "claim_response" || notification.data?.responseType === "handover_response"))) &&
+      (notification.type === "claim_response" ||
+        notification.type === "handover_response" ||
+        (notification.type === "message" &&
+          (notification.data?.responseType === "claim_response" ||
+            notification.data?.responseType === "handover_response"))) &&
       notification.data?.postId
     ) {
-      console.log("Response notification - fetching post:", notification.data.postId);
+      console.log(
+        "Response notification - fetching post:",
+        notification.data.postId
+      );
       try {
         const post = await postService.getPostById(notification.data.postId);
         if (post) {
@@ -167,16 +173,21 @@ export default function HomeHeader({
       console.log("Post deleted notification clicked");
 
       // Show toast message for deleted post
-      toast.info(`This ${notification.data?.postType || 'lost/found'} post has been deleted by an admin.`, {
-        position: "top-right",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        toastId: "post-deleted-notification", // Add a unique ID to prevent duplicate toasts
-      });
+      toast.info(
+        `This ${
+          notification.data?.postType || "lost/found"
+        } post has been deleted by an admin.`,
+        {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          toastId: "post-deleted-notification", // Add a unique ID to prevent duplicate toasts
+        }
+      );
 
       toggleNotif(); // Close the notification dropdown
       return;
@@ -335,7 +346,10 @@ export default function HomeHeader({
 
               {/* profile dropdown */}
               {showProfileMenu && (
-                <div ref={profileMenuRef} className="absolute font-manrope right-0 top-16 p-2 w-40 bg-white shadow-xs rounded-sm z-50">
+                <div
+                  ref={profileMenuRef}
+                  className="absolute font-manrope right-0 top-16 p-2 w-40 bg-white shadow-xs rounded-sm z-50"
+                >
                   <button
                     onClick={handleProfileClick}
                     className="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded w-full text-sm"
@@ -442,8 +456,11 @@ export default function HomeHeader({
                         </p>
                         <p className="text-gray-400 text-xs mt-2">
                           {(() => {
-                            const date = notification.createdAt?.toDate?.() || new Date(notification.createdAt);
-                            if (!date || isNaN(date.getTime())) return "Recently";
+                            const date =
+                              notification.createdAt?.toDate?.() ||
+                              new Date(notification.createdAt);
+                            if (!date || isNaN(date.getTime()))
+                              return "Recently";
                             const now = new Date();
                             const diffMs = now.getTime() - date.getTime();
                             const diffSeconds = Math.floor(diffMs / 1000);
@@ -525,7 +542,10 @@ export default function HomeHeader({
         <PostModal
           post={selectedPost}
           onClose={() => setSelectedPost(null)}
-          hideSendMessage={selectedPost.status === 'resolved' || selectedPost.status === 'completed'}
+          hideSendMessage={
+            selectedPost.status === "resolved" ||
+            selectedPost.status === "completed"
+          }
         />
       )}
     </>
