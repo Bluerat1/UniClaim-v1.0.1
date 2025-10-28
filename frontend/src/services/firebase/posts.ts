@@ -2368,18 +2368,18 @@ export const postService = {
         }
     },
 
-    // Delete post and associated images from Cloudinary
+    // Delete post and associated images from Cloudinary (only for hard deletes)
     async deletePost(postId: string, isHardDelete: boolean = false, deletedBy?: string): Promise<void> {
         let postDoc: any = null;
         try {
-            // First get the post to delete its images
+            // First get the post
             postDoc = await getDoc(doc(db, 'posts', postId));
             if (postDoc.exists()) {
                 const postData = postDoc.data();
 
-                // Delete all images associated with the post from Cloudinary (with graceful 404 handling)
-                if (postData.images && Array.isArray(postData.images)) {
-                    console.log(`🗑️ Deleting ${postData.images.length} images from Cloudinary for post ${postId}`);
+                // Only delete images from Cloudinary for hard deletes
+                if (isHardDelete && postData.images && Array.isArray(postData.images)) {
+                    console.log(`🗑️ Hard delete: Deleting ${postData.images.length} images from Cloudinary for post ${postId}`);
 
                     // Use Promise.allSettled to handle partial failures gracefully
                     const deleteResults = await Promise.allSettled(
@@ -2415,7 +2415,10 @@ export const postService = {
                     if (failed > 0) {
                         console.warn(`⚠️ Some images failed to delete from Cloudinary for post ${postId}`);
                     }
+                } else if (!isHardDelete) {
+                    console.log(`♻️ Soft delete: Preserving images in Cloudinary for post ${postId}`);
                 }
+
             }
 
             // Clean up conversations associated with this post (only for hard delete)

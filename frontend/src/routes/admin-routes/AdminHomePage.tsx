@@ -239,7 +239,7 @@ export default function AdminHomePage() {
 
   const handleBulkDelete = () => {
     if (selectedPosts.size === 0) {
-      showToast("warning", "No Selection", "Please select posts to delete");
+      showToast("warning", "No Selection", "Please select posts to move to Recently Deleted");
       return;
     }
     setBulkDeleteAction({ count: selectedPosts.size });
@@ -252,7 +252,7 @@ export default function AdminHomePage() {
     setBulkDeleteAction(null);
   };
 
-  // Handle bulk delete confirmation - actually perform the deletion
+  // Handle bulk delete confirmation - perform soft delete by default
   const handleBulkDeleteConfirm = async () => {
     if (!bulkDeleteAction || selectedPosts.size === 0) return;
 
@@ -263,7 +263,7 @@ export default function AdminHomePage() {
     try {
       setIsBulkDeleting(true);
 
-      // Use hard delete if we're in the deleted view (permanently delete), otherwise soft delete
+      // Only use hard delete if we're in the deleted view, otherwise always use soft delete
       const isHardDelete = viewType === "deleted";
 
       for (const postId of selectedPostIds) {
@@ -274,12 +274,12 @@ export default function AdminHomePage() {
             // When on deleted view, posts are in deleted_posts collection, so use permanentlyDeletePost
             await postService.permanentlyDeletePost(postId);
           } else {
-            // When on other views, posts are in main posts collection, use regular deletePost
-            await postService.deletePost(postId, isHardDelete, userData?.email || "admin");
+            // Always use soft delete for posts in main collection (preserves images in Cloudinary)
+            await postService.deletePost(postId, false, userData?.email || "admin");
           }
           successCount++;
         } catch (err) {
-          console.error(`Failed to delete post ${postId}:`, err);
+          console.error(`Failed to ${viewType === 'deleted' ? 'permanently delete' : 'move to Recently Deleted'} post ${postId}:`, err);
           errorCount++;
         }
       }
