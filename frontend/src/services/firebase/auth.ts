@@ -4,7 +4,7 @@ import {
     signInWithEmailAndPassword,
     signOut,
     updateProfile,
-    sendEmailVerification,
+    sendEmailVerification as firebaseSendEmailVerification,
     sendPasswordResetEmail,
     type User as FirebaseUser,
     type UserCredential
@@ -26,6 +26,9 @@ import { auth, db } from './config';
 import { notificationSubscriptionService } from './notificationSubscriptions';
 import { getFirebaseErrorMessage } from './utils';
 import type { UserData } from './types';
+
+// Feature flag for new auth flow
+const USE_SIMPLIFIED_AUTH = true; // Set to false to revert to old flow
 
 // Auth utility functions
 export const authService = {
@@ -88,7 +91,7 @@ export const authService = {
             }
 
             // Send email verification
-            await sendEmailVerification(user);
+            await firebaseSendEmailVerification(user);
 
             return { user, userData };
         } catch (error: any) {
@@ -99,23 +102,36 @@ export const authService = {
     // Login user
     async login(email: string, password: string, isAdminLogin: boolean = false): Promise<FirebaseUser> {
         try {
-            // First, sign in the user
+            // Sign in the user
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
             
+            // Force token refresh to get latest email verification status
+            await user.getIdToken(true);
+            
+            // Skip email verification check for admin users
+            if (USE_SIMPLIFIED_AUTH && !user.emailVerified) {
+                // Check if user is an admin
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                const userData = userDoc.data();
+                
+                // Only enforce email verification for non-admin users
+                if (userData?.role !== 'admin') {
+                    await signOut(auth);
+                    throw new Error('Please verify your email before logging in.');
+                }
+            }
+            
             if (isAdminLogin) {
-                // If this is an admin login, verify the user is an admin
                 const userDoc = await getDoc(doc(db, 'users', user.uid));
                 if (!userDoc.exists() || userDoc.data()?.role !== 'admin') {
-                    // If not an admin, sign them out immediately
                     await signOut(auth);
                     throw new Error('Access denied. This account does not have admin privileges.');
                 }
             }
             
-            // Ensure the user has a notification subscription
+            // Ensure notification subscription
             try {
-                // Check if subscription exists, if not create one
                 const subscription = await notificationSubscriptionService.getSubscription(user.uid);
                 if (!subscription) {
                     await notificationSubscriptionService.createSubscription({
@@ -124,9 +140,8 @@ export const authService = {
                     });
                 }
             } catch (subscriptionError) {
-                console.error('Error ensuring notification subscription:', subscriptionError);
-                // Don't fail the login if there's an issue with the subscription
-                // The user can still use the app, they just might not get notifications
+                console.error('Error with notification subscription:', subscriptionError);
+                // Continue login even if subscription fails
             }
             
             return user;
@@ -328,7 +343,7 @@ export const authService = {
             // Force email verification
             if (!user.emailVerified) {
                 // This will send a verification email
-                await sendEmailVerification(user);
+                await firebaseSendEmailVerification(user);
                 console.log('Verification email sent to:', email);
             }
 
@@ -397,15 +412,30 @@ export const authService = {
 
     // Send email verification (resend)
     async sendEmailVerificationToCurrentUser(): Promise<void> {
+        const user = auth.currentUser;
+        if (!user) {
+            throw new Error('No user is currently signed in.');
+        }
         try {
-            const user = auth.currentUser;
-            if (!user) {
-                throw new Error('No user is currently signed in');
+            await firebaseSendEmailVerification(user);
+            
+            // Update Firestore if using simplified auth
+            if (USE_SIMPLIFIED_AUTH) {
+                await this.updateEmailVerificationStatus(user.uid, false);
             }
-            await sendEmailVerification(user);
         } catch (error: any) {
-            console.error('Error sending email verification:', error);
             throw new Error(getFirebaseErrorMessage(error));
         }
+    },
+    
+    // Simplified email verification check
+    async isEmailVerified(user: FirebaseUser): Promise<boolean> {
+        if (!USE_SIMPLIFIED_AUTH) {
+            // Fallback to old verification method
+            const userData = await this.getUserData(user.uid);
+            return userData?.emailVerified === true;
+        }
+        // In simplified flow, we only check Firebase's emailVerified
+        return user.emailVerified;
     }
 };

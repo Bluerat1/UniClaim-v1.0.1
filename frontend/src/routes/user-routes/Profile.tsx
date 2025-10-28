@@ -799,6 +799,29 @@ const Profile = () => {
                 )}
               </div>
 
+              {/* Email Verification Status */}
+              <div className="bg-gray-100 border border-gray-700 rounded px-4 py-2.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-small text-gray-500">Email Verification</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-medium ${
+                      (user?.emailVerified || userData?.role === 'admin') ? 'text-green-600' : 'text-orange-600'
+                    }`}>
+                      {(user?.emailVerified || userData?.role === 'admin') ? 'Verified' : 'Pending'}
+                    </span>
+                    <div className={`h-2.5 w-2.5 rounded-full ${(user?.emailVerified || userData?.role === 'admin') ? 'bg-green-500' : 'bg-orange-500'}`} />
+                    {!user?.emailVerified && userData?.role !== 'admin' && (
+                      <a 
+                        href="/verify-email"
+                        className="bg-orange-100 text-orange-600 text-xs font-medium px-2 py-1 rounded-full hover:bg-orange-200 transition-colors"
+                      >
+                        Verify
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Delete Account Button */}
               {!isEdit && (
                 <div className="">
