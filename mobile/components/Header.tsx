@@ -250,19 +250,9 @@ export default function Header() {
             />
             <Animated.View
               style={{
-                position: "absolute",
-                top: 0,
-                bottom: "5%",
-                right: 0,
-                width: SCREEN_WIDTH * 1.0,
-                backgroundColor: "white",
-                padding: 20,
-                shadowColor: "#000",
-                shadowOffset: { width: -2, height: 0 },
-                shadowOpacity: 0.25,
-                shadowRadius: 10,
                 transform: [{ translateX: slideAnim }],
               }}
+              className="absolute inset-y-0 right-0 w-full bg-white p-5 shadow-lg"
             >
               <View className="flex-row justify-between items-center mb-4">
                 <View className="flex-row items-center">
@@ -355,23 +345,25 @@ export default function Header() {
               </ScrollView>
 
               {notifications.length > 0 && (
-                <View className="mt-4 pt-4 border-t border-gray-200 flex-col gap-3">
-                  <TouchableOpacity
-                    onPress={markAllAsRead}
-                    className="w-full p-3 rounded-lg border border-navyblue"
-                  >
-                    <Text className="text-center font-manrope-medium text-navyblue">
-                      Mark all as read
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={deleteAllNotifications}
-                    className="w-full p-3 rounded-lg border border-red-500"
-                  >
-                    <Text className="text-center text-red-500 font-manrope-medium">
-                      Delete all
-                    </Text>
-                  </TouchableOpacity>
+                <View className="mt-4 pt-4 border-t border-gray-200">
+                  <View className="flex-row justify-between gap-3 px-1">
+                    <TouchableOpacity
+                      onPress={markAllAsRead}
+                      className="flex-1 p-3 rounded-lg border border-navyblue"
+                    >
+                      <Text className="text-center font-manrope-medium text-navyblue">
+                        Mark all as read
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={deleteAllNotifications}
+                      className="flex-1 p-3 rounded-lg border border-red-500"
+                    >
+                      <Text className="text-center text-red-500 font-manrope-medium">
+                        Delete all
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               )}
             </Animated.View>
