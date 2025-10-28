@@ -10,6 +10,7 @@ import { IoIosArrowRoundForward } from "react-icons/io";
 
 // images
 import Logo from "../../assets/uniclaim_logo.png";
+import UserSurvey from "../../assets/user_sruvey.png";
 import USTPImg from "../../assets/ustp.jpg";
 import Montano from "../../assets/montano.jpg";
 import Salaan from "../../assets/salaan.png";
@@ -63,15 +64,96 @@ const AboutUniClaim = () => {
         </div>
 
         <div className="mx-4 lg:mx-6">
+          {/* for taking the survey and download the app section */}
+          <div className="grid grid-cols-1 gap-4 mt-7 md:grid-cols-2">
+            <div className="bg-navyblue p-3 rounded-md h-auto">
+              <div className="flex flex-row gap-4">
+                <div className="shrink-0">
+                  <img
+                    src={UserSurvey}
+                    alt="userSurvey"
+                    className="size-30 rounded-md"
+                  />
+                </div>
+                <div className="flex flex-col justify-center space-y-1">
+                  <h1 className="font-bold font-manrope text-sm text-brand">
+                    Take Our Survey
+                  </h1>
+                  <p className="text-xs font-inter text-white">
+                    Please tell us what you think about our system by scanning
+                    the QR code or clicking the button to take the survey. Your
+                    feedback is highly appreciated!
+                  </p>
+                  <div className="w-full hidden lg:flex items-center justify-center mt-4 max-w-[200px]">
+                    <a
+                      href="https://docs.google.com/forms/d/e/1FAIpQLSdcKHISn8yHb-muHPqEzJkDS4bflXdZm98Mf6T6BWZvVl8xkg/viewform"
+                      target="_blank"
+                      className="text-navyblue bg-brand hover:bg-yellow-600 w-full text-sm py-1.5 text-center rounded-sm"
+                    >
+                      Take Now
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <div className="w-full lg:hidden flex items-center justify-center mt-4">
+                <a
+                  href="https://docs.google.com/forms/d/e/1FAIpQLSdcKHISn8yHb-muHPqEzJkDS4bflXdZm98Mf6T6BWZvVl8xkg/viewform"
+                  target="_blank"
+                  className="text-navyblue bg-brand hover:bg-yellow-600 w-full text-sm py-1.5 text-center rounded-sm"
+                >
+                  Take Now
+                </a>
+              </div>
+            </div>
+            <div className="bg-navyblue p-3 rounded-md h-auto">
+              <div className="flex flex-row gap-4">
+                <div className="shrink-0">
+                  <div className="bg-white size-30 rounded-md flex justify-center items-center px-5">
+                    <p className="text-black text-center text-sm">
+                      Soon to be posted
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-col justify-center space-y-1">
+                  <h1 className="font-bold font-manrope text-sm text-brand">
+                    Download our App
+                  </h1>
+                  <p className="text-xs font-inter text-white">
+                    Download the UniClaim mobile app for a faster and more
+                    convenient lost-and-found experience. Report items, receive
+                    updates, and stay informed on the go.
+                  </p>
+                  <div className="w-full hidden lg:flex items-center justify-center mt-4 max-w-[200px]">
+                    <a
+                      href="https://docs.google.com/forms/d/e/1FAIpQLSdcKHISn8yHb-muHPqEzJkDS4bflXdZm98Mf6T6BWZvVl8xkg/viewform"
+                      target="_blank"
+                      className="text-navyblue bg-brand hover:bg-yellow-600 w-full text-sm py-1.5 text-center rounded-sm"
+                    >
+                      Click to Download
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <div className="w-full lg:hidden flex items-center justify-center mt-4">
+                <a
+                  href="https://docs.google.com/forms/d/e/1FAIpQLSdcKHISn8yHb-muHPqEzJkDS4bflXdZm98Mf6T6BWZvVl8xkg/viewform"
+                  target="_blank"
+                  className="text-navyblue bg-brand hover:bg-yellow-600 w-full text-sm py-1.5 text-center rounded-sm"
+                >
+                  Click to Download
+                </a>
+              </div>
+            </div>
+          </div>
           {/* image with info text */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:my-18">
+          <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:my-10">
             <img
               src={USTPImg}
               alt="ustpimage"
               className="hidden w-full h-full rounded lg:w-full lg:h-auto lg:block"
             />
             <div className="">
-              <h1 className="text-brand mt-8 mb-3 font-semibold text-base lg:text-xl lg:mt-0">
+              <h1 className="text-brand mt-5 mb-3 font-semibold text-base lg:text-xl lg:mt-0">
                 About UniClaim
               </h1>
               <div className="space-y-3 mb-8">

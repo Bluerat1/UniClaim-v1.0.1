@@ -339,13 +339,13 @@ export default function HomePage() {
       {/* Filter Controls - Responsive */}
       <div className="mt-5 w-full px-4">
         {/* Mobile/Tablet Filter (hidden on lg screens) */}
-        <div className="block lg:hidden mb-4">
+        <div className="block lg:hidden">
           <MobileFilter
             viewType={viewType}
             onViewTypeChange={(type) => {
               setIsLoading(true);
               setViewType(type);
-              if (type !== 'all') {
+              if (type !== "all") {
                 setCurrentPage(1);
                 setRawResults(null);
               }
@@ -424,13 +424,14 @@ export default function HomePage() {
               <IoInformationCircle className="w-4 h-4" />
             </button>
             <div className="absolute z-10 hidden group-hover:block w-64 px-2 py-1 mt-1 text-xs text-gray-600 bg-white border border-gray-200 rounded shadow-lg">
-              After 30 days, the posts will be automatically removed from the system.
+              After 30 days, the posts will be automatically removed from the
+              system.
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 mx-4 mt-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-5 mx-4 mt-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {/* ✅ Handle Firebase loading state */}
         {loading || resolvedLoading || isLoading ? (
           <div className="col-span-full flex items-center justify-center h-80">

@@ -33,7 +33,7 @@ export default function MobileFilter({
       {/* Main Filter Button - Always Visible */}
       <button
         onClick={toggleExpand}
-        className="flex z-50 items-center justify-between w-full px-4 py-3 bg-white border border-gray-300 rounded-md"
+        className="flex items-center justify-between w-full px-4 py-3 bg-white border border-gray-300 rounded-md"
       >
         <span className="font-medium-manrope  text-sm text-navyblue">
           {viewType === "all"
@@ -57,7 +57,7 @@ export default function MobileFilter({
           isExpanded ? "block" : "hidden"
         } absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg`}
       >
-        <div className="p-2 space-y-1 text-sm z-50">
+        <div className="p-2 space-y-1 text-sm">
           <button
             className={`w-full text-left px-4 py-2 rounded-md ${
               viewType === "all"
@@ -97,7 +97,7 @@ export default function MobileFilter({
             onClick={() => handleFilterClick("completed")}
           >
             <span>Completed Items</span>
-            <span className="text-xs text-gray-500 ml-2">30 days</span>
+            <span className="text-xs text-blue-500 ml-2">30 days</span>
           </button>
         </div>
       </div>
