@@ -119,8 +119,8 @@ function PostCard({
       className="bg-white rounded shadow/2 cursor-pointer overflow-hidden hover:shadow-md/5 transition relative"
       onClick={onClick}
     >
-      {/* Triple dot menu */}
-      <div className="absolute top-2 right-2 z-10">
+      {/* Triple dot menu - highest z-index to ensure it's above all other elements */}
+      <div className="absolute top-2 right-2 z-[10]">
         <PostCardMenu
           postId={post.id}
           postTitle={post.title}
@@ -156,7 +156,7 @@ function PostCard({
         <div className="bg-gray-300 h-60 w-full" />
       )}
 
-      {/* Expiry Countdown Badge - positioned on photo */}
+      {/* Expiry Countdown Badge - positioned on photo with lower z-index */}
       {post.expiryDate && (
         <div className="absolute top-2 left-2 z-10">
           {(() => {
@@ -404,7 +404,7 @@ function PostCard({
           (creatorData?.role === "admin" ||
             (creatorData?.email &&
               effectiveAdminStatuses.get(creatorData.email))) && (
-            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="absolute right-2 top-12 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-40">
               {/* Show handover request details summary if available */}
               <div>
                 <div className="flex items-center gap-2 mb-2">

@@ -29,7 +29,7 @@ export default function MobileFilter({
   };
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative z-50 ${className}`}>
       {/* Main Filter Button - Always Visible */}
       <button
         onClick={toggleExpand}
@@ -55,7 +55,7 @@ export default function MobileFilter({
       <div
         className={`${
           isExpanded ? "block" : "hidden"
-        } absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg`}
+        } absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg`}
       >
         <div className="p-2 space-y-1 text-sm">
           <button

@@ -170,7 +170,7 @@ export default function PostCardMenu({
         {/* Triple dot button */}
         <button
           onClick={handleMenuClick}
-          className="p-1 mt-2 mr-2 bg-black/25 rounded-full cursor-pointer transition duration-300"
+          className="p-1 mt-2 mr-2 bg-black/25 hover:bg-black/40 rounded-full cursor-pointer transition duration-300 relative z-[102]"
           title="More options"
         >
           <IoEllipsisVertical className="size-5 text-white" />
@@ -178,7 +178,7 @@ export default function PostCardMenu({
 
         {/* Dropdown menu */}
         {isOpen && (
-          <div className="absolute right-2 top-12 w-48 bg-white rounded-md shadow-lg border border-gray-200">
+          <div className="absolute right-2 top-12 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-[101]">
             <div className="py-1">
               {/* Send Message Button */}
               <button
