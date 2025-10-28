@@ -17,6 +17,7 @@ import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { postService } from "@/services/firebase/posts";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
+import FooterComp from "@/layout/FooterComp";
 
 function fuzzyMatch(text: string, query: string): boolean {
   const cleanedText = text.toLowerCase();
@@ -508,6 +509,7 @@ export default function HomePage() {
           onConfirmTurnover={handleConfirmTurnover}
         />
       )}
+      <FooterComp />
     </div>
   );
 }
