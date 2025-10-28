@@ -485,7 +485,9 @@ export default function ReportPage() {
             try {
               // Check if this is a turnover post - if so, skip notifications until approved
               if (post.turnoverDetails && post.turnoverDetails.turnoverAction) {
-                console.log(`📋 Post ${postId} has turnover details (${post.turnoverDetails.turnoverAction}) - skipping notifications until approved`);
+                console.log(
+                  `📋 Post ${postId} has turnover details (${post.turnoverDetails.turnoverAction}) - skipping notifications until approved`
+                );
                 return;
               }
 
