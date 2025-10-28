@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from "
 import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import { auth, authService, type UserData, getFirebaseErrorMessage, db } from "../utils/firebase";
 import { listenerManager } from "../utils/ListenerManager";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { notificationService } from "../services/firebase/notifications";
 
 interface AuthContextType {
@@ -272,22 +272,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const handleEmailVerificationComplete = async (): Promise<void> => {
-    if (!user || !userData) return;
-
-    try {
-      // Update Firestore email verification status
-      await authService.updateEmailVerificationStatus(user.uid, true);
-
-      // Refresh user data to get updated verification status
-      await refreshUserData();
-
-      console.log('Email verification completed successfully');
-    } catch (error: any) {
-      console.error('Failed to complete email verification:', error);
-      throw new Error('Failed to complete email verification');
-    }
-  };
 
   const logout = async (): Promise<void> => {
     try {
@@ -323,46 +307,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const refreshUserData = async (): Promise<void> => {
-    if (user) {
-      try {
-        const updatedUserData = await authService.getUserData(user.uid);
-
-        if (updatedUserData) {
-          setUserData(updatedUserData);
-
-          // Update deactivation status when refreshing user data (with backward compatibility)
-          if (updatedUserData && (updatedUserData.status === 'deactivated' || (updatedUserData as any).status === 'banned')) {
-            setIsBanned(true);
-            setBanInfo(updatedUserData.banInfo || {});
-          } else {
-            setIsBanned(false);
-            setBanInfo(null);
-          }
-        } else {
-          // User document doesn't exist - account has been deleted
-          console.log('🚨 refreshUserData: User document deleted - account has been deleted from web');
-
-          // Use the dedicated account deletion logout function
-          handleAccountDeletionLogout();
-        }
-      } catch (error: any) {
-        // Check if this is a permission error indicating account deletion
-        if (error?.code === 'permission-denied' ||
-            error?.message?.includes('Missing or insufficient permissions') ||
-            error?.message?.includes('not found') ||
-            error?.message?.includes('does not exist') ||
-            error?.code === 'not-found') {
-          console.log('🚨 refreshUserData: Permission denied - account may have been deleted from web');
-
-          // Use the dedicated account deletion logout function
-          handleAccountDeletionLogout();
-        } else {
-          console.error('AuthContext: Error refreshing user data:', error);
-          setUserData(null);
-          setIsBanned(false);
-          setBanInfo(null);
-        }
+    if (!user) return;
+    
+    try {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists()) {
+        setUserData(userDoc.data() as UserData);
       }
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+    }
+  };
+
+  const handleEmailVerificationComplete = async (): Promise<void> => {
+    if (!user) return;
+
+    try {
+      // Update the user's email verification status in Firestore
+      await updateDoc(doc(db, 'users', user.uid), {
+        emailVerified: true,
+        updatedAt: serverTimestamp()
+      });
+
+      // Refresh user data to get the updated document
+      await refreshUserData();
+
+      console.log('Email verification completed successfully');
+    } catch (error: any) {
+      console.error('Failed to complete email verification:', error);
+      throw new Error('Failed to complete email verification');
     }
   };
 
@@ -536,19 +509,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{
-      isAuthenticated,
-      user,
-      userData,
-      loading,
-      isBanned,
-      banInfo,
-      needsEmailVerification,
-      login,
-      register,
-      logout,
-      refreshUserData,
-      handleEmailVerificationComplete
+    <AuthContext.Provider
+      value={{
+        isAuthenticated,
+        user,
+        userData,
+        loading,
+        isBanned,
+        banInfo,
+        needsEmailVerification,
+        login,
+        register,
+        logout,
+        refreshUserData,
+        handleEmailVerificationComplete,
     }}>
       {children}
     </AuthContext.Provider>

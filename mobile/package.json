@@ -67,6 +67,8 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@expo/config-plugins": "^54.0.2",
+    "@react-native-community/cli": "^13.4.1",
     "@types/react": "~19.1.0",
     "@types/react-native-crypto-js": "^1.0.3",
     "eslint": "^9.25.0",

@@ -108,6 +108,7 @@ android {
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
+            manifestPlaceholders = [usesCleartextTraffic:"true"]
         }
         release {
             // Caution! In production, you need to generate your own keystore file.
@@ -119,6 +120,12 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
             def enablePngCrunchInRelease = findProperty('android.enablePngCrunchInReleaseBuilds') ?: 'true'
             crunchPngs enablePngCrunchInRelease.toBoolean()
+            
+            // Ensure network security config is included
+            manifestPlaceholders = [usesCleartextTraffic:"true"]
+            
+            // Add this to ensure network security config is not stripped
+            proguardFile("proguard-rules.pro")
         }
     }
     packagingOptions {

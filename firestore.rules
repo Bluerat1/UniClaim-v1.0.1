@@ -1,25 +1,57 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // NOTE: Conversations and messages read permissions simplified to fix new user permission errors
-    // Users can now read conversations and messages as long as they're authenticated
-    // Write permissions still maintain security by checking user participation and ban status
+    // Helper function to check if user is the owner
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Unverified users collection - only for storing temporary user data before email verification
+    match /unverified_users/{userId} {
+      // Allow users to create their own unverified document
+      allow create: if isAuthenticated() && isOwner(userId);
+      
+      // Allow users to read their own unverified document
+      allow read: if isAuthenticated() && isOwner(userId);
+      
+      // Allow users to delete their own unverified document (for cleanup)
+      allow delete: if isAuthenticated() && isOwner(userId);
+      
+      // Allow admins to read and delete unverified users
+      allow read, delete: if isAdmin();
+      
+      // No updates allowed to unverified users
+      allow update: if false;
+    }
     
-    // Users can read and write their own user document
+    // Main users collection rules
+    
+    // Users collection - only for verified users
     match /users/{userId} {
       // Allow users to read their own document (for ban checking and profile access)
-      allow read: if request.auth != null && request.auth.uid == userId;
+      // Users can read their own document regardless of email verification status
+      allow read: if isAuthenticated() && isOwner(userId);
 
       // Allow reading basic profile info for messaging functionality
       // This enables conversations to display participant names and profile pictures
-      // Simplified: Allow reading user profiles for messaging (fixes ban listener permission error)
-      allow read: if request.auth != null;
+      // Only allow reading other users' profiles if they are verified
+      allow read: if isAuthenticated() && 
+        (resource.data.emailVerified == true || isAdmin());
 
       // Allow admins to read all users (for admin panel)
       allow read: if request.auth != null && isAdmin();
 
       // Allow users to create their own document during registration
-      allow create: if request.auth != null && request.auth.uid == userId;
+      // New users can be created with emailVerified = false initially
+      allow create: if isAuthenticated() && isOwner(userId) && 
+        (request.resource.data.emailVerified == false || isAdmin()) &&
+        request.resource.data.keys().hasAll(['email', 'firstName', 'lastName', 'contactNum', 'studentId', 'status']) &&
+        request.resource.data.status == 'active';
 
       // Allow email verification updates for authenticated users
       // This allows users to update their emailVerified status during verification
@@ -250,8 +282,9 @@ service cloud.firestore {
         !get(/databases/$(database)/documents/users/$(request.auth.uid)).data.emailVerified;
     }
     
+    // Helper function to check if user is admin
+    // Checks both email-based admin list and role-based admin status
     function isAdmin() {
-      // Check both email-based admin list and role-based admin status
       return request.auth != null && (
         request.auth.token.email in ['admin@ustp.edu.ph', 'superadmin@ustp.edu.ph','admin@uniclaim.com', 'cs@uniclaim.com'] ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 

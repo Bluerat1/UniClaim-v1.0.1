@@ -40,7 +40,7 @@ export const authService = {
         lastName: string,
         contactNum: string,
         studentId: string
-    ): Promise<{ user: FirebaseUser; userData: UserData }> {
+    ): Promise<{ user: FirebaseUser }> {
         try {
             // Create user with email and password
             const userCredential: UserCredential = await createUserWithEmailAndPassword(
@@ -56,44 +56,27 @@ export const authService = {
                 displayName: `${firstName} ${lastName}`
             });
 
-            // Create user document in Firestore
-            const userData: UserData = {
-                uid: user.uid,
+            // Create user document in users collection
+            const userData = {
                 email: user.email!,
                 firstName,
                 lastName,
                 contactNum,
                 studentId,
-                profilePicture: '/src/assets/empty_profile.jpg', // Set default profile picture
-                status: 'active', // Set default status to active - CRITICAL for permissions
-                emailVerified: false, // New users need to verify their email
+                status: 'active',
+                emailVerified: false,
                 createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp()
+                updatedAt: serverTimestamp(),
+                profilePicture: '/src/assets/empty_profile.jpg'
             };
 
-            // Ensure the status field is explicitly set to prevent permission issues
-            if (!userData.status) {
-                userData.status = 'active';
-            }
-
+            // Store user data in users collection
             await setDoc(doc(db, 'users', user.uid), userData);
-
-            // Create notification subscription for the new user
-            try {
-                await notificationSubscriptionService.createSubscription({
-                    userId: user.uid,
-                    isActive: true
-                });
-                console.log('✅ Created notification subscription for new user:', user.uid);
-            } catch (subscriptionError) {
-                console.error('❌ Failed to create notification subscription:', subscriptionError);
-                // Don't fail registration if subscription creation fails
-            }
 
             // Send email verification
             await firebaseSendEmailVerification(user);
 
-            return { user, userData };
+            return { user };
         } catch (error: any) {
             throw new Error(getFirebaseErrorMessage(error));
         }
@@ -106,20 +89,10 @@ export const authService = {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
             
-            // Force token refresh to get latest email verification status
-            await user.getIdToken(true);
-            
-            // Skip email verification check for admin users
-            if (USE_SIMPLIFIED_AUTH && !user.emailVerified) {
-                // Check if user is an admin
-                const userDoc = await getDoc(doc(db, 'users', user.uid));
-                const userData = userDoc.data();
-                
-                // Only enforce email verification for non-admin users
-                if (userData?.role !== 'admin') {
-                    await signOut(auth);
-                    throw new Error('Please verify your email before logging in.');
-                }
+            // Check if user is verified
+            if (!user.emailVerified) {
+                await signOut(auth);
+                throw new Error('Please verify your email before logging in. Check your inbox for the verification link.');
             }
             
             if (isAdminLogin) {
@@ -167,6 +140,7 @@ export const authService = {
             throw new Error(getFirebaseErrorMessage(error));
         }
     },
+
 
     // Get user data from Firestore
     async getUserData(uid: string): Promise<UserData | null> {
@@ -428,14 +402,4 @@ export const authService = {
         }
     },
     
-    // Simplified email verification check
-    async isEmailVerified(user: FirebaseUser): Promise<boolean> {
-        if (!USE_SIMPLIFIED_AUTH) {
-            // Fallback to old verification method
-            const userData = await this.getUserData(user.uid);
-            return userData?.emailVerified === true;
-        }
-        // In simplified flow, we only check Firebase's emailVerified
-        return user.emailVerified;
-    }
 };
