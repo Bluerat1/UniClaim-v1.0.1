@@ -37,8 +37,14 @@ const MessagesPage: React.FC = () => {
   // Refresh selected conversation when conversations list is updated
   useEffect(() => {
     if (selectedConversation && conversations.length > 0) {
-      const updatedConversation = conversations.find(conv => conv.id === selectedConversation.id);
-      if (updatedConversation && JSON.stringify(updatedConversation) !== JSON.stringify(selectedConversation)) {
+      const updatedConversation = conversations.find(
+        (conv) => conv.id === selectedConversation.id
+      );
+      if (
+        updatedConversation &&
+        JSON.stringify(updatedConversation) !==
+          JSON.stringify(selectedConversation)
+      ) {
         console.log("Updating selected conversation with fresh data");
         setSelectedConversation(updatedConversation);
       }

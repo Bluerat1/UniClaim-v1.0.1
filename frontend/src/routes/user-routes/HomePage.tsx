@@ -305,7 +305,7 @@ export default function HomePage() {
   const loadingRef = useInfiniteScroll(handleLoadMore, hasMorePosts, isLoading);
 
   return (
-    <div className="min-h-screen bg-gray-100 mb-13 font-manrope transition-colors duration-300">
+    <div className="min-h-screen bg-gray-100 mb-13 font-manrope transition-colors duration-300 overflow-hidden">
       <MobileNavText title="Home" description="Welcome to home" />
 
       <div className="pt-4 px-4 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">

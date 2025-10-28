@@ -37,7 +37,7 @@ export default function MainHome() {
 
       {/* Main content */}
       <div
-        className={`flex transition-all duration-300 w-full ${
+        className={`flex flex-col transition-all duration-300 w-full ${
           isSideBarOpen ? "lg:ml-57" : "lg:ml-21"
         } md:w-full`}
       >
@@ -50,7 +50,7 @@ export default function MainHome() {
         </main>
         <div
           className={`flex flex-col flex-1 transition-all duration-300 w-full ${
-            isSideBarOpen ? "md:ml-0 overflow-hidden" : "md:-ml-0"
+            isSideBarOpen ? "md:ml-0" : "md:-ml-0"
           }`}
         >
           <Footer />

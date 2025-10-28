@@ -28,15 +28,14 @@ export default function MobileFilter({
     }
   };
 
-
   return (
     <div className={`relative z-50 ${className}`}>
       {/* Main Filter Button - Always Visible */}
       <button
         onClick={toggleExpand}
-        className="flex items-center justify-between w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-navyblue focus:border-navyblue"
+        className="flex z-50 items-center justify-between w-full px-4 py-3 bg-white border border-gray-300 rounded-md"
       >
-        <span className="font-medium text-gray-700">
+        <span className="font-medium-manrope  text-sm text-navyblue">
           {viewType === "all"
             ? "All Item Reports"
             : viewType === "lost"
@@ -58,7 +57,7 @@ export default function MobileFilter({
           isExpanded ? "block" : "hidden"
         } absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg`}
       >
-        <div className="p-2 space-y-1">
+        <div className="p-2 space-y-1 text-sm z-50">
           <button
             className={`w-full text-left px-4 py-2 rounded-md ${
               viewType === "all"
