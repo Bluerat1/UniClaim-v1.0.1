@@ -37,7 +37,7 @@ export default function MainHome() {
 
       {/* Main content */}
       <div
-        className={`flex-1 transition-all duration-300 w-full ${
+        className={`flex transition-all duration-300 w-full ${
           isSideBarOpen ? "lg:ml-57" : "lg:ml-21"
         } md:w-full`}
       >
