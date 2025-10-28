@@ -32,7 +32,9 @@ export default function PostDetailsScreen() {
     userData?.uid === post.creatorId || userData?.uid === post.postedById;
 
   // Helper function to format dates consistently
-  const formatDateTime = (datetime: string | Date | { seconds: number; nanoseconds: number } | any) => {
+  const formatDateTime = (
+    datetime: string | Date | { seconds: number; nanoseconds: number } | any
+  ) => {
     let date: Date;
 
     if (datetime && typeof datetime === "object" && "seconds" in datetime) {
@@ -118,11 +120,9 @@ export default function PostDetailsScreen() {
       });
     } catch (error: any) {
       console.error("Error creating conversation with original finder:", error);
-      Alert.alert(
-        "Error",
-        `Failed to start conversation: ${error.message}`,
-        [{ text: "OK" }]
-      );
+      Alert.alert("Error", `Failed to start conversation: ${error.message}`, [
+        { text: "OK" },
+      ]);
     }
   };
 
@@ -244,18 +244,21 @@ export default function PostDetailsScreen() {
         {/* Keep/Turnover Display for Found Items Only */}
         {post.type === "found" && post.foundAction && (
           <View className="mt-1 mb-3">
-            <Text className="mb-2 font-manrope-semibold">Found Item Action</Text>
+            <Text className="mb-2 font-manrope-semibold">
+              Found Item Action
+            </Text>
             <View className="bg-blue-50 border border-blue-200 rounded-md p-3">
               <Text className="text-base font-manrope-medium text-blue-700">
                 {post.foundAction === "keep"
                   ? "The finder will keep this item and return it themselves"
                   : post.turnoverDetails &&
-                    post.turnoverDetails.originalTurnoverAction === "turnover to Campus Security" &&
-                    post.turnoverDetails.turnoverAction === "turnover to OSA"
-                  ? "This item was transferred to OSA"
-                  : post.foundAction === "turnover to OSA"
-                  ? "This item was turned over to OSA office"
-                  : "This item was turned over to Campus Security"}
+                      post.turnoverDetails.originalTurnoverAction ===
+                        "turnover to Campus Security" &&
+                      post.turnoverDetails.turnoverAction === "turnover to OSA"
+                    ? "This item was transferred to OSA"
+                    : post.foundAction === "turnover to OSA"
+                      ? "This item was turned over to OSA office"
+                      : "This item was turned over to Campus Security"}
               </Text>
             </View>
           </View>
@@ -265,21 +268,29 @@ export default function PostDetailsScreen() {
         {post.turnoverDetails &&
           post.turnoverDetails.turnoverAction === "turnover to OSA" &&
           post.turnoverDetails.turnoverStatus === "transferred" &&
-          post.turnoverDetails.originalTurnoverAction === "turnover to Campus Security" && (
+          post.turnoverDetails.originalTurnoverAction ===
+            "turnover to Campus Security" && (
             <View className="mt-3 mb-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <View className="flex-row items-center gap-2 mb-3">
                 <View className="w-2 h-2 bg-blue-500 rounded-full"></View>
-                <Text className="text-base font-manrope-bold text-blue-800">🔄 Item Holder Transfer</Text>
+                <Text className="text-base font-manrope-bold text-blue-800">
+                  🔄 Item Holder Transfer
+                </Text>
               </View>
               <View className="space-y-2">
                 <View className="flex-row items-center">
-                  <Text className="text-sm font-manrope-semibold text-blue-800 w-20">Status:</Text>
+                  <Text className="text-sm font-manrope-semibold text-blue-800 w-20">
+                    Status:
+                  </Text>
                   <Text className="text-sm font-manrope-medium text-blue-700 flex-1">
-                    Item has been transferred from Campus Security to OSA (Admin)
+                    Item has been transferred from Campus Security to OSA
+                    (Admin)
                   </Text>
                 </View>
                 <View className="flex-row items-center">
-                  <Text className="text-sm font-manrope-semibold text-blue-800 w-20">Transfer Date:</Text>
+                  <Text className="text-sm font-manrope-semibold text-blue-800 w-20">
+                    Transfer Date:
+                  </Text>
                   <Text className="text-sm font-manrope-medium text-blue-700 flex-1">
                     {post.turnoverDetails.turnoverDecisionAt
                       ? formatDateTime(post.turnoverDetails.turnoverDecisionAt)
@@ -288,7 +299,9 @@ export default function PostDetailsScreen() {
                 </View>
                 {post.turnoverDetails.turnoverReason && (
                   <View className="flex-row items-start">
-                    <Text className="text-sm font-manrope-semibold text-blue-800 w-20">Reason:</Text>
+                    <Text className="text-sm font-manrope-semibold text-blue-800 w-20">
+                      Reason:
+                    </Text>
                     <Text className="text-sm font-manrope-medium text-blue-700 flex-1">
                       {post.turnoverDetails.turnoverReason}
                     </Text>
@@ -394,63 +407,85 @@ export default function PostDetailsScreen() {
           <View className="mt-4 mb-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <View className="flex-row items-center gap-2 mb-3">
               <Text className="text-blue-600 text-lg">🔄</Text>
-              <Text className="text-base font-manrope-bold text-blue-800">Turnover Information</Text>
+              <Text className="text-base font-manrope-bold text-blue-800">
+                Turnover Information
+              </Text>
             </View>
             <View className="space-y-2">
               {/* Original Finder Information */}
               <View className="flex-row items-center gap-2">
-                <Text className="text-sm font-manrope-semibold text-blue-800">Originally found by:</Text>
+                <Text className="text-sm font-manrope-semibold text-blue-800">
+                  Originally found by:
+                </Text>
                 <ProfilePicture
                   src={post.turnoverDetails.originalFinder.profilePicture}
                   size="xs"
                 />
-                <Text className="text-sm font-manrope-medium text-blue-700">
-                  {post.turnoverDetails.originalFinder.firstName} {post.turnoverDetails.originalFinder.lastName}
+                <Text
+                  className="text-sm font-manrope-medium text-blue-700 flex-shrink"
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  {post.turnoverDetails.originalFinder.firstName}{" "}
+                  {post.turnoverDetails.originalFinder.lastName}
                 </Text>
                 {/* Message button - only show if user is not the creator and not the original finder */}
-                {!isCurrentUserCreator && userData?.uid !== post.turnoverDetails.originalFinder.uid && post.status !== "resolved" && (
-                  <TouchableOpacity
-                    className="ml-2 px-2 py-1 bg-brand rounded-md"
-                    onPress={handleSendMessageToOriginalFinder}
-                  >
-                    <Text className="text-white text-xs font-manrope-medium">Message</Text>
-                  </TouchableOpacity>
-                )}
+                {!isCurrentUserCreator &&
+                  userData?.uid !== post.turnoverDetails.originalFinder.uid &&
+                  post.status !== "resolved" && (
+                    <TouchableOpacity
+                      className="ml-2 px-2 py-1 bg-brand rounded-md"
+                      onPress={handleSendMessageToOriginalFinder}
+                    >
+                      <Text className="text-white text-xs font-manrope-medium">
+                        Message
+                      </Text>
+                    </TouchableOpacity>
+                  )}
               </View>
 
               {/* Status */}
               <View className="flex-row items-center">
-                <Text className="text-sm font-manrope-semibold text-blue-800 w-16">Status:</Text>
+                <Text className="text-sm font-manrope-semibold text-blue-800 w-16">
+                  Status:
+                </Text>
                 <Text className="text-sm font-manrope-medium text-blue-700 flex-1">
                   {post.turnoverDetails.turnoverStatus === "declared"
                     ? "Declared - Awaiting Confirmation"
                     : post.turnoverDetails.turnoverStatus === "confirmed"
-                    ? "Confirmed - Item Received"
-                    : post.turnoverDetails.turnoverStatus === "not_received"
-                    ? "Not Received - Item Deleted"
-                    : post.turnoverDetails.turnoverAction === "turnover to Campus Security"
-                    ? "Turned over to Campus Security"
-                    : post.turnoverDetails.turnoverAction === "turnover to OSA"
-                    ? "Turned over to OSA"
-                    : post.turnoverDetails.turnoverStatus}
+                      ? "Confirmed - Item Received"
+                      : post.turnoverDetails.turnoverStatus === "not_received"
+                        ? "Not Received - Item Deleted"
+                        : post.turnoverDetails.turnoverAction ===
+                            "turnover to Campus Security"
+                          ? "Turned over to Campus Security"
+                          : post.turnoverDetails.turnoverAction ===
+                              "turnover to OSA"
+                            ? "Turned over to OSA"
+                            : post.turnoverDetails.turnoverStatus}
                 </Text>
               </View>
 
               {/* Turned over to */}
               <View className="flex-row items-center">
-                <Text className="text-sm font-manrope-semibold text-blue-800 w-16">Turned over to:</Text>
+                <Text className="text-sm font-manrope-semibold text-blue-800 w-16">
+                  Turned over to:
+                </Text>
                 <Text className="text-sm font-manrope-medium text-blue-700 flex-1">
                   {post.turnoverDetails.turnoverAction === "turnover to OSA"
                     ? "OSA"
-                    : post.turnoverDetails.originalTurnoverAction === "turnover to Campus Security"
-                    ? "Campus Security"
-                    : "Campus Security"}
+                    : post.turnoverDetails.originalTurnoverAction ===
+                        "turnover to Campus Security"
+                      ? "Campus Security"
+                      : "Campus Security"}
                 </Text>
               </View>
 
               {/* Turnover Date */}
               <View className="flex-row items-center">
-                <Text className="text-sm font-manrope-semibold text-blue-800 w-16">Date:</Text>
+                <Text className="text-sm font-manrope-semibold text-blue-800 w-16">
+                  Date:
+                </Text>
                 <Text className="text-sm font-manrope-medium text-blue-700 flex-1">
                   {post.turnoverDetails.turnoverDecisionAt
                     ? formatDateTime(post.turnoverDetails.turnoverDecisionAt)
@@ -461,7 +496,9 @@ export default function PostDetailsScreen() {
               {/* Reason */}
               {post.turnoverDetails.turnoverReason && (
                 <View className="flex-row items-start">
-                  <Text className="text-sm font-manrope-semibold text-blue-800 w-16">Reason:</Text>
+                  <Text className="text-sm font-manrope-semibold text-blue-800 w-16">
+                    Reason:
+                  </Text>
                   <Text className="text-sm font-manrope-medium text-blue-700 flex-1">
                     {post.turnoverDetails.turnoverReason}
                   </Text>
@@ -471,7 +508,9 @@ export default function PostDetailsScreen() {
               {/* Confirmation Notes */}
               {post.turnoverDetails.confirmationNotes && (
                 <View className="flex-row items-start">
-                  <Text className="text-sm font-manrope-semibold text-blue-800 w-16">Notes:</Text>
+                  <Text className="text-sm font-manrope-semibold text-blue-800 w-16">
+                    Notes:
+                  </Text>
                   <Text className="text-sm font-manrope-medium text-blue-700 flex-1">
                     {post.turnoverDetails.confirmationNotes}
                   </Text>

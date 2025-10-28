@@ -5,7 +5,7 @@ import {
   HiOutlineX,
   HiOutlinePencil,
 } from "react-icons/hi";
-import { HiOutlineEnvelope, HiOutlineChatBubbleLeftRight } from "react-icons/hi2";
+import { HiOutlineEnvelope } from "react-icons/hi2";
 import { FiSend } from "react-icons/fi";
 import NavText from "./NavText";
 import { IoIosInformationCircleOutline } from "react-icons/io";
@@ -159,23 +159,6 @@ export default function SideNav({
             tooltipTextClassName="font-albert-sans text-base"
             hoverContainerBgClass="bg-gray-100"
           />
-          <NavText
-            icon={
-              <HiOutlineChatBubbleLeftRight className="size-5" />
-            }
-            label="Feedback Form"
-            to="#"
-            isOpen={isOpen}
-            className="hover:bg-gray-100"
-            iconClassName="text-black"
-            textClassName="text-black font-albert-sans"
-            tooltipIconClassName="text-xl"
-            tooltipTextClassName="font-albert-sans text-base"
-            hoverContainerBgClass="bg-gray-100"
-            onClick={() => {
-              window.open('https://docs.google.com/forms/d/e/1FAIpQLSdcKHISn8yHb-muHPqEzJkDS4bflXdZm98Mf6T6BWZvVl8xkg/viewform', '_blank');
-            }}
-          />
         </aside>
 
         {/* ✅ Mobile Sidebar */}
@@ -260,30 +243,18 @@ export default function SideNav({
               </div>
 
               <p className="text-base font-semibold mt-8 mb-4.5">Know More</p>
-              <div className="space-y-7">
-                <NavText
-                  icon={
-                    <IoIosInformationCircleOutline className="size-6 stroke-[1.5px]" />
-                  }
-                  label="About UniClaim"
-                  to="aboutuniclaim"
-                  isOpen={isOpen}
-                  onClick={onMobNavClose}
-                  className="hover:bg-gray-50 rounded pl-4 justify-start"
-                  iconClassName="text-black"
-                  textClassName="font-manrope"
-                />
-                <div 
-                  className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded pl-4 cursor-pointer"
-                  onClick={() => {
-                    onMobNavClose();
-                    window.open('https://docs.google.com/forms/d/e/1FAIpQLSdcKHISn8yHb-muHPqEzJkDS4bflXdZm98Mf6T6BWZvVl8xkg/viewform', '_blank');
-                  }}
-                >
-                  <HiOutlineChatBubbleLeftRight className="size-6 text-black" />
-                  <span className="font-manrope">Feedback Form</span>
-                </div>
-              </div>
+              <NavText
+                icon={
+                  <IoIosInformationCircleOutline className="size-6 stroke-[1.5px]" />
+                }
+                label="About UniClaim"
+                to="aboutuniclaim"
+                isOpen={isOpen}
+                onClick={onMobNavClose}
+                className="hover:bg-gray-50 rounded pl-4 justify-start"
+                iconClassName="text-black"
+                textClassName="font-manrope"
+              />
             </div>
           </aside>
         </div>
