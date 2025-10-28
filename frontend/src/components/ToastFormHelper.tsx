@@ -92,8 +92,8 @@ const useToastFormHelper = () => {
       if (hasImageError) {
         showToast(
           "error",
-          "Image Upload Required",
-          "Upload at least one image of the item.",
+          "Photos Required",
+          "At least one photo is required for your report. Please select an image to continue.",
           5000
         );
       }

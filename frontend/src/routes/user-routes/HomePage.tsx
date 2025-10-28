@@ -7,8 +7,8 @@ import PostModal from "@/components/PostModal";
 import MobileNavText from "@/components/NavHeadComp";
 import SearchBar from "../../components/SearchBar";
 import FlagModal from "@/components/FlagModal";
-import Tooltip from "@/components/Tooltip";
 import { IoInformationCircle } from "react-icons/io5";
+import MobileFilter from "@/components/MobileFilter";
 
 // hooks
 import { usePosts, useResolvedPosts } from "@/hooks/usePosts";
@@ -336,76 +336,98 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Lost / Found Toggle */}
-      <div className="flex mt-5 flex-wrap sm:justify-center items-center gap-3 w-full px-4 lg:justify-start lg:gap-3">
-        <button
-          className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
-            viewType === "all"
-              ? "bg-navyblue text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-dark-navyblue/15 border-gray-300"
-          }`}
-          onClick={() => {
-            setIsLoading(true);
-            setViewType("all");
-            setTimeout(() => setIsLoading(false), 200);
-          }}
-        >
-          All Item Reports
-        </button>
+      {/* Filter Controls - Responsive */}
+      <div className="mt-5 w-full px-4">
+        {/* Mobile/Tablet Filter (hidden on lg screens) */}
+        <div className="block lg:hidden mb-4">
+          <MobileFilter
+            viewType={viewType}
+            onViewTypeChange={(type) => {
+              setIsLoading(true);
+              setViewType(type);
+              if (type !== 'all') {
+                setCurrentPage(1);
+                setRawResults(null);
+              }
+              setTimeout(() => setIsLoading(false), 200);
+            }}
+          />
+        </div>
 
-        <button
-          className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
-            viewType === "lost"
-              ? "bg-navyblue text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-dark-navyblue/15 border-gray-300"
-          }`}
-          onClick={() => {
-            setIsLoading(true);
-            setViewType("lost");
-            setCurrentPage(1); // Reset pagination when switching views
-            setRawResults(null); // Clear search results when switching views
-            setTimeout(() => setIsLoading(false), 200);
-          }}
-        >
-          Lost Items
-        </button>
+        {/* Desktop Buttons (hidden on mobile/tablet) */}
+        <div className="hidden lg:flex flex-wrap items-center gap-3">
+          <button
+            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+              viewType === "all"
+                ? "bg-navyblue text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-dark-navyblue/15 border-gray-300"
+            }`}
+            onClick={() => {
+              setIsLoading(true);
+              setViewType("all");
+              setTimeout(() => setIsLoading(false), 200);
+            }}
+          >
+            All Item Reports
+          </button>
 
-        <button
-          className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
-            viewType === "found"
-              ? "bg-navyblue text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-dark-navyblue/15 border-gray-300"
-          }`}
-          onClick={() => {
-            setIsLoading(true);
-            setViewType("found");
-            setCurrentPage(1); // Reset pagination when switching views
-            setRawResults(null); // Clear search results when switching views
-            setTimeout(() => setIsLoading(false), 200);
-          }}
-        >
-          Found Items
-        </button>
+          <button
+            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+              viewType === "lost"
+                ? "bg-navyblue text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-dark-navyblue/15 border-gray-300"
+            }`}
+            onClick={() => {
+              setIsLoading(true);
+              setViewType("lost");
+              setCurrentPage(1);
+              setRawResults(null);
+              setTimeout(() => setIsLoading(false), 200);
+            }}
+          >
+            Lost Items
+          </button>
 
-        <button
-          className={`relative flex items-center gap-2 px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
-            viewType === "completed"
-              ? "bg-navyblue text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-dark-navyblue/15 border-gray-300"
-          }`}
-          onClick={() => {
-            setIsLoading(true);
-            setViewType("completed");
-            setCurrentPage(1); // Reset pagination when switching views
-            setRawResults(null); // Clear search results when switching views
-            setTimeout(() => setIsLoading(false), 200);
-          }}
-        >
-          Completed Items
-          <Tooltip content="After 30 days the posts will be removed">
-            <IoInformationCircle className="w-4 h-4" />
-          </Tooltip>
-        </button>
+          <button
+            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+              viewType === "found"
+                ? "bg-navyblue text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-dark-navyblue/15 border-gray-300"
+            }`}
+            onClick={() => {
+              setIsLoading(true);
+              setViewType("found");
+              setCurrentPage(1);
+              setRawResults(null);
+              setTimeout(() => setIsLoading(false), 200);
+            }}
+          >
+            Found Items
+          </button>
+
+          <div className="relative group">
+            <button
+              className={`flex items-center gap-2 px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+                viewType === "completed"
+                  ? "bg-navyblue text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-dark-navyblue/15 border-gray-300"
+              }`}
+              onClick={() => {
+                setIsLoading(true);
+                setViewType("completed");
+                setCurrentPage(1);
+                setRawResults(null);
+                setTimeout(() => setIsLoading(false), 200);
+              }}
+            >
+              Completed Items
+              <IoInformationCircle className="w-4 h-4" />
+            </button>
+            <div className="absolute z-10 hidden group-hover:block w-64 px-2 py-1 mt-1 text-xs text-gray-600 bg-white border border-gray-200 rounded shadow-lg">
+              After 30 days, the posts will be automatically removed from the system.
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-5 mx-4 mt-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">

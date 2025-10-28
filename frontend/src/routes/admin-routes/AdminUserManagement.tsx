@@ -368,10 +368,22 @@ const AdminUserManagement: React.FC = () => {
                   <th className="px-10 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
-                    Joined
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Created At
                   </th>
-                  <th className="-px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Email Verified
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     Actions
                   </th>
                 </tr>
@@ -439,6 +451,17 @@ const AdminUserManagement: React.FC = () => {
                                 ).toLocaleDateString()
                               : new Date(user.createdAt).toLocaleDateString()
                             : "N/A"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap w-1/6">
+                          <span
+                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              user.emailVerified
+                                ? "bg-green-100 text-green-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }`}
+                          >
+                            {user.emailVerified ? "Verified" : "Not Verified"}
+                          </span>
                         </td>
                         <td className="px-0 py-4 whitespace-nowrap text-sm font-medium w-1/5">
                           <button

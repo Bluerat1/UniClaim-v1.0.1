@@ -220,6 +220,62 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     setShowScrollToBottom(isScrolledUp);
   };
 
+  // Handle sending a message with retry logic for poor connections
+  const handleSendMessage = async (e: React.FormEvent, retryCount = 0) => {
+    e.preventDefault();
+    
+    if (!conversation || !userData || !newMessage.trim()) return;
+
+    // Check if user's email is verified
+    if (!userData.emailVerified) {
+      showToast('error', 'Email Not Verified', 'Please verify your email before sending messages.');
+      return;
+    }
+
+    const messageToSend = newMessage.trim();
+    setNewMessage(''); // Clear input immediately for better UX
+
+    try {
+      // Try to send the message
+      await sendMessage(
+        conversation.id,
+        userData.uid,
+        `${userData.firstName} ${userData.lastName}`,
+        messageToSend,
+        userData.profilePicture || userData.profileImageUrl
+      );
+      
+      // Scroll to bottom after sending
+      scrollToBottom();
+      
+    } catch (error: any) {
+      console.error('Failed to send message:', error);
+      
+      // Restore the message to input if sending failed
+      setNewMessage(messageToSend);
+      
+      // Handle specific error cases
+      if (error.code === 'permission-denied' || error.message?.includes('permission-denied')) {
+        // User might be logged out or session expired
+        if (retryCount < 2) {
+          // Wait a bit and retry (exponential backoff)
+          setTimeout(() => handleSendMessage(e, retryCount + 1), Math.pow(2, retryCount) * 1000);
+          return;
+        }
+        showToast('error', 'Session Expired', 'Please log in again to continue messaging.');
+      } else if (navigator.onLine === false) {
+        // Handle offline scenario
+        showToast('warning', 'Offline', 'You are currently offline. Message will be sent when you are back online.');
+      } else if (retryCount < 2) {
+        // Retry for other errors
+        setTimeout(() => handleSendMessage(e, retryCount + 1), Math.pow(2, retryCount) * 1000);
+      } else {
+        // Final error after retries
+        showToast('error', 'Failed to Send', 'Could not send message. Please check your connection and try again.');
+      }
+    }
+  };
+
   // Scroll to bottom when messages change (for new messages)
   useEffect(() => {
     if (messages.length > 0) {
@@ -512,43 +568,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           console.error("Failed to update conversation post data:", error);
         });
     }
-  }, [conversation, userData]);
+  }, [conversation]);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    // Reset textarea height when sending a message
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-    }
-    e.preventDefault();
-
-    if (!conversation || !userData || !newMessage.trim()) return;
-
-    const messageToSend = newMessage.trim();
-
-    // Clear input immediately for better UX (background sending)
-    setNewMessage("");
-
-    // Send message in background without blocking UI
-    console.log('📤 ChatWindow: Sending message in background...');
-
-    try {
-      await sendMessage(
-        conversation.id,
-        userData.uid,
-        `${userData.firstName} ${userData.lastName}`,
-        messageToSend,
-        userData.profilePicture || userData.profileImageUrl
-      );
-      console.log('✅ ChatWindow: Message sent successfully in background');
-    } catch (error) {
-      console.error("❌ ChatWindow: Failed to send message in background:", error);
-      // Restore the message to input if sending failed
-      setNewMessage(messageToSend);
-      showToast('error', 'Message Failed', 'Failed to send message. Please try again.');
-    }
-  };
-
-  const handleHandoverResponse = (
+  const handleHandoverResponse = async (
     messageId: string,
     status: "accepted" | "rejected"
   ) => {
