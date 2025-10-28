@@ -89,8 +89,12 @@ export const authService = {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
             
-            // Check if user is verified
-            if (!user.emailVerified) {
+            // Check if user is verified (skip for admin users)
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            const userData = userDoc.data();
+            const isAdminUser = userData?.role === 'admin' || userData?.role === 'campus_security';
+            
+            if (!user.emailVerified && !isAdminUser) {
                 await signOut(auth);
                 throw new Error('Please verify your email before logging in. Check your inbox for the verification link.');
             }

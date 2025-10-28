@@ -39,25 +39,31 @@ service cloud.firestore {
 
       // Allow reading basic profile info for messaging functionality
       // This enables conversations to display participant names and profile pictures
-      // Only allow reading other users' profiles if they are verified
+      // Only allow reading other users' profiles if they are verified or user is admin
       allow read: if isAuthenticated() && 
-        (resource.data.emailVerified == true || isAdmin());
+        (resource.data.emailVerified == true || 
+         isAdmin() || 
+         resource.data.role in ['admin', 'campus_security']);
 
       // Allow admins to read all users (for admin panel)
-      allow read: if request.auth != null && isAdmin();
+      allow read: if isAuthenticated() && isAdmin();
 
       // Allow users to create their own document during registration
       // New users can be created with emailVerified = false initially
-      allow create: if isAuthenticated() && isOwner(userId) && 
+      // Admins can create users with any email verification status
+      allow create: if isAuthenticated() && 
+        (isOwner(userId) || isAdmin()) &&
         (request.resource.data.emailVerified == false || isAdmin()) &&
-        request.resource.data.keys().hasAll(['email', 'firstName', 'lastName', 'contactNum', 'studentId', 'status']) &&
-        request.resource.data.status == 'active';
+        request.resource.data.keys().hasAll(['email', 'firstName', 'lastName', 'contactNum', 'studentId', 'status', 'role']) &&
+        (request.resource.data.status == 'active' || isAdmin());
 
       // Allow email verification updates for authenticated users
       // This allows users to update their emailVerified status during verification
-      allow update: if request.auth != null && request.auth.uid == userId &&
+      // Admins can update any user's verification status
+      allow update: if isAuthenticated() && 
+        (isOwner(userId) || isAdmin()) &&
         (resource.data.status == null || (resource.data.status != 'deactivated' && resource.data.status != 'banned')) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['emailVerified', 'updatedAt']);
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['emailVerified', 'updatedAt']) || isAdmin());
 
       // Allow push token updates for authenticated users (for notification setup)
       allow update: if request.auth != null && request.auth.uid == userId &&
@@ -283,12 +289,18 @@ service cloud.firestore {
     }
     
     // Helper function to check if user is admin
-    // Checks both email-based admin list and role-based admin status
+    // Checks user's role in the database or email
     function isAdmin() {
       return request.auth != null && (
-        request.auth.token.email in ['admin@ustp.edu.ph', 'superadmin@ustp.edu.ph','admin@uniclaim.com', 'cs@uniclaim.com'] ||
+        // Check by email (for initial setup or fallback)
+        (request.auth.token.email.matches('admin@ustp\\.edu\\.ph$') ||
+         request.auth.token.email.matches('superadmin@ustp\\.edu\\.ph$') ||
+         request.auth.token.email.matches('admin@uniclaim.com') ||
+         request.auth.token.email.matches('cs@uniclaim\\.com$')) ||
+        // Check by role in database
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'campus_security'))
       );
     }
     
