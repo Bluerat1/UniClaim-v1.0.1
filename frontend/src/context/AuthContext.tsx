@@ -4,6 +4,7 @@ import { auth, authService, type UserData, getFirebaseErrorMessage, db } from ".
 import { listenerManager } from "../utils/ListenerManager";
 import { doc, onSnapshot, updateDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { notificationService } from "../services/firebase/notifications";
+import { notificationSubscriptionService } from "../services/firebase/notificationSubscriptions";
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -328,6 +329,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         emailVerified: true,
         updatedAt: serverTimestamp()
       });
+
+      // Check if user already has a notification subscription
+      try {
+        const existingSubscription = await notificationSubscriptionService.getSubscription(user.uid);
+        
+        if (!existingSubscription) {
+          await notificationSubscriptionService.createSubscription({
+            userId: user.uid,
+            isActive: true,
+            preferences: {
+              newPosts: true,
+              messages: true,
+              claimUpdates: true,
+              adminAlerts: true
+            }
+          });
+          console.log('📱 Created new notification subscription after email verification');
+        }
+      } catch (subscriptionError) {
+        console.error('Failed to create notification subscription after email verification:', subscriptionError);
+        // Don't fail email verification if subscription fails
+      }
+
+      // Initialize notifications now that email is verified
+      try {
+        const messagingInitialized = await notificationService.initializeMessaging();
+        if (messagingInitialized) {
+          const fcmToken = (notificationService as any).fcmToken;
+          if (fcmToken) {
+            await notificationService.saveFCMToken(user.uid, fcmToken);
+            console.log('FCM notifications initialized after email verification');
+          }
+          notificationService.setupMessageListener();
+        }
+      } catch (notificationError) {
+        console.error('Error initializing notifications after email verification:', notificationError);
+      }
 
       // Refresh user data to get the updated document
       await refreshUserData();
