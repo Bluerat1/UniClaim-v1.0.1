@@ -412,7 +412,34 @@ function AdminPostCard({
             <div className="mt-2 text-xs text-gray-600">
               <p>ID: {post.user?.studentId || "N/A"}</p>
               <p>Contact: {post.user?.contactNum || "N/A"}</p>
-              {/* Action buttons moved below contact info */}
+              
+              {/* Restore and Permanently Delete buttons for deleted posts */}
+              {onRestore && onPermanentDelete && (
+                <div className="flex gap-1 mt-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRestore(post);
+                    }}
+                    className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition whitespace-nowrap"
+                    title="Restore Post"
+                  >
+                    Restore
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onPermanentDelete(post);
+                    }}
+                    className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition whitespace-nowrap"
+                    title="Permanently Delete"
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
+              
+              {/* Action buttons */}
               <div className="flex gap-1 mt-2">
                 {/* Turnover confirmation button - for turnover management */}
                 {onConfirmTurnover &&
@@ -641,31 +668,6 @@ function AdminPostCard({
           }}
         />
 
-        {/* Restore and Permanently Delete buttons for deleted posts */}
-        {onRestore && onPermanentDelete && (
-          <div className="flex gap-2 mt-3">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onRestore(post);
-              }}
-              className="px-3 py-2 w-full text-xs bg-green-500 text-white rounded hover:bg-green-600 transition"
-              title="Restore Post"
-            >
-              Restore
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onPermanentDelete(post);
-              }}
-              className="px-2 py-1 w-full text-xs bg-red-600 text-white rounded hover:bg-red-700 transition"
-              title="Permanently Delete"
-            >
-              Delete Permanently
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Image Modal */}

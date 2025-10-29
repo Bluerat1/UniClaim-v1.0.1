@@ -117,13 +117,13 @@ export default function CampusSecurityManagementPage() {
 
       for (const post of selectedPostObjects) {
         try {
+          const { postService } = await import("../../services/firebase/posts");
+          
           if (status === "not_received") {
-            // Delete the post when item is not available at campus security
-            const { postService } = await import("../../services/firebase/posts");
-            await postService.deletePost(post.id);
+            // Use soft delete to move to recently deleted
+            await postService.deletePost(post.id, false, userData?.uid);
           } else {
-            // Always update status and transfer ownership when "collected" is clicked
-            const { postService } = await import("../../services/firebase/posts");
+            // Update status for confirmed items
             await postService.updateTurnoverStatus(
               post.id,
               status,
@@ -139,11 +139,19 @@ export default function CampusSecurityManagementPage() {
       }
 
       if (errorCount === 0) {
-        const actionText = status === "confirmed" ? "collected" : "marked as not received";
-        showToast("success", "Bulk Collection Complete", `Successfully ${actionText} ${successCount} items`);
+        const actionText = status === "confirmed" 
+          ? "collected" 
+          : "moved to recently deleted";
+        showToast(
+          "success", 
+          status === "confirmed" ? "Bulk Collection Complete" : "Items Moved to Recently Deleted", 
+          `Successfully ${actionText} ${successCount} items`
+        );
       } else {
-        showToast("warning", "Bulk Collection Partial",
-          `${status === "confirmed" ? "Collected" : "Marked not received"} ${successCount} items successfully, ${errorCount} failed`
+        showToast(
+          "warning", 
+          "Bulk Action Partial",
+          `${status === "confirmed" ? "Collected" : "Moved to recently deleted"} ${successCount} items successfully, ${errorCount} failed`
         );
       }
 
@@ -152,7 +160,7 @@ export default function CampusSecurityManagementPage() {
 
     } catch (error: any) {
       console.error("Bulk campus security collection failed:", error);
-      showToast("error", "Bulk Collection Failed", error.message || "Failed to process selected items");
+      showToast("error", "Bulk Action Failed", error.message || "Failed to process selected items");
     }
   };
 

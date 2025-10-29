@@ -1,20 +1,16 @@
 // Cloudinary configuration for React Native/Expo
 // Using fetch-only approach for better React Native compatibility
 
-// Import environment variables using @env (from react-native-dotenv)
-import {
-  EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME,
-  EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET,
-  EXPO_PUBLIC_CLOUDINARY_API_KEY,
-  EXPO_PUBLIC_CLOUDINARY_API_SECRET,
-} from '@env';
+import Constants from 'expo-constants';
 
-// Configuration values from environment variables (Expo format)
-// Fallback to empty strings if not available
-const CLOUDINARY_CLOUD_NAME = EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
-const UPLOAD_PRESET = EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '';
-const CLOUDINARY_API_KEY = EXPO_PUBLIC_CLOUDINARY_API_KEY || '';
-const CLOUDINARY_API_SECRET = EXPO_PUBLIC_CLOUDINARY_API_SECRET || '';
+// Get config from app.config.js or environment variables
+const extra = Constants.expoConfig?.extra || {};
+
+// Configuration values from app.config.js or environment variables
+const CLOUDINARY_CLOUD_NAME = extra.cloudinaryCloudName || process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
+const UPLOAD_PRESET = extra.cloudinaryUploadPreset || process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '';
+const CLOUDINARY_API_KEY = extra.cloudinaryApiKey || process.env.EXPO_PUBLIC_CLOUDINARY_API_KEY || '';
+const CLOUDINARY_API_SECRET = extra.cloudinaryApiSecret || process.env.EXPO_PUBLIC_CLOUDINARY_API_SECRET || '';
 
 
 

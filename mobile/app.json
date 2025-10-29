@@ -23,12 +23,10 @@
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.ACCESS_WIFI_STATE"
-      ],
-      "networkSecurityConfig": "./network_security_config.xml"
+      ]
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
       "favicon": "./assets/images/uniclaimlogo.png"
     },
     "plugins": [
@@ -55,10 +53,6 @@
       "eas": {
         "projectId": "9ee38d41-83ad-4306-bff2-97c396db3856"
       }
-    },
-    "env": {
-      "NODE_ENV": "production",
-      "EXPO_PUBLIC_APP_ENV": "production"
     },
     "owner": "bluerat12"
   }
