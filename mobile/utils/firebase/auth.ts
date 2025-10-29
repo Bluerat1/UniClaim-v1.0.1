@@ -172,12 +172,34 @@ export const authService = {
         }
     },
 
-    // Sign out user
+    // Sign out user with improved error handling and logging
     async logout(): Promise<void> {
         try {
+            console.log('🔄 Starting logout process...');
             await signOut(auth);
+            console.log('✅ Successfully signed out from Firebase');
         } catch (error: any) {
-            throw new Error(error.message || 'Failed to sign out');
+            console.error('❌ Logout error:', {
+                code: error.code,
+                message: error.message,
+                stack: error.stack
+            });
+            
+            // Handle specific Firebase auth errors
+            let errorMessage = 'Failed to sign out';
+            
+            switch (error.code) {
+                case 'auth/network-request-failed':
+                    errorMessage = 'Network error. Please check your internet connection';
+                    break;
+                case 'auth/too-many-requests':
+                    errorMessage = 'Too many requests. Please try again later';
+                    break;
+                default:
+                    errorMessage = error.message || errorMessage;
+            }
+            
+            throw new Error(errorMessage);
         }
     },
 

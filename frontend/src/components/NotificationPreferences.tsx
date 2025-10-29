@@ -37,7 +37,11 @@ interface NotificationPreferencesComponentProps {
 export default function NotificationPreferencesModal({
   onClose,
 }: NotificationPreferencesComponentProps) {
-  const { userData } = useAuth();
+  const { user, userData } = useAuth();
+  const userId = user?.uid;
+  
+  // No debug logs needed in production
+  
   const [preferences, setPreferences] = useState<NotificationPreferences>({
     newPosts: true,
     messages: true,
@@ -64,7 +68,33 @@ export default function NotificationPreferencesModal({
   const availableCategories = ITEM_CATEGORIES;
 
   useEffect(() => {
-    loadPreferences();
+    let isMounted = true;
+    
+    const load = async () => {
+      try {
+        if (userId) {
+          await loadPreferences();
+        } else if (isMounted) {
+          setPreferences(notificationService.getDefaultPreferences());
+          setLoading(false);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setError('Failed to load preferences. Using default settings.');
+          setPreferences(notificationService.getDefaultPreferences());
+          setLoading(false);
+        }
+      }
+    };
+    
+    load();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [userId]);
+
+  useEffect(() => {
     updateAudioStatus();
   }, [userData?.uid]);
 
@@ -95,29 +125,68 @@ export default function NotificationPreferencesModal({
     }
   };
 
-  const loadPreferences = async () => {
-    if (!userData?.uid) return;
+  const loadPreferences = async (retryCount = 0) => {
+    const maxRetries = 2;
+    const retryDelay = 3000; // 3 seconds between retries
+    
+    if (!userId) {
+      if (retryCount < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return loadPreferences(retryCount + 1);
+      }
+      setError('Please sign in to manage notification preferences.');
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
-      const userPreferences =
-        await notificationService.getNotificationPreferences(userData.uid);
-      setPreferences(userPreferences);
-    } catch (err: any) {
-      setError(err.message || "Failed to load preferences");
+      setError(null);
+      
+      const timeoutMs = 8000; // 8 second timeout
+      
+      const timeoutPromise = new Promise<typeof preferences>((_, reject) => 
+        setTimeout(() => {
+          reject(new Error('Connection is taking longer than expected. ' + 
+            (retryCount < maxRetries ? 'Retrying...' : 'Please check your connection and try again later.')));
+        }, timeoutMs)
+      );
+      
+      const loadPromise = notificationService.getNotificationPreferences(userId);
+      const prefs = await Promise.race([loadPromise, timeoutPromise]);
+      
+      setPreferences(prefs);
+      
+    } catch (error) {
+      if (retryCount < maxRetries) {
+        // Auto-retry with exponential backoff
+        const delay = Math.min(3000 * Math.pow(2, retryCount), 10000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return loadPreferences(retryCount + 1);
+      }
+      
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to load notification preferences';
+        
+      setError(`Error: ${errorMessage}. Using default settings.`);
+      setPreferences(notificationService.getDefaultPreferences());
     } finally {
       setLoading(false);
     }
   };
 
   const savePreferences = async () => {
-    if (!userData?.uid) return;
+    if (!userId) {
+      setError('Cannot save preferences: User not authenticated');
+      return;
+    }
 
     try {
       setSaving(true);
       setError(null);
       await notificationService.updateNotificationPreferences(
-        userData.uid,
+        userId,
         preferences
       );
       onClose();

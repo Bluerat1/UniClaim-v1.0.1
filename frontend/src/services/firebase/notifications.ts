@@ -222,36 +222,30 @@ export class NotificationService {
   // Get user's notification preferences
   async getNotificationPreferences(userId: string): Promise<NotificationPreferences> {
     try {
-      // Allow the notification system to access preferences for any user (for notification filtering)
-      // This is needed when sending notifications to check if users have enabled specific notification types
       const { auth } = await import('./config');
 
-      // For now, allow any authenticated user to check preferences for notification filtering
-      // In a production system, you might want to restrict this further
       if (!auth.currentUser) {
-        console.warn('🔒 No authenticated user in getNotificationPreferences');
         return this.getDefaultPreferences();
       }
 
-      // Get user data from users collection
       const userDoc = await getDoc(doc(db, 'users', userId));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-
-        const preferences = userData.notificationPreferences || this.getDefaultPreferences();
-
-        // Ensure user has a subscription record (background operation) - only for current user
-        if (auth.currentUser && auth.currentUser.uid === userId) {
-          this.ensureUserHasSubscription(userId).catch(error => {
-            console.error('Background subscription check failed:', error);
-          });
-        }
-
-        return preferences;
+      
+      if (!userDoc.exists()) {
+        return this.getDefaultPreferences();
       }
-      return this.getDefaultPreferences();
+
+      const userData = userDoc.data();
+      const preferences = userData.notificationPreferences || this.getDefaultPreferences();
+
+      // Run subscription check in the background without blocking the main flow
+      if (auth.currentUser?.uid === userId) {
+        Promise.resolve().then(() => {
+          this.ensureUserHasSubscription(userId).catch(() => {});
+        });
+      }
+
+      return preferences;
     } catch (error) {
-      console.error('Error getting notification preferences:', error);
       return this.getDefaultPreferences();
     }
   }
@@ -310,25 +304,29 @@ export class NotificationService {
   // Ensure user has a subscription record (for existing users)
   async ensureUserHasSubscription(userId: string): Promise<void> {
     try {
-      // Allow the notification system to create subscriptions for any user
-
       // First check if user's email is verified
       const userDoc = await getDoc(doc(db, 'users', userId));
-      if (!userDoc.exists() || !userDoc.data().emailVerified) {
-        console.log('📧 User email not verified, skipping subscription creation');
+      
+      if (!userDoc.exists()) {
+        return;
+      }
+      
+      const userData = userDoc.data();
+      const isEmailVerified = userData.emailVerified;
+      
+      if (!isEmailVerified) {
         return;
       }
 
       // Check if subscription exists
-      const existingSubscription = await notificationSubscriptionService.getSubscription(userId);
+      const existingSubscription = await notificationSubscriptionService
+        .getSubscription(userId)
+        .catch(() => null);
 
       if (!existingSubscription) {
-        // Get user's current preferences directly from user document instead of calling getNotificationPreferences
-        const userData = userDoc.data();
         const userPreferences = userData.notificationPreferences || this.getDefaultPreferences();
-
-        // Create subscription with current preferences
         const subscriptionPreferences = this.convertToSubscriptionPreferences(userPreferences);
+        
         await notificationSubscriptionService.createSubscription({
           userId: userId,
           preferences: subscriptionPreferences,
@@ -336,8 +334,7 @@ export class NotificationService {
         });
       }
     } catch (error) {
-      console.error('Error ensuring user subscription:', error);
-      // Don't throw here to prevent blocking other operations
+      // Silently fail to prevent blocking the main flow
     }
   }
 
@@ -704,7 +701,7 @@ export class NotificationService {
   }
 
   // Get default notification preferences
-  private getDefaultPreferences(): NotificationPreferences {
+  getDefaultPreferences(): NotificationPreferences {
     return {
       newPosts: true,
       messages: true,

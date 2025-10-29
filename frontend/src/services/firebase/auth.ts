@@ -65,6 +65,7 @@ export const authService = {
                 studentId,
                 status: 'active',
                 emailVerified: false,
+                role: 'user',  // Add default role
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
                 profilePicture: '/src/assets/empty_profile.jpg'
@@ -85,42 +86,50 @@ export const authService = {
     // Login user
     async login(email: string, password: string, isAdminLogin: boolean = false): Promise<FirebaseUser> {
         try {
-            // Sign in the user
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
-            
-            // Check if user is verified (skip for admin users)
+
+            // Get user data to check if they're an admin
             const userDoc = await getDoc(doc(db, 'users', user.uid));
-            const userData = userDoc.data();
-            const isAdminUser = userData?.role === 'admin' || userData?.role === 'campus_security';
-            
-            if (!user.emailVerified && !isAdminUser) {
-                await signOut(auth);
-                throw new Error('Please verify your email before logging in. Check your inbox for the verification link.');
+            const userData = userDoc.data() as UserData | undefined;
+
+            // If it's an admin login but user is not an admin, throw error
+            if (isAdminLogin && (!userData || userData.role !== 'admin')) {
+                await auth.signOut();
+                throw new Error('Access denied. Admin privileges required.');
             }
-            
-            if (isAdminLogin) {
-                const userDoc = await getDoc(doc(db, 'users', user.uid));
-                if (!userDoc.exists() || userDoc.data()?.role !== 'admin') {
-                    await signOut(auth);
-                    throw new Error('Access denied. This account does not have admin privileges.');
+
+            // Update last login time
+            await updateDoc(doc(db, 'users', user.uid), {
+                lastLoginAt: serverTimestamp()
+            });
+
+            // Check if user is verified and doesn't have a notification subscription yet
+            if (user.emailVerified) {
+                try {
+                    const existingSubscription = await notificationSubscriptionService.getSubscription(user.uid);
+                    
+                    if (!existingSubscription) {
+                        await notificationSubscriptionService.createSubscription({
+                            userId: user.uid,
+                            isActive: true,
+                            preferences: {
+                                newPosts: true,
+                                messages: true,
+                                claimUpdates: true,
+                                adminAlerts: true
+                            }
+                        });
+                        console.log('📱 Created new notification subscription for user');
+                    } else {
+                        console.log('📱 User already has a notification subscription');
+                    }
+                } catch (error) {
+                    console.error('Failed to handle notification subscription:', error);
+                    // Don't block login if subscription check/creation fails
                 }
             }
-            
-            // Ensure notification subscription
-            try {
-                const subscription = await notificationSubscriptionService.getSubscription(user.uid);
-                if (!subscription) {
-                    await notificationSubscriptionService.createSubscription({
-                        userId: user.uid,
-                        isActive: true
-                    });
-                }
-            } catch (subscriptionError) {
-                console.error('Error with notification subscription:', subscriptionError);
-                // Continue login even if subscription fails
-            }
-            
+
             return user;
         } catch (error: any) {
             throw new Error(getFirebaseErrorMessage(error));
