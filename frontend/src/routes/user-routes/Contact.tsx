@@ -21,39 +21,27 @@ const Contact = () => {
               <h1 className="text-brand font-semibold text-manrope text-base">
                 Email address
               </h1>
-              <h2 className="text-xl font-semibold">
-                paulninosalaan75@gmail.com
-              </h2>
+              <h2 className="text-xl font-semibold">uniclaim.team@gmail.com</h2>
               <p className="text-sm text-zinc-500">
                 Have a detailed question? Send us an email
               </p>
             </div>
-            {/* Phone Number */}
-            <div className="flex flex-col gap-2 w-full max-w-xs">
-              <h1 className="text-brand font-semibold text-manrope text-base">
-                Phone Number
-              </h1>
-              <h2 className="text-xl font-semibold">+123 456 7890</h2>
-              <p className="text-sm text-zinc-500 w-full">
-                Need immediate assistance? Give us a call anytime.
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-col md:flex-row gap-5 lg:gap-5">
-            {/* Office Hours */}
-            <div className="flex flex-col gap-2 w-full max-w-xs">
-              <h1 className="text-brand font-semibold text-manrope text-base">
-                Office Hours
-              </h1>
-              <div className="">
-                <h2 className="text-xl font-semibold">Mon - Fri 9am - 5pm</h2>
-                <h2 className="text-xl font-semibold">
-                  Located at Medical Building -First Floor
-                </h2>
+            <div className="flex flex-col md:flex-row gap-5 lg:gap-5">
+              {/* Office Hours */}
+              <div className="flex flex-col gap-2 w-full max-w-lg">
+                <h1 className="text-brand font-semibold text-manrope text-base">
+                  Office Hours
+                </h1>
+                <div className="">
+                  <h2 className="text-xl font-semibold">Mon - Fri 9am - 5pm</h2>
+                  <h2 className="text-xl font-semibold">
+                    Located at Medical Building -First Floor
+                  </h2>
+                </div>
+                <p className="text-sm text-zinc-500">
+                  Our team is available to help you during these hours.
+                </p>
               </div>
-              <p className="text-sm text-zinc-500">
-                Our team is available to help you during these hours.
-              </p>
             </div>
           </div>
         </div>
