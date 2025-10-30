@@ -5,11 +5,9 @@ import PageRoutes from "../types/PageRoutes";
 // This ensures expired posts are automatically managed when the app starts
 import "../utils/expirationService";
 
-import ErrorBoundary from "../components/ErrorBoundary";
+import ErrorBoundary from "../components/layout/ErrorBoundary";
 import { SoundUtils } from "../utils/soundUtils";
 import { useEffect } from "react";
-import { MessageProvider } from "@/context/MessageContext";
-import { useAuth } from "@/context/AuthContext";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { messaging } from "@/services/firebase/config";
@@ -46,19 +44,14 @@ function App() {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker
           .register('/firebase-messaging-sw.js')
-          .then((registration) => {
-            console.log('✅ Service Worker registered:', registration);
-          })
           .catch((error) => {
-            console.error('❌ Service Worker registration failed:', error);
+            console.error('Service Worker registration failed:', error);
           });
       }
 
       // Request notification permission
       if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission().then((permission) => {
-          console.log('🔔 Notification permission:', permission);
-        });
+        Notification.requestPermission();
       }
 
       // Handle foreground messages
@@ -77,24 +70,20 @@ function App() {
     }
   }, []);
 
-  const { user } = useAuth();
-
   return (
     <ErrorBoundary>
-      <MessageProvider userId={user?.uid || null}>
-        <PageRoutes />
-        <ToastContainer
-          position="top-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-        />
-      </MessageProvider>
+      <PageRoutes />
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
     </ErrorBoundary>
   );
 }

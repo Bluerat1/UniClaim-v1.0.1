@@ -61,10 +61,12 @@ class ExpirationService {
 
             // console.log(`ExpirationService: Checking for expired posts at ${now.toISOString()}`);
 
-            // Get all posts to check for expiration
-            // Note: We use a callback approach to avoid blocking the main thread
-            postService.getAllPosts((posts) => {
-                this.processExpiredPosts(posts, now);
+            // Use getActivePosts which is already optimized and has proper permissions
+            // This will only return posts that are active and not expired yet
+            postService.getActivePosts((posts) => {
+                // Filter out posts that are already marked as movedToUnclaimed
+                const postsToCheck = posts.filter(post => !post.movedToUnclaimed);
+                this.processExpiredPosts(postsToCheck, now);
             });
 
         } catch (error) {

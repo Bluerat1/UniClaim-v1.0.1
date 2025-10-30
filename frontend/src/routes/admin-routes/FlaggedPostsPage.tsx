@@ -1,15 +1,15 @@
 import { useState, useMemo, useEffect } from "react";
-import { useAdminPosts } from "../../hooks/usePosts";
-import { useToast } from "../../context/ToastContext";
-import { postService } from "../../services/firebase/posts";
-import type { Post } from "../../types/Post";
-import PageWrapper from "../../components/PageWrapper";
-import NavHeader from "../../components/NavHeadComp";
-import AdminPostCard from "../../components/AdminPostCard";
-import AdminPostCardList from "../../components/AdminPostCardList"; // Added import
-import AdminPostModal from "../../components/AdminPostModal";
-import SearchBar from "../../components/SearchBar";
-import MultiControlPanel from "../../components/MultiControlPanel"; // Added import
+import { useAdminPosts } from "@/hooks/usePosts";
+import { useToast } from "@/context/ToastContext";
+import { postService } from "@/services/firebase/posts";
+import type { Post } from "@/types/Post";
+import PageWrapper from "@/components/layout/PageWrapper";
+import NavHeader from "@/components/layout/NavHead";
+import AdminPostCard from "@/components/admin/AdminPostCard";
+import AdminPostCardList from "@/components/admin/AdminPostCardList";
+import AdminPostModal from "@/components/admin/AdminPostModal";
+import SearchBar from "@/components/common/SearchBar";
+import MultiControlPanel from "@/components/common/MultiControlPanel";
 
 export default function FlaggedPostsPage() {
   const { posts = [] } = useAdminPosts();

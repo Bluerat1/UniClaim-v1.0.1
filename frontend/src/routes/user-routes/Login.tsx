@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import Header from "../../layout/HeaderComp";
 import { useNavigate, Link } from "react-router-dom";
-import InputFieldComp from "../../components/InputFieldComp";
-import PasswordInput from "../../components/InputFieldwEyeComp";
+import InputFieldComp from "@/components/forms/InputFieldComp";
+import PasswordInput from "@/components/forms/InputFieldWithEye";
 import { useAuth } from "@/context/AuthContext";
 import { authService } from "@/utils/firebase";
 

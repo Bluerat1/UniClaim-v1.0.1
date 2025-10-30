@@ -44,17 +44,24 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
 
     setLoading(true);
 
-    const unsubscribe = messageService.getUserConversations(userId, (loadedConversations) => {
-      setConversations(loadedConversations);
-      setLoading(false);
-    }, (error) => {
-      console.error('MessageContext: Listener error:', error);
-      setLoading(false);
+    const unsubscribe = messageService.getUserConversations(userId, 
+      (loadedConversations) => {
+        setConversations(loadedConversations);
+        setLoading(false);
+      }, 
+      (error) => {
+        console.error('Error loading conversations:', {
+          code: error?.code,
+          message: error?.message,
+          stack: error?.stack
+        });
+        setLoading(false);
 
-      if (error?.code === 'permission-denied' || error?.code === 'not-found') {
-        refreshConversations();
+        if (error?.code === 'permission-denied' || error?.code === 'not-found') {
+          refreshConversations();
+        }
       }
-    });
+    );
 
     return () => {
       unsubscribe();
@@ -78,7 +85,17 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
   };
 
   const getConversationMessages = (conversationId: string, callback: (messages: Message[]) => void) => {
-    return messageService.getConversationMessages(conversationId, callback);
+    if (!userId) {
+      console.error('Cannot get conversation messages: User not authenticated');
+      return () => {};
+    }
+
+    const errorCallback = (error: any) => {
+      console.error('Error in getConversationMessages:', error);
+      // You could also update the UI state here to show an error message to the user
+    };
+    
+    return messageService.getConversationMessages(conversationId, userId, callback, errorCallback);
   };
 
   const getUserConversations = (userId: string, callback: (conversations: any[]) => void) => {
@@ -217,25 +234,43 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
   };
 
   const refreshConversations = async (): Promise<void> => {
-    if (!userId) return;
+    console.log('🔄 [refreshConversations] Refreshing conversations for user:', userId);
+    
+    if (!userId) {
+      console.log('⚠️ [refreshConversations] No userId, skipping refresh');
+      return;
+    }
 
     setLoading(true);
 
     try {
       // Create a temporary listener to get fresh data
-      const unsubscribe = messageService.getUserConversations(userId, (loadedConversations) => {
-        setConversations(loadedConversations);
-        setLoading(false);
-        // Unsubscribe immediately after getting the data to avoid duplicate listeners
-        unsubscribe();
-      }, (error) => {
-        console.error('refreshConversations: Error loading conversations:', error);
-        setLoading(false);
-        unsubscribe();
-      });
-
+      const unsubscribe = messageService.getUserConversations(userId, 
+        (loadedConversations) => {
+          console.log('✅ [refreshConversations] Refreshed conversations:', {
+            count: loadedConversations.length,
+            hasConversations: loadedConversations.length > 0
+          });
+          setConversations(loadedConversations);
+          setLoading(false);
+          // Unsubscribe immediately after getting the data to avoid duplicate listeners
+          unsubscribe();
+        }, 
+        (error) => {
+          console.error('❌ [refreshConversations] Error loading conversations:', {
+            code: error?.code,
+            message: error?.message,
+            stack: error?.stack
+          });
+          setLoading(false);
+          unsubscribe();
+        }
+      );
     } catch (error: any) {
-      console.error('refreshConversations: Failed to refresh conversations:', error);
+      console.error('❌ [refreshConversations] Failed to refresh conversations:', {
+        message: error?.message,
+        stack: error?.stack
+      });
       setLoading(false);
     }
   };

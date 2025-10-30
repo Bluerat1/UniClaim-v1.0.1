@@ -2,13 +2,14 @@ import { useState, useCallback, useEffect } from "react";
 import type { Post } from "@/types/Post";
 
 // components
-import PostCard from "@/components/PostCard";
-import PostModal from "@/components/PostModal";
-import MobileNavText from "@/components/NavHeadComp";
-import SearchBar from "../../components/SearchBar";
-import FlagModal from "@/components/FlagModal";
+import PostCard from "@/components/posts/Card";
+import PostModal from "@/components/modals/Post";
+import MobileNavText from "@/components/layout/NavHead";
+import SearchBar from "@/components/common/SearchBar";
+import FlagModal from "@/components/modals/Flag";
 import { IoInformationCircle } from "react-icons/io5";
-import MobileFilter from "@/components/MobileFilter";
+import MobileFilter from "@/components/common/MobileFilter";
+type ViewType = 'all' | 'lost' | 'found' | 'completed';
 
 // hooks
 import { usePosts, useResolvedPosts } from "@/hooks/usePosts";
@@ -343,7 +344,7 @@ export default function HomePage() {
         <div className="block lg:hidden">
           <MobileFilter
             viewType={viewType}
-            onViewTypeChange={(type) => {
+            onViewTypeChange={(type: ViewType) => {
               setIsLoading(true);
               setViewType(type);
               if (type !== "all") {

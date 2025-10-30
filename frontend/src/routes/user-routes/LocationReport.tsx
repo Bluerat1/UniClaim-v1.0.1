@@ -1,5 +1,5 @@
 // src/routes/user-routes/LocationReport.tsx
-import USTPCDOMapLoc from "@/components/USTPCDOMap";
+import USTPCDOMapLoc from "@/components/common/USTPCDOMap";
 import { detectLocationFromCoordinates } from "@/utils/locationDetection";
 
 interface LocationProps {

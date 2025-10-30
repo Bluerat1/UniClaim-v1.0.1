@@ -305,6 +305,18 @@ export interface Conversation {
       role?: 'user' | 'admin' | 'campus_security';
     };
   };
+  participantInfo?: {
+    [userId: string]: {
+      displayName?: string;
+      photoURL?: string;
+      email?: string;
+      contactNum?: string;
+      firstName?: string;
+      lastName?: string;
+      name?: string;
+      photo?: string;
+    };
+  };
   lastMessage?: {
     text: string;
     senderId: string;

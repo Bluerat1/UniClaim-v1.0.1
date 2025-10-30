@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { Conversation } from "@/types/Post";
-import ConversationList from "../../components/ConversationList";
-import ChatWindow from "../../components/ChatWindow";
-import PageWrapper from "../../components/PageWrapper";
-import NavHeader from "../../components/NavHeadComp";
-import { useMessage } from "../../context/MessageContext";
+import ConversationList from "@/components/chat/ConversationList";
+import ChatWindow from "@/components/chat/ChatWindow";
+import PageWrapper from "@/components/layout/PageWrapper";
+import NavHeader from "@/components/layout/NavHead";
+import { useMessage } from "@/context/MessageContext";
 
 const MessagesPage: React.FC = () => {
   const [selectedConversation, setSelectedConversation] =

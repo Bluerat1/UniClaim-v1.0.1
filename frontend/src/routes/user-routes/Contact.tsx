@@ -1,4 +1,4 @@
-import MobileNavText from "@/components/NavHeadComp";
+import MobileNavText from "@/components/layout/NavHead";
 
 const Contact = () => {
   return (

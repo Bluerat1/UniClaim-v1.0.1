@@ -1,4 +1,5 @@
 // Message service for Firebase - handles chat, conversations, and messaging
+
 import {
     doc,
     getDoc,
@@ -14,7 +15,9 @@ import {
     addDoc,
     deleteDoc,
     arrayUnion,
-    serverTimestamp
+    serverTimestamp,
+    or,
+    writeBatch
 } from 'firebase/firestore';
 import { notificationSender } from './notificationSender';
 
@@ -29,53 +32,187 @@ import { sanitizePostData } from './utils';
 export const messageService = {
     // Get user's conversations (real-time listener)
     getUserConversations(userId: string, callback: (conversations: any[]) => void, errorCallback?: (error: any) => void) {
-        const q = query(
-            collection(db, 'conversations'),
-            where(`participants.${userId}`, '!=', null)
-        );
+        if (!userId) {
+            const errorMsg = 'User ID is required to fetch conversations';
+            console.error('❌ [getUserConversations]', errorMsg);
+            if (errorCallback) errorCallback(new Error(errorMsg));
+            return () => { }; // Return empty cleanup function
+        }
 
-        const unsubscribe = onSnapshot(
-            q,
-            (snapshot) => {
-                const conversations = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-
-                // console.log(`✅ [getUserConversations] Array query returned ${conversations.length} results`);
-
-                // Return conversations without sorting - let the UI component handle sorting
-                callback(conversations);
-            },
-            (error) => {
-                console.error(`❌ [getUserConversations] Listener error:`, error?.message || 'Unknown error');
-                if (errorCallback) errorCallback(error);
-            }
-        );
-
-        return unsubscribe;
-    },
-    // Find an existing conversation for a specific post between two users
-    async findConversationByPostAndUsers(postId: string, userId1: string, userId2: string): Promise<string | null> {
         try {
-            // Query conversations that include this post and user1
-            const q1 = query(
+            // Create a query that checks both participantIds array and participants map
+            const q = query(
                 collection(db, 'conversations'),
-                where('postId', '==', postId),
-                where('participants', 'array-contains', userId1)
+                or(
+                    where('participantIds', 'array-contains', userId),
+                    where(`participants.${userId}`, '==', true)
+                )
             );
 
-            const snapshot1 = await getDocs(q1);
+            const unsubscribe = onSnapshot(
+                q,
+                { includeMetadataChanges: true },
+                (snapshot) => {
+                    try {
+                        const conversations = snapshot.docs.map(doc => {
+                            try {
+                                const data = doc.data();
+                                
+                                // Handle both participant formats
+                                const participants = data.participants || {};
+                                const participantInfo = data.participantInfo || {};
+                                
+                                // Extract participant IDs from either participantIds array or participants map
+                                let participantIds: string[] = [];
+                                if (Array.isArray(data.participantIds)) {
+                                    participantIds = [...data.participantIds];
+                                } else if (typeof participants === 'object' && participants !== null) {
+                                    participantIds = Object.keys(participants).filter(id => participants[id] === true);
+                                }
+                                
+                                // Ensure current user is in participantIds if they're in the participants map
+                                if (participants[userId] === true && !participantIds.includes(userId)) {
+                                    participantIds.push(userId);
+                                }
 
-            // Filter results in JavaScript to find conversations with both users
-            for (const docSnap of snapshot1.docs) {
-                const data: any = docSnap.data();
-                if (data.participants && data.participants.includes(userId2)) {
-                    return docSnap.id;
+                                const result = {
+                                    id: doc.id,
+                                    ...data,
+                                    participants,
+                                    participantInfo,
+                                    participantIds,
+                                    // Ensure we have the other participant's info
+                                    otherParticipantId: participantIds.find(id => id !== userId) || null,
+                                    otherParticipantInfo: (() => {
+                                        const otherId = participantIds.find(id => id !== userId);
+                                        return otherId && participantInfo ? participantInfo[otherId] : null;
+                                    })()
+                                };
+
+                                return result;
+                            } catch (error) {
+                                console.error(`❌ [getUserConversations] Error processing conversation document ${doc.id}:`, error);
+                                return null;
+                            }
+                        }).filter(conv => {
+                            const isValid = conv !== null;
+                            if (!isValid) {
+                                console.warn('⚠️ [getUserConversations] Filtered out invalid conversation');
+                            }
+                            return isValid;
+                        });
+
+                        callback(conversations);
+                    } catch (error) {
+                        console.error('❌ [getUserConversations] Error in snapshot handler:', error);
+                        if (errorCallback) errorCallback(error);
+                    }
+                },
+                (error: any) => {
+                    const errorDetails = {
+                        code: error?.code,
+                        message: error?.message,
+                        stack: error?.stack,
+                        name: error?.name
+                    };
+                    
+                    console.error('❌ [getUserConversations] Listener error:', errorDetails);
+
+                    // If the error is due to missing permissions, try the fallback query
+                    if (error.code === 'permission-denied' || error.code === 'missing-permissions') {
+                        
+                        // Try with the old participants field as fallback
+                        const fallbackQ = query(
+                            collection(db, 'conversations'),
+                            where(`participants.${userId}`, '==', true)
+                        );
+
+                        return onSnapshot(
+                            fallbackQ,
+                            { includeMetadataChanges: true },
+                            (fallbackSnapshot) => {
+                                console.log(`🔄 [getUserConversations] Fallback query returned ${fallbackSnapshot.docs.length} conversations`);
+                                const conversations = fallbackSnapshot.docs.map(doc => ({
+                                    id: doc.id,
+                                    ...doc.data()
+                                }));
+                                callback(conversations);
+                            },
+                            (fallbackError) => {
+                                console.error('❌ [getUserConversations] Fallback query failed:', {
+                                    code: fallbackError?.code,
+                                    message: fallbackError?.message
+                                });
+                                if (errorCallback) errorCallback(fallbackError);
+                            }
+                        );
+                    }
+
+                    if (errorCallback) errorCallback(error);
                 }
+            );
+
+            return () => {
+                unsubscribe();
+            };
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            const errorStack = error instanceof Error ? error.stack : undefined;
+            
+            console.error('❌ [getUserConversations] Error setting up conversations listener:', {
+                error: errorMessage,
+                stack: errorStack
+            });
+            
+            if (errorCallback && error instanceof Error) {
+                errorCallback(error);
+            } else if (errorCallback) {
+                errorCallback(new Error(errorMessage));
+            }
+            
+            return () => { }; // Return empty cleanup function
+        }
+    },
+    // Find an existing conversation for a specific post between two users
+    async findConversationByPostAndUsers(
+        postId: string,
+        currentUserId: string,
+        otherUserId: string
+    ): Promise<string | null> {
+        if (!postId || !currentUserId || !otherUserId) {
+            console.error('Missing required parameters for finding conversation');
+            return null;
+        }
+
+        try {
+            const conversationsRef = collection(db, "conversations");
+
+            // Query for conversations that match the post ID and where current user is a participant
+            // This respects security rules by only querying conversations the user has access to
+            const conversationsQuery = query(
+                conversationsRef,
+                where(`participants.${currentUserId}`, "==", true),
+                where("postId", "==", postId),
+                limit(10) // Limit to 10 conversations for efficiency
+            );
+
+            const querySnapshot = await getDocs(conversationsQuery);
+
+            if (querySnapshot.empty) {
+                return null;
             }
 
-            return null;
+            // Find a conversation where both users are participants
+            // Since we've already filtered by current user, we just need to check for the other user
+            const matchingConversation = querySnapshot.docs.find(doc => {
+                const data = doc.data();
+                if (!data.participants) return false;
+
+                // Check if the other user is also a participant
+                return data.participants[otherUserId] === true;
+            });
+
+            return matchingConversation ? matchingConversation.id : null;
         } catch (error) {
             console.error('Error finding existing conversation:', error);
             return null;
@@ -84,11 +221,20 @@ export const messageService = {
     // Create a new conversation
     async createConversation(postId: string, postTitle: string, postOwnerId: string, currentUserId: string, currentUserData: UserData, postOwnerUserData?: any): Promise<string> {
         try {
+            // Validate input parameters
+            if (!postId || !postTitle || !postOwnerId || !currentUserId || !currentUserData) {
+                throw new Error('Missing required parameters for creating a conversation');
+            }
+
+            // Ensure we don't create a conversation with the same user
+            if (postOwnerId === currentUserId) {
+                throw new Error('Cannot create a conversation with yourself');
+            }
+
             // Fetch post details to get type, status, and creator ID
             let postType: "lost" | "found" = "lost";
             let postStatus: "pending" | "resolved" | "rejected" = "pending";
             let postCreatorId = postOwnerId; // Default to post owner ID
-            let foundAction: "keep" | "turnover to OSA" | "turnover to Campus Security" | null = null;
 
             try {
                 const postDoc = await getDoc(doc(db, 'posts', postId));
@@ -97,14 +243,6 @@ export const messageService = {
                     postType = postData.type || "lost";
                     postStatus = postData.status || "pending";
                     postCreatorId = postData.creatorId || postOwnerId;
-                    // Only set foundAction if it exists and is valid, otherwise keep as null
-                    if (postData.foundAction && typeof postData.foundAction === 'string') {
-                        // Validate that foundAction is one of the expected values
-                        const validFoundActions = ["keep", "turnover to OSA", "turnover to Campus Security"];
-                        if (validFoundActions.includes(postData.foundAction)) {
-                            foundAction = postData.foundAction as "keep" | "turnover to OSA" | "turnover to Campus Security";
-                        }
-                    }
                 }
             } catch (error) {
                 console.warn('Could not fetch post data:', error);
@@ -160,50 +298,94 @@ export const messageService = {
             // Simple duplicate check: get all user conversations and filter in JavaScript
             const userConversationsQuery = query(
                 collection(db, 'conversations'),
-                where(`participants.${currentUserId}`, '!=', null)
+                where('postId', '==', postId)
             );
+
             const userConversationsSnapshot = await getDocs(userConversationsQuery);
             const existingConversation = userConversationsSnapshot.docs.find((docSnap) => {
-                const data: any = docSnap.data();
+                const data = docSnap.data();
                 const participants = data.participants || {};
-                return data.postId === postId &&
-                       participants[postOwnerId] &&
-                       participants[currentUserId];
+                // Check if both users are participants in this conversation
+                return participants[currentUserId] === true &&
+                    participants[postOwnerId] === true;
             });
             if (existingConversation) {
                 console.log('Reusing existing conversation:', existingConversation.id);
                 return existingConversation.id;
             }
 
+            const now = new Date();
+            // Get current user's name and photo
+            const currentUserName = currentUserData?.firstName && currentUserData?.lastName
+                ? `${currentUserData.firstName} ${currentUserData.lastName}`
+                : currentUserData?.displayName || 'Anonymous';
+
+            const currentUserPhoto = currentUserData?.profilePicture ||
+                currentUserData?.profileImageUrl ||
+                currentUserData?.photoURL ||
+                '';
+
+            // Get post owner's name and photo
+            let postOwnerName = 'Anonymous';
+            let postOwnerPhoto = '';
+
+            if (postOwnerUserData) {
+                if (postOwnerUserData.firstName && postOwnerUserData.lastName) {
+                    postOwnerName = `${postOwnerUserData.firstName} ${postOwnerUserData.lastName}`;
+                } else if (postOwnerUserData.displayName) {
+                    postOwnerName = postOwnerUserData.displayName;
+                }
+
+                postOwnerPhoto = postOwnerUserData.profilePicture ||
+                    postOwnerUserData.profileImageUrl ||
+                    postOwnerUserData.photoURL ||
+                    '';
+            }
+
             const conversationData = {
                 postId,
                 postTitle,
-                postOwnerId,
-                postCreatorId: postCreatorId, // Use the actual post creator ID
-                postType: postType, // Use the actual post type
-                postStatus: postStatus, // Use the actual post status
-                foundAction: foundAction, // Use the actual found action
+                postType,
+                postStatus,
+                postCreatorId,
+                // Use both formats for backward compatibility
                 participants: {
+                    [currentUserId]: true,
+                    [postOwnerId]: true,
+                },
+                // Array of participant IDs for efficient querying
+                participantIds: [currentUserId, postOwnerId],
+                participantInfo: {
                     [currentUserId]: {
-                        uid: currentUserId,
-                        firstName: currentUserData.firstName,
-                        lastName: currentUserData.lastName,
-                        profilePicture: currentUserProfilePicture || null,
-                        joinedAt: serverTimestamp()
+                        displayName: currentUserName,
+                        photoURL: currentUserPhoto,
+                        ...(currentUserData?.email && { email: currentUserData.email }),
+                        ...(currentUserData?.contactNum && { contactNum: currentUserData.contactNum })
                     },
                     [postOwnerId]: {
-                        uid: postOwnerId,
-                        firstName: postOwnerUserData?.firstName || '',
-                        lastName: postOwnerUserData?.lastName || '',
-                        profilePicture: postOwnerProfilePicture || null,
-                        joinedAt: serverTimestamp()
+                        displayName: postOwnerName,
+                        photoURL: postOwnerPhoto,
+                        ...(postOwnerUserData?.email && { email: postOwnerUserData.email }),
+                        ...(postOwnerUserData?.contactNum && { contactNum: postOwnerUserData.contactNum })
                     }
+                },
+                lastMessage: {
+                    text: 'Conversation started',
+                    senderId: currentUserId,
+                    senderName: currentUserName,
+                    senderPhoto: currentUserPhoto,
+                    timestamp: serverTimestamp(),
                 },
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
-                unreadCounts: {
-                    [postOwnerId]: 0,
-                    [currentUserId]: 0
+                unreadCount: {
+                    [currentUserId]: 0,
+                    [postOwnerId]: 1, // Mark as unread for the recipient
+                },
+                // Add timestamps for both participants
+                participantTimestamps: {
+                    [currentUserId]: now.toISOString(),
+                    [postOwnerId]: now.toISOString(),
                 }
             };
 
@@ -310,24 +492,72 @@ export const messageService = {
         }
     },
 
-    // Get messages for a conversation with 50-message limit
-    getConversationMessages(conversationId: string, callback: (messages: any[]) => void) {
-        const q = query(
-            collection(db, 'conversations', conversationId, 'messages'),
-            orderBy('timestamp', 'asc'),
-            limit(50) // Limit to 50 messages for performance
-        );
+    // Get messages for a conversation with 50-message limit and proper permission checks
+    getConversationMessages(conversationId: string, currentUserId: string, callback: (messages: any[]) => void, errorCallback?: (error: any) => void) {
+        try {
+            if (!currentUserId) {
+                const error = new Error('User not authenticated');
+                if (errorCallback) errorCallback(error);
+                return () => { };
+            }
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const messages = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            callback(messages);
-        });
+            const conversationRef = doc(db, 'conversations', conversationId);
 
-        // Return unsubscribe function
-        return unsubscribe;
+            // First, verify the user has access to this conversation
+            getDoc(conversationRef).then((docSnap) => {
+                if (!docSnap.exists()) {
+                    const error = new Error('Conversation not found');
+                    if (errorCallback) errorCallback(error);
+                    return () => { };
+                }
+
+                const conversationData = docSnap.data();
+                const participants = conversationData.participants || {};
+
+                // Check if current user is a participant
+                if (!participants[currentUserId]) {
+                    const error = new Error('You do not have permission to view this conversation');
+                    if (errorCallback) errorCallback(error);
+                    return () => { };
+                }
+
+                // If we get here, the user has access to the conversation
+                const q = query(
+                    collection(db, 'conversations', conversationId, 'messages'),
+                    orderBy('timestamp', 'asc'),
+                    limit(50) // Limit to 50 messages for performance
+                );
+
+                const unsubscribe = onSnapshot(
+                    q,
+                    (snapshot) => {
+                        const messages = snapshot.docs.map(doc => ({
+                            id: doc.id,
+                            ...doc.data()
+                        }));
+                        callback(messages);
+                    },
+                    (error) => {
+                        console.error('Error in conversation messages listener:', error);
+                        if (errorCallback) errorCallback(error);
+                    }
+                );
+
+                // Return unsubscribe function
+                return unsubscribe;
+            }).catch((error) => {
+                console.error('Error verifying conversation access:', error);
+                if (errorCallback) errorCallback(error);
+                return () => { }; // Return empty cleanup function
+            });
+
+            // Return a cleanup function that will be called if the component unmounts before the promise resolves
+            return () => { };
+        } catch (error) {
+            console.error('Error setting up conversation messages listener:', error);
+            if (errorCallback) errorCallback(error);
+            return () => { }; // Return empty cleanup function
+        }
     },
 
     // Cleanup old messages when conversation exceeds 50 messages
@@ -1601,10 +1831,155 @@ export const messageService = {
             // Then delete the conversation document
             await deleteDoc(doc(db, 'conversations', conversationId));
 
-            console.log(`✅ Conversation ${conversationId} and all its messages deleted successfully`);
+            console.log(`Conversation ${conversationId} and all its messages deleted successfully`);
         } catch (error: any) {
-            console.error('❌ Failed to delete conversation:', error);
-            throw new Error(error.message || 'Failed to delete conversation');
+            console.error('Failed to delete conversation:', error);
+            throw error;
+        }
+    },
+
+    // Fix a specific conversation's participant info
+    async fixConversationParticipantInfo(conversationId: string): Promise<boolean> {
+        try {
+            console.log(`🔧 [fixConversationParticipantInfo] Starting to fix conversation ${conversationId}`);
+            
+            // Get the conversation document
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationSnap = await getDoc(conversationRef);
+            
+            if (!conversationSnap.exists()) {
+                console.error(`❌ [fixConversationParticipantInfo] Conversation ${conversationId} not found`);
+                return false;
+            }
+            
+            const conversationData = conversationSnap.data();
+            const participantIds = conversationData.participantIds || [];
+            
+            if (participantIds.length !== 2) {
+                console.error(`❌ [fixConversationParticipantInfo] Expected 2 participants, found ${participantIds.length}`);
+                return false;
+            }
+            
+            // Define user data interface
+            interface UserData {
+                displayName?: string;
+                firstName?: string;
+                lastName?: string;
+                photoURL?: string;
+                profilePicture?: string;
+                email?: string;
+                contactNum?: string;
+                [key: string]: any; // Allow additional properties
+            }
+            
+            // Get user data for both participants
+            const [user1Ref, user2Ref] = participantIds.map((id: string) => doc(db, 'users', id));
+            const [user1Snap, user2Snap] = await Promise.all([
+                getDoc(user1Ref),
+                getDoc(user2Ref)
+            ]);
+            
+            if (!user1Snap.exists() || !user2Snap.exists()) {
+                console.error('❌ [fixConversationParticipantInfo] One or both users not found');
+                return false;
+            }
+            
+            const user1Data = user1Snap.data() as UserData;
+            const user2Data = user2Snap.data() as UserData;
+            
+            // Helper function to get user info
+            const getUserInfo = (data: UserData) => ({
+                displayName: data.displayName || `${data.firstName || ''} ${data.lastName || ''}`.trim(),
+                photoURL: data.photoURL || data.profilePicture || '',
+                ...(data.email && { email: data.email }),
+                ...(data.contactNum && { contactNum: data.contactNum })
+            });
+            
+            // Prepare participantInfo object
+            const participantInfo = {
+                [user1Snap.id]: getUserInfo(user1Data),
+                [user2Snap.id]: getUserInfo(user2Data)
+            };
+            
+            // Update the conversation
+            await updateDoc(conversationRef, {
+                participantInfo,
+                updatedAt: serverTimestamp()
+            } as any); // Type assertion to handle Firestore types
+            
+            console.log(`✅ [fixConversationParticipantInfo] Successfully updated participant info for conversation ${conversationId}`);
+            return true;
+            
+        } catch (error) {
+            console.error(`❌ [fixConversationParticipantInfo] Error fixing conversation ${conversationId}:`, error);
+            return false;
+        }
+    },
+
+    // One-time migration function to update conversation participant info
+    async migrateConversationFields(): Promise<{ updated: number; total: number }> {
+        try {
+            console.log('Starting conversation field migration...');
+            const conversationsRef = collection(db, 'conversations');
+            const q = query(conversationsRef);
+            const querySnapshot = await getDocs(q);
+            
+            let updatedCount = 0;
+            const batch = writeBatch(db);
+            let batchCount = 0;
+            const BATCH_LIMIT = 400; // Stay under Firestore's 500 operations per batch limit
+
+            for (const doc of querySnapshot.docs) {
+                const data = doc.data();
+                const participantInfo = { ...(data.participantInfo || {}) };
+                let needsUpdate = false;
+
+                // Check each participant's info for old field names
+                Object.keys(participantInfo).forEach(userId => {
+                    const info = participantInfo[userId] || {};
+                    
+                    // If using old field names, update to new ones
+                    if (info.name || info.photo) {
+                        participantInfo[userId] = {
+                            displayName: info.name || info.displayName || 'Unknown User',
+                            photoURL: info.photo || info.photoURL || '',
+                            ...(info.email && { email: info.email }),
+                            ...(info.contactNum && { contactNum: info.contactNum })
+                        };
+                        needsUpdate = true;
+                    }
+                });
+
+                if (needsUpdate) {
+                    batch.update(doc.ref, { 
+                        participantInfo,
+                        updatedAt: serverTimestamp()
+                    });
+                    updatedCount++;
+                    batchCount++;
+
+                    // Commit batch if we've reached the limit
+                    if (batchCount >= BATCH_LIMIT) {
+                        await batch.commit();
+                        console.log(`Updated ${updatedCount} conversations so far...`);
+                        batchCount = 0;
+                    }
+                }
+            }
+
+            // Commit any remaining operations
+            if (batchCount > 0) {
+                await batch.commit();
+            }
+
+            console.log(`✅ Migration complete. Updated ${updatedCount} of ${querySnapshot.size} conversations`);
+            return { 
+                updated: updatedCount, 
+                total: querySnapshot.size 
+            };
+        } catch (error: any) {
+            console.error('Error during migration:', error);
+            throw new Error(`Migration failed: ${error.message}`);
         }
     }
 };

@@ -224,28 +224,11 @@ export class NotificationService {
     try {
       // Allow the notification system to access preferences for any user (for notification filtering)
       // This is needed when sending notifications to check if users have enabled specific notification types
-      const { auth } = await import('./config');
-
-      // For now, allow any authenticated user to check preferences for notification filtering
-      // In a production system, you might want to restrict this further
-      if (!auth.currentUser) {
-        console.warn('🔒 No authenticated user in getNotificationPreferences');
-        return this.getDefaultPreferences();
-      }
-
-      // Get user data from users collection
       const userDoc = await getDoc(doc(db, 'users', userId));
       if (userDoc.exists()) {
         const userData = userDoc.data();
 
         const preferences = userData.notificationPreferences || this.getDefaultPreferences();
-
-        // Ensure user has a subscription record (background operation) - only for current user
-        if (auth.currentUser && auth.currentUser.uid === userId) {
-          this.ensureUserHasSubscription(userId).catch(error => {
-            console.error('Background subscription check failed:', error);
-          });
-        }
 
         return preferences;
       }
@@ -310,8 +293,6 @@ export class NotificationService {
   // Ensure user has a subscription record (for existing users)
   async ensureUserHasSubscription(userId: string): Promise<void> {
     try {
-      // Allow the notification system to create subscriptions for any user
-
       // First check if user's email is verified
       const userDoc = await getDoc(doc(db, 'users', userId));
       if (!userDoc.exists() || !userDoc.data().emailVerified) {

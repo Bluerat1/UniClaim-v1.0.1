@@ -4,15 +4,15 @@ import { useToast } from "../../context/ToastContext";
 import { postService } from "../../services/firebase/posts";
 import { notificationSender } from "../../services/firebase/notificationSender";
 import type { Post } from "../../types/Post";
-import PageWrapper from "../../components/PageWrapper";
-import NavHeader from "../../components/NavHeadComp";
-import AdminPostCard from "../../components/AdminPostCard";
-import AdminPostModal from "../../components/AdminPostModal";
-import AdminPostCardList from "../../components/AdminPostCardList";
-import MultiControlPanel from "../../components/MultiControlPanel";
+import PageWrapper from "../../components/layout/PageWrapper";
+import NavHeader from "../../components/layout/NavHead";
+import AdminPostCard from "../../components/admin/AdminPostCard";
+import AdminPostModal from "../../components/admin/AdminPostModal";
+import AdminPostCardList from "../../components/admin/AdminPostCardList";
+import MultiControlPanel from "../../components/common/MultiControlPanel";
 import { useAuth } from "../../context/AuthContext";
-import ActivationModal from "../../components/ActivationModal";
-import SearchBar from "../../components/SearchBar";
+import ActivationModal from "../../components/modals/Activation";
+import SearchBar from "../../components/common/SearchBar";
 
 function fuzzyMatch(text: string, query: string): boolean {
   const cleanedText = text.toLowerCase();
@@ -658,7 +658,7 @@ export default function UnclaimedPostsPage() {
                       onClick={() => handleOpenModal(post)}
                       highlightText={lastDescriptionKeyword}
                       onActivateTicket={handleActivatePost}
-                      onDelete={(post) => handleModalDeletePost(post.id)}
+                      onDelete={(post: Post) => handleModalDeletePost(post.id)}
                       isDeleting={activatingPostId === post.id}
                       showUnclaimedMessage={false}
                       hideStatusDropdown={true}
@@ -677,7 +677,7 @@ export default function UnclaimedPostsPage() {
                       onClick={() => handleOpenModal(post)}
                       highlightText={lastDescriptionKeyword}
                       onActivateTicket={handleActivatePost}
-                      onDelete={(post) => handleModalDeletePost(post.id)}
+                      onDelete={(post: Post) => handleModalDeletePost(post.id)}
                       isDeleting={activatingPostId === post.id}
                       showUnclaimedMessage={false}
                       hideStatusDropdown={true}

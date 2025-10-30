@@ -3,7 +3,7 @@ import {
   Ionicons,
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, CommonActions } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as ImagePicker from "expo-image-picker";
 import React, { useState, useCallback, useEffect } from "react";
@@ -340,16 +340,26 @@ export default function Profile() {
         style: "destructive",
         onPress: async () => {
           try {
-            await logout();
-            // Wait a moment for auth state to update
-            setTimeout(() => {
-              navigation.reset({
+            console.log('Starting logout process...');
+            // Reset navigation state before logging out to prevent navigation issues
+            navigation.dispatch(
+              CommonActions.reset({
                 index: 0,
-                routes: [{ name: "Login" }],
-              });
-            }, 100);
+                routes: [{ name: 'Login' }],
+              })
+            );
+            
+            // Perform the actual logout
+            await logout();
+            console.log('Logout successful');
+            
+            // No need to navigate here as the auth state change will handle it
           } catch (error: any) {
-            Alert.alert("Logout Failed", error.message);
+            console.error('Logout error:', error);
+            Alert.alert(
+              "Logout Failed", 
+              error.message || "An error occurred during logout. Please try again."
+            );
           }
         },
       },

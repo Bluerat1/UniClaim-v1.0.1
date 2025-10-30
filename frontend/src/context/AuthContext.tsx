@@ -3,7 +3,6 @@ import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import { auth, authService, type UserData, getFirebaseErrorMessage, db } from "../utils/firebase";
 import { listenerManager } from "../utils/ListenerManager";
 import { doc, onSnapshot, updateDoc, getDoc, serverTimestamp } from "firebase/firestore";
-import { notificationService } from "../services/firebase/notifications";
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -72,26 +71,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setNeedsEmailVerification(false);
           }
           
-          // Initialize notifications for authenticated user (only if email is verified)
-          if (fetchedUserData && fetchedUserData.emailVerified) {
-            try {
-              const messagingInitialized = await notificationService.initializeMessaging();
-              if (messagingInitialized) {
-                // Get FCM token and save it
-                const fcmToken = (notificationService as any).fcmToken;
-                if (fcmToken) {
-                  await notificationService.saveFCMToken(firebaseUser.uid, fcmToken);
-                  console.log('FCM notifications initialized for user:', firebaseUser.uid);
-                }
-                // Set up message listener for foreground notifications
-                notificationService.setupMessageListener();
-              }
-            } catch (error) {
-              console.error('Error initializing notifications:', error);
-            }
-          } else {
-            console.log('📧 User email not verified, skipping notification initialization');
-          }
           
           // Start monitoring this specific user for ban status changes
           const userDocRef = doc(db, 'users', firebaseUser.uid);

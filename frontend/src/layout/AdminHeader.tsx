@@ -8,15 +8,15 @@ import {
 } from "react-icons/hi";
 import { IoLogOutOutline } from "react-icons/io5";
 import Logo from "../assets/uniclaim_logo.png";
-import AdminPostModal from "@/components/AdminPostModal";
+import AdminPostModal from "@/components/admin/AdminPostModal";
 import type { Post } from "@/types/Post";
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useAdminView } from "@/context/AdminViewContext";
 import { useAdminNotifications } from "@/context/AdminNotificationContext";
-import ProfilePicture from "@/components/ProfilePicture";
-import NotificationPreferencesModal from "@/components/NotificationPreferences";
+import ProfilePicture from "@/components/user/ProfilePicture";
+import NotificationPreferencesModal from "@/components/user/NotificationPreferences";
 import { postService } from "@/services/firebase/posts";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
