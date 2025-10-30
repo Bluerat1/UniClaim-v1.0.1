@@ -5,8 +5,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import ToastItem from "@/components/ToastItem";
-import Toast from "@/components/ToastComp";
+import ToastItem from "@/components/common/ToastItem";
+import Toast from "@/components/common/Toast";
 
 type ToastType = "success" | "error" | "warning" | "info";
 

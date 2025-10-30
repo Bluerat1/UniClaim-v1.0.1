@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import InputField from "../../components/GeneralInputComp";
+import GeneralInputComp from "@/components/forms/Input";
 import Header from "../../layout/HeaderComp";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
@@ -129,7 +129,7 @@ export default function Register() {
             {/* Full Name Fields */}
             <div className="flex flex-col space-y-5 md:space-y-0 md:flex-row md:gap-4">
               <div className="w-full">
-                <InputField
+                <GeneralInputComp
                   label="First Name"
                   name="firstname"
                   type="text"
@@ -147,7 +147,7 @@ export default function Register() {
                 />
               </div>
               <div className="w-full">
-                <InputField
+                <GeneralInputComp
                   label="Last Name"
                   name="lastname"
                   type="text"
@@ -167,7 +167,7 @@ export default function Register() {
             </div>
 
             {/* Email */}
-            <InputField
+            <GeneralInputComp
               label="Email Address"
               name="email"
               type="email"
@@ -184,7 +184,7 @@ export default function Register() {
               autocomplete="email"
             />
 
-            <InputField
+            <GeneralInputComp
               label="Contact Number"
               name="contactNum"
               type="text"
@@ -201,7 +201,7 @@ export default function Register() {
               autocomplete="tel"
             />
 
-            <InputField
+            <GeneralInputComp
               label="Student ID"
               name="studentId"
               type="text"
@@ -219,7 +219,7 @@ export default function Register() {
             />
 
             {/* Password */}
-            <InputField
+            <GeneralInputComp
               label="Password"
               name="password"
               type="password"
@@ -238,7 +238,7 @@ export default function Register() {
               autocomplete="new-password"
             />
 
-            <InputField
+            <GeneralInputComp
               label="Confirm Password"
               name="confirmPassword"
               type="password"

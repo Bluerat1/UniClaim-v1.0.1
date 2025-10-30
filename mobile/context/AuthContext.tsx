@@ -99,10 +99,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let autoLoginTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
+      console.log('Auth state changed, user:', firebaseUser ? firebaseUser.uid : 'null');
       
       // Clear any existing auto-login timeout
       if (autoLoginTimeout) {
         clearTimeout(autoLoginTimeout);
+      }
+      
+      // Handle null user (signed out) case first
+      if (!firebaseUser) {
+        console.log('No user signed in, resetting auth state');
+        setUser(null);
+        setUserData(null);
+        setIsAuthenticated(false);
+        setIsBanned(false);
+        setIsAdmin(false);
+        setBanInfo(null);
+        setNeedsEmailVerification(false);
+        setLoading(false);
+        return;
       }
 
       if (firebaseUser) {
@@ -612,26 +627,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async (): Promise<void> => {
+    console.log('Logout initiated');
     try {
       setLoading(true);
       
-      // Immediately clean up ban listener to prevent permission errors during logout
-      // This prevents the race condition where the listener tries to access user data after logout
+      // 1. Clean up ban listener to prevent permission errors during logout
       if (banListenerRef.current) {
+        console.log('Cleaning up ban listener');
         banListenerRef.current();
         banListenerRef.current = null;
       }
       
-      // Clear stored credentials for auto-login
+      // 2. Clear stored credentials for auto-login
       try {
+        console.log('Clearing stored credentials');
         await credentialStorage.clearCredentials();
       } catch (credentialError) {
         console.warn('Error clearing stored credentials:', credentialError);
         // Continue with logout even if clearing credentials fails
       }
       
-      // Clear stored user preferences and data
+      // 3. Clear stored user preferences and data
       try {
+        console.log('Clearing AsyncStorage data');
         await AsyncStorage.multiRemove([
           'user_preferences',
           'search_history',
@@ -648,15 +666,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Continue with logout even if clearing storage fails
       }
       
-      await authService.logout();
-      // onAuthStateChanged will handle updating the state and resetting loading
+      // 4. Sign out from Firebase
+      try {
+        console.log('Signing out from Firebase');
+        await authService.logout();
+      } catch (error) {
+        console.error('Error during Firebase sign out:', error);
+        // Continue with local state cleanup even if Firebase sign out fails
+      }
+      
+      // 5. Force reset auth state immediately
+      console.log('Resetting auth state');
+      setUser(null);
+      setUserData(null);
+      setIsAuthenticated(false);
+      setIsBanned(false);
+      setIsAdmin(false);
+      setBanInfo(null);
+      setNeedsEmailVerification(false);
+      
+      console.log('Logout completed successfully');
     } catch (error: any) {
       console.error('Logout error:', error);
       // Even if logout fails, ensure loading state is reset
       setLoading(false);
-      throw new Error(error.message);
+      throw new Error(error.message || 'Failed to logout');
     } finally {
       // Ensure loading state is reset in all cases
+      console.log('Setting loading to false');
       setLoading(false);
     }
   };

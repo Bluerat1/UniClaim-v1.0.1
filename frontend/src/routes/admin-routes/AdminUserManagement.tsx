@@ -13,7 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../utils/firebase";
 import type { User } from "../../types/User";
-import ProfilePicture from "../../components/ProfilePicture";
+import ProfilePicture from "@/components/user/ProfilePicture";
 import { MdClear } from "react-icons/md";
 import { useToast } from "../../context/ToastContext";
 import { useAuth } from "../../context/AuthContext";

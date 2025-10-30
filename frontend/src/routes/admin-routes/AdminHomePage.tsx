@@ -2,14 +2,14 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { Post } from "@/types/Post";
 
 // components
-import AdminPostCard from "@/components/AdminPostCard";
-import AdminPostCardList from "@/components/AdminPostCardList";
-import AdminPostModal from "@/components/AdminPostModal";
-import TicketModal from "@/components/TicketModal";
-import TurnoverConfirmationModal from "@/components/TurnoverConfirmationModal";
-import MobileNavText from "@/components/NavHeadComp";
-import SearchBar from "../../components/SearchBar";
-import MultiControlPanel from "../../components/MultiControlPanel";
+import AdminPostCard from "@/components/admin/AdminPostCard";
+import AdminPostCardList from "@/components/admin/AdminPostCardList";
+import AdminPostModal from "@/components/admin/AdminPostModal";
+import TicketModal from "@/components/modals/Ticket";
+import TurnoverConfirmationModal from "@/components/modals/TurnoverConfirmation";
+import MobileNavText from "@/components/layout/NavHead";
+import SearchBar from "@/components/common/SearchBar";
+import MultiControlPanel from "@/components/common/MultiControlPanel";
 import { useAdminPosts, useResolvedPosts } from "@/hooks/usePosts";
 import { useToast } from "@/context/ToastContext";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";

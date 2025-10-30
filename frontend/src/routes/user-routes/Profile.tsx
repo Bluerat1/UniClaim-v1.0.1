@@ -1,4 +1,4 @@
-import MobileNavInfo from "@/components/NavHeadComp";
+import MobileNavInfo from "@/components/layout/NavHead";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
@@ -6,7 +6,7 @@ import { profileUpdateService } from "@/utils/profileUpdateService";
 import { cloudinaryService } from "@/utils/cloudinary";
 import { imageService } from "@/utils/firebase";
 import { postUpdateService } from "@/utils/postUpdateService";
-import ProfilePicture from "@/components/ProfilePicture";
+import ProfilePicture from "@/components/user/ProfilePicture";
 import {
   validateProfilePicture,
   isCloudinaryImage,

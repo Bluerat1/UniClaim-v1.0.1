@@ -1,8 +1,8 @@
-import MobileNavText from "@/components/NavHeadComp";
+import MobileNavText from "@/components/layout/NavHead";
 import { useState } from "react";
 import type { Post } from "@/types/Post";
-import TicketCard from "@/components/TicketCard";
-import TicketModal from "@/components/TicketModal";
+import TicketCard from "@/components/common/TicketCard";
+import TicketModal from "@/components/modals/Ticket";
 import { useAuth } from "../../context/AuthContext";
 import { useUserPostsWithSet } from "../../hooks/usePosts";
 import { postService } from "../../services/firebase";

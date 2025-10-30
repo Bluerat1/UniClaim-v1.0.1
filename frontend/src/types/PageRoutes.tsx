@@ -11,7 +11,7 @@ import AdminAnalyticsPage from "../routes/admin-routes/AdminAnalyticsPage";
 import UnclaimedPostsPage from "../routes/admin-routes/UnclaimedPostsPage";
 import TurnoverManagementPage from "../routes/admin-routes/TurnoverManagementPage";
 import CampusSecurityManagementPage from "../routes/admin-routes/CampusSecurityManagementPage";
-import ConversationCleanupAdmin from "../components/ConversationCleanupAdmin";
+import ConversationCleanupAdmin from "../components/admin/ConversationCleanup";
 
 import Login from "../routes/user-routes/Login";
 import Register from "../routes/user-routes/Register";
@@ -33,15 +33,14 @@ import AboutUniClaim from "@/routes/user-routes/AboutUniClaim";
 import MessagesPage from "@/routes/user-routes/MessagesPage";
 
 // wrappers
-import AdminRoute from "../components/AdminRoute";
-import EmailVerificationRoute from "../components/EmailVerificationRoute";
+import AdminRoute from "../components/admin/AdminRoute";
+import EmailVerificationRoute from "../components/auth/EmailVerificationRoute";
 import { ToastProvider } from "@/context/ToastContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { AdminNotificationProvider } from "@/context/AdminNotificationContext";
-import PageWrapper from "@/components/PageWrapper";
+import PageWrapper from "../components/layout/PageWrapper";
 import ScrollToTop from "@/context/ScrollTop";
-
 
 // Component that uses the useAuth hook
 function AppRoutesWithAuth() {

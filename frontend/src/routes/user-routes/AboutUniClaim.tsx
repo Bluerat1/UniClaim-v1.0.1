@@ -1,5 +1,5 @@
 // components
-import MobileNavText from "../../components/NavHeadComp";
+import MobileNavText from "@/components/layout/NavHead";
 
 // icons
 import { IoChatbubblesOutline } from "react-icons/io5";

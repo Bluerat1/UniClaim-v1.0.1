@@ -4,7 +4,7 @@ import {
     signInWithEmailAndPassword,
     signOut,
     updateProfile,
-    sendEmailVerification as firebaseSendEmailVerification,
+    sendEmailVerification,
     sendPasswordResetEmail,
     type User as FirebaseUser,
     type UserCredential
@@ -27,9 +27,6 @@ import { notificationSubscriptionService } from './notificationSubscriptions';
 import { getFirebaseErrorMessage } from './utils';
 import type { UserData } from './types';
 
-// Feature flag for new auth flow
-const USE_SIMPLIFIED_AUTH = true; // Set to false to revert to old flow
-
 // Auth utility functions
 export const authService = {
     // Register new user
@@ -40,7 +37,7 @@ export const authService = {
         lastName: string,
         contactNum: string,
         studentId: string
-    ): Promise<{ user: FirebaseUser }> {
+    ): Promise<{ user: FirebaseUser; userData: UserData }> {
         try {
             // Create user with email and password
             const userCredential: UserCredential = await createUserWithEmailAndPassword(
@@ -48,7 +45,6 @@ export const authService = {
                 email,
                 password
             );
-
             const user = userCredential.user;
 
             // Update user profile with display name
@@ -56,27 +52,32 @@ export const authService = {
                 displayName: `${firstName} ${lastName}`
             });
 
-            // Create user document in users collection
-            const userData = {
+            // Create user document in Firestore
+            const userData: UserData = {
+                uid: user.uid,
                 email: user.email!,
                 firstName,
                 lastName,
                 contactNum,
                 studentId,
-                status: 'active',
-                emailVerified: false,
+                profilePicture: '/src/assets/empty_profile.jpg', // Set default profile picture
+                status: 'active', // Set default status to active - CRITICAL for permissions
+                emailVerified: false, // New users need to verify their email
                 createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-                profilePicture: '/src/assets/empty_profile.jpg'
+                updatedAt: serverTimestamp()
             };
 
-            // Store user data in users collection
+            // Ensure the status field is explicitly set to prevent permission issues
+            if (!userData.status) {
+                userData.status = 'active';
+            }
+
             await setDoc(doc(db, 'users', user.uid), userData);
 
             // Send email verification
-            await firebaseSendEmailVerification(user);
+            await sendEmailVerification(user);
 
-            return { user };
+            return { user, userData };
         } catch (error: any) {
             throw new Error(getFirebaseErrorMessage(error));
         }
@@ -88,17 +89,17 @@ export const authService = {
             // Sign in the user
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
-            
+
             // Check if user is verified (skip for admin users)
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             const userData = userDoc.data();
             const isAdminUser = userData?.role === 'admin' || userData?.role === 'campus_security';
-            
+
             if (!user.emailVerified && !isAdminUser) {
                 await signOut(auth);
-                throw new Error('Please verify your email before logging in. Check your inbox for the verification link.');
+                throw new Error('Please verify your email before logging in. Check your inbox for the verification link.');  
             }
-            
+
             if (isAdminLogin) {
                 const userDoc = await getDoc(doc(db, 'users', user.uid));
                 if (!userDoc.exists() || userDoc.data()?.role !== 'admin') {
@@ -106,21 +107,7 @@ export const authService = {
                     throw new Error('Access denied. This account does not have admin privileges.');
                 }
             }
-            
-            // Ensure notification subscription
-            try {
-                const subscription = await notificationSubscriptionService.getSubscription(user.uid);
-                if (!subscription) {
-                    await notificationSubscriptionService.createSubscription({
-                        userId: user.uid,
-                        isActive: true
-                    });
-                }
-            } catch (subscriptionError) {
-                console.error('Error with notification subscription:', subscriptionError);
-                // Continue login even if subscription fails
-            }
-            
+
             return user;
         } catch (error: any) {
             throw new Error(getFirebaseErrorMessage(error));
@@ -145,14 +132,13 @@ export const authService = {
         }
     },
 
-
     // Get user data from Firestore
     async getUserData(uid: string): Promise<UserData | null> {
         try {
             const userDoc = await getDoc(doc(db, 'users', uid));
-            return userDoc.exists() ? userDoc.data() as UserData : null;
-        } catch (error: any) {
-            console.error('Error fetching user data:', error);
+            return userDoc.exists() ? (userDoc.data() as UserData) : null;
+        } catch (error) {
+            console.error('Error getting user data:', error);
             return null;
         }
     },
@@ -160,10 +146,10 @@ export const authService = {
     // Update user data in Firestore
     async updateUserData(uid: string, data: Partial<UserData>): Promise<void> {
         try {
-            await setDoc(doc(db, 'users', uid), {
+            await updateDoc(doc(db, 'users', uid), {
                 ...data,
                 updatedAt: serverTimestamp()
-            }, { merge: true });
+            });
         } catch (error: any) {
             throw new Error(error.message || 'Failed to update user data');
         }
@@ -321,7 +307,7 @@ export const authService = {
             // Force email verification
             if (!user.emailVerified) {
                 // This will send a verification email
-                await firebaseSendEmailVerification(user);
+                await sendEmailVerification(user);
                 console.log('Verification email sent to:', email);
             }
 
@@ -390,20 +376,15 @@ export const authService = {
 
     // Send email verification (resend)
     async sendEmailVerificationToCurrentUser(): Promise<void> {
-        const user = auth.currentUser;
-        if (!user) {
-            throw new Error('No user is currently signed in.');
-        }
         try {
-            await firebaseSendEmailVerification(user);
-            
-            // Update Firestore if using simplified auth
-            if (USE_SIMPLIFIED_AUTH) {
-                await this.updateEmailVerificationStatus(user.uid, false);
+            const user = auth.currentUser;
+            if (!user) {
+                throw new Error('No user is currently signed in');
             }
+            await sendEmailVerification(user);
         } catch (error: any) {
+            console.error('Error sending email verification:', error);
             throw new Error(getFirebaseErrorMessage(error));
         }
     },
-    
 };

@@ -155,6 +155,29 @@ export default function Navigation({
         </SafeAreaView>
       </NavigationWrapper>
     );
+  } else if (!isAuthenticated && !user && !loginAttemptFailed) {
+    // Show login screen when not authenticated and no failed login attempt
+    navigatorContent = (
+      <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
+        <Stack.Navigator
+          key="unauth-navigation"
+          initialRouteName="Login"
+          screenOptions={{ headerShown: false, animation: "fade" }}
+        >
+          <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
+          <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
+          <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
+          <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
+          <Stack.Screen name="EmailVerification">
+            {() => (
+              <Suspense fallback={<ScreenLoader />}>
+                <EmailVerification />
+              </Suspense>
+            )}
+          </Stack.Screen>
+        </Stack.Navigator>
+      </NavigationWrapper>
+    );
   } else if (user && isBanned) {
     navigatorContent = (
       <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>

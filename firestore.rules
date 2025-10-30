@@ -10,307 +10,302 @@ service cloud.firestore {
     function isAuthenticated() {
       return request.auth != null;
     }
-
-    // Unverified users collection - only for storing temporary user data before email verification
-    match /unverified_users/{userId} {
-      // Allow users to create their own unverified document
-      allow create: if isAuthenticated() && isOwner(userId);
-      
-      // Allow users to read their own unverified document
-      allow read: if isAuthenticated() && isOwner(userId);
-      
-      // Allow users to delete their own unverified document (for cleanup)
-      allow delete: if isAuthenticated() && isOwner(userId);
-      
-      // Allow admins to read and delete unverified users
-      allow read, delete: if isAdmin();
-      
-      // No updates allowed to unverified users
-      allow update: if false;
-    }
     
-    // Main users collection rules
-    
-    // Users collection - only for verified users
-    match /users/{userId} {
-      // Allow users to read their own document (for ban checking and profile access)
-      // Users can read their own document regardless of email verification status
-      allow read: if isAuthenticated() && isOwner(userId);
-
-      // Allow reading basic profile info for messaging functionality
-      // This enables conversations to display participant names and profile pictures
-      // Only allow reading other users' profiles if they are verified or user is admin
-      allow read: if isAuthenticated() && 
-        (resource.data.emailVerified == true || 
-         isAdmin() || 
-         resource.data.role in ['admin', 'campus_security']);
-
-      // Allow admins to read all users (for admin panel)
-      allow read: if isAuthenticated() && isAdmin();
-
-      // Allow users to create their own document during registration
-      // New users can be created with emailVerified = false initially
-      // Admins can create users with any email verification status
-      allow create: if isAuthenticated() && 
-        (isOwner(userId) || isAdmin()) &&
-        (request.resource.data.emailVerified == false || isAdmin()) &&
-        request.resource.data.keys().hasAll(['email', 'firstName', 'lastName', 'contactNum', 'studentId', 'status', 'role']) &&
-        (request.resource.data.status == 'active' || isAdmin());
-
-      // Allow email verification updates for authenticated users
-      // This allows users to update their emailVerified status during verification
-      // Admins can update any user's verification status
-      allow update: if isAuthenticated() && 
-        (isOwner(userId) || isAdmin()) &&
-        (resource.data.status == null || (resource.data.status != 'deactivated' && resource.data.status != 'banned')) &&
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['emailVerified', 'updatedAt']) || isAdmin());
-
-      // Allow push token updates for authenticated users (for notification setup)
-      allow update: if request.auth != null && request.auth.uid == userId &&
-        (resource.data.status == null || (resource.data.status != 'deactivated' && resource.data.status != 'banned')) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pushToken', 'pushTokenUpdatedAt']);
-
-      // Allow profile updates for authenticated users (for profile editing)
-      // Users can update their basic profile information
-      allow update: if request.auth != null && request.auth.uid == userId;
-
-      // Allow users to delete their own document (for account deletion)
-      // Simplified rule - users can always delete their own document
-      allow delete: if request.auth != null && request.auth.uid == userId;
-
-      // Allow admins to update user status (for banning/unbanning)
-      allow update: if request.auth != null && isAdmin();
-    }
-
-    // User bans collection - only admins can access
-    match /userBans/{banId} {
-      allow read, write: if request.auth != null && isAdmin();
-    }
-    
-    // Posts collection rules
-    match /posts/{postId} {
-      // Allow authenticated users to read posts (temporarily simplified for debugging)
-      allow read: if request.auth != null;
-
-      // Allow authenticated users to create posts (temporarily simplified for debugging)
-      // Also allow creation when restoring a post (admin operation)
-      allow create: if (request.auth != null
-        && request.auth.uid != null
-        && isValidPost(request.resource.data)) || 
-        (request.auth != null && isAdmin() && request.resource.data.isRestored == true);
-
-      // Users can update their own posts, OR admins can update any post
-      // FIXED: Case-insensitive email comparison to handle different cases
-      // Allow new users to update their posts before email verification
-      allow update: if request.auth != null
-        && request.auth.uid != null
-        && (resource.data.user.email.lower() == request.auth.token.email.lower() || isAdmin() || isNewUser());
-      
-      // Allow any authenticated user to flag posts (for flagging system)
-      // This allows users to add/update flagging fields on any post
-      allow update: if request.auth != null
-        && request.auth.uid != null
-        && request.resource.data.keys().hasAny(['isFlagged', 'flagReason', 'flaggedBy', 'flaggedAt', 'isHidden']);
-
-      // Users can delete their own posts, or admins can delete any post
-      // FIXED: Case-insensitive email comparison for consistency
-      // Allow new users to delete their own posts
-      allow delete: if request.auth != null
-        && (resource.data.user.email.lower() == request.auth.token.email.lower() || isAdmin() || isNewUser());
-    }
-    
-    // SIMPLIFIED: Conversations collection for messaging
-    match /conversations/{conversationId} {
-      // Simplified: Allow any authenticated user to read conversations
-      // This fixes the permission error for new users while maintaining security
-      allow read: if request.auth != null;
-
-      // Users can write conversations they participate in (but not when banned)
-      // Admins have full write access
-      allow write: if request.auth != null &&
-        (request.auth.uid in resource.data.participants || isAdmin());
-
-      // Allow creating new conversations (but not when banned)
-      // Admins can always create conversations
-      allow create: if request.auth != null;
-
-      // Allow deleting conversations when deleting posts (post owner can delete related conversations)
-      // Also allow any authenticated user to delete conversations for cleanup (simplified for reliability)
-      // Admins have full delete access
-      allow delete: if request.auth != null && (!isUserBanned() || isAdmin());
-      
-      // Messages subcollection - RESTRICTED deletion
-      match /messages/{messageId} {
-        // Simplified: Allow any authenticated user to read messages
-        // This fixes the permission error for new users while maintaining security
-        allow read: if request.auth != null;
-
-        // Users can create messages in conversations they participate in (admins have full access)
-        allow create: if request.auth != null &&
-          (request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants || isAdmin());
-
-        // Users can ONLY delete their own messages (admins can delete any message)
-        allow delete: if request.auth != null &&
-          (resource.data.senderId == request.auth.uid || isAdmin());
-
-        // Allow deleting messages when cleaning up conversations for deleted posts
-        // This enables proper cleanup when posts are deleted (admins have full access)
-        allow delete: if request.auth != null &&
-          (request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants || isAdmin());
-
-        // Users can update their own messages (for editing) (admins can update any message)
-        allow update: if request.auth != null &&
-          (resource.data.senderId == request.auth.uid || isAdmin());
-
-        // Allow updating messages for claim responses - users can respond to claim requests
-        // in conversations they participate in, even if they're not the original sender
-        // Admins can update any claim responses
-        allow update: if request.auth != null &&
-          (request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants || isAdmin()) &&
-          // Only allow updates to claimData field for claim responses
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['claimData']);
-
-        // Allow updating messages for handover responses - users can respond to handover requests
-        // in conversations they participate in, even if they're not the original sender
-        // Admins can update any handover responses
-        allow update: if request.auth != null &&
-          (request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants || isAdmin());
-      }
-    }
-    
-    // Notifications collection rules
-    match /notifications/{notificationId} {
-      // Users can read their own notifications
-      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
-
-      // Users can update their own notifications (for marking as read)
-      allow update: if request.auth != null && request.auth.uid == resource.data.userId;
-
-      // Users can delete their own notifications, OR admins can delete any notifications for cleanup
-      allow delete: if request.auth != null && (request.auth.uid == resource.data.userId || isAdmin());
-
-      // Allow creating notifications (for the notification sender service)
-      // This allows any authenticated user to create notifications
-      allow create: if request.auth != null;
-
-      // Admins can read and manage all notifications
-      allow read, write: if request.auth != null && isAdmin();
-
-      // Allow querying notifications by userId for limit enforcement
-      // This is needed for the enforceNotificationLimit function
-      allow list: if request.auth != null;
-    }
-    
-    // Admin notifications collection rules
-    match /admin_notifications/{notificationId} {
-      // Temporarily allow all authenticated users to read admin notifications (for debugging)
-      // TODO: Restrict to admins only once admin user is properly set up
-      allow read: if request.auth != null;
-      
-      // Temporarily allow all authenticated users to update admin notifications (for debugging)
-      // TODO: Restrict to admins only once admin user is properly set up
-      allow update: if request.auth != null;
-      
-      // Temporarily allow all authenticated users to delete admin notifications (for debugging)
-      // TODO: Restrict to admins only once admin user is properly set up
-      allow delete: if request.auth != null;
-      
-      // Allow creating admin notifications (for the notification system)
-      // This allows any authenticated user to create admin notifications (needed for post creation)
-      allow create: if request.auth != null;
-    }
-    
-    // Admin notification preferences collection rules
-    match /admin_notification_preferences/{adminId} {
-      // Only admins can read and write their own preferences
-      allow read, write: if request.auth != null && isAdmin() && request.auth.uid == adminId;
-      
-      // Allow creating preferences for new admins
-      allow create: if request.auth != null && isAdmin() && request.auth.uid == adminId;
-    }
-    
-    // Deleted posts collection (admin only)
-    match /deleted_posts/{postId} {
-      // Allow admins to read and manage deleted posts
-      allow read, write: if request.auth != null && isAdmin();
-      
-      // Allow creating deleted posts (for soft delete functionality)
-      allow create: if request.auth != null;
-      
-      // Allow reading specific post for restoration
-      allow get: if request.auth != null && isAdmin();
-      
-      // Allow deleting when restoring a post
-      allow delete: if request.auth != null && isAdmin();
-    }
-    
-    // Notification subscriptions collection rules
-    match /notifications_subscriptions/{userId} {
-      // Users can read and write their own subscription
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      
-      // Allow creating subscriptions (for new user registration)
-      allow create: if request.auth != null && request.auth.uid == userId;
-      
-      // Allow reading subscriptions for notification queries (for notification sender)
-      allow read: if request.auth != null;
-      
-      // Admins can read and manage all subscriptions
-      allow read, write: if request.auth != null && isAdmin();
-    }
-    
-    // Analytics collection rules - allow authenticated users to read analytics data
-    match /analytics/{analyticsId} {
-      // Allow authenticated users to read analytics data
-      allow read: if request.auth != null;
-
-      // Allow creating analytics data (for post creation logging)
-      allow create: if request.auth != null;
-
-      // Allow updating analytics data (for incrementing counters)
-      allow update: if request.auth != null;
-    }
-    function isValidPost(data) {
-      return data.keys().hasAll(['title', 'description', 'category', 'location', 'type', 'user', 'status'])
-        && data.type in ['lost', 'found']
-        && data.status in ['pending', 'resolved', 'unclaimed']
-        && data.title is string && data.title.size() > 0
-        && data.description is string && data.description.size() > 0
-        && data.category is string && data.category.size() > 0
-        && data.location is string && data.location.size() > 0
-        && (data.user.email == request.auth.token.email || data.user.email == 'cs@uniclaim.com' || isNewUser());
-    }
-    
-    function isNewUser() {
-      // Check if user exists in database and if their email is verified
-      return request.auth != null &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        !get(/databases/$(database)/documents/users/$(request.auth.uid)).data.emailVerified;
-    }
-    
-    // Helper function to check if user is admin
-    // Checks user's role in the database or email
+    // Check if the current user is an admin
     function isAdmin() {
-      return request.auth != null && (
-        // Check by email (for initial setup or fallback)
-        (request.auth.token.email.matches('admin@ustp\\.edu\\.ph$') ||
-         request.auth.token.email.matches('superadmin@ustp\\.edu\\.ph$') ||
-         request.auth.token.email.matches('admin@uniclaim.com') ||
-         request.auth.token.email.matches('cs@uniclaim\\.com$')) ||
-        // Check by role in database
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || 
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'campus_security'))
+      return isAuthenticated() && request.auth != null && (
+        request.auth.token.email in ['admin@ustp.edu.ph', 'superadmin@ustp.edu.ph', 'admin@uniclaim.com', 'cs@uniclaim.com'] ||
+        (request.auth.token.role == 'admin')
       );
     }
     
-    // NEW: Check if current user is banned
-    function isUserBanned() {
-      return request.auth != null &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'deactivated' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'banned');
+    // Check if the current user is a new user (not yet email verified)
+    function isNewUser() {
+      return isAuthenticated() &&
+        request.auth != null &&
+        request.auth.token.email_verified == false;
     }
     
+    // Check if the current user is banned
+    function isUserBanned() {
+      return isAuthenticated() &&
+        request.auth != null &&
+        request.auth.token.status in ['deactivated', 'banned'];
+    }
     
+
+    // Users collection - only for verified users
+    match /users/{userId} {
+      // Users can read their own data, admins can read all
+      // Also allow querying users by email for admin status checks
+      allow read: if isAuthenticated() && (
+        resource.data.emailVerified == true || 
+        isAdmin() || 
+        resource.data.role in ['admin', 'campus_security'] ||
+        // Allow reading basic user info for messaging (when querying with limit)
+        (request.query.limit != null && int(request.query.limit) <= 20) ||
+        // Allow querying users by email for admin status checks
+        (request.query['email'] != null && 
+         (request.query['email'] is string || 
+          (request.query['email'] is list && request.query['email'].size() <= 10)))
+      );
+
+      // Users can update their own data, admins can update any
+      allow update: if isAuthenticated() && (
+        isOwner(userId) || 
+        isAdmin()
+      );
+
+      // Allow push token updates for authenticated users (for notification setup)
+      allow update: if isAuthenticated() && isOwner(userId) &&
+        (resource.data.status == null || (resource.data.status != 'deactivated' && resource.data.status != 'banned')) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pushToken', 'pushTokenUpdatedAt']);
+        
+      // Allow profile updates for authenticated users (for profile editing)
+      // Users can update their basic profile information
+      allow update: if isAuthenticated() && isOwner(userId);
+      
+      // Allow users to delete their own document (for account deletion)
+      allow delete: if isAuthenticated() && isOwner(userId);
+    }
+
+    // Posts collection rules
+    match /posts/{postId} {
+      // Allow authenticated users to read posts
+      allow read: if isAuthenticated();
+
+      // Allow users to create posts if they're authenticated and not banned
+      allow create: if isAuthenticated() && !isUserBanned();
+
+      // Allow users to update their own posts, or admins can update any post
+      // Allow new users to update their posts before email verification
+      allow update: if isAuthenticated() && 
+        (resource.data.user.email.lower() == request.auth.token.email.lower() || 
+         isAdmin() || 
+         isNewUser());
+
+      // Users can delete their own posts, or admins can delete any post
+      // Allow new users to delete their own posts
+      allow delete: if isAuthenticated() && 
+        (resource.data.user.email.lower() == request.auth.token.email.lower() || 
+         isAdmin() || 
+         isNewUser());
+    }
+    
+    // Conversations collection for messaging
+    match /conversations/{conversationId} {
+      // Helper function to check if user is a participant (supports both array and object formats)
+      function isConversationParticipant() {
+        return isAuthenticated() && (
+          // Check if user is an admin
+          isAdmin() ||
+          // Check if user is a participant in the existing document
+          (resource != null && resource.data != null && (
+            (resource.data.participants is map && resource.data.participants[request.auth.uid] == true) ||
+            (resource.data.participants is list && resource.data.participants.hasAny([request.auth.uid])) ||
+            (resource.data.participantInfo is map && resource.data.participantInfo[request.auth.uid] != null)
+          )) ||
+          // Check if user is being added as a participant in the new document
+          (request.resource != null && request.resource.data != null && (
+            (request.resource.data.participants is map && request.resource.data.participants[request.auth.uid] == true) ||
+            (request.resource.data.participants is list && request.resource.data.participants.hasAny([request.auth.uid])) ||
+            (request.resource.data.participantInfo is map && request.resource.data.participantInfo[request.auth.uid] != null)
+          ))
+        );
+      }
+
+      // Allow listing conversations where the user is a participant
+      allow list: if isAuthenticated() && (
+        // User can list if they're an admin
+        isAdmin() ||
+        // Or if they're querying with a participant filter that includes their ID
+        (request.query != null && 
+         request.query.where != null && 
+         (
+           // Allow querying by participantIds array
+           (request.query.where.field == 'participantIds' &&
+            request.query.where.op == 'array-contains' &&
+            request.query.where.value == request.auth.uid) ||
+           // Backward compatibility with old queries
+           (request.query.where.field == 'participants.' + request.auth.uid &&
+            request.query.where.op == '==' &&
+            request.query.where.value == true) ||
+           (request.query.where.field == 'participantInfo.' + request.auth.uid &&
+            request.query.where.op == '!=' &&
+            request.query.where.value == null)
+         ))
+      );
+      
+      // Allow listing all conversations if user is admin (without filtering)
+      allow list: if isAdmin();
+      
+      // Allow getting a specific conversation if user is a participant
+      allow get: if isConversationParticipant();
+      
+      // Allow creating conversations if the user is included in participants
+      allow create: if isAuthenticated() && (
+        // User is an admin
+        isAdmin() ||
+        // Or user is included in the participants map
+        (request.resource.data.participants is map && 
+         request.resource.data.participants[request.auth.uid] == true) ||
+        // Or user is included in the participants list (legacy support)
+        (request.resource.data.participants is list && 
+         request.resource.data.participants.hasAny([request.auth.uid])) ||
+        // Or user is included in the participantInfo map
+        (request.resource.data.participantInfo is map && 
+         request.resource.data.participantInfo[request.auth.uid] != null)
+      ) && (
+        // Ensure the postId is provided
+        request.resource.data.postId != null &&
+        // Ensure the postOwnerId is provided and matches one of the participants
+        request.resource.data.postOwnerId != null &&
+        (
+          (request.resource.data.participants[request.resource.data.postOwnerId] == true) ||
+          (request.resource.data.participantInfo[request.resource.data.postOwnerId] != null)
+        )
+      );
+      
+      // Allow updating lastMessage and updatedAt fields
+      allow update: if isConversationParticipant() && (
+        // Only allow updating specific fields
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'updatedAt']) ||
+        // Or allow updating readBy array
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']) &&
+         request.auth.uid in request.resource.data.readBy)
+      );
+      
+      // Messages subcollection rules
+      match /messages/{messageId} {
+        // Helper function to check if user is a participant in the parent conversation
+        function isParentConversationParticipant() {
+          return isAuthenticated() && (
+            // Get the parent conversation document
+            get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants[request.auth.uid] == true ||
+            isAdmin()
+          );
+        }
+        
+        // Allow reading messages if user is a conversation participant
+        allow read: if isParentConversationParticipant();
+        
+        // Allow creating messages if user is a conversation participant
+        allow create: if isParentConversationParticipant() && 
+          request.resource.data.senderId == request.auth.uid &&
+          request.resource.data.timestamp == request.time;
+          
+        // Allow updating only specific fields (like read status)
+        allow update: if isParentConversationParticipant() && (
+          // Allow updating readBy array
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']) &&
+           request.auth.uid in request.resource.data.readBy) ||
+          // Allow sender to update their own messages within a short time window
+          (resource.data.senderId == request.auth.uid &&
+           request.time < resource.data.timestamp + duration.value(5, 'm'))
+        );
+      }
+    }
+
+    // Admin notifications collection
+    match /admin_notifications/{notificationId} {
+      // Allow admins to list and read their own notifications or broadcast notifications
+      allow list, read: if isAuthenticated() && isAdmin() && (
+        // Allow reading notifications for the current admin or broadcast notifications
+        resource.data.adminId == request.auth.uid || 
+        resource.data.adminId == 'all' ||
+        // Allow querying by adminId
+        (request.query != null && request.query.where != null && 
+         request.query.where.fieldPath == 'adminId' && 
+         (request.query.where.op == '==' && request.query.where.value == request.auth.uid))
+      );
+      
+      // Allow creating notifications for admins
+      allow create: if isAuthenticated() && isAdmin() && (
+        // Validate required fields
+        request.resource.data.keys().hasAll(['title', 'message', 'adminId', 'type', 'createdAt']) &&
+        // Ensure adminId is either 'all' or matches the current user's ID
+        (request.resource.data.adminId == 'all' || request.resource.data.adminId == request.auth.uid)
+      );
+      
+      // Allow updating notifications (e.g., marking as read)
+      allow update: if isAuthenticated() && isAdmin() && (
+        // Only allow updating specific fields
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt', 'updatedAt']) &&
+        // Only allow updating your own notifications or broadcast notifications
+        (resource.data.adminId == request.auth.uid || resource.data.adminId == 'all')
+      );
+      
+      // Allow deleting notifications
+      allow delete: if isAuthenticated() && isAdmin() && (
+        // Only allow deleting your own notifications or broadcast notifications
+        resource.data.adminId == request.auth.uid || 
+        resource.data.adminId == 'all'
+      );
+    }
+
+    // User notifications collection
+    match /notifications/{notificationId} {
+      // Users can read their own notifications
+      allow list, read: if isAuthenticated() && (
+        // Direct document access
+        resource.data.userId == request.auth.uid ||
+        // Query access (for list operations)
+        (request.query != null && 
+         request.query.where != null && 
+         request.query.where.fieldPath == 'userId' && 
+         request.query.where.op == '==' && 
+         request.query.where.value == request.auth.uid) ||
+        // Collection group query support
+        (request.query != null && 
+         request.query.collectionGroup == 'notifications' &&
+         request.query.where != null &&
+         request.query.where.fieldPath == 'userId' &&
+         request.query.where.op == '==' &&
+         request.query.where.value == request.auth.uid)
+      );
+      
+      // Allow creating notifications
+      allow create: if isAuthenticated() && (
+        // User can only create notifications for themselves
+        request.resource.data.userId == request.auth.uid &&
+        // Required fields must be present
+        request.resource.data.keys().hasAll(['userId', 'title', 'message', 'type', 'createdAt']) &&
+        // Type must be one of the allowed types
+        request.resource.data.type in ['new_post', 'message', 'claim_update', 'admin_alert', 
+                                     'conversation_deleted', 'claim_response', 'handover_response', 
+                                     'status_change', 'post_activated', 'post_reverted', 
+                                     'post_deleted', 'post_restored']
+      );
+      
+      // Allow updating read status and readAt timestamp
+      allow update: if isAuthenticated() && (
+        // User can only update their own notifications
+        resource.data.userId == request.auth.uid &&
+        // Only allow updating specific fields
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']) &&
+        // Ensure userId cannot be changed
+        request.resource.data.userId == resource.data.userId
+      );
+      
+      // Allow deleting notifications
+      allow delete: if isAuthenticated() && (
+        // User can only delete their own notifications
+        resource.data.userId == request.auth.uid
+      );
+    }
+    
+    // Allow collection group queries on notifications
+    match /{path=**}/notifications/{notificationId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid
+      );
+    }
+
+    // Admin notification preferences
+    match /adminNotificationPreferences/{adminId} {
+      // Allow admins to read and update their own preferences
+      allow read: if isAuthenticated() && (isAdmin() && isOwner(adminId));
+      allow create, update: if isAuthenticated() && (isAdmin() && isOwner(adminId));
+    }
   }
 }

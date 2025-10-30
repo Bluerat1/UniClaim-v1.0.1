@@ -27,6 +27,7 @@ import { listenerManager } from '../../utils/ListenerManager';
 
 // Import Cloudinary service and utility functions
 import { cloudinaryService, extractMessageImages, deleteMessageImages } from '../../utils/cloudinary';
+
 // Helper function to extract Cloudinary public ID from URL
 function extractCloudinaryPublicId(url: string): string | null {
     try {
@@ -375,39 +376,76 @@ export const postService = {
     },
 
     // Get all posts with real-time updates (DEPRECATED - use getActivePosts for better performance)
-    getAllPosts(callback: (posts: Post[]) => void) {
-        const q = query(
-            collection(db, 'posts')
-            // orderBy('createdAt', 'desc') // Temporarily commented out
-        );
+    getAllPosts(callback: (posts: Post[]) => void, errorCallback?: (error: any) => void, isServerSide: boolean = false) {
+        try {
+            // Skip authentication check for server-side operations
+            if (!isServerSide) {
+                const auth = getAuth();
+                if (!auth.currentUser) {
+                    const error = new Error('User not authenticated');
+                    console.error('PostService: Authentication required to fetch posts:', error);
+                    if (errorCallback) {
+                        errorCallback(error);
+                    }
+                    return () => {}; // Return empty cleanup function
+                }
+            }
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const posts = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt
-            })) as Post[];
+            const q = query(
+                collection(db, 'posts')
+                // orderBy('createdAt', 'desc') // Temporarily commented out
+            );
 
-            // Sort posts by createdAt in JavaScript instead
-            const sortedPosts = posts.sort((a, b) => {
-                const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
-                const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
-                return dateB.getTime() - dateA.getTime(); // Most recent first
-            });
+            const unsubscribe = onSnapshot(
+                q, 
+                (snapshot) => {
+                    try {
+                        const posts = snapshot.docs.map(doc => {
+                            const data = doc.data();
+                            return {
+                                id: doc.id,
+                                ...data,
+                                createdAt: data.createdAt?.toDate?.() || data.createdAt
+                            } as Post;
+                        });
 
-            callback(sortedPosts);
-        }, (error) => {
-            console.error('PostService: Error fetching posts:', error);
-            callback([]);
-        });
+                        // Sort posts by createdAt in JavaScript
+                        const sortedPosts = posts.sort((a, b) => {
+                            const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
+                            const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+                            return dateB.getTime() - dateA.getTime(); // Most recent first
+                        });
 
-        // Register with ListenerManager for tracking
-        const listenerId = listenerManager.addListener(unsubscribe, 'PostService');
+                        callback(sortedPosts);
+                    } catch (error) {
+                        console.error('PostService: Error processing posts:', error);
+                        if (errorCallback) {
+                            errorCallback(error);
+                        }
+                    }
+                },
+                (error) => {
+                    console.error('PostService: Error in posts snapshot:', error);
+                    if (errorCallback) {
+                        errorCallback(error);
+                    }
+                }
+            );
 
-        // Return a wrapped unsubscribe function that also removes from ListenerManager
-        return () => {
-            listenerManager.removeListener(listenerId);
-        };
+            // Register with ListenerManager for tracking
+            const listenerId = listenerManager.addListener(unsubscribe, 'PostService');
+
+            // Return a wrapped unsubscribe function that also removes from ListenerManager
+            return () => {
+                listenerManager.removeListener(listenerId);
+            };
+        } catch (error) {
+            console.error('PostService: Error setting up posts listener:', error);
+            if (errorCallback) {
+                errorCallback(error);
+            }
+            return () => {}; // Return empty cleanup function
+        }
     },
 
     // Get only active (non-expired) posts with real-time updates - OPTIMIZED FOR PERFORMANCE

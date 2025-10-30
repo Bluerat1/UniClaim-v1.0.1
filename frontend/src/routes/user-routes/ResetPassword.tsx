@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Header from "../../layout/HeaderComp";
 import { Link } from "react-router-dom";
-import InputFieldComp from "../../components/InputFieldComp";
+import InputFieldComp from "@/components/forms/InputFieldComp";
 import { authService } from "@/services/firebase/auth";
 
 export default function ResetPassword() {

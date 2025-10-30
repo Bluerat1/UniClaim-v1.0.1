@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
-import { db } from "../../services/firebase/config";
-import type { Conversation } from "../../types/Post";
-import AdminConversationList from "../../components/AdminConversationList";
-import AdminChatWindow from "../../components/AdminChatWindow";
-import PageWrapper from "../../components/PageWrapper";
-import NavHeader from "../../components/NavHeadComp";
+import { db } from "@/services/firebase/config";
+import type { Conversation } from "@/types/Post";
+import AdminConversationList from "@/components/admin/AdminConversationList";
+import AdminChatWindow from "@/components/admin/AdminChatWindow";
+import PageWrapper from "@/components/layout/PageWrapper";
+import NavHeader from "@/components/layout/NavHead";
 
 const AdminMessagesPage: React.FC = () => {
   const [selectedConversation, setSelectedConversation] =

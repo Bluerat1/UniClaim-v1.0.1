@@ -1,16 +1,16 @@
 // src/pages/ReportPage.tsx
 import { useEffect, useRef, useState } from "react";
 import { FiX } from "react-icons/fi";
-import MobileNavText from "@/components/NavHeadComp";
+import MobileNavText from "@/components/layout/NavHead";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
-import ItemInfoForm from "@/components/ItemInfoForm";
-import FoundActionModal from "@/components/FoundActionModal";
+import ItemInfoForm from "@/components/forms/ItemInfoForm";
+import FoundActionModal from "@/components/modals/FoundAction";
 
 // screens
 import LocationForm from "@/routes/user-routes/LocationReport";
 import ContactDetails from "@/routes/user-routes/ContactDetails";
-import useToastFormHelper from "@/components/ToastFormHelper";
+import useToastFormHelper from "@/components/common/ToastFormHelper";
 import { ITEM_CATEGORIES } from "@/constants";
 import type { Post } from "@/types/Post";
 import successPic from "@/assets/success.png";

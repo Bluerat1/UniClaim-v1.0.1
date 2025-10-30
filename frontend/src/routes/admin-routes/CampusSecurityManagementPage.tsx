@@ -1,19 +1,19 @@
 import { useState, useMemo } from "react";
-import type { Post } from "../../types/Post";
+import type { Post } from "@/types/Post";
 
 // components
-import AdminPostCard from "../../components/AdminPostCard";
-import AdminPostCardList from "../../components/AdminPostCardList";
-import MultiControlPanel from "../../components/MultiControlPanel";
-import AdminPostModal from "../../components/AdminPostModal";
-import AdminCampusSecurityTurnoverModal from "../../components/AdminCampusSecurityTurnoverModal";
-import NavHeader from "../../components/NavHeadComp";
-import SearchBar from "../../components/SearchBar";
+import AdminPostCard from "@/components/admin/AdminPostCard";
+import AdminPostCardList from "@/components/admin/AdminPostCardList";
+import MultiControlPanel from "@/components/common/MultiControlPanel";
+import AdminPostModal from "@/components/admin/AdminPostModal";
+import AdminCampusSecurityTurnoverModal from "@/components/admin/CampusSecurityTurnoverModal";
+import NavHeader from "@/components/layout/NavHead";
+import SearchBar from "@/components/common/SearchBar";
 
 // hooks
-import { useAdminPosts } from "../../hooks/usePosts";
-import { useToast } from "../../context/ToastContext";
-import { useAuth } from "../../context/AuthContext";
+import { useAdminPosts } from "@/hooks/usePosts";
+import { useToast } from "@/context/ToastContext";
+import { useAuth } from "@/context/AuthContext";
 
 export default function CampusSecurityManagementPage() {
   const { posts = [], loading, error } = useAdminPosts();

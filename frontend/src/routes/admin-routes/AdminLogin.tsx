@@ -1,6 +1,6 @@
 import Header from "../../layout/HeaderComp";
-import EmailInputField from "../../../src/components/InputFieldComp";
-import PasswordInput from "../../../src/components/InputFieldwEyeComp";
+import EmailInputField from "../../../src/components/forms/InputFieldComp";
+import PasswordInput from "../../../src/components/forms/InputFieldWithEye";
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { authService } from "../../../src/utils/firebase";
