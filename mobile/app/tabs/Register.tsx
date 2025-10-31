@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import React, { useState, useCallback, memo } from "react";
+import { useState, useCallback, memo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -127,7 +127,6 @@ function Register() {
         // Once verified, they'll have full access to the main app.
 
         // Note: No need to setIsLoading(false) here as navigation will redirect
-
       } catch (error: any) {
         const errorMessage = getFirebaseErrorMessage(error);
         Alert.alert("Registration Failed", errorMessage);
@@ -164,7 +163,8 @@ function Register() {
             Account created successfully!
           </Text>
           <Text className="text-sm font-manrope-medium text-gray-600 mt-2 text-center">
-            Please verify your email to access the app. Check your inbox for the verification link.
+            Please verify your email to access the app. Check your inbox for the
+            verification link.
           </Text>
           <Text className="text-xs font-manrope-medium text-gray-500 mt-2 text-center">
             This may take a few moments...

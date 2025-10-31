@@ -166,7 +166,7 @@ export default function Chat() {
   // Function to get profile picture URL from user data
   const getProfilePictureUrl = (user: any): string | null => {
     if (!user) return null;
-    
+
     const pictureUrl = [
       user.photoURL,
       user.profilePicture,
@@ -177,14 +177,16 @@ export default function Chat() {
       user.photo,
       user.profilePicUrl,
       user.profile_pic,
-      user.profile_pic_url
+      user.profile_pic_url,
     ].find(Boolean);
-    
+
     return pictureUrl || null;
   };
 
   // State for other participant's profile picture
-  const [otherParticipantPic, setOtherParticipantPic] = useState<string | null>(null);
+  const [otherParticipantPic, setOtherParticipantPic] = useState<string | null>(
+    null
+  );
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
   // Effect to load other participant's profile picture
@@ -197,9 +199,9 @@ export default function Chat() {
     const loadProfilePicture = async () => {
       try {
         // Find the other participant
-        const otherParticipant = Object.entries(conversationData.participants).find(
-          ([uid]) => uid !== userData.uid
-        );
+        const otherParticipant = Object.entries(
+          conversationData.participants
+        ).find(([uid]) => uid !== userData.uid);
 
         if (!otherParticipant) {
           setIsLoadingProfile(false);
@@ -207,9 +209,9 @@ export default function Chat() {
         }
 
         const [uid, participantData] = otherParticipant;
-        
+
         // If participant data is an object with profile info
-        if (participantData && typeof participantData === 'object') {
+        if (participantData && typeof participantData === "object") {
           const pictureUrl = getProfilePictureUrl(participantData);
           if (pictureUrl) {
             setOtherParticipantPic(pictureUrl);
@@ -222,7 +224,7 @@ export default function Chat() {
         const { getDoc, doc } = await import("firebase/firestore");
         const { db } = await import("../utils/firebase/config");
         const userDoc = await getDoc(doc(db, "users", uid));
-        
+
         if (userDoc.exists()) {
           const userData = userDoc.data() as ParticipantData;
           const pictureUrl = getProfilePictureUrl(userData);
@@ -231,7 +233,7 @@ export default function Chat() {
           }
         }
       } catch (error) {
-        console.error('Error loading profile picture:', error);
+        console.error("Error loading profile picture:", error);
       } finally {
         setIsLoadingProfile(false);
       }
@@ -243,10 +245,11 @@ export default function Chat() {
   // Get the other participant's ID
   const getOtherParticipantId = useCallback(() => {
     if (!userData?.uid || !conversationData?.participants) return null;
-    
-    const otherParticipant = Object.entries(conversationData.participants || {})
-      .find(([uid]) => uid !== userData.uid);
-    
+
+    const otherParticipant = Object.entries(
+      conversationData.participants || {}
+    ).find(([uid]) => uid !== userData.uid);
+
     return otherParticipant?.[0] || null;
   }, [userData, conversationData]);
 
@@ -434,7 +437,7 @@ export default function Chat() {
       try {
         setLoading(true);
         const conversationData = await getConversation(initialConversationId);
-        
+
         if (conversationData) {
           setConversationData(conversationData);
           // Mark messages as read when conversation is loaded
@@ -450,7 +453,13 @@ export default function Chat() {
     };
 
     loadMessages();
-  }, [initialConversationId, getConversation, markAllUnreadMessagesAsRead, user?.uid, showToastMessage]);
+  }, [
+    initialConversationId,
+    getConversation,
+    markAllUnreadMessagesAsRead,
+    user?.uid,
+    showToastMessage,
+  ]);
 
   // Load messages when conversation changes
   useEffect(() => {
@@ -504,17 +513,20 @@ export default function Chat() {
     if (!initialConversationId) {
       return;
     }
-    
-    const unsubscribe = getConversationMessages(initialConversationId, (messages) => {
-      setMessages(messages);
-      
-      // Auto-scroll to bottom when new messages arrive
-      if (flatListRef.current && messages.length > 0) {
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
+
+    const unsubscribe = getConversationMessages(
+      initialConversationId,
+      (messages) => {
+        setMessages(messages);
+
+        // Auto-scroll to bottom when new messages arrive
+        if (flatListRef.current && messages.length > 0) {
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 100);
+        }
       }
-    });
+    );
 
     return () => {
       if (unsubscribe) unsubscribe();
@@ -596,7 +608,8 @@ export default function Chat() {
     // Use conversation data if available, otherwise fall back to route params
     const currentPostType = conversationData?.postType || postType;
     const currentPostStatus = conversationData?.postStatus || postStatus;
-    const currentPostCreatorId = conversationData?.postCreatorId || postCreatorId || postOwnerId;
+    const currentPostCreatorId =
+      conversationData?.postCreatorId || postCreatorId || postOwnerId;
 
     if (!userData || !currentPostCreatorId) return false;
 
@@ -615,7 +628,8 @@ export default function Chat() {
     // Use conversation data if available, otherwise fall back to route params
     const currentPostType = conversationData?.postType || postType;
     const currentPostStatus = conversationData?.postStatus || postStatus;
-    const currentPostCreatorId = conversationData?.postCreatorId || postCreatorId || postOwnerId;
+    const currentPostCreatorId =
+      conversationData?.postCreatorId || postCreatorId || postOwnerId;
     const currentFoundAction = conversationData?.foundAction || foundAction;
 
     if (!userData || !currentPostCreatorId) return false;
@@ -895,7 +909,6 @@ export default function Chat() {
     );
   }
 
-
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top", "bottom"]}>
       {/* Header - Stays fixed at top */}
@@ -1009,7 +1022,12 @@ export default function Chat() {
                 data={messages}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item, index }) => {
-                  const renderItem = ({ item }: { item: Message; index: number }) => {
+                  const renderItem = ({
+                    item,
+                  }: {
+                    item: Message;
+                    index: number;
+                  }) => {
                     return (
                       <MessageBubble
                         message={item}
@@ -1032,7 +1050,7 @@ export default function Chat() {
                       />
                     );
                   };
-                  
+
                   // Check if this is the most recent message that other users have read
                   let isLastSeenByOthers = false;
 
@@ -1132,7 +1150,7 @@ export default function Chat() {
 
           {/* Input Area with bottom spacing */}
           <View
-            className={`bg-white px-4 pt-2 ${isKeyboardVisible ? "pb-[15px]" : "pb-0"}`}
+            className={`bg-white px-4 pt-2 ${isKeyboardVisible ? "pb-16" : "pb-0"}`}
           >
             <View className="flex-row items-center gap-3">
               <View className="flex-1">
