@@ -116,6 +116,9 @@ export const userDeletionService = {
         const userId = user.uid;
         console.log(`🗑️ Starting complete deletion for user: ${userId}`);
 
+        // Store a reference to the user before any async operations
+        const currentUser = user;
+
         try {
             // Step 0: Re-authenticate user if password is provided
             if (password) {
@@ -137,24 +140,58 @@ export const userDeletionService = {
             // Step 4: Delete ban records
             await this.deleteUserBanRecords(userId);
 
-            // Step 5: Delete user document
-            await this.deleteUserDocument(userId);
-
-            // Step 6: Wait a moment to allow other clients (mobile app) to detect the document deletion
-            console.log('⏳ Waiting for other platforms to detect account deletion...');
-            await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
-
-            // Step 7: Force token refresh and cleanup to invalidate sessions on other devices
-            console.log('🔐 Cleaning up auth tokens and forcing logout on all devices...');
+            // Step 5: First, delete the auth user (this must happen before deleting the user document)
+            console.log('🔐 Getting fresh token before account deletion...');
             try {
-              // Get a fresh token which will help invalidate old sessions
-              await user.getIdToken(true);
-            } catch (tokenError) {
-              console.warn('Could not refresh token (this is normal during deletion):', tokenError);
+                // Debug: Check if currentUser is valid
+                console.log('🔍 Current user state:', {
+                    uid: currentUser.uid,
+                    email: currentUser.email,
+                    isAnonymous: currentUser.isAnonymous,
+                    metadata: currentUser.metadata
+                });
+                
+                // Get a fresh token and force refresh
+                console.log('🔄 Refreshing ID token...');
+                await currentUser.getIdToken(true);
+                console.log('🔑 Refreshed user token before deletion');
+                
+                // Delete the auth user
+                console.log(`🔍 Attempting to delete Firebase Auth user: ${userId}`);
+                console.log(`📧 User email before deletion: ${currentUser.email}`);
+                
+                console.log('🔍 Verifying user state before deletion...');
+                await currentUser.reload();
+                console.log('✅ User is still valid before deletion');
+                
+                console.log('🚀 Calling deleteUser()...');
+                await deleteUser(currentUser);
+                console.log(`✅ Firebase Auth user ${userId} deleted successfully`);
+                
+                // Verify deletion by trying to get fresh user data (should fail)
+                try {
+                    await currentUser.reload();
+                    console.warn('⚠️ User still exists after deletion - this is unexpected!');
+                } catch (reloadError) {
+                    console.log('✅ Confirmed: User no longer exists in Firebase Auth');
+                }
+                
+            } catch (error: any) {
+                console.error('❌ Failed to delete Firebase Auth user:', error);
+                if (error.code === 'auth/requires-recent-login') {
+                    console.error('Re-authentication required. Please sign in again before deleting your account.');
+                }
+                throw error;
             }
 
-            // Step 8: Delete Firebase Auth account
-            await deleteUser(user);
+            // Step 6: Now delete the user document and other data
+            console.log('🗑️ Proceeding with Firestore data cleanup...');
+            await this.deleteUserDocument(userId);
+
+            // Step 7: Wait a moment to allow other clients to process the deletion
+            console.log('⏳ Waiting for other platforms to detect account deletion...');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            console.log('✅ Account deletion process completed');
 
             console.log(`✅ Complete deletion successful for user: ${userId}`);
 
@@ -305,16 +342,35 @@ export const userDeletionService = {
     },
 
     // Delete user notifications and subscriptions
-    async deleteUserNotifications(userId: string): Promise<void> {
-        console.log(`🔔 Deleting notifications for user: ${userId}`);
+    async deleteUserNotifications(userId: string, isAdmin: boolean = false): Promise<void> {
+        console.log(`🔔 Deleting notifications for user: ${userId}${isAdmin ? ' (admin action)' : ''}`);
 
         try {
-            // Delete all notifications for the user
-            await notificationService.deleteAllNotifications(userId);
+            if (isAdmin) {
+                // Admin path - delete notifications directly
+                const notificationsRef = collection(db, 'notifications');
+                const q = query(notificationsRef, where('userId', '==', userId));
+                const snapshot = await getDocs(q);
+                
+                // Delete notifications in batch
+                const batch = writeBatch(db);
+                snapshot.docs.forEach(doc => {
+                    batch.delete(doc.ref);
+                });
+                await batch.commit();
+                
+                console.log(`Deleted ${snapshot.size} notifications for user ${userId} (admin action)`);
+            } else {
+                // Regular user path - use the service with security checks
+                await notificationService.deleteAllNotifications(userId);
+            }
 
             // Delete notification subscription
             const subscriptionRef = doc(db, 'notifications_subscriptions', userId);
-            await deleteDoc(subscriptionRef);
+            await deleteDoc(subscriptionRef).catch(error => {
+                console.warn(`Failed to delete notification subscription for user ${userId}:`, error);
+                // Continue even if subscription deletion fails
+            });
 
             console.log(`Deleted notifications and subscription for user: ${userId}`);
 

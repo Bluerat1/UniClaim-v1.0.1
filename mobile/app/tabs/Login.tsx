@@ -60,8 +60,11 @@ function Login() {
   }, []);
 
   const handleEmailVerificationNavigation = useCallback(() => {
-    navigation.navigate("EmailVerification");
-  }, [navigation]);
+    navigation.navigate('EmailVerification', { 
+      email: email,
+      fromLogin: true 
+    });
+  }, [navigation, email]);
 
   const handleForgotPasswordNavigation = useCallback(() => {
     navigation.navigate("ForgotPassword");
@@ -105,33 +108,41 @@ function Login() {
     }
 
     try {
-      await login(email, password, rememberMe);
-
-      showToastMessage("Login successful! Welcome back!", "success");
-
-      // Navigation will be handled automatically by Navigation component based on auth state
-      // No manual navigation needed - the Navigation component will show RootBottomTabs when authenticated
-    } catch (error: any) {
-      if (error.message === 'EMAIL_VERIFICATION_REQUIRED') {
-        // User needs email verification - show friendly message
-        setGeneralError("");
-        showToastMessage("Please verify your email address before logging in. Check your email for the verification link.", "info");
-
-        // Don't navigate automatically - let them use the verification message above
-      } else {
-        const errorMessage = getFirebaseErrorMessage(error);
-        setGeneralError(errorMessage);
-
-        // Determine toast type based on error type
-        let toastType: "error" | "warning" | "info" = "error";
-        if (errorMessage.toLowerCase().includes('network') || errorMessage.toLowerCase().includes('connection')) {
-          toastType = "warning";
-        } else if (errorMessage.toLowerCase().includes('too many') || errorMessage.toLowerCase().includes('rate limit')) {
-          toastType = "warning";
-        }
-
-        showToastMessage(errorMessage, toastType);
+      await login(email, password, rememberMe, navigation);
+      
+      // Only show success message if we're not navigating to verification
+      if (user?.emailVerified) {
+        showToastMessage("Login successful! Welcome back!", "success");
       }
+    } catch (error: any) {
+      // Handle email verification required case
+      if (error.message === 'EMAIL_VERIFICATION_REQUIRED') {
+        // Navigate to email verification screen
+        navigation.navigate('EmailVerification', { 
+          email: email,
+          password: password,
+          fromLogin: true 
+        });
+        return;
+      }
+      
+      // Handle other errors
+      const errorMessage = getFirebaseErrorMessage(error);
+      if (!errorMessage.includes('verify your email') && !errorMessage.includes('EMAIL_NOT_VERIFIED')) {
+        showToastMessage(errorMessage, 'error');
+      }
+      
+      setGeneralError(errorMessage);
+      
+      // Determine toast type based on error type
+      let toastType: "error" | "warning" | "info" = "error";
+      if (errorMessage.toLowerCase().includes('network') || errorMessage.toLowerCase().includes('connection')) {
+        toastType = "warning";
+      } else if (errorMessage.toLowerCase().includes('too many') || errorMessage.toLowerCase().includes('rate limit')) {
+        toastType = "warning";
+      }
+      
+      showToastMessage(errorMessage, toastType);
     }
   };
 

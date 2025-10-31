@@ -2,9 +2,9 @@ export type RootStackParamList = {
   Index: undefined;
   OnBoarding: undefined;
   App: undefined;
-  Login: undefined;
+  Login: { navigation?: any } | undefined;
   Register: undefined;
-  EmailVerification: undefined;
+  EmailVerification: { email: string; password?: string; fromLogin?: boolean; navigation?: any; };
   ForgotPassword: undefined;
   Home: undefined;
   Report: undefined;

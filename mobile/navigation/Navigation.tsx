@@ -122,13 +122,25 @@ export default function Navigation({
   const [renderKey, setRenderKey] = useState(0);
 
   useEffect(() => {
+    console.log('[NAVIGATION] Auth state updated', {
+      isAuthenticated,
+      user: user ? 'User exists' : 'No user',
+      loading,
+      needsEmailVerification,
+      loginAttemptFailed,
+      userEmail: user?.email || 'No email',
+      userVerified: user?.emailVerified ? 'Verified' : 'Not verified'
+    });
+    
+    // Force re-render when auth state changes, especially for email verification
     setRenderKey(prev => prev + 1);
-  }, [isAuthenticated, user, loading, needsEmailVerification]);
+  }, [isAuthenticated, user, loading, needsEmailVerification, loginAttemptFailed, user?.email, user?.emailVerified]);
 
   // Determine which navigator to show based on authentication state
   let navigatorContent;
 
   if (loading) {
+    console.log('[NAVIGATION] Rendering loading state');
     navigatorContent = (
       <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
         <SafeAreaView className="flex-1 bg-white justify-center items-center px-6">
@@ -141,7 +153,8 @@ export default function Navigation({
         </SafeAreaView>
       </NavigationWrapper>
     );
-  } else if ((!isAuthenticated || !user) && !loginAttemptFailed) {
+  } else if ((!isAuthenticated || !user) && !loginAttemptFailed && !needsEmailVerification) {
+    console.log('[NAVIGATION] Rendering unauthenticated flow - showing Login screen');
     // Show login screen when not authenticated and no failed login attempt
     navigatorContent = (
       <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
@@ -164,7 +177,12 @@ export default function Navigation({
         </Stack.Navigator>
       </NavigationWrapper>
     );
-  } else if (user && !isAuthenticated && needsEmailVerification) {
+  } else if ((user || isAuthenticated) && needsEmailVerification) {
+    console.log('[NAVIGATION] Rendering email verification flow', {
+      userEmail: user?.email || 'No email',
+      emailVerified: user?.emailVerified || false,
+      needsEmailVerification
+    });
     // Show email verification screen
     navigatorContent = (
       <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
@@ -186,6 +204,10 @@ export default function Navigation({
       </NavigationWrapper>
     );
   } else if (user && isBanned) {
+    console.log('[NAVIGATION] Rendering banned user flow', {
+      userEmail: user.email,
+      isBanned
+    });
     navigatorContent = (
       <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
         <Stack.Navigator

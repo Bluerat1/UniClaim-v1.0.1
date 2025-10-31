@@ -115,59 +115,67 @@ export const userDeletionService = {
     // Delete user account and all associated data
     async deleteUserAccount(user: FirebaseUser, password?: string): Promise<void> {
         const userId = user.uid;
-        console.log(`🗑️ Starting complete deletion for user: ${userId}`);
-
+        
         try {
-            // Step 0: Re-authenticate user if password is provided
-            if (password) {
-                console.log(`🔐 Re-authenticating user: ${userId}`);
-                const credential = EmailAuthProvider.credential(user.email!, password);
-                await reauthenticateWithCredential(user, credential);
-                console.log(`✅ User re-authenticated successfully`);
-            }
-
-            // Step 1: Delete user's posts and associated images
-            await this.deleteUserPosts(userId);
-
-            // Step 2: Delete conversations and notify participants
-            await this.deleteUserConversations(userId);
-
-            // Step 3: Delete notifications and subscriptions
-            await this.deleteUserNotifications(userId);
-
-            // Step 4: Delete ban records
-            await this.deleteUserBanRecords(userId);
-
-            // Step 5: Delete user document
-            await this.deleteUserDocument(userId);
-
-            // Step 6: Wait a moment to allow other clients (web app) to detect the document deletion
-            console.log('⏳ Waiting for other platforms to detect account deletion...');
-            await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
-
-            // Step 7: Force token refresh and cleanup to invalidate sessions on other devices
-            console.log('🔐 Cleaning up auth tokens and forcing logout on all devices...');
+            // First, ensure we have a fresh token
             try {
-                // Get a fresh token which will help invalidate old sessions
                 await user.getIdToken(true);
-            } catch (tokenError) {
-                console.warn('Could not refresh token (this is normal during deletion):', tokenError);
+            } catch (error) {
+                console.error('Error refreshing auth token:', error);
+                throw new Error('Your session has expired. Please sign in again to delete your account.');
             }
 
-            // Step 8: Delete Firebase Auth account
-            await deleteUser(user);
+            // Re-authenticate user if password is provided
+            if (password) {
+                try {
+                    const credential = EmailAuthProvider.credential(user.email!, password);
+                    await reauthenticateWithCredential(user, credential);
+                } catch (reauthError: any) {
+                    if (reauthError.code === 'auth/wrong-password') {
+                        throw new Error('Incorrect password. Please try again.');
+                    }
+                    throw reauthError;
+                }
+            }
 
-            console.log(`✅ Complete deletion successful for user: ${userId}`);
+            // Delete user data
+            try {
+                await this.deleteUserPosts(userId);
+                await this.deleteUserConversations(userId);
+                await this.deleteUserNotifications(userId);
+                await this.deleteUserBanRecords(userId);
+            } catch (dataError) {
+                console.error('Error deleting user data:', dataError);
+                // Continue with auth user deletion even if data deletion fails
+            }
 
+            // Delete Firebase Auth user
+            try {
+                await deleteUser(user);
+            } catch (authError: any) {
+                console.error('Auth user deletion failed:', authError);
+                
+                if (authError.code === 'auth/requires-recent-login') {
+                    throw new Error('Your session has expired. Please sign in again to complete account deletion.');
+                }
+                
+                throw new Error(`Failed to delete authentication record: ${authError.message}`);
+            }
+
+            // Finally, delete user document
+            try {
+                await this.deleteUserDocument(userId);
+            } catch (docError) {
+                console.error('Error deleting user document:', docError);
+                // Even if document deletion fails, the auth user is already deleted
+            }
+
+            // Wait for other clients to process the deletion
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
         } catch (error: any) {
-            console.error(`❌ Error during user deletion for ${userId}:`, error);
-
-            // Check if it's a re-authentication error
-            if (error.code === 'auth/requires-recent-login') {
-                throw new Error('Please re-enter your password to confirm account deletion. This is required for security purposes.');
-            }
-
-            throw new Error(`Failed to delete user account: ${error.message}`);
+            console.error('User deletion process failed:', error);
+            throw error instanceof Error ? error : new Error('An unexpected error occurred during account deletion');
         }
     },
 

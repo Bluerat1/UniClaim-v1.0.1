@@ -17,6 +17,7 @@ import ProfilePicture from "@/components/user/ProfilePicture";
 import { MdClear } from "react-icons/md";
 import { useToast } from "../../context/ToastContext";
 import { useAuth } from "../../context/AuthContext";
+import { userDeletionService } from "@/services/firebase/userDeletion";
 
 function fuzzyMatch(text: string, query: string): boolean {
   const cleanedText = text.toLowerCase();
@@ -48,6 +49,12 @@ const AdminUserManagement: React.FC = () => {
   // View user modal states
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
+  
+  // Delete user modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Ban user modal states
   const [showBanModal, setShowBanModal] = useState(false);
@@ -218,9 +225,24 @@ const AdminUserManagement: React.FC = () => {
         },
       });
 
-      // Close modal and refresh users
+      // Update the local state immediately
+      setUsers(users.map(u => 
+        u.uid === banningUser.uid 
+          ? { ...u, status: 'deactivated', banInfo: {
+              isBanned: true,
+              banEndDate: banEndDate,
+              currentBanId: banningUser.uid,
+              reason: finalReason,
+              duration: banDuration
+            }} 
+          : u
+      ));
+      
+      // Close modal
       handleCloseBanModal();
-      await loadUsers(); // Refresh the user list to show updated status
+      
+      // Refresh users from the database in the background
+      loadUsers().catch(console.error);
 
       // Show success toast
       showToast(
@@ -239,6 +261,50 @@ const AdminUserManagement: React.FC = () => {
     setUnbanningUser(user);
     setShowUnbanModal(true);
     setUnbanReason("");
+  };
+
+  // Handle delete user
+  const handleDeleteUserClick = (user: User) => {
+    setDeletingUser(user);
+    setShowDeleteModal(true);
+    setDeleteConfirmation("");
+  };
+
+  // Handle close delete modal
+  const handleCloseDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeletingUser(null);
+    setDeleteConfirmation("");
+    setIsDeleting(false);
+  };
+
+  // Handle confirm delete user
+  const handleConfirmDelete = async () => {
+    if (!deletingUser || deleteConfirmation.toLowerCase() !== "delete") {
+      showToast("error", "Error", "Please type 'delete' to confirm account deletion");
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      
+      // Call the user deletion service with admin privileges
+      await userDeletionService.deleteUserDocument(deletingUser.uid);
+      await userDeletionService.deleteUserPosts(deletingUser.uid);
+      await userDeletionService.deleteUserConversations(deletingUser.uid);
+      await userDeletionService.deleteUserNotifications(deletingUser.uid, true); // Pass true for isAdmin
+      
+      // Remove the user from the local state
+      setUsers(users.filter(user => user.uid !== deletingUser.uid));
+      
+      showToast("success", "Success", `User ${deletingUser.email} has been permanently deleted`);
+      handleCloseDeleteModal();
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      showToast("error", "Error", `Failed to delete user: ${error.message}`);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleCloseUnbanModal = () => {
@@ -463,20 +529,28 @@ const AdminUserManagement: React.FC = () => {
                             {user.emailVerified ? "Verified" : "Not Verified"}
                           </span>
                         </td>
-                        <td className="px-0 py-4 whitespace-nowrap text-sm font-medium w-1/5">
+                        <td className="px-0 py-4 whitespace-nowrap text-sm font-medium w-1/5 space-x-2">
                           <button
                             onClick={() => handleViewUser(user)}
-                            className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors text-sm font-medium mr-2"
+                            className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors text-sm font-medium"
                           >
                             View
                           </button>
                           {user.status === "deactivated" ? (
-                            <button
-                              onClick={() => handleUnbanUser(user)}
-                              className="px-3 py-1 bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors text-sm font-medium"
-                            >
-                              Reactivate
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleUnbanUser(user)}
+                                className="px-3 py-1 bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors text-sm font-medium"
+                              >
+                                Reactivate
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUserClick(user)}
+                                className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm font-medium"
+                              >
+                                Delete
+                              </button>
+                            </>
                           ) : (
                             <button
                               onClick={() => handleBanUser(user)}
@@ -918,6 +992,92 @@ const AdminUserManagement: React.FC = () => {
                     </button>
                   )}
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete User Confirmation Modal */}
+      {showDeleteModal && deletingUser && (
+        <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-red-700">
+                  Delete User Account
+                </h3>
+                <button
+                  onClick={handleCloseDeleteModal}
+                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Warning Message */}
+              <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-lg font-medium text-red-800">
+                      This action cannot be undone
+                    </h3>
+                    <div className="mt-2 text-sm text-red-700">
+                      <p>
+                        This will permanently delete <span className="font-semibold">{deletingUser.firstName} {deletingUser.lastName}</span>'s account and all associated data including:
+                      </p>
+                      <ul className="list-disc pl-5 mt-2 space-y-1">
+                        <li>User profile information</li>
+                        <li>All posts and associated images</li>
+                        <li>Conversation history</li>
+                        <li>Notifications and activity logs</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Confirmation Input */}
+              <div className="mb-6">
+                <label htmlFor="deleteConfirmation" className="block text-sm font-medium text-gray-700 mb-2">
+                  Type <span className="font-mono bg-gray-100 px-2 py-1 rounded">delete</span> to confirm
+                </label>
+                <input
+                  type="text"
+                  id="deleteConfirmation"
+                  value={deleteConfirmation}
+                  onChange={(e) => setDeleteConfirmation(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                  placeholder="Type 'delete' to confirm"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                <button
+                  onClick={handleCloseDeleteModal}
+                  disabled={isDeleting}
+                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  disabled={isDeleting || deleteConfirmation.toLowerCase() !== 'delete'}
+                  className={`px-4 py-2 text-white rounded-md transition-colors ${
+                    isDeleting || deleteConfirmation.toLowerCase() !== 'delete'
+                      ? 'bg-red-400 cursor-not-allowed'
+                      : 'bg-red-600 hover:bg-red-700'
+                  }`}
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete Permanently'}
+                </button>
               </div>
             </div>
           </div>

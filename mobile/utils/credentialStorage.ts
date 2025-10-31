@@ -82,43 +82,11 @@ class CredentialStorage implements ICredentialStorage {
 
   // Clear stored credentials
   async clearCredentials(): Promise<void> {
-    console.log('🔑 [clearCredentials] 1. Starting credential cleanup');
-    
     try {
-      // Log environment info
-      console.log('🔍 [clearCredentials] 2. Environment check:', {
-        platform: Platform.OS,
-        secureStoreAvailable: !!SecureStore,
-        credentialsKey: this.CREDENTIALS_KEY,
-        secureStoreMethods: Object.keys(SecureStore).filter(k => typeof (SecureStore as any)[k] === 'function')
-      });
-
-      // Check if the key exists
-      console.log('🔑 [clearCredentials] 3. Checking if credentials exist...');
-      try {
-        // Use a simple delete operation without verification to avoid potential issues
-        console.log('🗑️ [clearCredentials] Attempting to delete credentials...');
-        
-        // Use direct method call instead of storing in a promise
-        await SecureStore.deleteItemAsync(this.CREDENTIALS_KEY);
-        console.log('✅ [clearCredentials] Credentials cleared successfully');
-        
-      } catch (error) {
-        console.warn('⚠️ [clearCredentials] Non-fatal error during credential cleanup:', {
-          error: error instanceof Error ? error.message : String(error),
-          errorType: typeof error,
-          timestamp: new Date().toISOString()
-        });
-        // Continue execution even if there was an error
-      }
-      
+      // Delete the credentials
+      await SecureStore.deleteItemAsync(this.CREDENTIALS_KEY);
     } catch (error) {
-      console.error('❌ [clearCredentials] Unexpected error in credential cleanup:', {
-        error: error instanceof Error ? error.message : String(error),
-        errorType: typeof error,
-        timestamp: new Date().toISOString()
-      });
-      // Don't rethrow - this is a best-effort operation
+      // Silently handle any errors - this is a best-effort operation
     }
     
     return Promise.resolve();

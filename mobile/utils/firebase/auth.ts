@@ -3,9 +3,9 @@ import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signOut,
+    sendEmailVerification,
     updateProfile,
     sendPasswordResetEmail,
-    sendEmailVerification,
     UserCredential
 } from 'firebase/auth';
 import { auth, db } from './config';
@@ -53,47 +53,109 @@ export const authService = {
         contactNum: string,
         studentId: string
     ): Promise<UserCredential> {
+        const startTime = Date.now();
+        console.log('🔑 Starting user registration...', {
+            email,
+            firstName,
+            timestamp: new Date().toISOString()
+        });
+
         try {
+            console.log('1️⃣ Creating user in Firebase Authentication...');
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            console.log('🔥 Registration successful - user created:', userCredential.user.uid);
-            console.log('🔥 User automatically logged in:', userCredential.user.email);
+            const authTime = Date.now();
+
+            console.log('✅ User created in Firebase Auth', {
+                uid: userCredential.user.uid,
+                email: userCredential.user.email,
+                timeTaken: `${authTime - startTime}ms`
+            });
 
             // Update profile with additional user data
             if (userCredential.user) {
+                console.log('2️⃣ Updating user profile with display name...');
+                const profileStart = Date.now();
                 await updateProfile(userCredential.user, {
                     displayName: `${firstName} ${lastName}`
                 });
+                console.log('✅ Profile updated', {
+                    displayName: `${firstName} ${lastName}`,
+                    timeTaken: `${Date.now() - profileStart}ms`
+                });
 
                 // Send email verification
-                await sendEmailVerification(userCredential.user);
-                console.log('📧 Email verification sent to:', userCredential.user.email);
+                console.log('3️⃣ Sending email verification...');
+                const verificationStart = Date.now();
+                try {
+                    await sendEmailVerification(userCredential.user, {
+                        url: 'https://uniclaim2.firebaseapp.com/__/auth/action', // Replace with your actual verification URL
+                        handleCodeInApp: true
+                    });
+                    console.log('📧 Email verification sent successfully', {
+                        email: userCredential.user.email,
+                        timeTaken: `${Date.now() - verificationStart}ms`,
+                        uid: userCredential.user.uid,
+                        timestamp: new Date().toISOString(),
+                        emailVerified: userCredential.user.emailVerified
+                    });
+                } catch (verificationError) {
+                    console.error('❌ Failed to send verification email:', {
+                        error: verificationError,
+                        email: userCredential.user.email,
+                        uid: userCredential.user.uid,
+                        timestamp: new Date().toISOString()
+                    });
+                    throw verificationError;
+                }
 
                 // Create Firestore user document with all registration data
+                console.log('4️⃣ Creating Firestore user document...');
+                const firestoreStart = Date.now();
                 try {
-                    await userService.createUser(userCredential.user.uid, {
+                    const userData: UserData = {
                         uid: userCredential.user.uid,
                         email: userCredential.user.email || '',
                         firstName: firstName,
                         lastName: lastName,
                         contactNum: contactNum,
                         studentId: studentId,
-                        emailVerified: false, // New users need to verify their email
-                        createdAt: new Date(),
-                        updatedAt: new Date()
+                        role: 'user', // This is now type-checked against the UserData interface
+                        status: 'active',
+                        emailVerified: false,
+                        createdAt: serverTimestamp(),
+                        updatedAt: serverTimestamp()
+                    };
+
+                    await userService.createUser(userCredential.user.uid, userData);
+                    console.log('✅ Firestore user document created', {
+                        uid: userCredential.user.uid,
+                        timeTaken: `${Date.now() - firestoreStart}ms`,
+                        documentData: userData
                     });
-                    console.log('📝 Firestore user document created successfully with profile data');
 
                     // Store credentials for auto-login
+                    console.log('5️⃣ Storing credentials for auto-login...');
+                    const credentialsStart = Date.now();
                     try {
                         await credentialStorage.saveCredentials(email, password);
-                        console.log('🔐 Credentials stored for auto-login after registration');
+                        console.log('🔐 Credentials stored', {
+                            timeTaken: `${Date.now() - credentialsStart}ms`
+                        });
                     } catch (credentialError) {
-                        console.warn('⚠️ Failed to store credentials for auto-login:', credentialError);
+                        console.warn('⚠️ Failed to store credentials for auto-login:', {
+                            error: credentialError,
+                            timeTaken: `${Date.now() - credentialsStart}ms`
+                        });
                         // Continue with registration even if credential storage fails
                         // The user can still login manually
                     }
                 } catch (firestoreError) {
-                    console.error('❌ Failed to create Firestore user document:', firestoreError);
+                    console.error('❌ Failed to create Firestore user document:', {
+                        error: firestoreError,
+                        uid: userCredential.user.uid,
+                        timeTaken: `${Date.now() - firestoreStart}ms`,
+                        timestamp: new Date().toISOString()
+                    });
                     // Don't fail the entire registration if Firestore creation fails
                     // The AuthContext will handle creating the document later if needed
                 }
@@ -133,7 +195,7 @@ export const authService = {
     async login(email: string, password: string): Promise<UserCredential> {
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            
+
             // Ensure the user has a notification subscription
             try {
                 await notificationSubscriptionService.ensureUserHasSubscription(userCredential.user.uid);
@@ -142,7 +204,7 @@ export const authService = {
                 // Don't fail the login if there's an issue with the subscription
                 // The user can still use the app, they just might not get notifications
             }
-            
+
             return userCredential;
         } catch (error: any) {
             // Helper function to get readable error messages (inline to avoid circular dependency)
@@ -215,42 +277,41 @@ export const authService = {
 
     // Resend email verification
     async resendEmailVerification(): Promise<void> {
-        try {
-            const currentUser = auth.currentUser;
-            if (!currentUser) {
-                throw new Error('No authenticated user found');
-            }
-
-            await sendEmailVerification(currentUser);
-        } catch (error: any) {
-            let errorMessage = 'Failed to resend verification email';
-
-            switch (error.code) {
-                case 'auth/too-many-requests':
-                    errorMessage = 'Too many requests. Please wait before trying again';
-                    break;
-                case 'auth/user-token-expired':
-                    errorMessage = 'User session expired. Please login again';
-                    break;
-                case 'auth/network-request-failed':
-                    errorMessage = 'Network error. Please check your internet connection';
-                    break;
-                default:
-                    errorMessage = error.message || errorMessage;
-            }
-
-            throw new Error(errorMessage);
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+            throw new Error('No authenticated user found');
         }
+
+        // Use default settings - no custom domain or action URL
+        await sendEmailVerification(currentUser);
     },
 
     // Handle email verification completion
     async handleEmailVerification(userId: string): Promise<void> {
+        console.log('🔍 Processing email verification completion', {
+            userId,
+            timestamp: new Date().toISOString()
+        });
+
         try {
-            // Update Firestore email verification status
-            await userService.updateUserData(userId, {
-                emailVerified: true
+            const userDocRef = doc(db, 'users', userId);
+            const updateData = {
+                emailVerified: true,
+                updatedAt: serverTimestamp()
+            };
+
+            console.log('🔄 Updating user document with verification status', {
+                userId,
+                updates: updateData,
+                timestamp: new Date().toISOString()
             });
 
+            await updateDoc(userDocRef, updateData);
+
+            console.log('✅ Successfully updated email verification status', {
+                userId,
+                timestamp: new Date().toISOString()
+            });
             console.log('Email verification completed for user:', userId);
         } catch (error: any) {
             // Log the error but don't throw it
@@ -355,33 +416,33 @@ export const userService = {
     // Check if user needs email verification
     async needsEmailVerification(user: any, userData: UserData): Promise<boolean> {
         try {
-          // Admin and campus security users don't need email verification
-          if (userData.role === 'admin' || userData.role === 'campus_security') {
-            return false;
-          }
+            // Admin and campus security users don't need email verification
+            if (userData.role === 'admin' || userData.role === 'campus_security') {
+                return false;
+            }
 
-          // IMPORTANT: Reload user data to get the latest email verification status from Firebase Auth
-          await user.reload();
+            // IMPORTANT: Reload user data to get the latest email verification status from Firebase Auth
+            await user.reload();
 
-          // Add a small delay to ensure the reload is complete
-          await new Promise(resolve => setTimeout(resolve, 200));
+            // Add a small delay to ensure the reload is complete
+            await new Promise(resolve => setTimeout(resolve, 200));
 
-          // Check Firebase Auth email verification status after reload
-          const firebaseEmailVerified = user.emailVerified;
+            // Check Firebase Auth email verification status after reload
+            const firebaseEmailVerified = user.emailVerified;
 
-          // Check Firestore email verification status
-          // If emailVerified field is missing, assume true (grandfathered user)
-          const firestoreEmailVerified = userData.emailVerified !== undefined ? userData.emailVerified : true;
+            // Check Firestore email verification status
+            // If emailVerified field is missing, assume true (grandfathered user)
+            const firestoreEmailVerified = userData.emailVerified !== undefined ? userData.emailVerified : true;
 
-          // User needs verification if either Firebase or Firestore shows unverified
-          return !firebaseEmailVerified || !firestoreEmailVerified;
+            // User needs verification if either Firebase or Firestore shows unverified
+            return !firebaseEmailVerified || !firestoreEmailVerified;
         } catch (error: any) {
-          console.error('Error checking email verification status:', error);
+            console.error('Error checking email verification status:', error);
 
-          // If there's an error checking verification status, default to requiring verification
-          // This is safer than allowing potentially unverified users through
-          console.warn('Defaulting to requiring verification due to error:', error.message);
-          return true;
+            // If there's an error checking verification status, default to requiring verification
+            // This is safer than allowing potentially unverified users through
+            console.warn('Defaulting to requiring verification due to error:', error.message);
+            return true;
         }
     }
 };

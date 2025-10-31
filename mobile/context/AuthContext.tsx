@@ -22,7 +22,7 @@ interface AuthContextType {
   setShowBanNotification: (show: boolean) => void;
   needsEmailVerification: boolean;
   loginAttemptFailed: boolean;
-  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean, navigation?: any) => Promise<void>;
   logout: () => Promise<void>;
   refreshUserData: () => Promise<void>;
   handleEmailVerificationComplete: () => Promise<void>;
@@ -400,8 +400,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [attemptAutoLogin]);
 
-  const login = async (email: string, password: string, rememberMe: boolean = false): Promise<void> => {
+  const login = async (email: string, password: string, rememberMe: boolean = false, navigation?: any): Promise<void> => {
+    console.log('[AUTH] Login attempt started', { email, rememberMe });
     // Reset login attempt flag and any previous auth state before attempting login
+    console.log('[AUTH] Resetting auth state');
     setLoginAttemptFailed(false);
     setUser(null);
     setUserData(null);
@@ -425,9 +427,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // First check if user exists and get their data BEFORE Firebase login
       // We need to check verification status before allowing Firebase Auth login
+      console.log('[AUTH] Attempting to sign in with email and password');
       try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
+        console.log('[AUTH] Firebase auth successful', { 
+          uid: user.uid, 
+          emailVerified: user.emailVerified 
+        });
         // Get user data to check verification status
         const userData = await authService.getUserData(user.uid);
 
@@ -436,6 +443,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const needsVerification = await userService.needsEmailVerification(user, userData);
 
           if (needsVerification) {
+            console.log('[AUTH] Email verification required', { 
+              uid: user.uid, 
+              emailVerified: user.emailVerified,
+              userDataVerified: userData?.emailVerified
+            });
             // Keep user logged in but mark as needing verification
             // Don't set isAuthenticated to true, but also don't log them out
             setUser(user);
@@ -1080,19 +1092,57 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Define all callbacks
-  const loginHandler = useCallback(async (email: string, password: string, rememberMe = false) => {
+  const loginHandler = useCallback(async (email: string, password: string, rememberMe = false, navigation?: any) => {
     try {
+      console.log('🔐 Starting login handler', { email, rememberMe });
       setLoginAttemptFailed(false);
       const userCredential = await authService.login(email, password);
       
+      console.log('🔍 Checking email verification status', { 
+        email: userCredential.user?.email,
+        emailVerified: userCredential.user?.emailVerified 
+      });
+      
+      // Check if email is verified
+      if (userCredential.user && !userCredential.user.emailVerified) {
+        console.log('📧 Email not verified, redirecting to verification screen');
+        // If email is not verified, redirect to EmailVerification screen
+            // If navigation is provided, use it to navigate to verification screen
+            if (navigation) {
+              console.log('[AUTH] Navigating to EmailVerification screen');
+              try {
+                navigation.replace('EmailVerification', { 
+                  email: email,
+                  fromLogin: true 
+                });
+                console.log('[AUTH] Navigation to EmailVerification successful');
+              } catch (navError) {
+                console.error('[AUTH] Navigation to EmailVerification failed:', navError);
+              }
+            } else {
+              console.log('[AUTH] No navigation prop provided, cannot navigate to EmailVerification');
+            }
+        
+        // Save credentials for after verification
+        if (rememberMe) {
+          await credentialStorage.saveCredentials(email, password);
+        }
+        
+        // Set flag to show email verification screen
+        setNeedsEmailVerification(true);
+        
+        // Don't throw error, just return early
+        return;
+      }
+      
+      // If email is verified, handle remember me and proceed
       if (rememberMe) {
         await credentialStorage.saveCredentials(email, password);
       } else {
         await credentialStorage.clearCredentials();
       }
       
-      // The rest of the auth state will be handled by the auth state listener
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
       setLoginAttemptFailed(true);
       throw error;
@@ -1179,10 +1229,53 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user?.uid]);
   
   const handleEmailVerificationCompleteHandler = useCallback(async () => {
-    setNeedsEmailVerification(false);
-    // Refresh user data to get the latest email verification status
-    await refreshUserDataHandler();
-  }, [refreshUserDataHandler]);
+    console.log('🔄 handleEmailVerificationComplete called');
+    
+    if (!user) {
+      console.error('❌ No user found in handleEmailVerificationComplete');
+      return;
+    }
+
+    try {
+      console.log('🔄 Reloading user to get latest verification status...');
+      await user.reload();
+      
+      if (!user.emailVerified) {
+        console.log('❌ Email still not verified after reload');
+        setNeedsEmailVerification(true);
+        setIsAuthenticated(false);
+        return;
+      }
+
+      console.log('✅ Email verified in Firebase Auth, updating state...');
+      
+      // Update Firestore
+      try {
+        await userService.updateUserData(user.uid, { 
+          emailVerified: true,
+          updatedAt: new Date()
+        });
+        console.log('✅ Firestore updated with email verification status');
+      } catch (firestoreError) {
+        console.warn('⚠️ Could not update Firestore, but continuing:', firestoreError);
+        // Continue even if Firestore update fails
+      }
+      
+      // Update local state
+      setNeedsEmailVerification(false);
+      setIsAuthenticated(true);
+      
+      // Refresh user data
+      await refreshUserDataHandler();
+      
+      console.log('✅ Email verification flow completed successfully');
+      
+    } catch (error) {
+      console.error('❌ Error in handleEmailVerificationComplete:', error);
+      setNeedsEmailVerification(true);
+      setIsAuthenticated(false);
+    }
+  }, [user, refreshUserDataHandler]);
 
   // Memoize the context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({

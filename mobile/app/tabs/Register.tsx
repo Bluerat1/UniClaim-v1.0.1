@@ -88,6 +88,12 @@ function Register() {
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
   const handleRegister = async () => {
+    console.log('🚀 [REGISTRATION] Starting registration process...', {
+      email,
+      timestamp: new Date().toISOString()
+    });
+    
+    console.log('📝 [REGISTRATION] Validating form data...');
     const newErrors: FormErrors = {};
 
     if (!firstName.trim()) newErrors.firstName = "First name is required";
@@ -108,31 +114,105 @@ function Register() {
 
     setErrors(newErrors);
 
-    if (Object.keys(newErrors).length === 0) {
+    if (Object.keys(newErrors).length > 0) {
+      console.warn('❌ [REGISTRATION] Form validation failed:', newErrors);
+      setErrors(newErrors);
+      return;
+    }
+
+    console.log('✅ Form validation passed');
+    console.log('🔄 Starting Firebase registration...');
+    setIsLoading(true);
+
+    const registrationStartTime = Date.now();
+    try {
+      console.log('🔑 [REGISTRATION] Attempting to register user with Firebase Auth...', {
+        email,
+        timestamp: new Date().toISOString()
+      });
+
+      // Register user with Firebase
+      console.log('📤 Sending registration request to Firebase...', {
+        email,
+        hasPassword: !!password,
+        firstName,
+        lastName,
+        contactNumber,
+        studentId
+      });
+      const userCredential = await authService.register(
+        email,
+        password,
+        firstName,
+        lastName,
+        contactNumber,
+        studentId
+      );
+
+      console.log('✅ [REGISTRATION] User registration successful', {
+        uid: userCredential.user.uid,
+        emailVerified: userCredential.user.emailVerified,
+        timeTaken: `${Date.now() - registrationStartTime}ms`,
+        timestamp: new Date().toISOString()
+      });
+
+      console.log('🎉 [REGISTRATION] Registration successful, navigating to EmailVerification', {
+        email: userCredential.user.email,
+        uid: userCredential.user.uid,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Force navigation to EmailVerification screen
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'EmailVerification' }],
+      });
+
       try {
-        setIsLoading(true);
-
-        // Register user with Firebase
-        await authService.register(
-          email,
-          password,
-          firstName,
-          lastName,
-          contactNumber,
-          studentId
-        );
-
-        // After successful registration, the user is logged in but needs email verification
-        // The Navigation component will redirect to EmailVerification screen
-        // Once verified, they'll have full access to the main app.
-
-        // Note: No need to setIsLoading(false) here as navigation will redirect
-
-      } catch (error: any) {
-        const errorMessage = getFirebaseErrorMessage(error);
-        Alert.alert("Registration Failed", errorMessage);
+        // First, ensure any loading state is cleared
         setIsLoading(false);
+        
+        // Use replace instead of reset to avoid going back to registration
+        navigation.replace('EmailVerification', { 
+          email, 
+          fromLogin: false 
+        });
+        
+        return; // Exit the function after navigation
+      } catch (navError) {
+        console.error('❌ Navigation error:', navError);
+        // Fallback to regular navigation if replace fails
+        navigation.navigate('EmailVerification', { 
+          email, 
+          fromLogin: false 
+        });
+        setIsLoading(false);
+        return;
       }
+    } catch (error: any) {
+      console.error('❌ Registration failed:', {
+        errorCode: error?.code,
+        errorMessage: error?.message,
+        timestamp: new Date().toISOString()
+      });
+      console.error('❌ [REGISTRATION] Registration failed:', {
+        error: error.message || error,
+        code: error.code,
+        timeTaken: `${Date.now() - registrationStartTime}ms`,
+        timestamp: new Date().toISOString()
+      });
+      
+      Alert.alert(
+        "Registration Failed", 
+        error.message || 'An error occurred during registration. Please try again.'
+      );
+      setIsLoading(false);
+    } finally {
+      console.log('⏱️ [REGISTRATION] Registration process completed in', 
+        `${Date.now() - registrationStartTime}ms`,
+        { timestamp: new Date().toISOString() }
+      );
+      setIsLoading(false);
     }
   };
 
@@ -397,7 +477,7 @@ function Register() {
             <Text className="text-base text-gray-700 font-manrope-medium">
               Already have an account?{" "}
             </Text>
-            <Pressable onPress={() => navigation.navigate("Login")}>
+            <Pressable onPress={() => navigation.navigate("Login", undefined)}>
               <Text className="text-base font-manrope-medium text-brand underline">
                 Login Here
               </Text>
