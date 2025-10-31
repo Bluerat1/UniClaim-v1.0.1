@@ -29,7 +29,7 @@ export default function MobileFilter({
   };
 
   return (
-    <div className={`relative z-50 ${className}`}>
+    <div className={`relative z-20 ${className}`}>
       {/* Main Filter Button - Always Visible */}
       <button
         onClick={toggleExpand}
