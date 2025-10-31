@@ -1,5 +1,5 @@
 import Header from "../components/Header";
-import React, { PropsWithChildren } from "react";
+import { PropsWithChildren } from "react";
 import { View } from "react-native";
 
 export default function HomeLayout({ children }: PropsWithChildren<{}>) {
