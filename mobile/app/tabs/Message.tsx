@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   SafeAreaView,
   Text,
@@ -8,11 +8,25 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { 
+  collection, 
+  doc, 
+  onSnapshot, 
+  updateDoc, 
+  Timestamp, 
+  query, 
+  where, 
+  orderBy, 
+  limit, 
+  getDoc,
+  arrayUnion 
+} from 'firebase/firestore';
+import { db } from '../../utils/firebase/config';
 import PageLayout from "../../layout/PageLayout";
 import { useMessage } from "../../context/MessageContext";
 import { useAuth } from "../../context/AuthContext";
 import ProfilePicture from "../../components/ProfilePicture";
-import type { Conversation , RootStackParamList } from "../../types/type";
+import type { Conversation, RootStackParamList } from "../../types/type";
 
 
 type MessageNavigationProp = NativeStackNavigationProp<
@@ -44,59 +58,288 @@ const ConversationItem = React.memo(({
     return date.toLocaleDateString();
   }, []);
 
-  // Memoize expensive participant computations
-  const otherParticipantName = useMemo(() => {
-    if (!userData) return "Unknown User";
+  // Participant name state
+  const [participantName, setParticipantName] = useState<string>('Loading...');
 
-    const otherParticipants = Object.entries(conversation.participants || {})
-      .filter(([uid]) => uid !== userData.uid)
-      .map(([, participant]) => {
-        const p = participant as { firstName: string; lastName: string };
-        return `${p.firstName} ${p.lastName}`.trim();
-      })
-      .filter((name) => name.length > 0);
+  const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  
+  // Function to fetch user data from Firestore
+  const fetchUserData = useCallback(async (userId: string) => {
+    if (!userId) {
+      setParticipantName('Unknown User');
+      return;
+    }
+    
+    try {
+      setIsLoadingProfile(true);
+      
+      // Check if participant data is just a boolean
+      const participant = conversation.participants?.[userId] as any;
+      if (participant === true) {
+        const userRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userRef);
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          
+          // Get the best available name
+          const name = [
+            userData.displayName,
+            userData.name,
+            userData.firstName && userData.lastName 
+              ? `${userData.firstName} ${userData.lastName}` 
+              : null,
+            userData.firstName,
+            userData.lastName,
+            userData.email?.split('@')[0],
+            'User'
+          ].find(Boolean) as string;
+          
+          setParticipantName(name);
+          
+          // Update the conversation's participant data for future use
+          try {
+            await updateDoc(doc(db, 'conversations', conversation.id), {
+              [`participants.${userId}`]: {
+                displayName: name,
+                photoURL: userData.photoURL || userData.profilePicture,
+                email: userData.email,
+                participantIds: arrayUnion(userId)
+              }
+            });
+          } catch (updateError) {
+            console.error('Failed to update participant data:', updateError);
+          }
+          
+          // Set profile picture
+          const pictureUrl = [
+            userData.photoURL,
+            userData.profilePicture,
+            userData.avatar,
+            userData.profilePic,
+            userData.image,
+            userData.picture,
+            userData.photo,
+            userData.profilePicUrl,
+            userData.profile_pic,
+            userData.profile_pic_url
+          ].find(Boolean) as string | undefined;
+          
+          setProfilePictureUrl(pictureUrl || null);
+        } else {
+          // If user document doesn't exist, try to get name from participant data
+          const participant = conversation.participants?.[userId];
+          
+          if (participant && typeof participant === 'object') {
+            const p = participant as any;
+            const fallbackName = [
+              p.displayName,
+              p.name,
+              (p.firstName || p.lastName) ? `${p.firstName || ''} ${p.lastName || ''}`.trim() : null,
+              p.firstName,
+              p.lastName,
+              p.email?.split('@')[0],
+              'User'
+            ].find(Boolean) as string;
+            
+            setParticipantName(fallbackName);
+          } else {
+            setParticipantName('User');
+          }
+          setProfilePictureUrl(null);
+        }
+      } else {
+        // Original fetch logic for non-boolean participants
+        const userRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userRef);
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const name = [
+            userData.displayName,
+            userData.name,
+            userData.firstName && userData.lastName ? `${userData.firstName} ${userData.lastName}` : null,
+            userData.firstName,
+            userData.lastName,
+            userData.email?.split('@')[0],
+            'User'
+          ].find(Boolean) as string;
+          
+          setParticipantName(name);
+          
+          const pictureUrl = [
+            userData.photoURL,
+            userData.profilePicture,
+            userData.avatar,
+            userData.profilePic,
+            userData.image,
+            userData.picture,
+            userData.photo,
+            userData.profilePicUrl,
+            userData.profile_pic,
+            userData.profile_pic_url
+          ].find(Boolean) as string | undefined;
+          
+          setProfilePictureUrl(pictureUrl || null);
+        } else {
+          console.log(`User document not found for ID: ${userId}`);
+          // If user document doesn't exist, try to get name from participant data
+          const participant = conversation.participants?.[userId];
+          
+          if (participant && typeof participant === 'object') {
+            const p = participant as any;
+            const fallbackName = [
+              p.displayName,
+              p.name,
+              (p.firstName || p.lastName) ? `${p.firstName || ''} ${p.lastName || ''}`.trim() : null,
+              p.firstName,
+              p.lastName,
+              p.email?.split('@')[0],
+              'User'
+            ].find(Boolean) as string;
+            
+            setParticipantName(fallbackName);
+          } else {
+            console.log('No valid participant data, defaulting to "User"');
+            setParticipantName('User');
+          }
+          setProfilePictureUrl(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+      setParticipantName('User');
+      setProfilePictureUrl(null);
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  }, []);
 
-    return otherParticipants.length > 0 ? otherParticipants.join(", ") : "Unknown User";
-  }, [conversation.participants, userData]);
+  // Function to get the best available name from participant data
+  const getParticipantName = useCallback((participantData: any, userId: string): string => {
+    if (!participantData) return 'User';
+    
+    // If participantData is a boolean (old format), we need to fetch the user data
+    if (typeof participantData === 'boolean') {
+      fetchUserData(userId);
+      return 'Loading...';
+    }
+    
+    // Try to get the best available name from participant data
+    const p = participantData as Record<string, any>;
+    const name = [
+      p?.displayName,
+      p?.name,
+      (p?.firstName || p?.lastName) ? `${p.firstName || ''} ${p.lastName || ''}`.trim() : null,
+      p?.firstName,
+      p?.lastName,
+      p?.email?.split('@')[0],
+      'User'
+    ].find(Boolean) as string;
+    
+    return name || 'User';
+  }, [fetchUserData]);
 
-  const otherParticipantProfilePicture = useMemo(() => {
-    if (!userData) return null;
+  // Function to get the best available profile picture URL from participant data
+  const getProfilePictureUrl = useCallback((participantData: any): string | null => {
+    if (!participantData || typeof participantData === 'boolean') {
+      return null;
+    }
+    
+    const p = participantData as Record<string, any>;
+    return [
+      p?.photoURL,
+      p?.profilePicture,
+      p?.avatar,
+      p?.profilePic,
+      p?.image,
+      p?.picture,
+      p?.photo,
+      p?.profilePicUrl,
+      p?.profile_pic,
+      p?.profile_pic_url
+    ].find(Boolean) || null;
+  }, []);
 
+  // Effect to handle participant data and update name/picture
+  useEffect(() => {
+    if (!userData) return;
+    
+    // Find the other participant (not the current user)
     const otherParticipant = Object.entries(conversation.participants || {}).find(
       ([uid]) => uid !== userData.uid
     );
-
+    
     if (otherParticipant) {
-      const p = otherParticipant[1] as {
-        profilePicture?: string;
-        profileImageUrl?: string;
-      };
-      return p.profilePicture || p.profileImageUrl || null;
+      const [userId, participantData] = otherParticipant;
+      
+      // Update participant name
+      const name = getParticipantName(participantData, userId);
+      setParticipantName(name);
+      
+      // Update profile picture
+      const pictureUrl = getProfilePictureUrl(participantData);
+      if (pictureUrl) {
+        setProfilePictureUrl(pictureUrl);
+      } else if (typeof participantData === 'boolean') {
+        // If we only have a boolean, try to fetch the user data
+        fetchUserData(userId);
+      }
+    } else {
+      setProfilePictureUrl(null);
     }
-
-    return null;
-  }, [conversation.participants, userData]);
+  }, [conversation.participants, userData, fetchUserData]);
 
   const lastMessageSenderName = useMemo(() => {
-    if (!conversation.lastMessage?.senderId || !userData) return "Unknown User";
+    if (!conversation.lastMessage?.senderId || !userData) {
+      return "Unknown User";
+    }
 
+    // If the sender is the current user
     if (conversation.lastMessage.senderId === userData.uid) {
       return "You";
     }
 
+    // Find the sender in participants
     const sender = Object.entries(conversation.participants || {}).find(
       ([uid]) => uid === conversation.lastMessage?.senderId
     );
 
-    if (sender) {
-      const p = sender[1] as { firstName: string; lastName: string };
-      const firstName = p.firstName || "";
-      const lastName = p.lastName || "";
-      return `${firstName} ${lastName}`.trim() || "Unknown User";
+    if (sender && sender[1]) {
+      const participantData = sender[1];
+      
+      // If participant data is just a boolean, we need to fetch the full user data
+      if (typeof participantData === 'boolean') {
+        fetchUserData(sender[0]);
+        return 'Loading...';
+      }
+      
+      // Otherwise, try to get the best available name
+      const p = participantData as Record<string, any>;
+      const name = [
+        p?.displayName,
+        p?.name,
+        (p?.firstName || p?.lastName) ? `${p.firstName || ''} ${p.lastName || ''}`.trim() : null,
+        p?.firstName,
+        p?.lastName,
+        p?.email?.split('@')[0],
+      ].find(Boolean) as string | undefined;
+      
+      if (name) return name;
+      
+      // If we couldn't find a name, try to fetch the user data
+      fetchUserData(sender[0]);
+      return 'Loading...';
     }
 
-    return "Unknown User";
-  }, [conversation.lastMessage?.senderId, conversation.participants, userData]);
+    // If we can't find the sender in participants, try to fetch their data
+    if (conversation.lastMessage?.senderId) {
+      fetchUserData(conversation.lastMessage.senderId);
+    }
+
+    return 'Loading...';
+  }, [conversation.lastMessage?.senderId, conversation.participants, userData, fetchUserData]);
 
   const formattedTime = useMemo(() => formatTime(conversation.lastMessage?.timestamp), [formatTime, conversation.lastMessage?.timestamp]);
   const unreadCount = useMemo(() => conversation.unreadCounts?.[userData?.uid || ""] || 0, [conversation.unreadCounts, userData?.uid]);
@@ -109,7 +352,10 @@ const ConversationItem = React.memo(({
       <View className="flex-row items-start">
         {/* Profile Picture */}
         <View className="mr-3">
-          <ProfilePicture src={otherParticipantProfilePicture} size="md" />
+<ProfilePicture 
+            src={profilePictureUrl} 
+            size="md" 
+          />
         </View>
 
         {/* Conversation Details */}
@@ -138,7 +384,7 @@ const ConversationItem = React.memo(({
                 className="text-gray-500 font-manrope-medium text-xs mt-1"
                 numberOfLines={1}
               >
-                {otherParticipantName}
+                {participantName}
               </Text>
               <Text
                 className={`text-sm mt-2 font-inter ${unreadCount > 0 ? "font-bold text-gray-800" : "text-gray-600"}`}

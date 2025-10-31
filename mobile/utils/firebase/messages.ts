@@ -75,10 +75,10 @@ export const messageService: MessageService = {
                 // Continue with provided values if fetch fails
             }
 
-            // Check for existing conversation first (same logic as web)
+            // Check for existing conversation first (using participantIds array)
             const userConversationsQuery = query(
                 collection(db, 'conversations'),
-                where(`participants.${currentUserId}`, '!=', null)
+                where('participantIds', 'array-contains', currentUserId)
             );
             const userConversationsSnapshot = await getDocs(userConversationsQuery);
             const existingConversation = userConversationsSnapshot.docs.find((docSnap) => {
@@ -92,12 +92,15 @@ export const messageService: MessageService = {
             }
 
             // Create new conversation if none exists
+            const participantIds = [currentUserId, postOwnerId].filter((id, index, self) => id && self.indexOf(id) === index);
+            
             const conversationData: any = {
                 postId,
                 postTitle,
                 postOwnerId,
                 postCreatorId: actualPostCreatorId, // Use the actual post creator ID
                 postType: actualPostType, // Use the actual post type
+                participantIds, // Add participantIds array for efficient querying
                 postStatus: actualPostStatus, // Use the actual post status
                 foundAction: actualFoundAction, // Use the actual found action
                 participants: {
@@ -215,50 +218,78 @@ export const messageService: MessageService = {
 
     // Get conversation messages
     getConversationMessages(conversationId: string, callback: (messages: any[]) => void, messageLimit: number = 50) {
-        const q = query(
-            collection(db, `conversations/${conversationId}/messages`),
-            orderBy('timestamp', 'asc'),
-            limit(messageLimit)
-        );
+        try {
+            const messagesRef = collection(db, `conversations/${conversationId}/messages`);
+            const q = query(
+                messagesRef,
+                orderBy('timestamp', 'asc'),
+                limit(messageLimit)
+            );
 
-        return onSnapshot(q, (snapshot) => {
-            const messages = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            callback(messages);
-        });
+            return onSnapshot(q, 
+                (snapshot) => {
+                    const messages = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    callback(messages);
+                },
+                () => {
+                    // Return empty array on error to prevent UI issues
+                    callback([]);
+                }
+            );
+        } catch (error) {
+            // Return empty cleanup function
+            return () => {};
+        }
     },
 
-    // Get user conversations
+    // Get user conversations with real-time updates
     getUserConversations(userId: string, callback: (conversations: any[]) => void) {
-        const q = query(
-            collection(db, 'conversations'),
-            where(`participants.${userId}`, '!=', null)
-        );
+        if (!userId) {
+            return () => {}; // Return empty cleanup function
+        }
 
-        return onSnapshot(q, (snapshot) => {
-            const conversations = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
+        try {
+            const q = query(
+                collection(db, 'conversations'),
+                where('participantIds', 'array-contains', userId),
+                orderBy('updatedAt', 'desc'),
+                limit(50)
+            );
 
-            // Filter out conversations where the user is the only participant
-            const validConversations = conversations.filter((conv: any) => {
-                const participantIds = Object.keys(conv.participants || {});
-                return participantIds.length > 1; // Must have at least 2 participants
-            });
+            const unsubscribe = onSnapshot(q, 
+                (snapshot) => {
+                    const conversations = snapshot.docs.map(doc => {
+                        const data = doc.data();
+                        return {
+                            id: doc.id,
+                            ...data,
+                            participants: data.participants || {},
+                            unreadCounts: data.unreadCounts || {}
+                        };
+                    });
 
-            // Log unread counts for debugging
-            validConversations.forEach(conv => {
-                const userUnreadCount = (conv as any).unreadCounts?.[userId];
-                if (userUnreadCount && userUnreadCount > 0) {
-                    console.log(`📨 Mobile: Conversation ${conv.id} has ${userUnreadCount} unread messages for user ${userId}`);
+                    // Filter out conversations where the user is the only participant
+                    const validConversations = conversations.filter((conv: any) => {
+                        const participantIds = Object.keys(conv.participants || {});
+                        return participantIds.length > 1; // Must have at least 2 participants
+                    });
+
+                    callback(validConversations);
+                },
+                (error) => {
+                    console.error('Error in conversation listener:', error);
                 }
-            });
+            );
 
-            callback(validConversations);
-        });
+            return unsubscribe;
+            
+        } catch (error) {
+            console.error('Error setting up conversation listener:', error);
+            return () => {}; // Return empty cleanup function in case of error
+        }
     },
 
     // Mark conversation as read
@@ -1119,27 +1150,51 @@ export const messageService: MessageService = {
 
     // Get current conversations (one-time query)
     async getCurrentConversations(userId: string): Promise<any[]> {
+        if (!userId) {
+            return [];
+        }
+
         try {
             const q = query(
                 collection(db, 'conversations'),
-                where(`participants.${userId}`, '!=', null)
+                where('participantIds', 'array-contains', userId),
+                orderBy('updatedAt', 'desc'),
+                limit(50)
             );
 
             const snapshot = await getDocs(q);
-            const conversations = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
+            
+            const conversations = snapshot.docs.map(doc => {
+                const data = doc.data();
+                // Ensure backward compatibility
+                const participants = data.participants || {};
+                
+                // If participantIds doesn't exist, fall back to using participants keys
+                const participantIds = data.participantIds || Object.keys(participants);
+                
+                return {
+                    id: doc.id,
+                    ...data,
+                    participants,
+                    participantIds,
+                    unreadCounts: data.unreadCounts || {}
+                };
+            });
 
             // Filter out conversations where the user is the only participant
             const validConversations = conversations.filter((conv: any) => {
-                const participantIds = Object.keys(conv.participants || {});
-                return participantIds.length > 1; // Must have at least 2 participants
+                return conv.participantIds && conv.participantIds.length > 1; // Must have at least 2 participants
             });
 
             return validConversations;
         } catch (error: any) {
-            throw new Error(error.message || 'Failed to get current conversations');
+            console.error('Error getting conversations:', {
+                error: error.message,
+                code: error.code,
+                userId,
+                stack: error.stack
+            });
+            throw new Error('Failed to get current conversations: ' + error.message);
         }
     },
 

@@ -144,21 +144,6 @@ export const postService = {
             // Cache the results
             setCache(cacheKey, activePosts);
 
-            console.log('📱 Mobile getActivePosts real-time update:', {
-                totalPosts: posts.length,
-                activePosts: activePosts.length,
-                queryResults: posts.slice(0, 3).map(p => ({
-                    id: p.id,
-                    title: p.title,
-                    status: p.status,
-                    type: p.type,
-                    creatorId: p.creatorId,
-                    userEmail: p.user?.email,
-                    movedToUnclaimed: p.movedToUnclaimed,
-                    isHidden: p.isHidden
-                }))
-            });
-
             callback(activePosts);
             listenerActive = true;
         }, (error) => {
@@ -170,8 +155,7 @@ export const postService = {
 
         // If we have cached data, return it immediately but keep the listener active
         if (cachedData && isOnline) {
-            console.log('📱 Using cached data for getActivePosts, listener will provide real-time updates');
-            // Still call callback immediately with cached data
+            // Return cached data immediately
             callback(cachedData);
         }
 
@@ -341,8 +325,7 @@ export const postService = {
 
         // If we have cached data, return it immediately but keep the listener active
         if (cachedData && isOnline) {
-            console.log('📱 Using cached data for getResolvedPosts, listener will provide real-time updates');
-            // Still call callback immediately with cached data
+            // Return cached data immediately
             callback(cachedData);
         }
 

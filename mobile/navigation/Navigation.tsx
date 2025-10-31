@@ -125,20 +125,6 @@ export default function Navigation({
     setRenderKey(prev => prev + 1);
   }, [isAuthenticated, user, loading, needsEmailVerification]);
 
-  // Debug logging for navigation state changes
-  useEffect(() => {
-    console.log('🔄 Navigation Debug:', {
-      renderKey,
-      isAuthenticated,
-      user: !!user,
-      userData: !!userData,
-      isBanned,
-      needsEmailVerification,
-      loading,
-      loginAttemptFailed
-    });
-  }, [renderKey, isAuthenticated, user, userData, isBanned, needsEmailVerification, loading, loginAttemptFailed, showToast, toastMessage, toastType, toastDuration]);
-
   // Determine which navigator to show based on authentication state
   let navigatorContent;
 
@@ -155,7 +141,7 @@ export default function Navigation({
         </SafeAreaView>
       </NavigationWrapper>
     );
-  } else if (!isAuthenticated && !user && !loginAttemptFailed) {
+  } else if ((!isAuthenticated || !user) && !loginAttemptFailed) {
     // Show login screen when not authenticated and no failed login attempt
     navigatorContent = (
       <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
@@ -175,6 +161,27 @@ export default function Navigation({
               </Suspense>
             )}
           </Stack.Screen>
+        </Stack.Navigator>
+      </NavigationWrapper>
+    );
+  } else if (user && !isAuthenticated && needsEmailVerification) {
+    // Show email verification screen
+    navigatorContent = (
+      <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
+        <Stack.Navigator
+          key="verification-navigation"
+          screenOptions={{ headerShown: false, animation: "fade" }}
+        >
+          <Stack.Screen name="EmailVerification">
+            {() => (
+              <Suspense fallback={<ScreenLoader />}>
+                <EmailVerification />
+              </Suspense>
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
+          <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
+          <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
         </Stack.Navigator>
       </NavigationWrapper>
     );

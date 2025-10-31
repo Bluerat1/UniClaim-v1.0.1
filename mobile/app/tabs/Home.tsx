@@ -163,41 +163,6 @@ export default function Home() {
     isResolvedTab,
   ]);
 
-  // Debug filtered posts
-  useEffect(() => {
-    console.log('🔄 Filtered Posts Debug:', {
-      postsToDisplayCount: postsToDisplay.length,
-      filteredPostsCount: filteredPosts.length,
-      firstFewPosts: postsToDisplay.slice(0, 5).map(p => ({
-        id: p.id,
-        title: p.title,
-        status: p.status,
-        type: p.type,
-        movedToUnclaimed: p.movedToUnclaimed,
-        isHidden: p.isHidden,
-        creatorId: p.creatorId
-      }))
-    });
-
-    // Also log why posts might be filtered out
-    if (postsToDisplay.length > 0 && filteredPosts.length === 0) {
-      console.log('🚫 All posts were filtered out. Checking filter conditions...');
-      postsToDisplay.forEach((post, index) => {
-        const reasons = [];
-        if (post.status === "unclaimed") reasons.push("status=unclaimed");
-        if (post.status === "completed") reasons.push("status=completed");
-        if (post.movedToUnclaimed) reasons.push("movedToUnclaimed=true");
-        if (post.isHidden === true) reasons.push("isHidden=true");
-        if (post.status === "resolved") reasons.push("status=resolved");
-        if (post.turnoverDetails?.turnoverStatus === "declared") reasons.push("turnover=declared");
-
-        if (reasons.length > 0) {
-          console.log(`Post ${index} (${post.title}) filtered out:`, reasons.join(', '));
-        }
-      });
-    }
-  }, [postsToDisplay, filteredPosts]);
-
   return (
     <Layout>
       <View className="flex-1 px-4">

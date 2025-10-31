@@ -98,6 +98,7 @@ export default function Chat() {
     getConversationMessages,
     getConversation,
     markMessageAsRead,
+    markAllUnreadMessagesAsRead,
     sendClaimRequest,
     sendHandoverRequest,
     updateClaimResponse,
@@ -143,32 +144,140 @@ export default function Chat() {
 
   const flatListRef = useRef<FlatList>(null);
 
-  // Get the other participant's profile picture (exclude current user)
-  const getOtherParticipantProfilePicture = () => {
-    if (!userData) return null;
+  // Define the participant data type
+  interface ParticipantData {
+    photoURL?: string;
+    profilePicture?: string;
+    avatar?: string;
+    profilePic?: string;
+    image?: string;
+    picture?: string;
+    photo?: string;
+    profilePicUrl?: string;
+    profile_pic?: string;
+    profile_pic_url?: string;
+    displayName?: string;
+    name?: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  }
 
-    // First try to get from conversation data
-    if (conversationData && conversationData.participants) {
-      const otherParticipant = Object.entries(
-        conversationData.participants || {}
-      ).find(([uid]) => uid !== userData.uid);
+  // Function to get profile picture URL from user data
+  const getProfilePictureUrl = (user: any): string | null => {
+    if (!user) return null;
+    
+    const pictureUrl = [
+      user.photoURL,
+      user.profilePicture,
+      user.avatar,
+      user.profilePic,
+      user.image,
+      user.picture,
+      user.photo,
+      user.profilePicUrl,
+      user.profile_pic,
+      user.profile_pic_url
+    ].find(Boolean);
+    
+    return pictureUrl || null;
+  };
 
-      if (
-        otherParticipant &&
-        otherParticipant[1] &&
-        (otherParticipant[1] as any).profilePicture
-      ) {
-        return (otherParticipant[1] as any).profilePicture;
-      }
+  // State for other participant's profile picture
+  const [otherParticipantPic, setOtherParticipantPic] = useState<string | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+
+  // Effect to load other participant's profile picture
+  useEffect(() => {
+    if (!userData?.uid || !conversationData?.participants) {
+      setIsLoadingProfile(false);
+      return;
     }
 
-    // Fallback to postOwnerUserData from route params
-    if (postOwnerUserData && postOwnerUserData.profilePicture) {
-      return postOwnerUserData.profilePicture;
+    const loadProfilePicture = async () => {
+      try {
+        // Find the other participant
+        const otherParticipant = Object.entries(conversationData.participants).find(
+          ([uid]) => uid !== userData.uid
+        );
+
+        if (!otherParticipant) {
+          setIsLoadingProfile(false);
+          return;
+        }
+
+        const [uid, participantData] = otherParticipant;
+        
+        // If participant data is an object with profile info
+        if (participantData && typeof participantData === 'object') {
+          const pictureUrl = getProfilePictureUrl(participantData);
+          if (pictureUrl) {
+            setOtherParticipantPic(pictureUrl);
+            setIsLoadingProfile(false);
+            return;
+          }
+        }
+
+        // If no picture in participant data, fetch from users collection
+        const { getDoc, doc } = await import("firebase/firestore");
+        const { db } = await import("../utils/firebase/config");
+        const userDoc = await getDoc(doc(db, "users", uid));
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data() as ParticipantData;
+          const pictureUrl = getProfilePictureUrl(userData);
+          if (pictureUrl) {
+            setOtherParticipantPic(pictureUrl);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading profile picture:', error);
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    };
+
+    loadProfilePicture();
+  }, [conversationData, userData]);
+
+  // Get the other participant's ID
+  const getOtherParticipantId = useCallback(() => {
+    if (!userData?.uid || !conversationData?.participants) return null;
+    
+    const otherParticipant = Object.entries(conversationData.participants || {})
+      .find(([uid]) => uid !== userData.uid);
+    
+    return otherParticipant?.[0] || null;
+  }, [userData, conversationData]);
+
+  const otherParticipantId = getOtherParticipantId();
+
+  // Get the other participant's profile picture (exclude current user)
+  const getOtherParticipantProfilePicture = useCallback(() => {
+    // First try the pre-fetched profile picture
+    if (otherParticipantPic) {
+      return otherParticipantPic;
+    }
+
+    // Fallback to post owner data if available
+    if (postOwnerUserData) {
+      return (
+        postOwnerUserData.photoURL ||
+        postOwnerUserData.profilePicture ||
+        postOwnerUserData.avatar ||
+        postOwnerUserData.profilePic ||
+        postOwnerUserData.image ||
+        postOwnerUserData.picture ||
+        postOwnerUserData.photo ||
+        postOwnerUserData.profilePicUrl ||
+        postOwnerUserData.profile_pic ||
+        postOwnerUserData.profile_pic_url ||
+        null
+      );
     }
 
     return null;
-  };
+  }, [otherParticipantPic, postOwnerUserData]);
 
   // Fetch post data from Firestore
   const fetchPostData = async (postId: string) => {
@@ -317,217 +426,31 @@ export default function Chat() {
     postType,
   ]);
 
-  // Load messages when conversation changes
   useEffect(() => {
-    if (!conversationId) {
-      setMessages([]);
+    if (!initialConversationId) {
       return;
     }
-
-    const unsubscribe = getConversationMessages(
-      conversationId,
-      (loadedMessages) => {
-        setMessages(loadedMessages);
-
-        // Scroll to bottom when messages are loaded (for any number of messages)
-        if (isFlatListReady) {
-          requestAnimationFrame(() => {
-            setTimeout(() => scrollToBottom(), 150);
-          });
-        }
-      }
-    );
-
-    return () => unsubscribe();
-  }, [
-    conversationId,
-    getConversationMessages,
-    isFlatListReady,
-    scrollToBottom,
-  ]);
-
-  // Auto-scroll to bottom when messages are updated (e.g., new message received)
-  useEffect(() => {
-    if (messages.length > 0 && isFlatListReady) {
-      requestAnimationFrame(() => {
-        setTimeout(() => scrollToBottom(), 150);
-      });
-    }
-  }, [messages.length, isFlatListReady, scrollToBottom]);
-
-  // Scroll to bottom when FlatList becomes ready (for existing messages)
-  useEffect(() => {
-    if (isFlatListReady && messages.length > 0) {
-      requestAnimationFrame(() => {
-        setTimeout(() => scrollToBottom(), 100);
-      });
-    }
-  }, [isFlatListReady, messages.length, scrollToBottom]);
-
-  // Load conversation data
-  useEffect(() => {
-    if (!conversationId) return;
-    if (isLoadingRef.current) return; // Prevent multiple simultaneous loads
-
-    isLoadingRef.current = true;
-    setHasUpdatedConversation(false);
-
-    let isMounted = true; // Flag to prevent state updates if component unmounts
-
-    getConversation(conversationId)
-      .then((data) => {
-        if (!isMounted) return; // Don't update state if component unmounted
-
-        // Check if conversation doesn't exist (data is null)
-        if (data === null) {
-          isLoadingRef.current = false;
-          navigation.goBack();
-          return;
-        }
-
-        // Check if conversation data has the required fields, if not, fetch from post
-        if (data && (!data.postType || !data.postStatus || !data.postCreatorId)) {
-          // Fetch post data to get the correct values
-          if (data.postId) {
-            fetchPostData(data.postId)
-              .then((postData) => {
-                if (!isMounted) return; // Don't update state if component unmounted
-
-                if (postData) {
-                  // Update conversation data with post data
-                  const updatedConversationData = {
-                    ...data,
-                    postType: postData.type || data.postType || "lost",
-                    postStatus: postData.status || data.postStatus || "pending",
-                    foundAction:
-                      postData.foundAction || data.foundAction || null,
-                    postCreatorId:
-                      postData.creatorId ||
-                      data.postCreatorId ||
-                      data.postOwnerId ||
-                      postData.postedById,
-                  };
-                  setConversationData(updatedConversationData);
-                  isLoadingRef.current = false;
-
-                  // Also update the conversation in Firestore for future use (only once)
-                  if (!hasUpdatedConversation) {
-                    updateConversationData(
-                      conversationId,
-                      updatedConversationData
-                    );
-                    setHasUpdatedConversation(true);
-                  }
-                } else {
-                  setConversationData(data);
-                  isLoadingRef.current = false;
-                }
-              })
-              .catch((error) => {
-                if (!isMounted) return; // Don't update state if component unmounted
-                setConversationData(data);
-                isLoadingRef.current = false;
-              });
-          } else {
-            setConversationData(data);
-            isLoadingRef.current = false;
-          }
-        } else {
-          setConversationData(data);
-          isLoadingRef.current = false;
-        }
-      })
-      .catch((error) => {
-        if (!isMounted) return; // Don't update state if component unmounted
-        console.error("❌ Chat: Error loading conversation:", error);
-
-        // Check if conversation doesn't exist (deleted after completion)
-        if (
-          error.message?.includes("Conversation does not exist") ||
-          error.message?.includes("Conversation not found") ||
-          error.message?.includes("Failed to get conversation")
-        ) {
-          isLoadingRef.current = false;
-          navigation.goBack();
-          return;
-        }
-
-        isLoadingRef.current = false;
-      });
-
-    // Cleanup function
-    return () => {
-      isMounted = false;
-      isLoadingRef.current = false;
-    };
-  }, [conversationId, getConversation, hasUpdatedConversation, navigation]); // Add getConversation back to dependencies
-
-  // Keyboard handling
-  useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-      (e) => {
-        setIsKeyboardVisible(true);
-      }
-    );
-
-    const keyboardDidHideListener = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
-      () => {
-        setIsKeyboardVisible(false);
-      }
-    );
-
-    return () => {
-      keyboardDidShowListener.remove();
-      keyboardDidHideListener.remove();
-    };
-  }, []);
-
-  // Real-time conversation existence monitor - close chat if conversation is deleted by another user/process
-  useEffect(() => {
-    if (!conversationId) return;
-
-    let unsubscribe: (() => void) | undefined;
-
-    const setupListener = async () => {
+    const loadMessages = async () => {
       try {
-        const { doc, onSnapshot } = await import("firebase/firestore");
-        const { db } = await import("../utils/firebase/config");
-
-        const conversationRef = doc(db, "conversations", conversationId);
-        unsubscribe = onSnapshot(
-          conversationRef,
-          (docSnapshot: any) => {
-            if (!docSnapshot.exists()) {
-              navigation.goBack();
-              return;
-            }
-          },
-          (error: any) => {
-            console.error(
-              `❌ Mobile Chat: Error listening to conversation ${conversationId}:`,
-              error
-            );
-            // Don't navigate back on listener errors - could be temporary network issues
+        setLoading(true);
+        const conversationData = await getConversation(initialConversationId);
+        
+        if (conversationData) {
+          setConversationData(conversationData);
+          // Mark messages as read when conversation is loaded
+          if (user?.uid) {
+            await markAllUnreadMessagesAsRead(initialConversationId, user.uid);
           }
-        );
+        }
       } catch (error) {
-        console.error(
-          `❌ Mobile Chat: Failed to setup conversation listener for ${conversationId}:`,
-          error
-        );
+        showToastMessage("Failed to load conversation", "error");
+      } finally {
+        setLoading(false);
       }
     };
 
-    setupListener();
-
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, [conversationId, navigation]);
+    loadMessages();
+  }, [initialConversationId, getConversation, markAllUnreadMessagesAsRead, user?.uid, showToastMessage]);
 
   // Load messages when conversation changes
   useEffect(() => {
@@ -575,6 +498,28 @@ export default function Chat() {
       });
     }
   }, [isFlatListReady, messages.length, scrollToBottom]);
+
+  // Set up real-time message listener
+  useEffect(() => {
+    if (!initialConversationId) {
+      return;
+    }
+    
+    const unsubscribe = getConversationMessages(initialConversationId, (messages) => {
+      setMessages(messages);
+      
+      // Auto-scroll to bottom when new messages arrive
+      if (flatListRef.current && messages.length > 0) {
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [initialConversationId, getConversationMessages]);
 
   // Handle message visibility changes to mark messages as read
   const handleViewableItemsChanged = useCallback(
@@ -950,6 +895,7 @@ export default function Chat() {
     );
   }
 
+
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top", "bottom"]}>
       {/* Header - Stays fixed at top */}
@@ -958,8 +904,8 @@ export default function Chat() {
           <Ionicons name="arrow-back" size={24} color="#374151" />
         </TouchableOpacity>
 
-        {/* Profile Picture - only show for other user's conversations */}
-        {postOwnerId && userData && postOwnerId !== userData.uid && (
+        {/* Profile Picture - Always show for the other participant */}
+        {userData && (
           <View className="mr-3">
             <ProfilePicture
               src={getOtherParticipantProfilePicture()}
@@ -1063,6 +1009,30 @@ export default function Chat() {
                 data={messages}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item, index }) => {
+                  const renderItem = ({ item }: { item: Message; index: number }) => {
+                    return (
+                      <MessageBubble
+                        message={item}
+                        isOwnMessage={item.senderId === userData?.uid}
+                        conversationId={conversationId}
+                        currentUserId={userData?.uid || ""}
+                        isCurrentUserPostOwner={postOwnerId === userData?.uid}
+                        onHandoverResponse={handleHandoverResponse}
+                        onClaimResponse={handleClaimResponse}
+                        onConfirmIdPhotoSuccess={handleConfirmIdPhotoSuccess}
+                        isConfirmationInProgress={isConfirmationInProgress}
+                        triggerImagePicker={triggerImagePicker}
+                        onImageClick={(imageUrl, altText) =>
+                          setSelectedImage({ uri: imageUrl, alt: altText })
+                        }
+                        conversationParticipants={
+                          conversationData?.participants || {}
+                        }
+                        isLastSeenByOthers={false}
+                      />
+                    );
+                  };
+                  
                   // Check if this is the most recent message that other users have read
                   let isLastSeenByOthers = false;
 

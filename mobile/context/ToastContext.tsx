@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useRef, useEffect } from 'react';
 
 interface ToastContextType {
   showToast: boolean;
@@ -14,44 +14,67 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
+// Default durations for different toast types
+const DEFAULT_TOAST_DURATIONS = {
+  success: 3000,
+  error: 5000,
+  warning: 4000,
+  info: 3000,
+} as const;
+
 export const ToastProvider = ({ children }: { children: ReactNode }) => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
-  const [toastType, setToastType] = useState<"success" | "error" | "warning" | "info">("error");
-  const [toastDuration, setToastDuration] = useState(4000);
+  const [toastType, setToastType] = useState<"success" | "error" | "warning" | "info">("success");
+  const [toastDuration, setToastDurationState] = useState<number>(DEFAULT_TOAST_DURATIONS.success);
+  
+  // Wrapper function to ensure type safety
+  const setToastDuration = (duration: number) => {
+    setToastDurationState(duration);
+  };
+  
+  // Keep track of the timeout ID to clear it if a new toast is shown
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
-  const showToastMessage = (message: string, type: "success" | "error" | "warning" | "info", duration?: number) => {
-    console.log('ToastContext: showToastMessage called with:', message, type, duration);
+  const showToastMessage = (
+    message: string, 
+    type: "success" | "error" | "warning" | "info" = 'success', 
+    duration?: number
+  ) => {
+    console.log('ToastContext: showToastMessage called with:', { message, type, duration });
+    
+    // Clear any existing timeouts
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    
+    // Set the toast content
     setToastMessage(message);
     setToastType(type);
-
-    if (duration === undefined) {
-      switch (type) {
-        case 'success':
-          duration = 3000;
-          break;
-        case 'error':
-          duration = 5000;
-          break;
-        case 'warning':
-          duration = 4000;
-          break;
-        case 'info':
-          duration = 3000;
-          break;
-        default:
-          duration = 4000;
-      }
-    }
-
-    setToastDuration(duration);
+    
+    // Set duration based on type if not provided
+    const toastDuration = duration ?? DEFAULT_TOAST_DURATIONS[type];
+    setToastDuration(toastDuration);
+    
+    // Show the toast
     setShowToast(true);
-
-    // Auto-hide after duration
-    setTimeout(() => {
+    
+    // Set timeout to hide the toast
+    timeoutRef.current = setTimeout(() => {
       console.log('ToastContext: Auto-hiding toast');
       setShowToast(false);
-    }, duration);
+      timeoutRef.current = null;
+    }, toastDuration);
   };
 
   return (
@@ -64,7 +87,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
         setShowToast,
         setToastMessage,
         setToastType,
-        setToastDuration,
+setToastDuration,
         showToastMessage,
       }}
     >

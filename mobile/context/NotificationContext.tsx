@@ -46,53 +46,73 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!isAuthenticated || !userData?.uid) return;
 
+    let unsubscribe: (() => void) | null = null;
+    let isMounted = true;
+
     // Set up real-time Firestore listener instead of polling
-    const unsubscribe = notificationService.setupRealtimeListener(
-      userData.uid,
-      async (newNotifications) => {
-        // Enforce 15-notification limit by deleting oldest notifications if needed
-        const enforcedNotifications = await enforceNotificationLimit(newNotifications);
-        
-        // Update notifications when they change
-        setNotifications(prevNotifications => {
-          const newNotificationsList = enforcedNotifications.filter(newNotif => 
-            !prevNotifications.some(prevNotif => prevNotif.id === newNotif.id)
-          );
-          
-          // Play sound for new notifications
-          if (newNotificationsList.length > 0) {
-            newNotificationsList.forEach(async (notification) => {
-              try {
-                await notificationService.sendLocalNotification(
-                  notification.title,
-                  notification.body,
-                  {
-                    type: notification.type,
-                    postId: notification.postId,
-                    conversationId: notification.conversationId
+    const setupListener = async () => {
+      try {
+        const unsub = await notificationService.setupRealtimeListener(
+          userData.uid,
+          async (newNotifications) => {
+            if (!isMounted) return;
+            
+            // Enforce 15-notification limit by deleting oldest notifications if needed
+            const enforcedNotifications = await enforceNotificationLimit(newNotifications);
+            
+            // Update notifications when they change
+            setNotifications(prevNotifications => {
+              const newNotificationsList = enforcedNotifications.filter(newNotif => 
+                !prevNotifications.some(prevNotif => prevNotif.id === newNotif.id)
+              );
+              
+              // Play sound for new notifications
+              if (newNotificationsList.length > 0) {
+                newNotificationsList.forEach(async (notification) => {
+                  try {
+                    await notificationService.sendLocalNotification(
+                      notification.title,
+                      notification.body,
+                      {
+                        type: notification.type,
+                        postId: notification.postId,
+                        conversationId: notification.conversationId
+                      }
+                    );
+                  } catch (error) {
+                    console.error('Error playing notification sound:', error);
                   }
-                );
-              } catch (error) {
-                console.error('Error playing notification sound:', error);
+                });
               }
+              
+              return enforcedNotifications;
             });
+            
+            // Update unread count
+            const unread = enforcedNotifications.filter(notif => !notif.read).length;
+            setUnreadCount(unread);
+          },
+          (error) => {
+            if (!isMounted) return;
+            console.error('Notification listener error:', error);
+            setError('Failed to load notifications');
           }
-          
-          return enforcedNotifications;
-        });
-        
-        // Update unread count
-        const unread = enforcedNotifications.filter(notif => !notif.read).length;
-        setUnreadCount(unread);
-      },
-      (error) => {
-        console.error('Notification listener error:', error);
-        setError('Failed to load notifications');
+        );
+
+        // Store the unsubscribe function
+        unsubscribe = unsub;
+      } catch (error) {
+        console.error('Error setting up notification listener:', error);
+        setError('Failed to set up notifications');
       }
-    );
+    };
+
+    setupListener();
 
     return () => {
-      if (unsubscribe) {
+      isMounted = false;
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        console.log('Cleaning up notification listener...');
         unsubscribe();
       }
     };

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { messageService } from "../utils/firebase";
 import type { Conversation, Message } from "../types/type";
 
@@ -40,7 +40,12 @@ export const MessageProvider = ({ children, userId, isAuthenticated }: { childre
     return total + userUnreadCount;
   }, 0);
 
-  // Load user conversations
+  // Cache for storing user data to minimize Firestore reads
+  const userDataCache = useRef<Record<string, any>>({});
+  const unsubscribeRef = useRef<() => void>(() => {});
+  const isMounted = useRef(true);
+
+  // Load user conversations with real-time updates
   useEffect(() => {
     if (!userId || !isAuthenticated) {
       setConversations([]);
@@ -48,16 +53,77 @@ export const MessageProvider = ({ children, userId, isAuthenticated }: { childre
       return;
     }
 
+    let isSubscribed = true;
     setLoading(true);
 
-    // Simple listener that automatically handles conversation updates
-    const unsubscribe = messageService.getUserConversations(userId, (loadedConversations) => {
-      setConversations(loadedConversations);
-      setLoading(false);
-    });
+    const loadConversations = async () => {
+      try {
+        // First, get the current conversations
+        const initialConversations = await messageService.getCurrentConversations(userId);
+        
+        if (!isSubscribed) return;
+        
+        // Process initial conversations to update cache
+        initialConversations.forEach(conv => {
+          Object.entries(conv.participants || {}).forEach(([uid, data]) => {
+            if (data && typeof data === 'object' && uid !== userId) {
+              userDataCache.current[uid] = data;
+            }
+          });
+        });
+        
+        // Set initial conversations
+        setConversations(initialConversations);
+        
+        // Clear any existing unsubscribe function
+        if (typeof unsubscribeRef.current === 'function') {
+          unsubscribeRef.current();
+          unsubscribeRef.current = () => {};
+        }
+        
+        // Set up real-time listener
+        const unsubscribe = messageService.getUserConversations(userId, (updatedConversations) => {
+          if (!isSubscribed) return;
+          
+          // Process conversations and update cache
+          const processed = updatedConversations.map(conv => {
+            // Update user data cache
+            Object.entries(conv.participants || {}).forEach(([uid, data]) => {
+              if (data && typeof data === 'object' && uid !== userId) {
+                userDataCache.current[uid] = data;
+              }
+            });
+            return conv;
+          });
+          
+          setConversations(processed);
+        });
 
+        // Store the unsubscribe function
+        unsubscribeRef.current = unsubscribe;
+        
+      } catch (error) {
+        console.error('Error loading conversations:', error);
+      } finally {
+        if (isSubscribed) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadConversations();
+
+    // Cleanup function
     return () => {
-      unsubscribe();
+      isSubscribed = false;
+      if (typeof unsubscribeRef.current === 'function') {
+        try {
+          unsubscribeRef.current();
+        } catch (error) {
+          console.warn('Error unsubscribing from conversations:', error);
+        }
+        unsubscribeRef.current = () => {};
+      }
     };
   }, [userId, isAuthenticated]);
 
@@ -188,39 +254,9 @@ export const MessageProvider = ({ children, userId, isAuthenticated }: { childre
     }
   };
 
-  // Simple refresh function that fetches current conversations
-  const refreshConversations = async (): Promise<void> => {
-    if (!userId || !isAuthenticated) {
-      setConversations([]);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      // Use a one-time query to get current state
-      const currentConversations = await messageService.getCurrentConversations(userId);
-
-      setConversations(currentConversations);
-      setLoading(false);
-    } catch (error: any) {
-      console.error('🔧 Mobile MessageContext: Refresh failed:', error);
-      setLoading(false);
-
-      // For permission errors, don't throw - just log and continue
-      if (error?.code === 'permission-denied') {
-        setConversations([]);
-        return;
-      }
-
-      throw new Error(error.message || 'Failed to refresh conversations');
-    }
-  };
-
-  // Mark conversation as read for a specific user
-  const markConversationAsRead = async (conversationId: string, userId: string): Promise<void> => {
-    if (!userId || !isAuthenticated) return;
+  // Mark a conversation as read
+  const markConversationAsRead = useCallback(async (conversationId: string, userId: string): Promise<void> => {
+    if (!userId || !conversationId) return;
 
     try {
       // Update the conversation's unread count for this user
@@ -238,7 +274,26 @@ export const MessageProvider = ({ children, userId, isAuthenticated }: { childre
       console.error('Failed to mark conversation as read:', error);
       // Don't throw error - just log it
     }
-  };
+  }, []);
+
+  // Refresh function that fetches current conversations
+  const refreshConversations = useCallback(async (): Promise<void> => {
+    if (!userId || !isAuthenticated) {
+      setConversations([]);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const conversations = await messageService.getCurrentConversations(userId);
+      setConversations(conversations);
+    } catch (error: any) {
+      console.error('Failed to refresh conversations:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, isAuthenticated]);
 
   // Get count of conversations with unread messages for a specific user
   const getUnreadConversationCount = (userId: string): number => {

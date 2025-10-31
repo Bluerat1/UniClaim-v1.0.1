@@ -25,6 +25,7 @@ function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
 
   const [showPassword, setShowPassword] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
@@ -104,7 +105,7 @@ function Login() {
     }
 
     try {
-      await login(email, password);
+      await login(email, password, rememberMe);
 
       showToastMessage("Login successful! Welcome back!", "success");
 
@@ -280,15 +281,26 @@ function Login() {
             )}
           </View>
 
-          {/* Forgot Password */}
-          <TouchableOpacity
-            className="mt-5 self-end"
-            onPress={handleForgotPasswordNavigation}
-          >
-            <Text className="text-base font-manrope-medium text-brand underline">
-              Forgot Password?
-            </Text>
-          </TouchableOpacity>
+          {/* Remember Me & Forgot Password */}
+          <View className="flex-row justify-between items-center mt-5">
+            <TouchableOpacity 
+              onPress={() => setRememberMe(!rememberMe)}
+              className="flex-row items-center"
+            >
+              <View className={`w-5 h-5 rounded border ${rememberMe ? 'bg-brand' : 'bg-white'} border-gray-300 mr-2 flex items-center justify-center`}>
+                {rememberMe && <Ionicons name="checkmark" size={16} color="white" />}
+              </View>
+              <Text className="text-base font-manrope-medium text-gray-700">
+                Remember me
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity onPress={handleForgotPasswordNavigation}>
+              <Text className="text-base font-manrope-medium text-brand underline">
+                Forgot Password?
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Login Button */}

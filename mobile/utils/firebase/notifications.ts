@@ -3,8 +3,29 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { auth, db } from './config';
-import { doc, setDoc, getDoc, updateDoc, collection, addDoc, serverTimestamp, query, where, getDocs, orderBy, limit, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { db, auth } from './config';
+import { 
+    collection, 
+    query, 
+    where, 
+    orderBy, 
+    limit, 
+    getDocs, 
+    addDoc, 
+    updateDoc, 
+    doc, 
+    deleteDoc, 
+    onSnapshot, 
+    serverTimestamp, 
+    getDoc, 
+    setDoc, 
+    writeBatch, 
+    DocumentData, 
+    Query, 
+    QueryDocumentSnapshot,
+    DocumentReference,
+    FirestoreError as FirebaseError
+} from 'firebase/firestore';
 import { NotificationData, NotificationPreferences } from '../../types/Notification';
 import { notificationSubscriptionService } from './notificationSubscriptions';
 
@@ -508,45 +529,49 @@ export class NotificationService {
     }
 
     // Set up real-time listener for notifications
-    setupRealtimeListener(
+    async setupRealtimeListener(
         userId: string,
         onUpdate: (notifications: NotificationData[]) => void,
         onError: (error: any) => void
-    ): () => void {
+    ): Promise<() => void> {
         if (!userId) {
-            console.warn('setupRealtimeListener: userId is required');
-            return () => { };
+            onError(new Error('setupRealtimeListener: userId is required'));
+            return () => {};
         }
 
         try {
-            const notificationsRef = collection(db, 'notifications');
-            const q = query(
-                notificationsRef,
+            let q = query(
+                collection(db, 'notifications'),
                 where('userId', '==', userId),
                 orderBy('createdAt', 'desc'),
-                limit(15) // Limit to 15 most recent notifications
+                limit(15)
             );
 
-            const unsubscribe = onSnapshot(q,
+            const unsubscribe = onSnapshot(
+                q,
+                {
+                    includeMetadataChanges: true
+                },
                 (snapshot) => {
                     const notifications = snapshot.docs.map(doc => ({
                         id: doc.id,
-                        ...doc.data()
+                        ...doc.data(),
+                        createdAt: doc.data().createdAt?.toDate()
                     } as NotificationData));
-
+                    
                     onUpdate(notifications);
                 },
-                (error) => {
-                    console.error('Real-time notification listener error:', error);
+                (error: any) => {
                     onError(error);
                 }
             );
 
-            return unsubscribe;
-        } catch (error) {
-            console.error('Error setting up real-time notification listener:', error);
+            return () => {
+                unsubscribe();
+            };
+        } catch (error: any) {
             onError(error);
-            return () => { };
+            return () => {};
         }
     }
 }

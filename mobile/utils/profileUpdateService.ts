@@ -7,7 +7,8 @@ import {
     getDocs,
     writeBatch,
     serverTimestamp,
-    collectionGroup
+    collectionGroup,
+    arrayUnion
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -132,10 +133,10 @@ export const profileUpdateService: ProfileUpdateService = {
                 return;
             }
 
-            // Get all conversations where user is a participant (single query)
+            // Get all conversations where user is a participant (using participantIds array)
             const conversationsQuery = query(
                 collection(db, 'conversations'),
-                where(`participants.${userId}`, '!=', null)
+                where('participantIds', 'array-contains', userId)
             );
             const conversationsSnapshot = await getDocs(conversationsQuery);
 
@@ -178,7 +179,10 @@ export const profileUpdateService: ProfileUpdateService = {
 
                 if (hasChanges) {
                     const conversationRef = doc(db, 'conversations', conversationDoc.id);
-                    batch.update(conversationRef, { [`participants.${userId}`]: updatedParticipant });
+                    batch.update(conversationRef, { 
+                        [`participants.${userId}`]: updatedParticipant,
+                        participantIds: arrayUnion(userId) // Ensure user is in participantIds
+                    });
                     updateCount++;
                 }
             });

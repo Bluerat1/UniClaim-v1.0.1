@@ -1,10 +1,14 @@
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback, ReactNode } from 'react';
 import { onAuthStateChanged, User, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { auth, authService, UserData, db, userService } from '../utils/firebase';
+import { auth, authService, db, userService } from '../utils/firebase';
+import type { UserData } from '../utils/firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { credentialStorage } from '../utils/credentialStorage';
 import { notificationService } from '../utils/firebase/notifications';
+import { notificationSubscriptionService } from '../utils/firebase/notificationSubscriptions';
+
+// Using UserData type from auth service
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -18,7 +22,7 @@ interface AuthContextType {
   setShowBanNotification: (show: boolean) => void;
   needsEmailVerification: boolean;
   loginAttemptFailed: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   refreshUserData: () => Promise<void>;
   handleEmailVerificationComplete: () => Promise<void>;
@@ -33,16 +37,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isBanned, setIsBanned] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [banInfo, setBanInfo] = useState<any>(null);
+  // Ban info type for better type safety
+  interface BanInfo {
+    reason?: string;
+    bannedAt?: Date | null;
+    bannedUntil?: Date | null;
+    isPermanent?: boolean;
+    adminNote?: string;
+  }
+  
+  const [banInfo, setBanInfo] = useState<BanInfo | null>(null);
   const [showBanNotification, setShowBanNotification] = useState(false);
   const [needsEmailVerification, setNeedsEmailVerification] = useState(false);
   const [isAutoLogging, setIsAutoLogging] = useState(false);
   const [loginAttemptFailed, setLoginAttemptFailed] = useState(false);
 
   // Track ban listener to clean up on logout
-  const banListenerRef = useRef<(() => void) | null>(null);
+  type Unsubscribe = () => void;
+  const banListenerRef = useRef<Unsubscribe | null>(null);
+  
   // Track smart ban check system
   const smartBanCheckRef = useRef<{ activatePeriodicChecks: () => void; deactivatePeriodicChecks: () => void } | null>(null);
+  
+  // Track notification subscription cleanup
+  const notificationUnsubscribeRef = useRef<(() => void) | null>(null);
+
+  // Refs to track auto-login state
+  const isProcessingAutoLoginRef = useRef(false);
+  const hasAttemptedAutoLoginRef = useRef(false);
+  const autoLoginTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Helper function to check if user is admin
   const checkIfAdmin = (email: string | null): boolean => {
@@ -52,27 +75,47 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Auto-login function
-  const attemptAutoLogin = async (): Promise<boolean> => {
+  const attemptAutoLogin = useCallback(async () => {
+    if (isProcessingAutoLoginRef.current) {
+      return false;
+    }
+
+    isProcessingAutoLoginRef.current = true;
+
     try {
-      setIsAutoLogging(true);
-      setLoading(true); // Ensure loading state is true during auto-login
-
-            const storedCredentials = await credentialStorage.getStoredCredentials();
-
-      if (!storedCredentials) {
-                setLoading(false); // Set loading false if no credentials
+      const credentials = await credentialStorage.getStoredCredentials();
+      if (!credentials) {
         return false;
       }
-
       
-      // Attempt login with stored credentials
+      // Sign in with email and password
       const userCredential = await signInWithEmailAndPassword(
         auth,
-        storedCredentials.email,
-        storedCredentials.password
+        credentials.email,
+        credentials.password
       );
-
-            // Keep loading true - onAuthStateChanged will handle setting it false
+      
+      // Get user data directly after successful login
+      const userData = await authService.getUserData(userCredential.user.uid);
+      if (!userData) {
+        throw new Error('User data not found');
+      }
+      
+      // Update user state
+      const isBannedUser = userData.status === 'banned';
+      const needsVerification = await userService.needsEmailVerification(userCredential.user, userData);
+      const isAdminUser = checkIfAdmin(userData.email);
+      
+      setUser(userCredential.user);
+      setUserData(userData);
+      setIsBanned(isBannedUser);
+      setNeedsEmailVerification(needsVerification);
+      setIsAdmin(isAdminUser);
+      
+      // Set authentication state
+      const shouldAuthenticate = !isBannedUser && (!needsVerification || isAdminUser);
+      setIsAuthenticated(shouldAuthenticate);
+      
       return true;
 
     } catch (error: any) {
@@ -90,330 +133,215 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsAutoLogging(false);
     }
-  };
+  }, [credentialStorage]);
+
+  // Track render count for debugging
+  const renderCount = useRef(0);
+  const isMounted = useRef(true);
+  
+  // Memoize derived state to prevent unnecessary re-renders
+  const authState = useMemo(() => {
+    // Ensure we have all required user data before considering authentication complete
+    const isFullyAuthenticated = !!user && !!userData && isAuthenticated && !isBanned && !needsEmailVerification;
+    
+    return {
+      isAuthenticated: isFullyAuthenticated,
+      isBanned,
+      isAdmin,
+      needsEmailVerification,
+      loading: loading || (!!user && !userData), // Still loading if we have user but no userData
+      loginAttemptFailed,
+      user: !!user,
+      userData: !!userData,
+      userId: user?.uid
+    };
+  }, [
+    isAuthenticated, 
+    isBanned, 
+    isAdmin, 
+    needsEmailVerification, 
+    loading, 
+    loginAttemptFailed, 
+    user, 
+    userData
+  ]);
+
+  // Log render count and auth state changes
+  useEffect(() => {
+    if (!isMounted.current) return;
+    
+    renderCount.current += 1;
+
+    return () => {
+      isMounted.current = false;
+    };
+  }, [authState, isAutoLogging]);
+
 
   // Listen for authentication state changes
   useEffect(() => {
-    let hasAttemptedAutoLogin = false;
-    let isProcessingAutoLogin = false;
-    let autoLoginTimeout: ReturnType<typeof setTimeout> | null = null;
+    
+    // Store the current mounted state
+    const isMounted = { current: true };
+    
+    // Function to handle auto-login attempt
+    const handleAutoLogin = async () => {
+      if (hasAttemptedAutoLoginRef.current || isProcessingAutoLoginRef.current) return;
+      
+      hasAttemptedAutoLoginRef.current = true;
+      isProcessingAutoLoginRef.current = true;
+      
+      // Add a small delay to ensure Firebase Auth state is fully settled
+      autoLoginTimeoutRef.current = setTimeout(async () => {
+        try {
+          const autoLoginSuccess = await attemptAutoLogin();
+          if (!autoLoginSuccess && isMounted.current) {
+            setLoading(false);
+          }
+        } catch (error) {
+          console.error('❌ Auto-login error:', error);
+          if (isMounted.current) {
+            setLoading(false);
+          }
+        } finally {
+          if (isMounted.current) {
+            isProcessingAutoLoginRef.current = false;
+          }
+        }
+      }, 1000);
+    };
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
-      console.log('Auth state changed, user:', firebaseUser ? firebaseUser.uid : 'null');
+    // Set up the auth state listener
+    // Firebase will handle cleanup automatically when the component unmounts
+    onAuthStateChanged(auth, async (firebaseUser) => {
+      // Clean up any existing ban listener
+      if (banListenerRef.current) {
+        banListenerRef.current();
+        banListenerRef.current = null;
+      }
+
+      // Handle authenticated user
+      if (firebaseUser) {
+        try {
+          setLoading(true);
+          const userData = await authService.getUserData(firebaseUser.uid);
+          
+          if (userData) {
+            // Check if user is banned or needs verification
+            const isBannedUser = userData.status === 'banned';
+            const needsVerification = await userService.needsEmailVerification(firebaseUser, userData);
+            const isAdminUser = checkIfAdmin(userData.email);
+            
+            // Update user state
+            setUser(firebaseUser);
+            setUserData(userData);
+            setIsBanned(isBannedUser);
+            setNeedsEmailVerification(needsVerification);
+            setIsAdmin(isAdminUser);
+            
+            // User is considered authenticated if:
+            // 1. Not banned
+            // 2. Doesn't need email verification (or is an admin)
+            const shouldAuthenticate = !isBannedUser && (!needsVerification || isAdminUser);
+            
+            
+            // Only update isAuthenticated if this is not an auto-login attempt
+            // or if we're processing auto-login and the user should be authenticated
+            if (!isProcessingAutoLoginRef.current || shouldAuthenticate) {
+              setIsAuthenticated(shouldAuthenticate);
+            }
+            
+            // If banned, set ban info
+            if (isBannedUser) {
+              const banInfo = {
+                reason: userData.banInfo?.reason || 'Account has been suspended',
+                bannedAt: userData.banInfo?.bannedAt || null,
+                bannedUntil: userData.banInfo?.bannedUntil || null,
+                isPermanent: userData.banInfo?.isPermanent || false,
+                adminNote: userData.banInfo?.adminNote || ''
+              };
+              
+              setBanInfo(banInfo);
+              setShowBanNotification(true);
+              setIsAuthenticated(false);
+              
+              // Set up ban status listener for real-time updates
+              if (firebaseUser) {
+                const userDocRef = doc(db, 'users', firebaseUser.uid);
+                const unsubscribe = onSnapshot(userDocRef, (doc) => {
+                  if (doc.exists()) {
+                    const updatedUserData = doc.data() as UserData;
+                    if (updatedUserData.status !== 'banned') {
+                      // User is no longer banned
+                      setIsBanned(false);
+                      setBanInfo(null);
+                      setShowBanNotification(false);
+                      setIsAuthenticated(true);
+                      
+                      // Clean up the ban listener
+                      if (banListenerRef.current) {
+                        banListenerRef.current();
+                        banListenerRef.current = null;
+                      }
+                    } else {
+                      // Ban info might have been updated
+                      const updatedBanInfo = {
+                        reason: updatedUserData.banInfo?.reason || banInfo.reason,
+                        bannedAt: updatedUserData.banInfo?.bannedAt || banInfo.bannedAt,
+                        bannedUntil: updatedUserData.banInfo?.bannedUntil || banInfo.bannedUntil,
+                        isPermanent: updatedUserData.banInfo?.isPermanent || banInfo.isPermanent,
+                        adminNote: updatedUserData.banInfo?.adminNote || banInfo.adminNote
+                      };
+                      setBanInfo(updatedBanInfo);
+                    }
+                  }
+                });
+                
+                // Store the unsubscribe function
+                banListenerRef.current = unsubscribe;
+              }
+            } else if (needsVerification && !isAdminUser) {
+              setIsAuthenticated(false);
+            } else {
+              setIsAuthenticated(true);
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error fetching user data:', error);
+          setIsAuthenticated(false);
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
+
+      // If there's no user and we haven't attempted auto-login yet, try it
+      if (!firebaseUser && !hasAttemptedAutoLoginRef.current) {
+        hasAttemptedAutoLoginRef.current = true;
+        
+        // Add a small delay to ensure Firebase is fully initialized
+        autoLoginTimeoutRef.current = setTimeout(async () => {
+          try {
+            await attemptAutoLogin();
+          } catch (error) {
+            console.error('❌ Auto-login attempt failed:', error);
+          } finally {
+            if (isMounted.current) {
+              setLoading(false);
+            }
+          }
+        }, 1000);
+        
+        return;
+      }
       
       // Clear any existing auto-login timeout
-      if (autoLoginTimeout) {
-        clearTimeout(autoLoginTimeout);
+      if (autoLoginTimeoutRef.current) {
+        clearTimeout(autoLoginTimeoutRef.current);
       }
       
       // Handle null user (signed out) case first
       if (!firebaseUser) {
-        console.log('No user signed in, resetting auth state');
-        setUser(null);
-        setUserData(null);
-        setIsAuthenticated(false);
-        setIsBanned(false);
-        setIsAdmin(false);
-        setBanInfo(null);
-        setNeedsEmailVerification(false);
-        setLoading(false);
-        return;
-      }
-
-      if (firebaseUser) {
-                setUser(firebaseUser);
-        // Don't set isAuthenticated yet - wait for verification check
-
-        // SET LOADING TO TRUE: Start processing user authentication
-        setLoading(true);
-
-        // Check if user is admin
-        const userIsAdmin = checkIfAdmin(firebaseUser.email);
-
-        // Fetch user data from Firestore
-        try {
-          const fetchedUserData = await authService.getUserData(firebaseUser.uid);
-                    setUserData(fetchedUserData);
-
-          // Update admin status based on role data (includes campus_security)
-          const isAdminOrCampusSecurity = userIsAdmin ||
-            fetchedUserData?.role === 'admin' ||
-            fetchedUserData?.role === 'campus_security';
-          setIsAdmin(isAdminOrCampusSecurity);
-
-          // Check deactivation status efficiently (with backward compatibility)
-          if (fetchedUserData && (fetchedUserData.status === 'deactivated' || fetchedUserData.status === 'banned')) {
-            setIsBanned(true);
-            setBanInfo(fetchedUserData.banInfo || {});
-          } else {
-            setIsBanned(false);
-            setBanInfo(null);
-          }
-
-          // Check email verification status
-          if (fetchedUserData) {
-                        // IMPORTANT: Add a small delay to ensure Firebase Auth state is fully updated
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Reload user data to get the latest email verification status from Firebase Auth
-            await firebaseUser.reload();
-
-            const needsVerification = await userService.needsEmailVerification(firebaseUser, fetchedUserData);
-                                                setNeedsEmailVerification(needsVerification);
-
-            // If Firebase email is verified but Firestore is not, update Firestore and authenticate user
-            if (firebaseUser.emailVerified && !fetchedUserData.emailVerified) {
-              try {
-                console.log('🔄 Firebase Auth shows verified but Firestore shows unverified - updating Firestore...');
-                await userService.updateUserData(firebaseUser.uid, { emailVerified: true });
-                // Update local userData to reflect the change
-                setUserData({ ...fetchedUserData, emailVerified: true });
-                console.log('✅ Firestore updated - user is now fully authenticated');
-                // Since email is verified, set authenticated immediately
-                setIsAuthenticated(true);
-                setNeedsEmailVerification(false);
-              } catch (error) {
-                console.error('Failed to update email verification status in Firestore:', error);
-                // Continue with authentication even if Firestore update fails
-                // Firebase verification is what matters for authentication
-                setIsAuthenticated(true);
-                setNeedsEmailVerification(false);
-              }
-            }
-
-            // Set authenticated state based on verification check (skip if already set above)
-            if (!needsVerification && !isAuthenticated) {
-              setIsAuthenticated(true);
-            } else if (needsVerification && isAuthenticated) {
-              // User needs verification, ensure they're not authenticated
-              setIsAuthenticated(false);
-            }
-          } else {
-                        // NEW USER: Immediately set verification requirement to prevent race condition
-            setNeedsEmailVerification(true);
-            setIsAuthenticated(false); // Explicitly set to false for new users
-
-            // User document should already be created by the register function
-            // Only create it here as a fallback if it somehow doesn't exist
-            try {
-              // Get user profile data from Firebase Auth
-              const displayName = firebaseUser.displayName || '';
-              const nameParts = displayName.split(' ');
-              const firstName = nameParts[0] || '';
-              const lastName = nameParts.slice(1).join(' ') || '';
-
-              // Create user document with unverified email status (fallback)
-              await userService.createUser(firebaseUser.uid, {
-                uid: firebaseUser.uid,
-                email: firebaseUser.email || '',
-                firstName: firstName,
-                lastName: lastName,
-                contactNum: '', // Will be updated later if needed
-                studentId: '', // Will be updated later if needed
-                emailVerified: false, // New users need to verify their email
-                createdAt: new Date(),
-                updatedAt: new Date()
-              });
-
-                            // Note: needsEmailVerification is already set to true above
-
-              // Set the newly created user data
-              const newUserData = {
-                uid: firebaseUser.uid,
-                email: firebaseUser.email || '',
-                firstName: firstName,
-                lastName: lastName,
-                contactNum: '',
-                studentId: '',
-                emailVerified: false,
-                createdAt: new Date(),
-                updatedAt: new Date()
-              };
-              setUserData(newUserData);
-
-            } catch (createError) {
-              console.error('Failed to create fallback user document:', createError);
-              // Keep needsEmailVerification as true even if document creation fails
-              setIsAuthenticated(false);
-            }
-          }
-
-          // Set loading to false after successful authentication and data fetch
-          // Only set loading to false after all authentication checks are complete
-          setLoading(false);
-
-          // Initialize notifications for authenticated user (only if email is verified)
-          // For new users, fetch user data again after creating the document
-          let userDataForNotifications = fetchedUserData;
-          if (!fetchedUserData) {
-            // Try to fetch user data again after creating the document
-            try {
-              userDataForNotifications = await authService.getUserData(firebaseUser.uid);
-              setUserData(userDataForNotifications);
-            } catch (error) {
-              console.error('Failed to fetch user data after creation:', error);
-            }
-          }
-
-          if (userDataForNotifications && userDataForNotifications.emailVerified) {
-            try {
-              const pushToken = await notificationService.registerForPushNotifications();
-              if (pushToken) {
-                await notificationService.savePushToken(firebaseUser.uid, pushToken);
-              }
-            } catch (error) {
-              console.error('Error initializing notifications:', error);
-            }
-          }
-
-          // Start monitoring this specific user for ban status changes
-          // Only set up listener if user is authenticated to prevent permission errors during logout
-          if (firebaseUser && firebaseUser.uid && !needsEmailVerification) {
-            const userDocRef = doc(db, 'users', firebaseUser.uid);
-            const banUnsubscribe = onSnapshot(userDocRef,
-              (docSnapshot: any) => {
-                if (docSnapshot.exists()) {
-                  const userData = docSnapshot.data() as UserData & { status?: 'active' | 'deactivated' | 'banned' };
-
-                  // Check if user just got deactivated (with backward compatibility)
-                  if (userData.status === 'deactivated' || userData.status === 'banned') {
-                    // IMMEDIATELY stop listening to prevent permission errors
-                    banUnsubscribe();
-                    banListenerRef.current = null;
-
-                    // Update state
-                    setIsBanned(true);
-                    setBanInfo(userData.banInfo || {});
-
-                    // Logout user immediately when banned
-                    handleImmediateBanLogout(userData);
-                  } else if (userData.status === 'active') {
-                    // User was unbanned
-                    setIsBanned(false);
-                    setBanInfo(null);
-
-                    // Deactivate periodic checks since real-time listener is working
-                    if (smartBanCheckRef.current) {
-                      smartBanCheckRef.current.deactivatePeriodicChecks();
-                    }
-                  }
-                } else {
-                  // Document doesn't exist - account has been deleted
-                  console.log('🚨 User document deleted - account has been deleted from web');
-
-                  // IMMEDIATELY stop listening to prevent permission errors
-                  banUnsubscribe();
-                  banListenerRef.current = null;
-
-                  // Clear all user data and force logout
-                  setUser(null);
-                  setUserData(null);
-                  setIsAuthenticated(false);
-                  setIsBanned(false);
-                  setIsAdmin(false);
-                  setBanInfo(null);
-                  setNeedsEmailVerification(false);
-                  setLoginAttemptFailed(false);
-
-                  // Clear stored credentials
-                  credentialStorage.clearCredentials().catch(error => {
-                    console.warn('Error clearing credentials during account deletion:', error);
-                  });
-
-                  // Force navigation to login by triggering Firebase logout
-                  authService.logout().catch(error => {
-                    console.error('Error during forced logout after account deletion:', error);
-                  });
-                }
-              },
-              (error: any) => {
-                // Error handler - if listener fails, clean up gracefully
-                const isPermissionError = error?.code === 'permission-denied' ||
-                  error?.message?.includes('Missing or insufficient permissions') ||
-                  error?.message?.includes('No document to update') ||
-                  error?.message?.includes('not found') ||
-                  error?.message?.includes('does not exist') ||
-                  error?.code === 'not-found';
-
-                if (isPermissionError && firebaseUser) {
-                  // Permission denied - account may have been deleted from web
-                  console.log('🚨 Permission denied - account may have been deleted from web');
-
-                  // IMMEDIATELY stop listening to prevent further errors
-                  banUnsubscribe();
-                  banListenerRef.current = null;
-
-                  // Clear all user data and force logout
-                  setUser(null);
-                  setUserData(null);
-                  setIsAuthenticated(false);
-                  setIsBanned(false);
-                  setIsAdmin(false);
-                  setBanInfo(null);
-                  setNeedsEmailVerification(false);
-                  setLoginAttemptFailed(false);
-
-                  // Clear stored credentials
-                  credentialStorage.clearCredentials().catch(credentialError => {
-                    console.warn('Error clearing credentials during account deletion:', credentialError);
-                  });
-
-                  // Force logout from Firebase
-                  authService.logout().catch(logoutError => {
-                    console.error('Error during forced logout after account deletion:', logoutError);
-                  });
-                } else {
-                  // For other errors, clean up and start fallback
-                  console.warn('Ban listener error (mobile):', error);
-
-                  // Clean up the listener
-                  banUnsubscribe();
-                  banListenerRef.current = null;
-
-                  // Only start fallback if still authenticated
-                  if (isAuthenticated) {
-                    // Start smart ban check system
-                    const smartBanCheck = startSmartBanCheck();
-                    smartBanCheckRef.current = smartBanCheck;
-                    smartBanCheck.activatePeriodicChecks();
-                  }
-                }
-              }
-            );
-
-            // Store the unsubscribe function for cleanup on logout
-            banListenerRef.current = banUnsubscribe;
-
-            // Deactivate periodic checks since real-time listener is working
-            if (smartBanCheckRef.current) {
-              smartBanCheckRef.current.deactivatePeriodicChecks();
-            }
-          }
-
-        } catch (error: any) {
-          console.error('Error fetching user data:', error);
-          setUserData(null);
-          setIsBanned(false);
-          setBanInfo(null);
-          // Set loading to false even if there's an error fetching user data
-          setLoading(false);
-        }
-      } else {
-        // User logged out or no user - clean up all listeners
-        
-        // Clean up ban listener if it exists
-        if (banListenerRef.current) {
-          banListenerRef.current();
-          banListenerRef.current = null;
-        }
-
-        // Clean up smart ban check if it exists
-        if (smartBanCheckRef.current) {
-          smartBanCheckRef.current.deactivatePeriodicChecks();
-          smartBanCheckRef.current = null;
-        }
-
-        // Reset all auth state immediately when user logs out
         setUser(null);
         setUserData(null);
         setIsAuthenticated(false);
@@ -424,13 +352,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setLoginAttemptFailed(false);
 
         // No authenticated user - try auto-login with improved logic
-        if (!hasAttemptedAutoLogin && !isProcessingAutoLogin) {
-          hasAttemptedAutoLogin = true;
-          isProcessingAutoLogin = true;
+        if (!hasAttemptedAutoLoginRef.current && !isProcessingAutoLoginRef.current) {
+          hasAttemptedAutoLoginRef.current = true;
+          isProcessingAutoLoginRef.current = true;
 
-          
           // Add a small delay to ensure Firebase Auth state is fully settled
-          autoLoginTimeout = setTimeout(async () => {
+          autoLoginTimeoutRef.current = setTimeout(async () => {
             try {
               const autoLoginSuccess = await attemptAutoLogin();
 
@@ -446,7 +373,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               console.error('❌ Auto-login error:', error);
               setLoading(false);
             } finally {
-              isProcessingAutoLogin = false;
+              isProcessingAutoLoginRef.current = false;
             }
           }, 1000);
         } else {
@@ -455,31 +382,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       }
     });
-
+    
+    // Cleanup function
     return () => {
-      unsubscribe();
-
-      // Clean up auto-login timeout
-      if (autoLoginTimeout) {
-        clearTimeout(autoLoginTimeout);
-        autoLoginTimeout = null;
-      }
-
-      // Clean up ban listener on component unmount
-      if (banListenerRef.current) {
-        banListenerRef.current();
-        banListenerRef.current = null;
-      }
-
-      // Clean up smart ban check on component unmount
-      if (smartBanCheckRef.current) {
-        smartBanCheckRef.current.deactivatePeriodicChecks();
-        smartBanCheckRef.current = null;
+      isMounted.current = false;
+      
+      // Firebase will automatically clean up the auth state listener
+      // No need for manual cleanup
+      
+      // No ban listener to clean up - Firebase handles cleanup automatically
+      
+      // Clear any pending timeouts
+      if (autoLoginTimeoutRef.current) {
+        clearTimeout(autoLoginTimeoutRef.current);
+        autoLoginTimeoutRef.current = null;
       }
     };
-  }, []);
+  }, [attemptAutoLogin]);
 
-  const login = async (email: string, password: string): Promise<void> => {
+  const login = async (email: string, password: string, rememberMe: boolean = false): Promise<void> => {
     // Reset login attempt flag and any previous auth state before attempting login
     setLoginAttemptFailed(false);
     setUser(null);
@@ -493,14 +414,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
 
+      // Clear any existing credentials if rememberMe is false
+      if (!rememberMe) {
+        try {
+          await credentialStorage.clearCredentials();
+        } catch (error) {
+          // Failed to clear credentials
+        }
+      }
+
       // First check if user exists and get their data BEFORE Firebase login
       // We need to check verification status before allowing Firebase Auth login
       try {
-        // Try to find user document by email (this is a workaround since we can't query by email directly)
-        // For now, we'll proceed with Firebase login and check immediately after
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
-
         // Get user data to check verification status
         const userData = await authService.getUserData(user.uid);
 
@@ -516,24 +443,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setIsAuthenticated(false); // Explicitly set to false
             setNeedsEmailVerification(true);
 
-            // Store credentials for auto-login (even for unverified users)
-            try {
-              await credentialStorage.saveCredentials(email, password);
-            } catch (storageError) {
-              console.warn('Failed to store credentials for auto-login:', storageError);
-              // Continue with verification flow even if credential storage fails
+            // Store credentials for auto-login if rememberMe is true (even for unverified users)
+            if (rememberMe) {
+              try {
+                await credentialStorage.saveCredentials(email, password);
+              } catch (storageError) {
+                // Failed to store credentials for auto-login
+                // Continue with verification flow even if credential storage fails
+              }
             }
 
             // Throw error to prevent normal login flow
             throw new Error('EMAIL_VERIFICATION_REQUIRED');
           } else {
-            // Store credentials for auto-login
-            try {
-              await credentialStorage.saveCredentials(email, password);
-            } catch (storageError) {
-              console.warn('Failed to store credentials for auto-login:', storageError);
-              // Continue with login even if credential storage fails
+            // Store credentials for auto-login if rememberMe is true
+            if (rememberMe) {
+              try {
+                await credentialStorage.saveCredentials(email, password);
+              } catch (storageError) {
+                // Failed to store credentials for auto-login
+                // Continue with login even if credential storage fails
+              }
             }
+            
+            // Explicitly set authentication state for verified users
+            setUser(user);
+            setUserData(userData);
+            setIsAuthenticated(true);
+            setNeedsEmailVerification(false);
+            setIsBanned(false);
+            setLoginAttemptFailed(false);
           }
         } else {
           // User document should already exist from registration
@@ -626,76 +565,135 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Set up notification subscription when user is authenticated
+  useEffect(() => {
+    if (user && isAuthenticated && !isBanned) {
+      try {
+        // Clean up any existing subscription
+        if (notificationUnsubscribeRef.current) {
+          notificationUnsubscribeRef.current();
+          notificationUnsubscribeRef.current = null;
+        }
+        
+        const unsubscribe = notificationSubscriptionService.setupSubscriptionListener(
+          user.uid,
+          (subscription: { id: string } | null) => {
+            if (subscription) {
+              console.log('📱 Notification subscription updated:', subscription);
+            } else {
+              console.log('📱 No notification subscription found, creating default...');
+              notificationSubscriptionService.ensureUserHasSubscription(user.uid);
+            }
+          },
+          (error: Error) => {
+            console.error('❌ Notification subscription error:', error);
+          }
+        );
+        
+        // Store the unsubscribe function in the ref
+        notificationUnsubscribeRef.current = unsubscribe;
+
+        // Clean up subscription on unmount
+        return () => {
+          if (notificationUnsubscribeRef.current) {
+            notificationUnsubscribeRef.current();
+            notificationUnsubscribeRef.current = null;
+          }
+        };
+      } catch (error) {
+        console.error('❌ Error setting up notification subscription:', error);
+      }
+    }
+  }, [user, isAuthenticated, isBanned]);
+
   const logout = async (): Promise<void> => {
-    console.log('Logout initiated');
-    try {
-      setLoading(true);
-      
-      // 1. Clean up ban listener to prevent permission errors during logout
-      if (banListenerRef.current) {
-        console.log('Cleaning up ban listener');
+    console.log('🚀 Starting logout process...');
+    
+    // Set loading state
+    setLoading(true);
+    
+    // Clean up ban listener first
+    if (banListenerRef.current) {
+      console.log('0. Cleaning up ban listener...');
+      try {
         banListenerRef.current();
         banListenerRef.current = null;
-      }
-      
-      // 2. Clear stored credentials for auto-login
-      try {
-        console.log('Clearing stored credentials');
-        await credentialStorage.clearCredentials();
-      } catch (credentialError) {
-        console.warn('Error clearing stored credentials:', credentialError);
-        // Continue with logout even if clearing credentials fails
-      }
-      
-      // 3. Clear stored user preferences and data
-      try {
-        console.log('Clearing AsyncStorage data');
-        await AsyncStorage.multiRemove([
-          'user_preferences',
-          'search_history',
-          'recent_items',
-          'filter_preferences',
-          'sort_preferences',
-          'cached_posts',
-          'user_profile_cache',
-          'message_cache',
-          'coordinates_cache'
-        ]);
-      } catch (storageError) {
-        console.log('Error clearing some stored data:', storageError);
-        // Continue with logout even if clearing storage fails
-      }
-      
-      // 4. Sign out from Firebase
-      try {
-        console.log('Signing out from Firebase');
-        await authService.logout();
+        console.log('✅ Ban listener cleaned up');
       } catch (error) {
-        console.error('Error during Firebase sign out:', error);
-        // Continue with local state cleanup even if Firebase sign out fails
+        console.warn('⚠️ Error cleaning up ban listener:', error);
       }
-      
-      // 5. Force reset auth state immediately
-      console.log('Resetting auth state');
-      setUser(null);
-      setUserData(null);
-      setIsAuthenticated(false);
-      setIsBanned(false);
-      setIsAdmin(false);
-      setBanInfo(null);
-      setNeedsEmailVerification(false);
-      
-      console.log('Logout completed successfully');
-    } catch (error: any) {
-      console.error('Logout error:', error);
-      // Even if logout fails, ensure loading state is reset
-      setLoading(false);
-      throw new Error(error.message || 'Failed to logout');
-    } finally {
-      // Ensure loading state is reset in all cases
-      console.log('Setting loading to false');
-      setLoading(false);
     }
+    
+    // Clean up notification subscription
+    if (notificationUnsubscribeRef.current) {
+      console.log('1. Cleaning up notification subscription...');
+      try {
+        notificationUnsubscribeRef.current();
+        notificationUnsubscribeRef.current = null;
+        console.log('✅ Notification subscription cleaned up');
+      } catch (error) {
+        console.warn('⚠️ Error cleaning up notification subscription:', error);
+      }
+    }
+    
+    // Reset auth state
+    setUser(null);
+    setUserData(null);
+    setIsAuthenticated(false);
+    setIsBanned(false);
+    setBanInfo(null);
+    setNeedsEmailVerification(false);
+    setLoginAttemptFailed(false);
+    
+    // Start cleanup in the background
+    (async () => {
+      try {
+        // 2. Sign out from Firebase
+        console.log('2. Signing out from Firebase...');
+        try {
+          // Use Promise.race to prevent hanging on Firebase sign out
+          await Promise.race([
+            authService.logout(),
+            new Promise(resolve => setTimeout(resolve, 3000)) // 3s timeout
+          ]);
+          console.log('✅ Successfully signed out from Firebase');
+        } catch (error) {
+          console.warn('⚠️ Non-critical error during Firebase sign out:', error);
+        }
+        
+        // 2. Clear stored credentials (non-blocking)
+        console.log('2. Starting credential cleanup...');
+        try {
+          if (typeof credentialStorage.clearCredentials === 'function') {
+            await credentialStorage.clearCredentials();
+            console.log('✅ Credentials cleared successfully');
+          }
+        } catch (error) {
+          console.warn('⚠️ Error clearing credentials:', error);
+        }
+
+        // 3. Clear stored user data (non-blocking)
+        console.log('3. Starting async data cleanup...');
+        try {
+          const storageKeys = [
+            'user_preferences', 'search_history', 'recent_items',
+            'filter_preferences', 'sort_preferences', 'cached_posts',
+            'user_profile_cache', 'message_cache', 'coordinates_cache'
+          ];
+          await AsyncStorage.multiRemove(storageKeys);
+          console.log('✅ AsyncStorage cleared');
+        } catch (error) {
+          console.warn('⚠️ Error clearing AsyncStorage:', error);
+        }
+
+        console.log('✅ Logout cleanup completed');
+      } catch (error) {
+        console.error('❌ Error during background cleanup:', error);
+      } finally {
+        console.log('🏁 Logout process completed');
+        setLoading(false);
+      }
+    })();
   };
 
   const refreshUserData = async (): Promise<void> => {
@@ -910,11 +908,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const handleImmediateBanLogout = async (bannedUserData: UserData & { status?: 'active' | 'deactivated' | 'banned' }) => {
     try {
-      // Clean up ban listener before logout to prevent permission errors
-      if (banListenerRef.current) {
-        banListenerRef.current();
-        banListenerRef.current = null;
-      }
+      // Cleanup handled by Firebase - no action needed
 
       // Clear stored credentials for auto-login (banned users shouldn't auto-login)
       try {
@@ -943,12 +937,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('Error during immediate ban logout (mobile):', error);
 
-      // Clean up ban listener even if logout fails
-      if (banListenerRef.current) {
-        banListenerRef.current();
-        banListenerRef.current = null;
-      }
-
+      // No ban listener to clean up
+      
       // Clear credentials even if logout fails
       try {
         await credentialStorage.clearCredentials();
@@ -1089,26 +1079,147 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   };
 
+  // Define all callbacks
+  const loginHandler = useCallback(async (email: string, password: string, rememberMe = false) => {
+    try {
+      setLoginAttemptFailed(false);
+      const userCredential = await authService.login(email, password);
+      
+      if (rememberMe) {
+        await credentialStorage.saveCredentials(email, password);
+      } else {
+        await credentialStorage.clearCredentials();
+      }
+      
+      // The rest of the auth state will be handled by the auth state listener
+    } catch (error) {
+      console.error('Login error:', error);
+      setLoginAttemptFailed(true);
+      throw error;
+    }
+  }, []);
+  
+  const logoutHandler = useCallback(async () => {
+    try {
+      console.log('Starting logout process...');
+      
+      // Store user ID for cleanup before resetting state
+      const userId = user?.uid;
+      
+      // 1. Clear any stored credentials on logout
+      await credentialStorage.clearCredentials();
+      
+      // 2. Clear any pending timeouts
+      if (autoLoginTimeoutRef.current) {
+        clearTimeout(autoLoginTimeoutRef.current);
+        autoLoginTimeoutRef.current = null;
+      }
+      
+      // 3. Clean up notifications before signing out
+      if (userId) {
+        console.log(`Clearing notifications for user: ${userId}`);
+        try {
+          await notificationService.deleteAllNotifications(userId);
+          console.log('✅ Notifications cleared successfully');
+        } catch (notifError) {
+          console.warn('Error clearing notifications:', notifError);
+        }
+      }
+      
+      // 4. Sign out from Firebase (this will trigger the auth state listener cleanup)
+      console.log('Signing out from Firebase...');
+      await authService.logout();
+      
+      // 5. Reset all auth state
+      console.log('Resetting auth state...');
+      setUser(null);
+      setUserData(null);
+      setIsAuthenticated(false);
+      setIsBanned(false);
+      setIsAdmin(false);
+      setBanInfo(null);
+      setShowBanNotification(false);
+      setNeedsEmailVerification(false);
+    } catch (error) {
+      console.error('Logout error:', error);
+      throw error;
+    }
+  }, [user?.uid]);
+  
+  const refreshUserDataHandler = useCallback(async () => {
+    if (!user?.uid) return;
+    try {
+      const userDoc = await userService.getUserData(user.uid);
+      if (userDoc) {
+        setUserData(userDoc);
+        
+        // Update ban status using the status field
+        const isUserBanned = userDoc.status === 'banned';
+        setIsBanned(isUserBanned);
+        
+        if (isUserBanned) {
+          // Use the banInfo object from userDoc if it exists, or create a default one
+          const banInfo = userDoc.banInfo || {};
+          setBanInfo({
+            reason: banInfo.reason || 'Account suspended',
+            bannedAt: banInfo.bannedAt?.toDate?.() || null,
+            bannedUntil: banInfo.bannedUntil?.toDate?.() || null,
+            isPermanent: banInfo.isPermanent || false,
+            adminNote: banInfo.adminNote || ''
+          });
+          setShowBanNotification(true);
+        } else {
+          setBanInfo(null);
+          setShowBanNotification(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+    }
+  }, [user?.uid]);
+  
+  const handleEmailVerificationCompleteHandler = useCallback(async () => {
+    setNeedsEmailVerification(false);
+    // Refresh user data to get the latest email verification status
+    await refreshUserDataHandler();
+  }, [refreshUserDataHandler]);
+
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    isAuthenticated,
+    user,
+    userData,
+    loading,
+    isBanned,
+    isAdmin,
+    banInfo,
+    showBanNotification,
+    setShowBanNotification,
+    needsEmailVerification,
+    loginAttemptFailed,
+    login: loginHandler,
+    logout: logoutHandler,
+    refreshUserData: refreshUserDataHandler,
+    handleEmailVerificationComplete: handleEmailVerificationCompleteHandler
+  }), [
+    isAuthenticated,
+    user,
+    userData,
+    loading,
+    isBanned,
+    isAdmin,
+    banInfo,
+    showBanNotification,
+    needsEmailVerification,
+    loginAttemptFailed,
+    loginHandler,
+    logoutHandler,
+    refreshUserDataHandler,
+    handleEmailVerificationCompleteHandler
+  ]);
+
   return (
-    <AuthContext.Provider
-      value={{
-        isAuthenticated,
-        user,
-        userData,
-        loading,
-        isBanned,
-        isAdmin,
-        banInfo,
-        showBanNotification,
-        setShowBanNotification,
-        needsEmailVerification,
-        loginAttemptFailed,
-        login,
-        logout,
-        refreshUserData,
-        handleEmailVerificationComplete
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
