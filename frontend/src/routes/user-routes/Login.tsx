@@ -5,6 +5,8 @@ import InputFieldComp from "@/components/forms/InputFieldComp";
 import PasswordInput from "@/components/forms/InputFieldWithEye";
 import { useAuth } from "@/context/AuthContext";
 import { authService } from "@/utils/firebase";
+import UserSurvey from "../../assets/user_sruvey.png";
+import { LuArrowDown } from "react-icons/lu";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -220,6 +222,83 @@ export default function Login() {
                   Register here
                 </Link>
               </h1>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center gap-3 mb-5">
+          <h1 className="text-sm text-gray-500">More About Us</h1>
+          <LuArrowDown className="stroke-[1.5px] text-gray-500 animate-updown duration-500" />
+        </div>
+      </div>
+
+      <div className=" mb-15">
+        <div className="grid grid-cols-1">
+          <div className=" space-y-6 lg:space-y-7">
+            {/* title text */}
+            <h1 className="font-bold font-manrope text-xl text-center lg:text-2xl">
+              Download our <span className="text-brand">UniClaim</span> App
+            </h1>
+            {/* qr code image */}
+            <div className="flex items-center justify-center">
+              <img
+                src={UserSurvey}
+                alt="survey_qrcode"
+                className="size-45 lg:size-50 hidden"
+              />
+              <div className="bg-yellow-100 size-45 lg:size-50 rounded-sm flex items-center justify-center">
+                <p className="text-sm text-center px-8">
+                  UniClaim Mobile App Coming Real Soon
+                </p>
+              </div>
+            </div>
+            {/* description */}
+            <div className="space-y-3 flex items-center justify-center flex-col px-5">
+              <p className="text-sm text-center font-inter w-full md:text-base max-w-lg">
+                Scan the qr code or click the link to download the UniClaim app.
+              </p>
+              <a
+                href="/path/to/your/file.apk"
+                download
+                className="underline text-sm font-medium text-teal-600 cursor-pointer block text-center hover:text-teal-700 transition-colors duration-300"
+              >
+                Soon to be Available, Stay Tuned
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center">
+          <div className="h-0.5 w-full bg-gray-200 rounded-full my-15 mx-5 max-w-3xl"></div>
+        </div>
+
+        <div className="grid grid-cols-1">
+          <div className=" space-y-6 lg:space-y-7">
+            {/* title text */}
+            <h1 className="font-bold font-manrope text-xl text-center lg:text-2xl">
+              Take Our <span className="text-brand">Survey</span>
+            </h1>
+            {/* qr code image */}
+            <div className="flex items-center justify-center">
+              <img
+                src={UserSurvey}
+                alt="survey_qrcode"
+                className="size-45 lg:size-50"
+              />
+            </div>
+            {/* description */}
+            <div className="space-y-3 flex items-center justify-center flex-col px-5">
+              <p className="text-sm text-center font-inter w-full md:text-base max-w-lg">
+                Please tell us what you think about our system by scanning the
+                QR code or clicking the link to take the survey.
+              </p>
+              <a
+                href="https://docs.google.com/forms/d/e/1FAIpQLSdcKHISn8yHb-muHPqEzJkDS4bflXdZm98Mf6T6BWZvVl8xkg/viewform"
+                target="_blank"
+                className="underline text-sm font-medium text-teal-600 cursor-pointer block text-center hover:text-teal-700 transition-colors duration-300"
+              >
+                Click Here to Take the Survey
+              </a>
             </div>
           </div>
         </div>

@@ -77,6 +77,20 @@ body {
     }
   }
 
+  @keyframes updown {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  .animate-updown {
+    animation: updown 1s ease-in-out infinite;
+  }
+
   .animate-soft-blink {
     animation: soft-blink 1.6s ease-in-out infinite;
   }
