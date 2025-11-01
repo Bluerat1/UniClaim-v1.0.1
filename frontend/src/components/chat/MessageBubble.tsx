@@ -1111,7 +1111,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               <div className="bg-blue-50 p-4 rounded-lg">
                 <p className="text-blue-800">
                   To complete your claim, please upload a clear photo of your
-                  government-issued ID for verification.
+                  USTP Student ID for verification.
                 </p>
                 <p className="text-sm text-blue-700 mt-2">
                   Your ID will only be used for verification purposes and will
