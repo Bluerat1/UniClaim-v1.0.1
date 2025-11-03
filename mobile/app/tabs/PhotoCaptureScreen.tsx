@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,22 +7,30 @@ import {
   Alert,
   ActivityIndicator,
   Image,
-} from 'react-native';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import PageLayout from '../../layout/PageLayout';
-import { useAuth } from '../../context/AuthContext';
-import { useMessage } from '../../context/MessageContext';
-import type { RootStackParamList } from '../../types/type';
+} from "react-native";
+import {
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import PageLayout from "../../layout/PageLayout";
+import { useAuth } from "../../context/AuthContext";
+import { useMessage } from "../../context/MessageContext";
+import type { RootStackParamList } from "../../types/type";
 
-type PhotoCaptureScreenRouteProp = RouteProp<RootStackParamList, 'PhotoCaptureScreen'>;
-type PhotoCaptureScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type PhotoCaptureScreenRouteProp = RouteProp<
+  RootStackParamList,
+  "PhotoCaptureScreen"
+>;
+type PhotoCaptureScreenNavigationProp =
+  NativeStackNavigationProp<RootStackParamList>;
 
 interface PhotoData {
   uri: string;
-  type: 'id' | 'evidence';
+  type: "id" | "evidence";
   description?: string;
 }
 
@@ -31,7 +39,8 @@ interface PhotoData {
 export default function PhotoCaptureScreen() {
   const navigation = useNavigation<PhotoCaptureScreenNavigationProp>();
   const route = useRoute<PhotoCaptureScreenRouteProp>();
-  const { conversationId, postId, postTitle, postOwnerId, claimReason } = route.params;
+  const { conversationId, postId, postTitle, postOwnerId, claimReason } =
+    route.params;
   const { user, userData } = useAuth();
   const { sendClaimRequest } = useMessage();
 
@@ -51,11 +60,12 @@ export default function PhotoCaptureScreen() {
     const newErrors: typeof errors = {};
 
     if (!idPhoto) {
-      newErrors.idPhoto = 'Please take a photo of your ID';
+      newErrors.idPhoto = "Please take a photo of your ID";
     }
 
     if (evidencePhotos.length === 0) {
-      newErrors.evidencePhotos = 'Please take at least one photo showing proof of ownership';
+      newErrors.evidencePhotos =
+        "Please take at least one photo showing proof of ownership";
     }
 
     setErrors(newErrors);
@@ -64,18 +74,18 @@ export default function PhotoCaptureScreen() {
 
   const requestPermissions = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
+    if (status !== "granted") {
       Alert.alert(
-        'Permission Required',
-        'Please grant camera and photo library permissions to continue.',
-        [{ text: 'OK' }]
+        "Permission Required",
+        "Please grant camera and photo library permissions to continue.",
+        [{ text: "OK" }]
       );
       return false;
     }
     return true;
   };
 
-  const takePhoto = async (type: 'id' | 'evidence') => {
+  const takePhoto = async (type: "id" | "evidence") => {
     const hasPermission = await requestPermissions();
     if (!hasPermission) return;
 
@@ -92,28 +102,34 @@ export default function PhotoCaptureScreen() {
           type,
         };
 
-        if (type === 'id') {
+        if (type === "id") {
           // Check if ID photo already exists
           if (idPhoto) {
-            Alert.alert('Photo Limit Reached', 'You can only upload 1 ID photo. Please remove the existing photo first.');
+            Alert.alert(
+              "Photo Limit Reached",
+              "You can only upload 1 ID photo. Please remove the existing photo first."
+            );
             return;
           }
           setIdPhoto(photoData);
         } else {
           // Check if maximum evidence photos reached
           if (evidencePhotos.length >= 3) {
-            Alert.alert('Photo Limit Reached', 'You can only upload a maximum of 3 evidence photos.');
+            Alert.alert(
+              "Photo Limit Reached",
+              "You can only upload a maximum of 3 evidence photos."
+            );
             return;
           }
-          setEvidencePhotos(prev => [...prev, photoData]);
+          setEvidencePhotos((prev) => [...prev, photoData]);
         }
       }
     } catch {
-      Alert.alert('Error', 'Failed to take photo. Please try again.');
+      Alert.alert("Error", "Failed to take photo. Please try again.");
     }
   };
 
-  const selectFromGallery = async (type: 'id' | 'evidence') => {
+  const selectFromGallery = async (type: "id" | "evidence") => {
     const hasPermission = await requestPermissions();
     if (!hasPermission) return;
 
@@ -130,32 +146,38 @@ export default function PhotoCaptureScreen() {
           type,
         };
 
-        if (type === 'id') {
+        if (type === "id") {
           // Check if ID photo already exists
           if (idPhoto) {
-            Alert.alert('Photo Limit Reached', 'You can only upload 1 ID photo. Please remove the existing photo first.');
+            Alert.alert(
+              "Photo Limit Reached",
+              "You can only upload 1 ID photo. Please remove the existing photo first."
+            );
             return;
           }
           setIdPhoto(photoData);
         } else {
           // Check if maximum evidence photos reached
           if (evidencePhotos.length >= 3) {
-            Alert.alert('Photo Limit Reached', 'You can only upload a maximum of 3 evidence photos.');
+            Alert.alert(
+              "Photo Limit Reached",
+              "You can only upload a maximum of 3 evidence photos."
+            );
             return;
           }
-          setEvidencePhotos(prev => [...prev, photoData]);
+          setEvidencePhotos((prev) => [...prev, photoData]);
         }
       }
     } catch {
-      Alert.alert('Error', 'Failed to select photo. Please try again.');
+      Alert.alert("Error", "Failed to select photo. Please try again.");
     }
   };
 
-  const removePhoto = (type: 'id' | 'evidence', index?: number) => {
-    if (type === 'id') {
+  const removePhoto = (type: "id" | "evidence", index?: number) => {
+    if (type === "id") {
       setIdPhoto(null);
     } else if (index !== undefined) {
-      setEvidencePhotos(prev => prev.filter((_, i) => i !== index));
+      setEvidencePhotos((prev) => prev.filter((_, i) => i !== index));
     }
   };
 
@@ -165,7 +187,7 @@ export default function PhotoCaptureScreen() {
     }
 
     if (!user || !userData) {
-      Alert.alert('Error', 'User data not available');
+      Alert.alert("Error", "User data not available");
       return;
     }
 
@@ -173,26 +195,36 @@ export default function PhotoCaptureScreen() {
 
     try {
       // Upload ID photo to Cloudinary
-      let idPhotoUrl = '';
+      let idPhotoUrl = "";
       if (idPhoto) {
         setUploadProgress(25);
-        const { cloudinaryService } = await import('../../utils/cloudinary');
-        const uploadedUrls = await cloudinaryService.uploadImages([idPhoto.uri], 'id_photos');
+        const { cloudinaryService } = await import("../../utils/cloudinary");
+        const uploadedUrls = await cloudinaryService.uploadImages(
+          [idPhoto.uri],
+          "id_photos"
+        );
         idPhotoUrl = uploadedUrls[0];
         setUploadProgress(50);
       }
 
       // Upload evidence photos to Cloudinary
-      let evidencePhotoUrls: { url: string; uploadedAt: any; description?: string }[] = [];
+      let evidencePhotoUrls: {
+        url: string;
+        uploadedAt: any;
+        description?: string;
+      }[] = [];
       if (evidencePhotos.length > 0) {
-        const { cloudinaryService } = await import('../../utils/cloudinary');
-        const photoUris = evidencePhotos.map(photo => photo.uri);
-        const uploadedUrls = await cloudinaryService.uploadImages(photoUris, 'evidence_photos');
-        
+        const { cloudinaryService } = await import("../../utils/cloudinary");
+        const photoUris = evidencePhotos.map((photo) => photo.uri);
+        const uploadedUrls = await cloudinaryService.uploadImages(
+          photoUris,
+          "evidence_photos"
+        );
+
         evidencePhotoUrls = uploadedUrls.map((url, index) => ({
           url,
           uploadedAt: new Date(),
-          description: evidencePhotos[index].description || 'Evidence photo'
+          description: evidencePhotos[index].description || "Evidence photo",
         }));
         setUploadProgress(75);
       }
@@ -203,7 +235,7 @@ export default function PhotoCaptureScreen() {
         conversationId,
         user.uid,
         `${userData.firstName} ${userData.lastName}`,
-        userData.profilePicture || '',
+        userData.profilePicture || "",
         postId,
         postTitle,
         claimReason,
@@ -213,14 +245,14 @@ export default function PhotoCaptureScreen() {
       setUploadProgress(100);
 
       Alert.alert(
-        'Success',
-        'Claim request sent successfully! The post owner will review your claim.',
+        "Success",
+        "Claim request sent successfully! The post owner will review your claim.",
         [
           {
-            text: 'OK',
+            text: "OK",
             onPress: () => {
               // Navigate back to chat screen
-              navigation.navigate('Chat', {
+              navigation.navigate("Chat", {
                 conversationId,
                 postId,
                 postTitle,
@@ -232,8 +264,11 @@ export default function PhotoCaptureScreen() {
         ]
       );
     } catch (error: any) {
-      console.error('Failed to send claim request:', error);
-      Alert.alert('Error', error.message || 'Failed to send claim request. Please try again.');
+      console.error("Failed to send claim request:", error);
+      Alert.alert(
+        "Error",
+        error.message || "Failed to send claim request. Please try again."
+      );
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -243,11 +278,15 @@ export default function PhotoCaptureScreen() {
   const handleBack = () => {
     if (idPhoto || evidencePhotos.length > 0) {
       Alert.alert(
-        'Discard Photos?',
-        'You have taken photos. Are you sure you want to go back?',
+        "Discard Photos?",
+        "You have taken photos. Are you sure you want to go back?",
         [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Discard', style: 'destructive', onPress: () => navigation.goBack() },
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Discard",
+            style: "destructive",
+            onPress: () => navigation.goBack(),
+          },
         ]
       );
     } else {
@@ -258,7 +297,7 @@ export default function PhotoCaptureScreen() {
   const renderPhotoSection = (
     title: string,
     description: string,
-    type: 'id' | 'evidence',
+    type: "id" | "evidence",
     photo: PhotoData | null,
     photos?: PhotoData[]
   ) => (
@@ -266,7 +305,7 @@ export default function PhotoCaptureScreen() {
       <Text className="text-base font-medium text-gray-800 mb-2">{title}</Text>
       <Text className="text-sm text-gray-600 mb-4">{description}</Text>
 
-      {type === 'id' ? (
+      {type === "id" ? (
         // ID Photo Section
         <View>
           {idPhoto ? (
@@ -277,7 +316,7 @@ export default function PhotoCaptureScreen() {
                 resizeMode="cover"
               />
               <TouchableOpacity
-                onPress={() => removePhoto('id')}
+                onPress={() => removePhoto("id")}
                 className="absolute top-2 right-2 bg-red-500 rounded-full p-1"
               >
                 <Ionicons name="close" size={16} color="white" />
@@ -286,26 +325,28 @@ export default function PhotoCaptureScreen() {
           ) : (
             <View className="border-2 border-dashed border-gray-300 rounded-lg p-6 items-center">
               <Ionicons name="camera" size={32} color="#9CA3AF" />
-              <Text className="text-gray-500 mt-2 text-center">No photo taken</Text>
+              <Text className="text-gray-500 mt-2 text-center">
+                No photo taken
+              </Text>
             </View>
           )}
 
           <View className="flex-row gap-3 mt-4">
             <TouchableOpacity
-              onPress={() => takePhoto('id')}
+              onPress={() => takePhoto("id")}
               disabled={!!idPhoto}
               className={`flex-1 py-3 rounded-lg items-center ${
-                idPhoto ? 'bg-gray-400' : 'bg-blue-500'
+                idPhoto ? "bg-gray-400" : "bg-blue-500"
               }`}
             >
               <Ionicons name="camera" size={20} color="white" />
               <Text className="text-white font-medium mt-1">Take Photo</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => selectFromGallery('id')}
+              onPress={() => selectFromGallery("id")}
               disabled={!!idPhoto}
               className={`flex-1 py-3 rounded-lg items-center ${
-                idPhoto ? 'bg-gray-400' : 'bg-gray-500'
+                idPhoto ? "bg-gray-400" : "bg-gray-500"
               }`}
             >
               <Ionicons name="images" size={20} color="white" />
@@ -321,7 +362,11 @@ export default function PhotoCaptureScreen() {
         // Evidence Photos Section
         <View>
           {evidencePhotos.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              className="mb-4"
+            >
               {evidencePhotos.map((photo, index) => (
                 <View key={index} className="relative mr-3">
                   <Image
@@ -330,7 +375,7 @@ export default function PhotoCaptureScreen() {
                     resizeMode="cover"
                   />
                   <TouchableOpacity
-                    onPress={() => removePhoto('evidence', index)}
+                    onPress={() => removePhoto("evidence", index)}
                     className="absolute top-1 right-1 bg-red-500 rounded-full p-1"
                   >
                     <Ionicons name="close" size={12} color="white" />
@@ -341,26 +386,28 @@ export default function PhotoCaptureScreen() {
           ) : (
             <View className="border-2 border-dashed border-gray-300 rounded-lg p-6 items-center">
               <Ionicons name="images" size={32} color="#9CA3AF" />
-              <Text className="text-gray-500 mt-2 text-center">No photos taken</Text>
+              <Text className="text-gray-500 mt-2 text-center">
+                No photos taken
+              </Text>
             </View>
           )}
 
           <View className="flex-row gap-3">
             <TouchableOpacity
-              onPress={() => takePhoto('evidence')}
+              onPress={() => takePhoto("evidence")}
               disabled={evidencePhotos.length >= 3}
               className={`flex-1 py-3 rounded-lg items-center ${
-                evidencePhotos.length >= 3 ? 'bg-gray-400' : 'bg-blue-500'
+                evidencePhotos.length >= 3 ? "bg-gray-400" : "bg-blue-500"
               }`}
             >
               <Ionicons name="camera" size={20} color="white" />
               <Text className="text-white font-medium mt-1">Take Photo</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => selectFromGallery('evidence')}
+              onPress={() => selectFromGallery("evidence")}
               disabled={evidencePhotos.length >= 3}
               className={`flex-1 py-3 rounded-lg items-center ${
-                evidencePhotos.length >= 3 ? 'bg-gray-400' : 'bg-gray-500'
+                evidencePhotos.length >= 3 ? "bg-gray-400" : "bg-gray-500"
               }`}
             >
               <Ionicons name="images" size={20} color="white" />
@@ -369,7 +416,9 @@ export default function PhotoCaptureScreen() {
           </View>
 
           {errors.evidencePhotos && (
-            <Text className="text-red-500 text-sm mt-2">{errors.evidencePhotos}</Text>
+            <Text className="text-red-500 text-sm mt-2">
+              {errors.evidencePhotos}
+            </Text>
           )}
         </View>
       )}
@@ -392,55 +441,57 @@ export default function PhotoCaptureScreen() {
         {/* Item Info */}
         <View className="bg-white rounded-lg p-4 mb-6 shadow-sm">
           <Text className="text-sm text-gray-500 mb-1">Claiming Item</Text>
-          <Text className="text-lg font-semibold text-gray-800">{postTitle}</Text>
+          <Text className="text-lg font-semibold text-gray-800">
+            {postTitle}
+          </Text>
         </View>
 
         {/* ID Photo Section */}
         {renderPhotoSection(
-          'ID Photo',
-          'Take a clear photo of your government-issued ID or student ID to verify your identity.',
-          'id',
+          "ID Photo",
+          "Take a clear photo of your USTP Student ID to verify your identity.",
+          "id",
           idPhoto
         )}
 
         {/* Evidence Photos Section */}
         {renderPhotoSection(
-          'Proof of Ownership',
+          "Proof of Ownership",
           `Take photos showing proof that this item belongs to you (e.g., receipts, serial numbers, distinctive marks). ${evidencePhotos.length}/3 photos taken.`,
-          'evidence',
+          "evidence",
           null,
           evidencePhotos
         )}
 
-                 {/* Photo Guidelines */}
-         <View className="bg-yellow-50 rounded-lg p-4 mb-6 border border-yellow-200">
-           <View className="flex-row items-start">
-             <Ionicons name="warning" size={20} color="#D97706" />
-             <View className="ml-3 flex-1">
-               <Text className="text-yellow-800 font-medium mb-2">
-                 Photo Guidelines
-               </Text>
-               <Text className="text-yellow-700 text-sm">
-                 • Ensure photos are clear and well-lit
-               </Text>
-               <Text className="text-yellow-700 text-sm">
-                 • ID photo should show your name clearly
-               </Text>
-               <Text className="text-yellow-700 text-sm">
-                 • Maximum of 1 ID photo allowed
-               </Text>
-               <Text className="text-yellow-700 text-sm">
-                 • Evidence photos should clearly show proof of ownership
-               </Text>
-               <Text className="text-yellow-700 text-sm">
-                 • Maximum of 3 evidence photos allowed
-               </Text>
-               <Text className="text-yellow-700 text-sm">
-                 • Full photos will be sent - no cropping required
-               </Text>
-             </View>
-           </View>
-         </View>
+        {/* Photo Guidelines */}
+        <View className="bg-yellow-50 rounded-lg p-4 mb-6 border border-yellow-200">
+          <View className="flex-row items-start">
+            <Ionicons name="warning" size={20} color="#D97706" />
+            <View className="ml-3 flex-1">
+              <Text className="text-yellow-800 font-medium mb-2">
+                Photo Guidelines
+              </Text>
+              <Text className="text-yellow-700 text-sm">
+                • Ensure photos are clear and well-lit
+              </Text>
+              <Text className="text-yellow-700 text-sm">
+                • ID photo should show your name clearly
+              </Text>
+              <Text className="text-yellow-700 text-sm">
+                • Maximum of 1 ID photo allowed
+              </Text>
+              <Text className="text-yellow-700 text-sm">
+                • Evidence photos should clearly show proof of ownership
+              </Text>
+              <Text className="text-yellow-700 text-sm">
+                • Maximum of 3 evidence photos allowed
+              </Text>
+              <Text className="text-yellow-700 text-sm">
+                • Full photos will be sent - no cropping required
+              </Text>
+            </View>
+          </View>
+        </View>
       </ScrollView>
 
       {/* Submit Button */}
@@ -449,21 +500,23 @@ export default function PhotoCaptureScreen() {
           onPress={handleSubmit}
           disabled={isUploading}
           className={`py-3 rounded-lg items-center ${
-            isUploading ? 'bg-gray-400' : 'bg-blue-500'
+            isUploading ? "bg-gray-400" : "bg-blue-500"
           }`}
         >
-                     {isUploading ? (
-             <View className="flex-row items-center">
-               <ActivityIndicator size="small" color="white" />
-               <Text className="text-white font-medium ml-2">
-                 {uploadProgress < 100 ? `Uploading... ${uploadProgress}%` : 'Sending Claim...'}
-               </Text>
-             </View>
-           ) : (
-             <Text className="text-white font-medium text-base">
-               Send Claim Request
-             </Text>
-           )}
+          {isUploading ? (
+            <View className="flex-row items-center">
+              <ActivityIndicator size="small" color="white" />
+              <Text className="text-white font-medium ml-2">
+                {uploadProgress < 100
+                  ? `Uploading... ${uploadProgress}%`
+                  : "Sending Claim..."}
+              </Text>
+            </View>
+          ) : (
+            <Text className="text-white font-medium text-base">
+              Send Claim Request
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </PageLayout>
