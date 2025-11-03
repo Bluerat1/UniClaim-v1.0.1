@@ -13,6 +13,38 @@ import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 // Define valid toast types
 type ToastType = "success" | "error" | "info" | "warning";
 
+interface UserInfo {
+  uid: string;
+  displayName?: string;
+  photoURL?: string;
+  email?: string;
+  contactNum?: string;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  photo?: string;
+  profilePicture?: string;
+  profileImageUrl?: string;
+  avatar?: string;
+  picture?: string;
+  image?: string;
+}
+
+interface Participant {
+  uid: string;
+  firstName: string;
+  lastName: string;
+  profilePicture?: string;
+  profileImageUrl?: string;
+  joinedAt: any;
+  role?: 'user' | 'admin' | 'campus_security';
+  photoURL?: string;
+  photo?: string;
+  avatar?: string;
+  picture?: string;
+  image?: string;
+}
+
 interface AdminChatWindowProps {
   conversation: Conversation | null;
 }
@@ -287,13 +319,13 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
       );
 
       if (otherParticipantId && conversation.participantInfo[otherParticipantId]) {
-        const info = conversation.participantInfo[otherParticipantId];
+        const info = conversation.participantInfo[otherParticipantId] as UserInfo;
         return (
-          info.photoURL ||
-          info.photo ||
           info.profilePicture ||
           info.profileImageUrl ||
           info.avatar ||
+          info.photoURL ||
+          info.photo ||
           info.picture ||
           info.image ||
           null
@@ -306,8 +338,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
       return null;
     }
 
-    // Find the other participant (excluding current admin user)
-    const otherParticipant = Object.entries(conversation.participants).find(
+    const otherParticipant = Object.entries(conversation.participants || {}).find(
       ([uid]) => uid !== userData.uid
     );
 
@@ -315,7 +346,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
       return null;
     }
 
-    const [, participant] = otherParticipant;
+    const participant = otherParticipant[1] as Participant | boolean;
     if (typeof participant === 'boolean') {
       return null;
     }
@@ -337,52 +368,43 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
     }
 
     // First try to get from participantInfo
-    if (conversation.participantInfo) {
-      // Find the other participant (excluding current admin user)
-      const otherParticipantId = Object.keys(conversation.participantInfo).find(
-        (uid) => uid !== userData.uid
-      );
-
-      if (otherParticipantId && conversation.participantInfo[otherParticipantId]) {
-        const info = conversation.participantInfo[otherParticipantId];
-        if (info.displayName) return info.displayName;
-        if (info.name) return info.name;
-        if (info.firstName || info.lastName) {
-          return `${info.firstName || ''} ${info.lastName || ''}`.trim();
-        }
-      }
-    }
-
-    // Fallback to participants object
-    if (!conversation.participants) {
-      return "Unknown User";
-    }
-
-    // Find the other participant (excluding current admin user)
-    const otherParticipant = Object.entries(conversation.participants).find(
+    const otherParticipantInfo = Object.entries(conversation.participantInfo || {}).find(
       ([uid]) => uid !== userData.uid
     );
 
-    if (!otherParticipant) {
-      return "Unknown User";
+    if (otherParticipantInfo) {
+      const info = otherParticipantInfo[1] as UserInfo | undefined;
+      if (info) {
+        return (
+          info.displayName ||
+          [info.firstName, info.lastName].filter(Boolean).join(' ') ||
+          info.name ||
+          'Unknown User'
+        );
+      }
     }
 
-    const [, participant] = otherParticipant;
-    
-    // Handle boolean case
-    if (typeof participant === 'boolean') {
-      return "Unknown User";
-    }
-    
-    // Handle object case
-    const firstName = participant.firstName || "";
-    const lastName = participant.lastName || "";
+    // Fall back to participants map
+    const otherParticipant = Object.entries(conversation.participants || {}).find(
+      ([uid]) => uid !== userData.uid
+    );
 
-    if (!firstName && !lastName) {
-      return "Unknown User";
+    if (otherParticipant) {
+      const participant = otherParticipant[1];
+      if (typeof participant === 'object' && participant !== null) {
+        const part = participant as Participant;
+        return (
+          part.firstName && part.lastName
+            ? `${part.firstName} ${part.lastName}`.trim()
+            : part.firstName ||
+              part.lastName ||
+              (part as any).displayName ||
+              'Unknown User'
+        );
+      }
     }
 
-    return `${firstName} ${lastName}`.trim() || "Unknown User";
+    return 'Unknown User';
   };
 
   const getMessageProfilePicture = useCallback(
@@ -393,7 +415,9 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
       if (!conversation) {
         return null;
       }
-      const info = conversation.participantInfo?.[message.senderId];
+      
+      // Try to get from participantInfo first
+      const info = conversation.participantInfo?.[message.senderId] as UserInfo | undefined;
       if (info) {
         return (
           info.photoURL ||
@@ -406,10 +430,13 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
           null
         );
       }
-      const participant = conversation.participants?.[message.senderId];
-      if (!participant || typeof participant === "boolean") {
+      
+      // Fall back to participants map
+      const participant = conversation.participants?.[message.senderId] as Participant | boolean | undefined;
+      if (!participant || typeof participant === 'boolean') {
         return null;
       }
+      
       return (
         participant.profilePicture ||
         participant.profileImageUrl ||

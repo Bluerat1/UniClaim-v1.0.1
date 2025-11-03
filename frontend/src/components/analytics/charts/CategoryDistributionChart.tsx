@@ -151,7 +151,8 @@ export const CategoryDistributionChart: React.FC<CategoryDistributionChartProps>
 
   const chartKey = React.useMemo(() => {
     const data = chartData.datasets[0]?.data ?? [];
-    return `${chartData.labels.join('-')}|${data.join('-')}`;
+    const labels = chartData.labels ?? [];
+    return `${labels.join('-')}|${data.join('-')}`;
   }, [chartData]);
 
   return (
