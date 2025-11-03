@@ -1,7 +1,13 @@
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FiChevronDown, FiChevronUp, FiPackage, FiCheckSquare, FiAlertTriangle } from "react-icons/fi";
+import {
+  FiChevronDown,
+  FiChevronUp,
+  FiPackage,
+  FiCheckSquare,
+  FiAlertTriangle,
+} from "react-icons/fi";
 import { usePostsAnalytics } from "@/hooks/analytics/usePostsAnalytics";
 import { PostsAnalytics } from "@/components/analytics/PostsAnalytics";
 import { CategoryAnalytics } from "@/components/analytics/CategoryAnalytics";
@@ -10,8 +16,9 @@ import { DataExport } from "@/components/analytics/DataExport";
 import type { DateRange } from "react-day-picker";
 
 export const AnalyticsDashboard: React.FC = () => {
-  const { posts, loading, dateRange, setDateRange, stats } = usePostsAnalytics();
-  
+  const { posts, loading, dateRange, setDateRange, stats } =
+    usePostsAnalytics();
+
   const handleDateRangeChange = (range: DateRange | undefined) => {
     setDateRange(range || { from: undefined, to: undefined });
   };
@@ -48,7 +55,9 @@ export const AnalyticsDashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalPosts}</div>
-              <p className="text-xs text-muted-foreground">Total posts in the system</p>
+              <p className="text-xs text-muted-foreground">
+                Total posts in the system
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -58,7 +67,9 @@ export const AnalyticsDashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.lostItems}</div>
-              <p className="text-xs text-muted-foreground">Items reported as lost</p>
+              <p className="text-xs text-muted-foreground">
+                Items reported as lost
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -68,7 +79,9 @@ export const AnalyticsDashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.foundItems}</div>
-              <p className="text-xs text-muted-foreground">Items reported as found</p>
+              <p className="text-xs text-muted-foreground">
+                Items reported as found
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -95,7 +108,7 @@ export const AnalyticsDashboard: React.FC = () => {
         </TabsList>
 
         <TabsContent value="posts" className="space-y-4">
-          <PostsAnalytics 
+          <PostsAnalytics
             posts={posts}
             loading={loading}
             dateRange={dateRange}
@@ -104,29 +117,25 @@ export const AnalyticsDashboard: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="categories" className="space-y-4">
-          <CategoryAnalytics 
-            posts={posts} 
-            loading={loading} 
-            dateRange={dateRange} 
-            onDateRangeChange={handleDateRangeChange} 
+          <CategoryAnalytics
+            posts={posts}
+            loading={loading}
+            dateRange={dateRange}
+            onDateRangeChange={handleDateRangeChange}
           />
         </TabsContent>
 
         <TabsContent value="status" className="space-y-4">
-          <StatusAnalytics 
-            posts={posts} 
-            loading={loading} 
-            dateRange={dateRange} 
-            onDateRangeChange={handleDateRangeChange} 
+          <StatusAnalytics
+            posts={posts}
+            loading={loading}
+            dateRange={dateRange}
+            onDateRangeChange={handleDateRangeChange}
           />
         </TabsContent>
 
         <TabsContent value="export" className="space-y-4">
-          <DataExport 
-            posts={posts} 
-            loading={loading} 
-            dateRange={dateRange}
-          />
+          <DataExport posts={posts} loading={loading} dateRange={dateRange} />
         </TabsContent>
       </Tabs>
     </div>

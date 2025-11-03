@@ -11,6 +11,14 @@ body {
     height: calc(var(--vh, 1vh) * 100);
   }
 
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
   /* Mobile chat scrolling utilities */
   .mobile-chat-container {
     height: 100%;
