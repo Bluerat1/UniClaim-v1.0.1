@@ -112,6 +112,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                           : conversation.createdAt.toDate
                           ? conversation.createdAt.toDate()
                           : new Date(conversation.createdAt);
+                      console.log('conversation:', conversation);
+                      console.log('participant data:', conversation.participants);
                       return date.toLocaleString();
                     } catch (error) {
                       console.error("Error formatting created date:", error);
@@ -886,7 +888,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   const shouldShowHandoverButton = useMemo(() => {
-    if (!conversation || !userData) return false;
+    if (!conversation || !userData || !conversation.postCreatorId) return false;
 
     if (conversation.postType !== "lost") return false;
 
@@ -894,11 +896,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
     if (conversation.postCreatorId === userData.uid) return false;
 
-    return true;
+    // Only show handover button if we have a valid post creator ID
+    return !!conversation.postCreatorId;
   }, [conversation, userData]);
 
   const shouldShowClaimItemButton = useMemo(() => {
-    if (!conversation || !userData) {
+    if (!conversation || !userData || !conversation.postCreatorId) {
       return false;
     }
 
@@ -911,9 +914,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
 
     const creatorData = conversation.participants[conversation.postCreatorId];
+    if (!creatorData) {
+      return false;
+    }
 
     const isAdminPost = (() => {
-      if (!creatorData || typeof creatorData === 'boolean') {
+      if (typeof creatorData === 'boolean') {
         return conversation.isAdminPost === true;
       }
 
@@ -938,7 +944,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       return false;
     }
 
-    return true;
+    // Only show claim button if we have a valid post creator ID
+    return !!conversation.postCreatorId;
   }, [conversation, userData]);
 
   const handleConfirmIdPhotoSuccess = (messageId: string): void => {
@@ -1351,25 +1358,90 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 <div>
                   <p className="text-sm text-gray-500">Participants</p>
                   <div className="mt-3 space-y-1">
-                    {Object.entries(conversation?.participants || {}).map(
-                      ([uid, user]) => {
+                    {(() => {
+                      // Debug log the conversation data
+                      console.log('Conversation data:', {
+                        participants: conversation?.participants,
+                        participantInfo: conversation?.participantInfo,
+                        currentUser: userData?.uid,
+                        combined: {
+                          ...(conversation?.participantInfo || {}),
+                          ...(conversation?.participants || {})
+                        }
+                      });
+
+                      // Get all participant IDs from both sources
+                      const participantIds = new Set([
+                        ...Object.keys(conversation?.participants || {}),
+                        ...Object.keys(conversation?.participantInfo || {})
+                      ]);
+
+                      return Array.from(participantIds).map(uid => {
+                        // Try to get user data from both sources
+                        const userFromInfo = conversation?.participantInfo?.[uid];
+                        const userFromParticipants = conversation?.participants?.[uid];
+                        const user = userFromInfo || userFromParticipants;
+                        
                         if (!user) return null;
+
+                        // Type guard to check if user is an object
+                        const isUserObject = (u: any): u is Record<string, any> => 
+                          typeof u === 'object' && u !== null;
+
+                        // Get display name with fallbacks
+                        let displayName = 'Unknown User';
+                        if (isUserObject(user)) {
+                          // TypeScript now knows user is an object
+                          const userObj = user as Record<string, any>;
+                          
+                          if (userObj.displayName) {
+                            displayName = String(userObj.displayName);
+                          } else if (userObj.name) {
+                            displayName = String(userObj.name);
+                          } else if (userObj.firstName || userObj.lastName) {
+                            displayName = `${userObj.firstName || ''} ${userObj.lastName || ''}`.trim();
+                          }
+                        }
+
+                        // Get profile picture with fallbacks
+                        let profilePic = '';
+                        if (isUserObject(user)) {
+                          const userObj = user as Record<string, any>;
+                          profilePic = [
+                            userObj.profilePicture,
+                            userObj.profileImageUrl,
+                            userObj.photoURL,
+                            userObj.photo
+                          ].find(Boolean) || '';
+                        }
+
+                        const isCurrentUser = uid === userData?.uid;
+                        const isPostCreator = conversation?.postCreatorId === uid;
+
+                        console.log('Rendering participant:', {
+                          uid,
+                          displayName,
+                          isCurrentUser,
+                          isPostCreator,
+                          userData: user
+                        });
+
                         return (
                           <div key={uid} className="flex items-center gap-3">
                             <ProfilePicture
-                              src={user.profilePicture || user.profileImageUrl}
-                              alt={`${user.firstName} ${user.lastName}`}
+                              src={profilePic}
+                              alt={displayName}
                               className="size-9"
                             />
                             <span className="text-sm font-inter font-regular">
-                              {`${user.firstName} ${user.lastName}`}
-                              {conversation?.postCreatorId === uid &&
-                                " (Post Creator)"}
+                              {displayName}
+                              {isPostCreator && " (Post Creator)"}
+                              {isCurrentUser && " (You)"}
                             </span>
                           </div>
                         );
-                      }
-                    )}
+                      });
+                    })()}
                   </div>
                 </div>
               )}

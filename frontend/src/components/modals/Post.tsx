@@ -237,7 +237,7 @@ export default function PostModal({
       const conversationId = await createConversation(
         post.id,
         post.title,
-        post.creatorId,    // Post creator's ID (not original finder's ID)
+        originalFinderId,  // Original finder's ID (not post creator's ID)
         userData.uid,      // Current user's UID
         userData,          // Current user's data
         originalFinder     // Original finder's data as postOwnerUserData

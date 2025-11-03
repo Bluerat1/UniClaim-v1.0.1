@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FiX, FiInfo } from "react-icons/fi";
-import CampusSecurityTurnoverModal from "@/components/admin/CampusSecurityTurnoverModal";
+import CampusSecurityTurnoverModal from "./CampusSecurityTurnover";
 import OSATurnoverModal from "./OSATurnover";
 
 interface FoundActionModalProps {
@@ -44,11 +44,11 @@ export default function FoundActionModal({
     }
   };
 
-  const handleTurnoverConfirmation = (status: "collected" | "not_available") => {
-    if (status === "collected") {
+  const handleTurnoverConfirmation = (didTurnOver: boolean) => {
+    if (didTurnOver) {
       onActionSelect("turnover to Campus Security");
     } else {
-      // If they selected "not_available" or similar, reset the selection
+      // If they selected "No", reset the selection
       onResetSelection?.();
     }
     setShowTurnoverConfirmation(false);

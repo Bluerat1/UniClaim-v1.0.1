@@ -1,10 +1,17 @@
-import React from 'react';
-import { Button } from "../ui/button";
-import { Download, FileText } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Button } from "@/components/ui/button";
+import { FileText, FileSpreadsheet, FileJson, Check } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import type { Post } from "@/types/Post";
 import { exportToExcel } from "@/utils/exportUtils";
+import type { ChartImage } from "@/utils/exportUtils";
 import { format } from 'date-fns';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
+// Import chart components
+import { StatusDistributionChart } from './charts/StatusDistributionChart';
+import { PostsOverTimeChart } from './charts/PostsOverTimeChart';
+import { CategoryDistributionChart } from './charts/CategoryDistributionChart';
 
 interface DataExportProps {
   posts: Post[];
@@ -17,6 +24,13 @@ export const DataExport: React.FC<DataExportProps> = ({
   loading,
   dateRange,
 }) => {
+  const [isExporting, setIsExporting] = useState<string | null>(null);
+  const [lastExport, setLastExport] = useState<{type: string; time: Date} | null>(null);
+  
+  // Refs for chart containers
+  const statusChartRef = useRef<HTMLDivElement>(null);
+  const postsOverTimeChartRef = useRef<HTMLDivElement>(null);
+  const categoryChartRef = useRef<HTMLDivElement>(null);
 
   // Format posts for export
   const formatPostsForExport = () => {
@@ -35,36 +49,87 @@ export const DataExport: React.FC<DataExportProps> = ({
     }));
   };
 
-  const handleExport = () => {
-    const data = formatPostsForExport();
-    if (data.length === 0) {
-      console.warn('No data to export');
-      return;
+  const handleExport = async (type: 'excel' | 'json' | 'csv') => {
+    try {
+      setIsExporting(type);
+      const data = formatPostsForExport();
+      
+      if (data.length === 0) {
+        throw new Error('No data to export');
+      }
+
+      const timestamp = format(new Date(), 'yyyy-MM-dd');
+      const filename = `posts-export-${timestamp}`;
+      
+      // Prepare charts for export
+      const charts: ChartImage[] = [];
+      
+      if (type === 'excel') {
+        // Add charts with their positions and dimensions
+        if (statusChartRef.current) {
+          charts.push({
+            element: statusChartRef.current,
+            sheetName: 'Status Distribution',
+            position: { col: 1, row: 1, width: 800, height: 400 }
+          });
+        }
+        
+        if (postsOverTimeChartRef.current) {
+          charts.push({
+            element: postsOverTimeChartRef.current,
+            sheetName: 'Posts Over Time',
+            position: { col: 1, row: 1, width: 800, height: 400 }
+          });
+        }
+        
+        if (categoryChartRef.current) {
+          charts.push({
+            element: categoryChartRef.current,
+            sheetName: 'Category Distribution',
+            position: { col: 1, row: 1, width: 800, height: 400 }
+          });
+        }
+      }
+
+      if (type === 'excel') {
+        const columns = Object.keys(data[0]).map(key => ({
+          header: key,
+          key: key,
+          width: 15
+        }));
+        
+        await exportToExcel(data, columns, filename, charts);
+      } else if (type === 'json') {
+        const json = JSON.stringify(data, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        downloadBlob(blob, `${filename}.json`, 'application/json');
+      } else if (type === 'csv') {
+        const headers = Object.keys(data[0]).join(',') + '\n';
+        const csv = data.map(row => 
+          Object.values(row).map(field => 
+            `"${String(field).replace(/"/g, '""')}"`
+          ).join(',')
+        ).join('\n');
+        const blob = new Blob([headers + csv], { type: 'text/csv' });
+        downloadBlob(blob, `${filename}.csv`, 'text/csv');
+      }
+
+      setLastExport({ type, time: new Date() });
+      // Using console log instead of toast since we don't have the toast dependency
+      console.log(`Successfully exported ${data.length} records to ${type.toUpperCase()}`);
+    } catch (error) {
+      console.error('Export failed:', error);
+    } finally {
+      setIsExporting(null);
     }
-    
-    // Create columns definition from the first data item
-    const columns = Object.keys(data[0]).map(key => ({
-      header: key,
-      key: key,
-      width: 15 // Optional: set column width
-    }));
-    
-    exportToExcel(
-      data,
-      columns,
-      'Posts',
-      `posts-export-${format(new Date(), 'yyyy-MM-dd')}`
-    );
   };
 
-  const handleExportToJSON = () => {
-    const data = formatPostsForExport();
-    const json = JSON.stringify(data, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
+  const downloadBlob = (blob: Blob, filename: string, type: string) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `posts-export-${format(new Date(), 'yyyy-MM-dd')}.json`;
+    a.download = filename;
+    a.type = type;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -73,148 +138,150 @@ export const DataExport: React.FC<DataExportProps> = ({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-pulse text-gray-500">Loading export data...</div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Export Data</CardTitle>
+          <CardDescription>Preparing your data for export...</CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-center py-12">
+          <div className="animate-pulse text-muted-foreground">
+            Loading export data...
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   if (!posts.length) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-500">
-        No data available for export.
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Export Data</CardTitle>
+          <CardDescription>No data available for export</CardDescription>
+        </CardHeader>
+        <CardContent className="text-center py-12 text-muted-foreground">
+          There is no data to export for the selected date range.
+        </CardContent>
+      </Card>
     );
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-900 rounded-lg border p-6">
-        <div className="flex flex-col items-center justify-center text-center p-8">
-          <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-4">
-            <Download className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-          </div>
-          <h2 className="text-2xl font-bold mb-2">Export Data</h2>
-          <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md">
-            Download your analytics data in various formats for further analysis or reporting.
-          </p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-2xl">
-            <Button 
-              variant="outline" 
-              className="flex flex-col items-center justify-center h-32 gap-2"
-              onClick={handleExport}
-              disabled={loading || posts.length === 0}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Export to Excel
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="flex flex-col items-center justify-center h-32 gap-2"
-              onClick={handleExportToJSON}
-            >
-              <FileText className="h-6 w-6" />
-              <span>JSON (.json)</span>
-              <span className="text-xs text-gray-500">For developers</span>
-            </Button>
-          </div>
-          
-          <div className="mt-8 w-full max-w-2xl">
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-              Export Summary
-            </h3>
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-left">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Total Posts</p>
-                  <p className="font-medium">{posts.length}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Date Range</p>
-                  <p className="font-medium">
-                    {dateRange?.from 
-                      ? `${format(dateRange.from, 'MMM d, yyyy')} - ${dateRange.to ? format(dateRange.to, 'MMM d, yyyy') : 'Present'}`
-                      : 'All time'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Lost Items</p>
-                  <p className="font-medium">
-                    {posts.filter(p => p.type === 'lost').length}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Found Items</p>
-                  <p className="font-medium">
-                    {posts.filter(p => p.type === 'found').length}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+  const exportOptions = [
+    {
+      id: 'excel',
+      name: 'Excel',
+      description: 'Export as XLSX file (recommended for Excel users)',
+      icon: FileSpreadsheet,
+      color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+    },
+    {
+      id: 'csv',
+      name: 'CSV',
+      description: 'Export as CSV file (compatible with most applications)',
+      icon: FileText,
+      color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    },
+    {
+      id: 'json',
+      name: 'JSON',
+      description: 'Export as JSON file (for developers and APIs)',
+      icon: FileJson,
+      color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+    },
+  ];
+
+  // Calculate stats for the export
+  const stats = {
+    total: posts.length,
+    lost: posts.filter((post: Post) => post.type === 'lost').length,
+    found: posts.filter((post: Post) => post.type === 'found').length,
+  };
+
+  // Render hidden charts for export
+  const renderExportCharts = () => (
+    <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', opacity: 0 }}>
+      <div ref={statusChartRef}>
+        <StatusDistributionChart posts={posts} dateRange={dateRange} />
       </div>
-      
-      <div className="bg-white dark:bg-gray-900 rounded-lg border p-6">
-        <h3 className="text-lg font-medium mb-4">Export Preview</h3>
-        <div className="overflow-x-auto">
-          <div className="inline-block min-w-full align-middle">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Title
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Created
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                {posts.slice(0, 5).map((post) => (
-                  <tr key={post.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {post.title}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        post.type === 'lost' 
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' 
-                          : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      }`}>
-                        {post.type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                        {post.status || 'pending'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                      {post.createdAt ? format(new Date(post.createdAt), 'MMM d, yyyy') : 'N/A'}
-                    </td>
-                  </tr>
-                ))}
-                {posts.length > 5 && (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                      ... and {posts.length - 5} more items
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      <div ref={postsOverTimeChartRef}>
+        <PostsOverTimeChart posts={posts} dateRange={dateRange} loading={loading} />
+      </div>
+      <div ref={categoryChartRef}>
+        <CategoryDistributionChart posts={posts} dateRange={dateRange} />
       </div>
     </div>
+  );
+
+  return (
+    <Card>
+      {renderExportCharts()}
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Export Data</CardTitle>
+            <CardDescription>
+              Export {stats.total} records in various formats
+            </CardDescription>
+          </div>
+          {lastExport && (
+            <div className="text-xs text-muted-foreground flex items-center gap-1">
+              <Check className="h-3.5 w-3.5 text-green-500" />
+              <span>Exported as {lastExport.type.toUpperCase()} at {format(lastExport.time, 'HH:mm')}</span>
+            </div>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Stats Overview */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-muted/50 p-4 rounded-lg">
+            <p className="text-sm text-muted-foreground">Total Items</p>
+            <p className="text-2xl font-semibold">{stats.total}</p>
+          </div>
+          <div className="bg-muted/50 p-4 rounded-lg">
+            <p className="text-sm text-muted-foreground">Lost Items</p>
+            <p className="text-2xl font-semibold">{stats.lost}</p>
+          </div>
+          <div className="bg-muted/50 p-4 rounded-lg">
+            <p className="text-sm text-muted-foreground">Found Items</p>
+            <p className="text-2xl font-semibold">{stats.found}</p>
+          </div>
+        </div>
+
+        {/* Export Options */}
+        <div className="grid gap-4 md:grid-cols-3">
+          {exportOptions.map((option) => (
+            <Button
+              key={option.id}
+              variant="outline"
+              className={`h-32 flex flex-col items-center justify-center gap-2 p-4 transition-all hover:shadow-md ${option.color} relative`}
+              onClick={() => handleExport(option.id as 'excel' | 'json' | 'csv')}
+              disabled={isExporting === option.id}
+            >
+              <div className={`p-3 rounded-full ${option.color} bg-opacity-20`}>
+                {React.createElement(option.icon, { className: 'h-5 w-5' })}
+              </div>
+              <span className="font-medium">{option.name}</span>
+              <p className="text-xs text-center text-muted-foreground">
+                {option.description}
+              </p>
+              {isExporting === option.id && (
+                <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-md">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                </div>
+              )}
+            </Button>
+          ))}
+        </div>
+
+        {/* Export Info */}
+        <div className="pt-2 text-xs text-muted-foreground">
+          <p>Export includes {stats.total} records.</p>
+          {dateRange?.from && dateRange?.to && (
+            <p>Date range: {format(dateRange.from, 'MMM d, yyyy')} - {format(dateRange.to, 'MMM d, yyyy')}</p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 };

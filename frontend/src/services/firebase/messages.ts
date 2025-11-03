@@ -269,30 +269,26 @@ export const messageService = {
                 }
             }
 
-            // Always ensure we have profile pictures - fetch fresh data if missing
+            // Always ensure we have up-to-date profile pictures
             let currentUserProfilePicture = currentUserData.profilePicture || currentUserData.profileImageUrl || '';
-            if (!currentUserProfilePicture) {
-                try {
-                    const currentUserDoc = await getDoc(doc(db, 'users', currentUserId));
-                    if (currentUserDoc.exists()) {
-                        const freshUserData = currentUserDoc.data();
-                        currentUserProfilePicture = freshUserData.profilePicture || freshUserData.profileImageUrl || '';
-                    }
-                } catch (error) {
-                    console.warn('Could not fetch current user data for profile picture:', error);
+            try {
+                const currentUserDoc = await getDoc(doc(db, 'users', currentUserId));
+                if (currentUserDoc.exists()) {
+                    const freshUserData = currentUserDoc.data();
+                    currentUserProfilePicture = freshUserData.profilePicture || freshUserData.profileImageUrl || freshUserData.photoURL || currentUserProfilePicture;
                 }
+            } catch (error) {
+                console.warn('Could not fetch current user data for profile picture:', error);
             }
 
-            if (!postOwnerProfilePicture) {
-                try {
-                    const postOwnerDoc = await getDoc(doc(db, 'users', postOwnerId));
-                    if (postOwnerDoc.exists()) {
-                        const freshPostOwnerData = postOwnerDoc.data();
-                        postOwnerProfilePicture = freshPostOwnerData.profilePicture || freshPostOwnerData.profileImageUrl || '';
-                    }
-                } catch (error) {
-                    console.warn('Could not fetch post owner data for profile picture:', error);
+            try {
+                const postOwnerDoc = await getDoc(doc(db, 'users', postOwnerId));
+                if (postOwnerDoc.exists()) {
+                    const freshPostOwnerData = postOwnerDoc.data();
+                    postOwnerProfilePicture = freshPostOwnerData.profilePicture || freshPostOwnerData.profileImageUrl || freshPostOwnerData.photoURL || postOwnerProfilePicture;
                 }
+            } catch (error) {
+                console.warn('Could not fetch post owner data for profile picture:', error);
             }
 
             // Simple duplicate check: get all user conversations and filter in JavaScript
@@ -320,14 +316,15 @@ export const messageService = {
                 ? `${currentUserData.firstName} ${currentUserData.lastName}`
                 : currentUserData?.displayName || 'Anonymous';
 
-            const currentUserPhoto = currentUserData?.profilePicture ||
+            const currentUserPhoto = currentUserProfilePicture ||
+                currentUserData?.profilePicture ||
                 currentUserData?.profileImageUrl ||
                 currentUserData?.photoURL ||
                 '';
 
             // Get post owner's name and photo
             let postOwnerName = 'Anonymous';
-            let postOwnerPhoto = '';
+            let postOwnerPhoto = postOwnerProfilePicture || '';
 
             if (postOwnerUserData) {
                 if (postOwnerUserData.firstName && postOwnerUserData.lastName) {
@@ -336,10 +333,12 @@ export const messageService = {
                     postOwnerName = postOwnerUserData.displayName;
                 }
 
-                postOwnerPhoto = postOwnerUserData.profilePicture ||
-                    postOwnerUserData.profileImageUrl ||
-                    postOwnerUserData.photoURL ||
-                    '';
+                if (!postOwnerPhoto) {
+                    postOwnerPhoto = postOwnerUserData.profilePicture ||
+                        postOwnerUserData.profileImageUrl ||
+                        postOwnerUserData.photoURL ||
+                        '';
+                }
             }
 
             const conversationData = {

@@ -3,10 +3,16 @@ import {
   Ionicons,
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
-import { useNavigation, CommonActions } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as ImagePicker from "expo-image-picker";
 import React, { useState, useCallback, useEffect } from "react";
+import {
+  FlatList,
+  View as RNView,
+  ActivityIndicator as RNActivityIndicator,
+  RefreshControl,
+} from "react-native";
 import {
   ActivityIndicator,
   Alert,
@@ -32,6 +38,17 @@ import {
 import { postUpdateService } from "../../utils/postUpdateService";
 import { userDeletionService } from "../../utils/firebase/userDeletion";
 import { credentialStorage } from "../../utils/credentialStorage";
+import { usePaginatedUserPosts } from "../../hooks/usePaginatedUserPosts";
+
+type Post = {
+  id: string;
+  title: string;
+  description: string;
+  createdAt: {
+    toDate: () => Date;
+  };
+  // Add other post properties as needed
+};
 
 // Default profile picture constant
 const DEFAULT_PROFILE_PICTURE = require("../../assets/images/empty_profile.jpg");
@@ -42,7 +59,8 @@ export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigation = useNavigation<NavigationProp>();
-  const { logout, userData, user, refreshUserData, isAuthenticated } = useAuth();
+  const { logout, userData, user, refreshUserData, isAuthenticated } =
+    useAuth();
   const { showToastMessage } = useToast();
 
   // Delete account states
@@ -50,6 +68,25 @@ export default function Profile() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [deletePassword, setDeletePassword] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Add pagination for user posts
+  const {
+    posts: userPosts,
+    loading: isLoadingPosts,
+    loadingMore,
+    hasMore,
+    loadMore,
+    error: postsError,
+    refresh: refreshPosts,
+  } = usePaginatedUserPosts(userData?.email || "");
+
+  // Handle posts error
+  useEffect(() => {
+    if (postsError) {
+      console.error("Error loading posts:", postsError);
+      // You can show a toast or alert to the user here
+    }
+  }, [postsError]);
 
   const [profile, setProfile] = useState(() => {
     return {
@@ -83,10 +120,10 @@ export default function Profile() {
 
       // If it's already a Cloudinary URL, optimize it
       if (uri.includes("cloudinary.com")) {
-        const separator = uri.includes('?') ? '&' : '?';
+        const separator = uri.includes("?") ? "&" : "?";
         return {
           uri: `${uri}${separator}w=400&h=400&q=80&f=webp`,
-          cache: 'force-cache' as const,
+          cache: "force-cache" as const,
         };
       }
 
@@ -97,10 +134,10 @@ export default function Profile() {
     // If it's a string URL
     if (typeof imageUri === "string") {
       if (imageUri.includes("cloudinary.com")) {
-        const separator = imageUri.includes('?') ? '&' : '?';
+        const separator = imageUri.includes("?") ? "&" : "?";
         return {
           uri: `${imageUri}${separator}w=400&h=400&q=80&f=webp`,
-          cache: 'force-cache' as const,
+          cache: "force-cache" as const,
         };
       }
 
@@ -239,7 +276,10 @@ export default function Profile() {
               userData.profilePicture
             );
             if (deletionSuccess) {
-              showToastMessage("Profile picture removed successfully!", "success");
+              showToastMessage(
+                "Profile picture removed successfully!",
+                "success"
+              );
             } else {
               showToastMessage(
                 "Profile picture removed, but there was an issue deleting it from storage.",
@@ -330,35 +370,57 @@ export default function Profile() {
   }, [userData]);
 
   const handleLogout = useCallback(async () => {
+    console.log("[Logout] Logout initiated - showing confirmation dialog");
     Alert.alert("Logout", "Are you sure you want to logout?", [
       {
         text: "Cancel",
         style: "cancel",
+        onPress: () => console.log("[Logout] User cancelled logout"),
       },
       {
         text: "Logout",
         style: "destructive",
         onPress: async () => {
+          const startTime = Date.now();
+          console.log(
+            `[Logout] User confirmed logout at ${new Date().toISOString()}`
+          );
+
           try {
-            console.log('Starting logout process...');
-            // Reset navigation state before logging out to prevent navigation issues
-            navigation.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: 'Login' }],
-              })
-            );
-            
-            // Perform the actual logout
+            console.log("[Logout] Initiating logout...");
+            const logoutStart = Date.now();
             await logout();
-            console.log('Logout successful');
-            
-            // No need to navigate here as the auth state change will handle it
+            const logoutDuration = Date.now() - logoutStart;
+
+            console.log(
+              `[Logout] Logout completed successfully in ${logoutDuration}ms`
+            );
+            console.log(
+              "[Logout] Auth state change will automatically navigate to Index"
+            );
           } catch (error: any) {
-            console.error('Logout error:', error);
+            const errorTime = Date.now();
+            const errorDuration = errorTime - startTime;
+
+            console.error(
+              `[Logout] Error during logout after ${errorDuration}ms:`,
+              {
+                error: error,
+                message: error.message,
+                stack: error.stack,
+                time: new Date().toISOString(),
+              }
+            );
+
             Alert.alert(
-              "Logout Failed", 
-              error.message || "An error occurred during logout. Please try again."
+              "Logout Failed",
+              error.message ||
+                "An error occurred during logout. Please try again."
+            );
+          } finally {
+            const totalDuration = Date.now() - startTime;
+            console.log(
+              `[Logout] Logout process completed in ${totalDuration}ms`
             );
           }
         },
@@ -380,7 +442,14 @@ export default function Profile() {
   }, []);
 
   const handleConfirmDelete = async () => {
+    const startTime = Date.now();
+    console.log("[Account Deletion] Starting account deletion process...");
+    console.log("[Account Deletion] Confirmation text:", deleteConfirmation);
+
     if (deleteConfirmation !== "DELETE") {
+      console.log(
+        "[Account Deletion] Validation failed: Invalid confirmation text"
+      );
       Alert.alert(
         "Invalid Confirmation",
         "Please type 'DELETE' exactly to confirm account deletion."
@@ -389,6 +458,7 @@ export default function Profile() {
     }
 
     if (!deletePassword) {
+      console.log("[Account Deletion] Validation failed: No password provided");
       Alert.alert(
         "Password Required",
         "Please enter your password to confirm account deletion."
@@ -397,6 +467,7 @@ export default function Profile() {
     }
 
     if (!user) {
+      console.error("[Account Deletion] Error: No authenticated user found");
       Alert.alert(
         "Authentication Error",
         "You must be logged in to delete your account."
@@ -404,19 +475,55 @@ export default function Profile() {
       return;
     }
 
+    console.log(
+      "[Account Deletion] Starting account deletion for user:",
+      user.uid
+    );
+    console.log("[Account Deletion] User email:", user.email);
+
     try {
       setIsDeleting(true);
+      console.log(
+        `[Account Deletion][${new Date().toISOString()}] Starting deletion process...`
+      );
 
-      // Show initial alert
-      Alert.alert(
-        "Deleting Account",
-        "Please wait while we delete your account and all associated data..."
+      console.log(
+        "[Account Deletion] Calling userDeletionService.deleteUserAccount..."
       );
 
       // Call the deletion service with password for re-authentication
+      // The loading overlay with spinner will be visible during this time
       await userDeletionService.deleteUserAccount(user, deletePassword);
 
-      // Show success message and logout
+      const deletionTime = Date.now() - startTime;
+      console.log(
+        `[Account Deletion] Account successfully deleted in ${deletionTime}ms`
+      );
+
+      // Close the modal first
+      handleCloseDeleteModal();
+      console.log("[Account Deletion] Modal closed");
+
+      // Clear stored credentials to prevent auto-login attempts with deleted account
+      try {
+        console.log("[Account Deletion] Clearing stored credentials...");
+        await credentialStorage.clearCredentials();
+        console.log(
+          "[Account Deletion] Successfully cleared stored credentials"
+        );
+      } catch (credentialError) {
+        console.error(
+          "[Account Deletion] Error clearing credentials after account deletion:",
+          credentialError
+        );
+        // Continue with logout even if clearing credentials fails
+      }
+
+      // Reset loading state after all cleanup is complete
+      setIsDeleting(false);
+      console.log("[Account Deletion] Reset loading state");
+
+      // Show success message
       Alert.alert(
         "Account Deleted",
         "Your account and all data have been permanently deleted.",
@@ -424,69 +531,72 @@ export default function Profile() {
           {
             text: "OK",
             onPress: async () => {
-              handleCloseDeleteModal();
+              console.log(
+                "[Account Deletion] User acknowledged account deletion"
+              );
 
-              // Reset loading state
-              setIsDeleting(false);
+              console.log(
+                "[Account Deletion] Initiating auth state cleanup..."
+              );
 
-              // Clear stored credentials to prevent auto-login attempts with deleted account
               try {
-                await credentialStorage.clearCredentials();
-                console.log('Stored credentials cleared after account deletion');
-              } catch (credentialError) {
-                console.warn('Error clearing credentials after account deletion:', credentialError);
-                // Continue with logout even if clearing credentials fails
-              }
-
-              // Force complete reset of auth state
-              // Since the user account is deleted, we need to manually reset the AuthContext
-              console.log('Account deleted, forcing complete auth state reset');
-
-              // Manually reset auth state instead of calling logout()
-              // because logout() may fail when user account is already deleted
-              try {
-                // Clear any cached auth state in the app
-                // The AuthContext onAuthStateChanged listener should handle the rest
-                console.log('Auth state will be reset by onAuthStateChanged listener');
+                console.log(
+                  "[Account Deletion] Auth state cleanup - waiting for AuthContext..."
+                );
+                // Give AuthContext time to process the auth state change
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+                console.log("[Account Deletion] Auth state cleanup complete");
               } catch (resetError) {
-                console.warn('Error during auth state reset:', resetError);
+                console.error(
+                  "[Account Deletion] Error during auth state reset:",
+                  resetError
+                );
               }
-
-              // Wait for AuthContext to process the logout state
-              await new Promise(resolve => setTimeout(resolve, 1000));
-
-              // Force navigation to ensure we leave any current screens
-              console.log('Forcing navigation to Index screen after account deletion');
-              navigation.reset({
-                index: 0,
-                routes: [{ name: "Index" }],
-              });
             },
           },
         ]
       );
     } catch (error: any) {
-      console.error("Error deleting account:", error);
+      const errorTime = Date.now();
+      console.error(
+        `[Account Deletion][${new Date().toISOString()}] Error during account deletion:`,
+        {
+          error: error.toString(),
+          message: error.message,
+          code: error.code,
+          stack: error.stack,
+          time: errorTime - startTime + "ms since start",
+        }
+      );
 
       // Handle specific error cases
       if (error.message.includes("re-enter your password")) {
+        console.log("[Account Deletion] Re-authentication required");
         Alert.alert("Re-authentication Required", error.message);
       } else if (
         error.message.includes("invalid-credential") ||
         error.message.includes("wrong-password")
       ) {
+        console.log("[Account Deletion] Invalid password provided");
         Alert.alert(
           "Invalid Password",
           "The password you entered is incorrect. Please try again."
         );
       } else {
+        console.error(
+          "[Account Deletion] Unexpected error during deletion:",
+          error
+        );
         Alert.alert(
           "Deletion Failed",
-          error.message || "Failed to delete account. Please try again."
+          error.message ||
+            "An unexpected error occurred while deleting your account. Please try again."
         );
       }
     } finally {
+      console.log("[Account Deletion] Cleaning up...");
       setIsDeleting(false);
+      console.log("[Account Deletion] Cleanup complete");
     }
   };
 
@@ -617,6 +727,43 @@ export default function Profile() {
     }
   }, [user, isAuthenticated, userData]);
 
+  // Render a single post item
+  const renderPostItem = useCallback(
+    ({ item }: { item: Post }) => (
+      <RNView className="mb-4 p-4 bg-white rounded-lg shadow-sm">
+        <Text className="font-manrope-bold text-base mb-1">{item.title}</Text>
+        <Text className="text-gray-600 text-sm mb-2" numberOfLines={2}>
+          {item.description}
+        </Text>
+        <Text className="text-xs text-gray-500">
+          {new Date(item.createdAt?.toDate()).toLocaleDateString()}
+        </Text>
+      </RNView>
+    ),
+    []
+  );
+
+  // Render loading indicator at the bottom when loading more
+  const renderFooter = useCallback(() => {
+    if (!loadingMore) return null;
+    return (
+      <RNView className="py-4">
+        <RNActivityIndicator size="small" color="#1e3a8a" />
+      </RNView>
+    );
+  }, [loadingMore]);
+
+  // Render empty state
+  const renderEmptyComponent = useCallback(() => {
+    if (isLoading) return null;
+    if (isLoadingPosts) return null;
+    return (
+      <RNView className="py-8 items-center">
+        <Text className="text-gray-500">No posts found</Text>
+      </RNView>
+    );
+  }, [isLoading, isLoadingPosts]);
+
   // Show loading if userData is not available yet
   if (!userData) {
     return (
@@ -741,7 +888,9 @@ export default function Profile() {
               ) : (
                 <>
                   <TouchableOpacity
-                    className={`rounded-md py-3 px-4 flex-row items-center justify-center ${isLoading ? "bg-gray-400" : "bg-green-600"}`}
+                    className={`rounded-md py-3 px-4 flex-row items-center justify-center ${
+                      isLoading ? "bg-gray-400" : "bg-green-600"
+                    }`}
                     onPress={handleSave}
                     disabled={isLoading}
                   >
@@ -814,16 +963,24 @@ export default function Profile() {
             <View className="flex-row justify-between items-center w-full bg-zinc-100 p-3 rounded-md border border-zinc-300">
               <View className="flex-row items-center gap-3">
                 <Ionicons
-                  name={userData?.emailVerified ? "checkmark-circle" : "alert-circle"}
+                  name={
+                    userData?.emailVerified
+                      ? "checkmark-circle"
+                      : "alert-circle"
+                  }
                   size={20}
                   color={userData?.emailVerified ? "#10b981" : "#f59e0b"}
                 />
-                <Text className="text-[13px] font-manrope-medium">Email Verification</Text>
+                <Text className="text-[13px] font-manrope-medium">
+                  Email Verification
+                </Text>
               </View>
               <View className="flex-row items-center gap-2">
                 <Text
                   className={`font-inter text-[13px] font-medium ${
-                    userData?.emailVerified ? "text-green-600" : "text-orange-600"
+                    userData?.emailVerified
+                      ? "text-green-600"
+                      : "text-orange-600"
                   }`}
                 >
                   {userData?.emailVerified ? "Verified" : "Pending"}
@@ -831,9 +988,16 @@ export default function Profile() {
                 {!userData?.emailVerified && (
                   <TouchableOpacity
                     className="bg-orange-100 px-2 py-1 rounded-full"
-                    onPress={() => navigation.navigate("EmailVerification")}
+                    onPress={() =>
+                      navigation.navigate("EmailVerification", {
+                        email: userData?.email || "",
+                        fromLogin: false,
+                      })
+                    }
                   >
-                    <Text className="text-orange-600 text-xs font-manrope-medium">Verify</Text>
+                    <Text className="text-orange-600 text-xs font-manrope-medium">
+                      Verify
+                    </Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -881,6 +1045,21 @@ export default function Profile() {
           onRequestClose={handleCloseDeleteModal}
         >
           <View className="flex-1 bg-black/50 items-center justify-center z-50 p-4">
+            {/* Loading Overlay */}
+            {isDeleting && (
+              <View className="absolute inset-0 flex-1 bg-black/70 items-center justify-center z-50">
+                <View className="bg-white rounded-lg p-8 items-center">
+                  <ActivityIndicator size="large" color="#dc2626" />
+                  <Text className="mt-4 text-center font-manrope-medium text-gray-700 text-base">
+                    Deleting your account...
+                  </Text>
+                  <Text className="mt-2 text-center font-manrope text-gray-500 text-sm">
+                    Please wait while we remove all your data
+                  </Text>
+                </View>
+              </View>
+            )}
+
             <View className="bg-white rounded-lg max-w-md w-full p-6">
               <View className="flex-row items-center gap-3 mb-4">
                 <View className="size-10 bg-red-100 rounded-full flex items-center justify-center">

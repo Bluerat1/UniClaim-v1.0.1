@@ -7,6 +7,7 @@ interface ToastProps {
   message: string;
   type: 'success' | 'error' | 'warning' | 'info';
   onClose: () => void;
+  onAnimationEnd?: () => void;
   duration?: number;
 }
 
@@ -17,6 +18,7 @@ export default function Toast({
   message,
   type,
   onClose,
+  onAnimationEnd,
   duration = 3000
 }: ToastProps) {
   const [isVisible, setIsVisible] = useState(false);
@@ -66,6 +68,10 @@ export default function Toast({
       })
     ]).start(() => {
       if (isMounted.current) {
+        // Call onAnimationEnd if provided
+        if (onAnimationEnd) {
+          onAnimationEnd();
+        }
         // Only call onComplete if it's provided and not the default noop
         if (onComplete && onComplete !== (() => {})) {
           onComplete();

@@ -1,6 +1,6 @@
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FiChevronDown, FiChevronUp, FiPackage, FiCheckSquare, FiAlertTriangle } from "react-icons/fi";
 import { usePostsAnalytics } from "@/hooks/analytics/usePostsAnalytics";
 import { PostsAnalytics } from "@/components/analytics/PostsAnalytics";

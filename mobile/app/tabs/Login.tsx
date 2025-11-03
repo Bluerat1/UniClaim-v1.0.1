@@ -15,7 +15,6 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view
 import type { RootStackParamList } from "../../types/type";
 import { useAuth } from "../../context/AuthContext";
 import { getFirebaseErrorMessage } from "../../utils/firebase";
-import Toast from "../../components/Toast";
 import { useToast } from "../../context/ToastContext";
 
 function Login() {
@@ -23,13 +22,7 @@ function Login() {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { login, loading, isBanned, banInfo, needsEmailVerification, user } =
     useAuth();
-  const {
-    showToastMessage,
-    showToast,
-    toastMessage,
-    toastType,
-    toastDuration,
-  } = useToast();
+  const { showToastMessage } = useToast();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -68,9 +61,9 @@ function Login() {
   }, []);
 
   const handleEmailVerificationNavigation = useCallback(() => {
-    navigation.navigate('EmailVerification', { 
+    navigation.navigate("EmailVerification", {
       email: email,
-      fromLogin: true 
+      fromLogin: true,
     });
   }, [navigation, email]);
 
@@ -82,75 +75,97 @@ function Login() {
     navigation.navigate("Register");
   }, [navigation]);
 
-  const handleToastClose = useCallback(() => {
-    // Toast is managed by ToastContext, no need to reset state here
-  }, []);
-
   const validateEmail = (value: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
   const handleLogin = async () => {
+    console.log("[Login] Starting login process", {
+      email,
+      hasPassword: !!password,
+    });
     let valid = true;
     setEmailError("");
     setPasswordError("");
     setGeneralError("");
 
+    // Client-side validation
     if (!email.trim()) {
+      console.log("[Login] Email validation failed: Email is required");
       setEmailError("Email is required.");
       valid = false;
     } else if (!validateEmail(email)) {
+      console.log("[Login] Email validation failed: Invalid email format");
       setEmailError("Please enter a valid email address.");
       valid = false;
     }
 
     if (!password) {
+      console.log("[Login] Password validation failed: Password is required");
       setPasswordError("Password is required.");
       valid = false;
     } else if (password.length < 8) {
+      console.log("[Login] Password validation failed: Password too short");
       setPasswordError("Password must be at least 8 characters.");
       valid = false;
     }
 
     if (!valid) {
+      console.log("[Login] Validation failed, not proceeding with login");
       return;
     }
 
     try {
-      await login(email, password, rememberMe, navigation);
-      
-      // Only show success message if we're not navigating to verification
+      console.log("[Login] Attempting to login with Firebase Auth");
+      const result = await login(email, password, rememberMe, navigation);
+
+      // If we have an error in the result, handle it
+      if (result?.error) {
+        const errorMessage = getFirebaseErrorMessage({ message: result.error });
+        console.log("[Login] Login error:", { message: result.error });
+        setGeneralError(errorMessage);
+
+        // Only show toast if it's not an email verification related message
+        if (
+          !errorMessage.includes("verify your email") &&
+          !errorMessage.includes("EMAIL_NOT_VERIFIED")
+        ) {
+          const toastType =
+            errorMessage.toLowerCase().includes("network") ||
+            errorMessage.toLowerCase().includes("connection") ||
+            errorMessage.toLowerCase().includes("too many") ||
+            errorMessage.toLowerCase().includes("rate limit")
+              ? "warning"
+              : "error";
+
+          console.log(
+            `[Login] Showing toast message (type: ${toastType}):`,
+            errorMessage
+          );
+          showToastMessage(errorMessage, toastType, 5000);
+        }
+        return;
+      }
+
+      // Handle successful login
       if (user?.emailVerified) {
+        console.log("[Login] Login successful, showing welcome message");
         showToastMessage("Login successful! Welcome back!", "success");
       }
     } catch (error: any) {
-      // Handle email verification required case
-      if (error.message === 'EMAIL_VERIFICATION_REQUIRED') {
-        // Navigate to email verification screen
-        navigation.navigate('EmailVerification', { 
-          email: email,
-          password: password,
-          fromLogin: true 
-        });
-        return;
-      }
-      
-      // Handle other errors
+      console.log("[Login] Unexpected error during login:", {
+        message: error.message,
+        code: error.code,
+        stack: error.stack,
+      });
+
+      // This is a fallback for unexpected errors
       const errorMessage = getFirebaseErrorMessage(error);
-      if (!errorMessage.includes('verify your email') && !errorMessage.includes('EMAIL_NOT_VERIFIED')) {
-        showToastMessage(errorMessage, 'error');
-      }
-      
       setGeneralError(errorMessage);
-      
-      // Determine toast type based on error type
-      let toastType: "error" | "warning" | "info" = "error";
-      if (errorMessage.toLowerCase().includes('network') || errorMessage.toLowerCase().includes('connection')) {
-        toastType = "warning";
-      } else if (errorMessage.toLowerCase().includes('too many') || errorMessage.toLowerCase().includes('rate limit')) {
-        toastType = "warning";
+
+      // Only show toast if there isn't already one showing
+      if (!showToast) {
+        showToastMessage(errorMessage, "error", 5000);
       }
-      
-      showToastMessage(errorMessage, toastType);
     }
   };
 
@@ -256,8 +271,8 @@ function Login() {
                     emailError
                       ? "border-red-500"
                       : emailFocused
-                        ? "border-navyblue"
-                        : "border-gray-300"
+                      ? "border-navyblue"
+                      : "border-gray-300"
                   }`}
                 />
                 {emailError !== "" && (
@@ -277,8 +292,8 @@ function Login() {
                     passwordError
                       ? "border-red-500"
                       : passwordFocused
-                        ? "border-navyblue"
-                        : "border-gray-300"
+                      ? "border-navyblue"
+                      : "border-gray-300"
                   }`}
                 >
                   <TextInput
@@ -317,7 +332,9 @@ function Login() {
                   className="flex-row items-center"
                 >
                   <View
-                    className={`w-5 h-5 rounded border ${rememberMe ? "bg-brand" : "bg-white"} border-gray-300 mr-2 flex items-center justify-center`}
+                    className={`w-5 h-5 rounded border ${
+                      rememberMe ? "bg-brand" : "bg-white"
+                    } border-gray-300 mr-2 flex items-center justify-center`}
                   >
                     {rememberMe && (
                       <Ionicons name="checkmark" size={16} color="white" />
@@ -370,15 +387,6 @@ function Login() {
           </View>
         </KeyboardAwareScrollView>
       </SafeAreaView>
-
-      {/* Toast - positioned outside SafeAreaView for proper absolute positioning */}
-      <Toast
-        visible={showToast}
-        message={toastMessage}
-        type={toastType}
-        duration={toastDuration}
-        onClose={handleToastClose}
-      />
     </>
   );
 }

@@ -1,7 +1,17 @@
 // Navigation.tsx
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { NavigationContainer } from "@react-navigation/native";
-import { auth, authService, UserData, db, userService } from '../utils/firebase';
+import {
+  NavigationContainer,
+  NavigationContainerRef,
+} from "@react-navigation/native";
+import { navigationRef } from "../context/AuthContext";
+import {
+  auth,
+  authService,
+  UserData,
+  db,
+  userService,
+} from "../utils/firebase";
 import React, { useState, useEffect, Suspense } from "react";
 import { View, ActivityIndicator, Text, SafeAreaView } from "react-native";
 import type { RootStackParamList } from "../types/type";
@@ -9,7 +19,14 @@ import { useAuth } from "../context/AuthContext";
 
 // Simple loading component for Suspense fallback
 const ScreenLoader = () => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+  <View
+    style={{
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: "#fff",
+    }}
+  >
     <ActivityIndicator size="large" color="#2563eb" />
   </View>
 );
@@ -17,8 +34,6 @@ const ScreenLoader = () => (
 // Components
 import CustomTabs from "../components/BottomTabs";
 import ScreenWrapper from "../components/ScreenWrapper";
-import Toast from "../components/Toast";
-import { useToast } from "../context/ToastContext";
 
 // Screens - using relative imports for EAS build compatibility
 import Chat from "../app/Chat";
@@ -42,30 +57,32 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 // Linking configuration for deep links
 const linking = {
-  prefixes: ['uniclaimapp://'],
+  prefixes: ["uniclaimapp://"],
   config: {
     screens: {
-      Index: '',
-      OnBoarding: 'onboarding',
-      Login: 'login',
-      Register: 'register',
-      Home: 'home',
-      Profile: 'profile',
-      Report: 'report',
-      Message: 'message',
-      PostDetails: 'post/:id',
-      ItemDetails: 'item/:id',
-      Chat: 'chat/:id',
-      ClaimFormScreen: 'claim',
-      PhotoCaptureScreen: 'photo-capture',
-      USTPMapScreen: 'map',
-      EmailVerification: 'email-verification',
-      ForgotPassword: 'forgot-password'
-    }
-  }
+      Index: "",
+      OnBoarding: "onboarding",
+      Login: "login",
+      Register: "register",
+      Home: "home",
+      Profile: "profile",
+      Report: "report",
+      Message: "message",
+      PostDetails: "post/:id",
+      ItemDetails: "item/:id",
+      Chat: "chat/:id",
+      ClaimFormScreen: "claim",
+      PhotoCaptureScreen: "photo-capture",
+      USTPMapScreen: "map",
+      EmailVerification: "email-verification",
+      ForgotPassword: "forgot-password",
+    },
+  },
 };
 
-const withScreenWrapper = <P extends object>(Component: React.ComponentType<P>) => {
+const withScreenWrapper = <P extends object>(
+  Component: React.ComponentType<P>
+) => {
   return (props: P) => (
     <ScreenWrapper statusBarStyle="dark-content" statusBarBg="#fff">
       <Component {...props} />
@@ -73,21 +90,9 @@ const withScreenWrapper = <P extends object>(Component: React.ComponentType<P>) 
   );
 };
 
-// Navigation wrapper component that includes Toast
-const NavigationWrapper = ({ children, toastProps }: {
-  children: React.ReactNode;
-  toastProps: { showToast: boolean; toastMessage: string; toastType: string; toastDuration: number; }
-}) => (
-  <>
-    {children}
-    <Toast
-      visible={toastProps.showToast}
-      message={toastProps.toastMessage}
-      type={toastProps.toastType as any}
-      duration={toastProps.toastDuration}
-      onClose={() => {}}
-    />
-  </>
+// Navigation wrapper component
+const NavigationWrapper = ({ children }: { children: React.ReactNode }) => (
+  <>{children}</>
 );
 
 interface NavigationProps {
@@ -109,40 +114,127 @@ export default function Navigation({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [reportType, setReportType] = useState<"lost" | "found" | null>(null);
-  const [foundAction, setFoundAction] = useState<"keep" | "turnover to OSA" | "turnover to Campus Security" | null>(null);
+  const [foundAction, setFoundAction] = useState<
+    "keep" | "turnover to OSA" | "turnover to Campus Security" | null
+  >(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const { user, userData, isBanned, isAuthenticated, needsEmailVerification, loading, loginAttemptFailed } = useAuth();
+  const {
+    user,
+    userData,
+    isBanned,
+    isAuthenticated,
+    needsEmailVerification,
+    loading,
+    loginAttemptFailed,
+  } = useAuth();
 
-  // Add toast context
-  const { showToast, toastMessage, toastType, toastDuration } = useToast();
-
-  // Force re-render when authentication state changes
+  // Track previous state to only force re-render when navigator type changes
   const [renderKey, setRenderKey] = useState(0);
+  const previousStateRef = React.useRef<{
+    wasLoading: boolean;
+    wasAuthenticated: boolean;
+    hadUser: boolean;
+    hadEmailVerification: boolean;
+    hadLoginFailed: boolean;
+    wasBanned: boolean;
+  } | null>(null);
 
   useEffect(() => {
-    console.log('[NAVIGATION] Auth state updated', {
+    console.log("[NAVIGATION] Auth state updated", {
       isAuthenticated,
-      user: user ? 'User exists' : 'No user',
+      user: user ? "User exists" : "No user",
       loading,
       needsEmailVerification,
       loginAttemptFailed,
-      userEmail: user?.email || 'No email',
-      userVerified: user?.emailVerified ? 'Verified' : 'Not verified'
+      userEmail: user?.email || "No email",
+      userVerified: user?.emailVerified ? "Verified" : "Not verified",
     });
-    
-    // Force re-render when auth state changes, especially for email verification
-    setRenderKey(prev => prev + 1);
-  }, [isAuthenticated, user, loading, needsEmailVerification, loginAttemptFailed, user?.email, user?.emailVerified]);
+
+    // Determine current navigator type
+    let currentNavigator = "unknown";
+    if (loading) {
+      currentNavigator = "loading";
+    } else if (
+      (!isAuthenticated || !user) &&
+      !loginAttemptFailed &&
+      !needsEmailVerification
+    ) {
+      currentNavigator = "unauth";
+    } else if ((user || isAuthenticated) && needsEmailVerification) {
+      currentNavigator = "email-verification";
+    } else if (user && isBanned) {
+      currentNavigator = "banned";
+    } else if (!isAuthenticated && !user && loginAttemptFailed) {
+      currentNavigator = "login-failed";
+    } else if (user && !isBanned) {
+      currentNavigator = "authenticated";
+    }
+
+    // Determine previous navigator type
+    const prevState = previousStateRef.current;
+    let previousNavigator = "unknown";
+    if (prevState) {
+      if (prevState.wasLoading) {
+        previousNavigator = "loading";
+      } else if (
+        (!prevState.wasAuthenticated || !prevState.hadUser) &&
+        !prevState.hadLoginFailed &&
+        !prevState.hadEmailVerification
+      ) {
+        previousNavigator = "unauth";
+      } else if (
+        (prevState.hadUser || prevState.wasAuthenticated) &&
+        prevState.hadEmailVerification
+      ) {
+        previousNavigator = "email-verification";
+      } else if (prevState.hadUser && prevState.wasBanned) {
+        previousNavigator = "banned";
+      } else if (
+        !prevState.wasAuthenticated &&
+        !prevState.hadUser &&
+        prevState.hadLoginFailed
+      ) {
+        previousNavigator = "login-failed";
+      } else if (prevState.hadUser && !prevState.wasBanned) {
+        previousNavigator = "authenticated";
+      }
+    }
+
+    // Only increment renderKey if the navigator type actually changed
+    if (previousNavigator !== currentNavigator) {
+      console.log(
+        `[NAVIGATION] Navigator changed from ${previousNavigator} to ${currentNavigator}, incrementing renderKey`
+      );
+      setRenderKey((prev) => prev + 1);
+    }
+
+    // Update previous state
+    previousStateRef.current = {
+      wasLoading: loading,
+      wasAuthenticated: isAuthenticated,
+      hadUser: !!user,
+      hadEmailVerification: needsEmailVerification,
+      hadLoginFailed: loginAttemptFailed,
+      wasBanned: isBanned,
+    };
+  }, [
+    isAuthenticated,
+    user,
+    loading,
+    needsEmailVerification,
+    loginAttemptFailed,
+    isBanned,
+  ]);
 
   // Determine which navigator to show based on authentication state
   let navigatorContent;
 
   if (loading) {
-    console.log('[NAVIGATION] Rendering loading state');
+    console.log("[NAVIGATION] Rendering loading state");
     navigatorContent = (
-      <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
+      <NavigationWrapper>
         <SafeAreaView className="flex-1 bg-white justify-center items-center px-6">
           <View className="items-center">
             <ActivityIndicator size="large" color="#1e40af" />
@@ -153,20 +245,38 @@ export default function Navigation({
         </SafeAreaView>
       </NavigationWrapper>
     );
-  } else if ((!isAuthenticated || !user) && !loginAttemptFailed && !needsEmailVerification) {
-    console.log('[NAVIGATION] Rendering unauthenticated flow - showing Login screen');
-    // Show login screen when not authenticated and no failed login attempt
+  } else if (
+    (!isAuthenticated || !user) &&
+    !loginAttemptFailed &&
+    !needsEmailVerification
+  ) {
+    console.log(
+      "[NAVIGATION] Rendering unauthenticated flow - showing Index screen"
+    );
+    // Show Index screen first when not authenticated
     navigatorContent = (
-      <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
+      <NavigationWrapper>
         <Stack.Navigator
-          key="unauth-navigation"
-          initialRouteName="Login"
+          key={`unauth-navigation-${renderKey}`}
+          initialRouteName="Index"
           screenOptions={{ headerShown: false, animation: "fade" }}
         >
+          <Stack.Screen name="Index">
+            {() => (
+              <Index
+                onContinue={() => navigationRef.current?.navigate("Login")}
+              />
+            )}
+          </Stack.Screen>
           <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
-          <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
-          <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
-          <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
+          <Stack.Screen
+            name="Register"
+            component={withScreenWrapper(Register)}
+          />
+          <Stack.Screen
+            name="ForgotPassword"
+            component={withScreenWrapper(ForgotPassword)}
+          />
           <Stack.Screen name="EmailVerification">
             {() => (
               <Suspense fallback={<ScreenLoader />}>
@@ -178,16 +288,16 @@ export default function Navigation({
       </NavigationWrapper>
     );
   } else if ((user || isAuthenticated) && needsEmailVerification) {
-    console.log('[NAVIGATION] Rendering email verification flow', {
-      userEmail: user?.email || 'No email',
+    console.log("[NAVIGATION] Rendering email verification flow", {
+      userEmail: user?.email || "No email",
       emailVerified: user?.emailVerified || false,
-      needsEmailVerification
+      needsEmailVerification,
     });
     // Show email verification screen
     navigatorContent = (
-      <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
+      <NavigationWrapper>
         <Stack.Navigator
-          key="verification-navigation"
+          key={`verification-navigation-${renderKey}`}
           screenOptions={{ headerShown: false, animation: "fade" }}
         >
           <Stack.Screen name="EmailVerification">
@@ -198,27 +308,40 @@ export default function Navigation({
             )}
           </Stack.Screen>
           <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
-          <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
-          <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
+          <Stack.Screen
+            name="Register"
+            component={withScreenWrapper(Register)}
+          />
+          <Stack.Screen name="Index">
+            {() => <Index onContinue={() => {}} />}
+          </Stack.Screen>
         </Stack.Navigator>
       </NavigationWrapper>
     );
   } else if (user && isBanned) {
-    console.log('[NAVIGATION] Rendering banned user flow', {
+    console.log("[NAVIGATION] Rendering banned user flow", {
       userEmail: user.email,
-      isBanned
+      isBanned,
     });
     navigatorContent = (
-      <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
+      <NavigationWrapper>
         <Stack.Navigator
           key={`banned-navigation-${renderKey}`}
           initialRouteName="Index"
           screenOptions={{ headerShown: false, animation: "fade" }}
         >
-          <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
+          <Stack.Screen name="Index">
+            {() => <Index onContinue={() => {}} />}
+          </Stack.Screen>
           <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
-          <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
-          <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
+          <Stack.Screen
+            name="Register"
+            component={withScreenWrapper(Register)}
+          />
+          <Stack.Screen
+            name="ForgotPassword"
+            component={withScreenWrapper(ForgotPassword)}
+          />
           <Stack.Screen name="EmailVerification">
             {() => (
               <Suspense fallback={<ScreenLoader />}>
@@ -231,16 +354,24 @@ export default function Navigation({
     );
   } else if (!isAuthenticated && !user && loginAttemptFailed) {
     navigatorContent = (
-      <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
+      <NavigationWrapper>
         <Stack.Navigator
           key={`login-failed-navigation-${renderKey}`}
           initialRouteName="Login"
           screenOptions={{ headerShown: false, animation: "fade" }}
         >
           <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
-          <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
-          <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
-          <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
+          <Stack.Screen
+            name="Register"
+            component={withScreenWrapper(Register)}
+          />
+          <Stack.Screen
+            name="ForgotPassword"
+            component={withScreenWrapper(ForgotPassword)}
+          />
+          <Stack.Screen name="Index">
+            {() => <Index onContinue={() => {}} />}
+          </Stack.Screen>
           <Stack.Screen name="EmailVerification">
             {() => (
               <Suspense fallback={<ScreenLoader />}>
@@ -253,7 +384,7 @@ export default function Navigation({
     );
   } else if (user && !isBanned) {
     navigatorContent = (
-      <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
+      <NavigationWrapper>
         <Stack.Navigator
           key={`authenticated-navigation-${renderKey}`}
           initialRouteName="RootBottomTabs"
@@ -264,8 +395,14 @@ export default function Navigation({
             component={withScreenWrapper(CustomTabs)}
           />
           <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
-          <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
-          <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
+          <Stack.Screen
+            name="Register"
+            component={withScreenWrapper(Register)}
+          />
+          <Stack.Screen
+            name="ForgotPassword"
+            component={withScreenWrapper(ForgotPassword)}
+          />
           <Stack.Screen name="EmailVerification">
             {() => (
               <Suspense fallback={<ScreenLoader />}>
@@ -349,7 +486,7 @@ export default function Navigation({
     );
   } else if (needsEmailVerification) {
     navigatorContent = (
-      <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
+      <NavigationWrapper>
         <Stack.Navigator
           key={`email-verification-navigation-${renderKey}`}
           initialRouteName="EmailVerification"
@@ -363,17 +500,29 @@ export default function Navigation({
             )}
           </Stack.Screen>
           <Stack.Screen name="Login" component={withScreenWrapper(Login)} />
-          <Stack.Screen name="Register" component={withScreenWrapper(Register)} />
-          <Stack.Screen name="ForgotPassword" component={withScreenWrapper(ForgotPassword)} />
-          <Stack.Screen name="Index">{() => <Index onContinue={() => {}} />}</Stack.Screen>
+          <Stack.Screen
+            name="Register"
+            component={withScreenWrapper(Register)}
+          />
+          <Stack.Screen
+            name="ForgotPassword"
+            component={withScreenWrapper(ForgotPassword)}
+          />
+          <Stack.Screen name="Index">
+            {() => <Index onContinue={() => {}} />}
+          </Stack.Screen>
         </Stack.Navigator>
       </NavigationWrapper>
     );
   } else {
     // Default case: show onboarding or index
-    const initialRoute = !hasSeenOnBoarding ? "OnBoarding" : !hasPassedIndex ? "Index" : "RootBottomTabs";
+    const initialRoute = !hasSeenOnBoarding
+      ? "OnBoarding"
+      : !hasPassedIndex
+      ? "Index"
+      : "RootBottomTabs";
     navigatorContent = (
-      <NavigationWrapper toastProps={{ showToast, toastMessage, toastType, toastDuration }}>
+      <NavigationWrapper>
         <Stack.Navigator
           key={`main-navigation-${renderKey}`}
           initialRouteName={initialRoute}
@@ -523,7 +672,13 @@ export default function Navigation({
   }
 
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer
+      ref={
+        navigationRef as React.Ref<NavigationContainerRef<RootStackParamList>>
+      }
+      linking={linking}
+      fallback={<ScreenLoader />}
+    >
       {navigatorContent}
     </NavigationContainer>
   );

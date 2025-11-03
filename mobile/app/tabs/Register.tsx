@@ -88,12 +88,26 @@ function Register() {
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
   const handleRegister = async () => {
-    console.log('🚀 [REGISTRATION] Starting registration process...', {
+    const requestId = `ui_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const startTime = Date.now();
+    
+    console.log(`🚀 [REG:${requestId}] Starting registration process`, {
       email,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'server',
+      formData: {
+        firstNameLength: firstName.length,
+        lastNameLength: lastName.length,
+        contactNumberLength: contactNumber.length,
+        studentIdLength: studentId.length,
+        emailLength: email.length,
+        passwordLength: password.length,
+        confirmPasswordLength: confirmPassword.length
+      }
     });
     
-    console.log('📝 [REGISTRATION] Validating form data...');
+    console.log(`📝 [REG:${requestId}] Validating form data...`);
+    const validationStart = Date.now();
     const newErrors: FormErrors = {};
 
     if (!firstName.trim()) newErrors.firstName = "First name is required";
@@ -115,16 +129,32 @@ function Register() {
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length > 0) {
-      console.warn('❌ [REGISTRATION] Form validation failed:', newErrors);
+      console.warn(`❌ [REG:${requestId}] Form validation failed`, {
+        errors: newErrors,
+        timeTaken: `${Date.now() - validationStart}ms`,
+        timestamp: new Date().toISOString()
+      });
       setErrors(newErrors);
       return;
     }
 
-    console.log('✅ Form validation passed');
-    console.log('🔄 Starting Firebase registration...');
+    console.log(`✅ [REG:${requestId}] Form validation passed`, {
+      timeTaken: `${Date.now() - validationStart}ms`,
+      timestamp: new Date().toISOString()
+    });
+    
+    console.log(`🔄 [REG:${requestId}] Starting Firebase registration...`);
     setIsLoading(true);
-
     const registrationStartTime = Date.now();
+    
+    // Log navigation state before registration
+    const currentRoute = navigation.getState()?.routes[navigation.getState().index]?.name;
+    console.log(`📍 [REG:${requestId}] Current navigation state`, {
+      currentRoute,
+      routeCount: navigation.getState()?.routes.length,
+      canGoBack: navigation.canGoBack(),
+      timestamp: new Date().toISOString()
+    });
     try {
       console.log('🔑 [REGISTRATION] Attempting to register user with Firebase Auth...', {
         email,
@@ -132,13 +162,14 @@ function Register() {
       });
 
       // Register user with Firebase
-      console.log('📤 Sending registration request to Firebase...', {
+      console.log(`📤 [REG:${requestId}] Sending registration request to Firebase...`, {
         email,
         hasPassword: !!password,
-        firstName,
-        lastName,
-        contactNumber,
-        studentId
+        firstNameLength: firstName.length,
+        lastNameLength: lastName.length,
+        contactNumberLength: contactNumber.length,
+        studentIdLength: studentId.length,
+        timestamp: new Date().toISOString()
       });
       const userCredential = await authService.register(
         email,
@@ -149,69 +180,155 @@ function Register() {
         studentId
       );
 
-      console.log('✅ [REGISTRATION] User registration successful', {
+      const registrationTime = Date.now() - registrationStartTime;
+      console.log(`✅ [REG:${requestId}] Firebase registration successful`, {
         uid: userCredential.user.uid,
-        emailVerified: userCredential.user.emailVerified,
-        timeTaken: `${Date.now() - registrationStartTime}ms`,
-        timestamp: new Date().toISOString()
-      });
-
-      console.log('🎉 [REGISTRATION] Registration successful, navigating to EmailVerification', {
         email: userCredential.user.email,
-        uid: userCredential.user.uid,
-        timestamp: new Date().toISOString()
-      });
-      
-      // Force navigation to EmailVerification screen
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'EmailVerification' }],
+        emailVerified: userCredential.user.emailVerified,
+        timeTaken: `${registrationTime}ms`,
+        timestamp: new Date().toISOString(),
+        metadata: {
+          creationTime: userCredential.user.metadata.creationTime,
+          lastSignInTime: userCredential.user.metadata.lastSignInTime
+        }
       });
 
+      // Prepare navigation state
+      const navState = {
+        target: 'EmailVerification',
+        params: { 
+          email: userCredential.user.email || email,
+          fromLogin: false,
+          registrationComplete: true
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      console.log(`🔄 [REG:${requestId}] Preparing navigation to EmailVerification`, navState);
+      
       try {
-        // Clear loading state and navigate to email verification
+        // Clear loading state before navigation
         setIsLoading(false);
+        
+        // Log navigation attempt
+        console.log(`🚀 [REG:${requestId}] Attempting navigation with replace...`, {
+          navigationMethod: 'replace',
+          ...navState,
+          navigationStateBefore: {
+            routes: navigation.getState()?.routes.map(r => r.name) || [],
+            index: navigation.getState()?.index,
+            canGoBack: navigation.canGoBack()
+          }
+        });
         
         // Use replace to avoid going back to registration
-        navigation.replace('EmailVerification', { 
-          email, 
-          fromLogin: false 
+        navigation.replace('EmailVerification', navState.params);
+        
+        console.log(`✅ [REG:${requestId}] Navigation successful`, {
+          ...navState,
+          navigationMethod: 'replace',
+          timestamp: new Date().toISOString()
         });
         
-        return; // Exit the function after navigation
+        return; // Exit the function after successful navigation
       } catch (navError) {
-        console.error('❌ Navigation error:', navError);
-        // Fallback to regular navigation if replace fails
-        navigation.navigate('EmailVerification', { 
-          email, 
-          fromLogin: false 
+        console.error(`❌ [REG:${requestId}] Navigation with replace failed, falling back to navigate`, {
+          error: navError,
+          navigationMethod: 'navigate',
+          ...navState,
+          timestamp: new Date().toISOString()
         });
-        setIsLoading(false);
+        
+        // Fallback to regular navigation if replace fails
+        try {
+          navigation.navigate('EmailVerification', navState.params);
+          
+          console.log(`🔄 [REG:${requestId}] Fallback navigation successful`, {
+            ...navState,
+            navigationMethod: 'navigate',
+            timestamp: new Date().toISOString()
+          });
+        } catch (fallbackError) {
+          console.error(`❌ [REG:${requestId}] Fallback navigation also failed`, {
+            error: fallbackError,
+            originalError: navError,
+            timestamp: new Date().toISOString(),
+            navigationState: {
+              routes: navigation.getState()?.routes.map(r => r.name) || [],
+              index: navigation.getState()?.index,
+              canGoBack: navigation.canGoBack()
+            }
+          });
+          
+          // As a last resort, try resetting the navigation stack
+          try {
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'EmailVerification', params: navState.params }],
+            });
+            console.log(`🔄 [REG:${requestId}] Navigation reset successful`);
+          } catch (resetError) {
+            console.error(`❌ [REG:${requestId}] All navigation attempts failed`, {
+              resetError,
+              fallbackError,
+              originalError: navError,
+              timestamp: new Date().toISOString()
+            });
+          }
+        } finally {
+          setIsLoading(false);
+        }
         return;
       }
     } catch (error: any) {
-      console.error('❌ Registration failed:', {
+      const errorTime = Date.now();
+      const errorDetails = {
+        requestId,
         errorCode: error?.code,
         errorMessage: error?.message,
-        timestamp: new Date().toISOString()
-      });
-      console.error('❌ [REGISTRATION] Registration failed:', {
-        error: error.message || error,
-        code: error.code,
-        timeTaken: `${Date.now() - registrationStartTime}ms`,
-        timestamp: new Date().toISOString()
-      });
+        timeTaken: `${errorTime - startTime}ms`,
+        timestamp: new Date().toISOString(),
+        stack: error?.stack,
+        navigationState: {
+          currentRoute: navigation.getState()?.routes[navigation.getState().index]?.name,
+          canGoBack: navigation.canGoBack(),
+          routeCount: navigation.getState()?.routes.length
+        },
+        auth: error?.auth,
+        email: error?.email,
+        credential: error?.credential ? '[REDACTED]' : undefined,
+        tenantId: error?.tenantId,
+        appName: error?.appName,
+        emailLink: error?.emailLink ? '[REDACTED]' : undefined,
+        phoneNumber: error?.phoneNumber ? '[REDACTED]' : undefined,
+        verificationId: error?.verificationId ? '[REDACTED]' : undefined
+      };
       
-      Alert.alert(
-        "Registration Failed", 
-        error.message || 'An error occurred during registration. Please try again.'
-      );
-      setIsLoading(false);
+      console.error(`❌ [REG:${requestId}] Registration failed`, errorDetails);
+      
+      // Log additional error details if available
+      if (error.details) {
+        console.error(`🔍 [REG:${requestId}] Additional error details:`, error.details);
+      }
+      
+      // As a last resort, try resetting the navigation stack
+      try {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'EmailVerification', params: { email } }],
+        });
+        console.log(`🔄 [REG:${requestId}] Navigation reset successful`);
+      } catch (resetError: any) {
+        const resetErrorDetails = {
+          error: resetError?.message,
+          code: resetError?.code,
+          stack: resetError?.stack,
+          timestamp: new Date().toISOString()
+        };
+        
+        console.error(`❌ [REG:${requestId}] All navigation attempts failed`, resetErrorDetails);
+      }
     } finally {
-      console.log('⏱️ [REGISTRATION] Registration process completed in', 
-        `${Date.now() - registrationStartTime}ms`,
-        { timestamp: new Date().toISOString() }
-      );
       setIsLoading(false);
     }
   };
@@ -490,4 +607,5 @@ function Register() {
   );
 }
 
-export default memo(Register);
+const MemoizedRegister = memo(Register);
+export default MemoizedRegister;

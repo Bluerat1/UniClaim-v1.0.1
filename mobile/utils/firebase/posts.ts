@@ -1,23 +1,8 @@
 // Posts service for lost and found items - Enhanced with performance optimizations
 import { db } from './config';
 import { cloudinaryService, extractPublicIdFromUrl } from '../cloudinary';
-import {
-    doc,
-    collection,
-    getDoc,
-    addDoc,
-    updateDoc,
-    deleteDoc,
-    query,
-    orderBy,
-    onSnapshot,
-    where,
-    getDocs,
-    serverTimestamp,
-    limit,
-    startAfter,
-    writeBatch
-} from 'firebase/firestore';
+import { doc, collection, getDoc, addDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot, where, getDocs, serverTimestamp, limit, startAfter } from 'firebase/firestore';
+import writeBatchManager from './writeBatchManager';
 
 // Import notification sender (mobile service)
 import { notificationSender } from './notificationSender';
@@ -162,6 +147,85 @@ export const postService = {
         return unsubscribe;
     },
 
+    // Get user posts with pagination - optimized with logging and error handling
+    async getUserPostsPaginated(userEmail: string, lastDoc: any = null, pageSize = 10) {
+        // Log the query for debugging
+        const queryId = `user_posts_${Date.now()}`;
+        console.log(`[${queryId}] Executing query for user: ${userEmail}`, {
+            lastDocId: lastDoc?.id || 'none',
+            pageSize,
+            timestamp: new Date().toISOString()
+        });
+
+        const startTime = Date.now();
+
+        try {
+            // Build the base query
+            let q = query(
+                collection(db, 'posts'),
+                where('user.email', '==', userEmail),
+                orderBy('createdAt', 'desc'),
+                limit(pageSize)
+            );
+
+            // Add startAfter if we have a lastDoc
+            if (lastDoc) {
+                q = query(q, startAfter(lastDoc));
+            }
+
+            // Execute the query
+            const snapshot = await getDocs(q);
+
+            // Process the results
+            const posts = snapshot.docs.map(doc => {
+                const data = doc.data();
+                // Ensure createdAt is a proper date object
+                const postData = {
+                    id: doc.id,
+                    ...data,
+                    createdAt: data.createdAt?.toDate?.() || new Date()
+                };
+                return postData;
+            });
+
+            const executionTime = Date.now() - startTime;
+            console.log(`[${queryId}] Query completed in ${executionTime}ms`, {
+                results: posts.length,
+                hasMore: posts.length === pageSize,
+                firstDocId: posts[0]?.id,
+                lastDocId: posts[posts.length - 1]?.id
+            });
+
+            return {
+                posts,
+                lastDoc: snapshot.docs[snapshot.docs.length - 1] || null,
+                hasMore: snapshot.docs.length === pageSize
+            };
+        } catch (error: any) {
+            const errorTime = Date.now() - startTime;
+            console.error(`[${queryId}] Query failed after ${errorTime}ms:`, error);
+
+            // Add more specific error handling
+            if (error.code === 'resource-exhausted') {
+                console.warn('Firestore quota exceeded. Please check your usage and billing.');
+                // You might want to implement a retry with backoff here
+            } else if (error.code === 'failed-precondition') {
+                console.error('Missing or insufficient permissions, or missing composite index');
+                // Guide user to create the required index
+                console.info('Ensure you have a composite index on:', {
+                    collection: 'posts',
+                    fields: [
+                        { field: 'user.email', order: 'ASCENDING' },
+                        { field: 'createdAt', order: 'DESCENDING' }
+                    ]
+                });
+            }
+
+            // Re-throw the error with additional context
+            throw new Error(`Failed to fetch user posts: ${error.message || 'Unknown error'}`);
+        }
+    },
+
     // Get posts by type
     getPostsByType(type: string, callback: (posts: any[]) => void) {
         const q = query(
@@ -240,7 +304,7 @@ export const postService = {
         if (updates.length === 0) return;
 
         try {
-            const batch = writeBatch(db);
+            const batch = writeBatchManager.getBatch();
 
             updates.forEach(({ id, data }) => {
                 const postRef = doc(db, 'posts', id);
@@ -332,60 +396,55 @@ export const postService = {
         return unsubscribe;
     },
 
-    // Create new post
+    // Create new post with batched writes
     async createPost(postData: any): Promise<string> {
         try {
-            // Upload images to Cloudinary if any (matching web app pattern)
+            // Upload images to Cloudinary if any
             let imageUrls: string[] = [];
-            if (postData.images && postData.images.length > 0) {
+            if (postData.images?.length > 0) {
                 try {
                     const { cloudinaryService } = await import('../cloudinary');
-                    imageUrls = await cloudinaryService.uploadImages(postData.images, 'posts');
+                    // Process images in batches to avoid overloading Cloudinary
+                    const BATCH_SIZE = 3;
+                    for (let i = 0; i < postData.images.length; i += BATCH_SIZE) {
+                        const batch = postData.images.slice(i, i + BATCH_SIZE);
+                        const uploaded = await cloudinaryService.uploadImages(batch, 'posts');
+                        imageUrls = [...imageUrls, ...uploaded];
+                        
+                        // Add a small delay between batches
+                        if (i + BATCH_SIZE < postData.images.length) {
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                        }
+                    }
                 } catch (uploadError: any) {
                     console.error('❌ Failed to upload images to Cloudinary:', uploadError);
-
-                    // Provide more helpful error message for configuration issues
-                    if (uploadError.message.includes('Cloudinary cloud name not configured') ||
-                        uploadError.message.includes('Cloudinary upload preset not configured')) {
-                        throw new Error(`Cloudinary not configured. Please create a .env file in the mobile directory with EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME and EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET. Error: ${uploadError.message}`);
-                    }
-
                     throw new Error(`Failed to upload images: ${uploadError.message}`);
                 }
             }
 
-            // Calculate expiry date (30 days from creation)
+            // Prepare post data with timestamps
+            const now = new Date();
             const expiryDate = new Date();
-            expiryDate.setDate(expiryDate.getDate() + 30);
+            expiryDate.setDate(now.getDate() + 30);
 
-            // Convert turnoverDecisionAt to Firebase timestamp if it exists
-            if (postData.turnoverDetails?.turnoverDecisionAt) {
-                postData.turnoverDetails.turnoverDecisionAt = serverTimestamp();
-            }
-
-            // Ensure all required fields are present for web compatibility
             const enhancedPostData = {
                 ...postData,
-                // Replace local image URIs with Cloudinary URLs
                 images: imageUrls,
-                // Ensure status is set to pending for new posts
                 status: postData.status || 'pending',
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+                expiryDate: expiryDate.toISOString(),
                 // Add lifecycle management fields that web expects
                 isExpired: false,
                 movedToUnclaimed: false,
                 isHidden: false,
                 originalStatus: postData.status || 'pending',
-                // Set expiry date for 30-day lifecycle system
-                expiryDate: expiryDate,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp()
             };
 
             console.log('📝 Creating post with data:', {
                 title: enhancedPostData.title,
                 status: enhancedPostData.status,
                 type: enhancedPostData.type,
-                category: enhancedPostData.category,
                 creatorId: enhancedPostData.creatorId,
                 userEmail: enhancedPostData.user?.email,
                 movedToUnclaimed: enhancedPostData.movedToUnclaimed,
@@ -393,113 +452,46 @@ export const postService = {
                 isExpired: enhancedPostData.isExpired
             });
 
-            const postRef = await addDoc(collection(db, 'posts'), enhancedPostData);
-
-            // Send notifications to all users about the new post in the background
-            // This runs asynchronously and doesn't block post creation
-            setTimeout(async () => {
-                try {
-                    // Check if this is a turnover post - if so, skip notifications until approved
-                    if (enhancedPostData.turnoverDetails && enhancedPostData.turnoverDetails.turnoverAction) {
-                        console.log(`📋 Mobile post ${postRef.id} has turnover details (${enhancedPostData.turnoverDetails.turnoverAction}) - skipping notifications until approved`);
-                        return;
-                    }
-
-                    // Get creator information for the notification
-                    const creatorDoc = await getDoc(doc(db, 'users', postData.creatorId || postData.user?.uid));
-                    const creatorData = creatorDoc.exists() ? creatorDoc.data() : null;
-                    const creatorName = creatorData ? `${creatorData.firstName} ${creatorData.lastName}` : 'Someone';
-                    const creatorEmail = creatorData?.email || 'Unknown';
-
-                    // Send notifications to all users
-                    await notificationSender.sendNewPostNotification({
-                        id: postRef.id,
-                        title: postData.title,
-                        category: postData.category,
-                        location: postData.location,
-                        type: postData.type,
-                        creatorId: postData.creatorId || postData.user?.uid,
-                        creatorName: creatorName
-                    });
-
-                    // Send notification to admins about the new post
-                    await adminNotificationService.notifyAdminsNewPost({
-                        postId: postRef.id,
-                        postTitle: postData.title,
-                        postType: postData.type,
-                        postCategory: postData.category,
-                        postLocation: postData.location,
-                        creatorId: postData.creatorId || postData.user?.uid,
-                        creatorName: creatorName,
-                        creatorEmail: creatorEmail
-                    });
-
-                    console.log('✅ Background notifications sent successfully for new post:', postRef.id);
-                } catch (notificationError) {
-                    // Don't fail post creation if notifications fail - just log the error
-                    console.error('❌ Error sending background notifications for post:', postRef.id, notificationError);
-                }
-            }, 0);
-
-            console.log('✅ Post created successfully:', {
-                id: postRef.id,
-                title: enhancedPostData.title,
-                status: enhancedPostData.status,
-                type: enhancedPostData.type,
-                creatorId: enhancedPostData.creatorId
+            // Add the new post to Firestore using batch manager
+            const docRef = doc(collection(db, 'posts'));
+            await writeBatchManager.addToBatch('posts', docRef.id, {
+                ...enhancedPostData,
+                id: docRef.id // Ensure the ID is included in the document
             });
-
-            // Invalidate cache to ensure the new post appears immediately
-            invalidatePostCaches(postRef.id);
-
-            return postRef.id;
+            
+            console.log('✅ Post queued for creation with ID:', docRef.id);
+            return docRef.id;
         } catch (error: any) {
             throw new Error(error.message || 'Failed to create post');
         }
     },
 
-    // Update post
+    // Update post with batched writes
     async updatePost(postId: string, updates: any): Promise<void> {
         try {
-            await updateDoc(doc(db, 'posts', postId), {
+            await writeBatchManager.addToBatch('posts', postId, {
                 ...updates,
                 updatedAt: serverTimestamp()
-            });
-
-            // Invalidate caches to ensure fresh data is fetched after updates
-            invalidatePostCaches(postId);
-        } catch (error: any) {
-            throw new Error(error.message || 'Failed to update post');
+            }, { merge: true });
+            
+            console.log(`✅ Update queued for post: ${postId}`);
+        } catch (error) {
+            console.error('❌ Error queuing post update:', error);
+            throw error;
         }
     },
 
-    // Delete post and associated images
+    // Delete post using batch manager
     async deletePost(postId: string): Promise<void> {
         try {
-            // First get the post to delete its images
-            const postDoc = await getDoc(doc(db, 'posts', postId));
-            if (postDoc.exists()) {
-                const postData = postDoc.data();;
-                
-                // Delete all images associated with the post
-                if (postData.images && Array.isArray(postData.images)) {
-                    await Promise.all(
-                        postData.images.map((imageUrl: string) => {
-                            const publicId = extractPublicIdFromUrl(imageUrl);
-                            return publicId ? cloudinaryService.deleteImage(publicId).catch(console.error) : Promise.resolve();
-                        })
-                    );
-                }
-            }
+            await writeBatchManager.deleteFromBatch('posts', postId);
+            console.log(`✅ Delete queued for post: ${postId}`);
             
-            // Then delete the post document
-            await deleteDoc(doc(db, 'posts', postId));
-
-            // Invalidate caches to ensure fresh data is fetched after deletion
-            invalidatePostCaches(postId);
-        } catch (error: any) {
-            console.error('Error in deletePost:', error);
-            throw new Error(error.message || 'Failed to delete post');
+            // Note: If you need to clean up Cloudinary images, do it here
+            // but be careful with rate limits
+        } catch (error) {
+            console.error('❌ Error queuing post for deletion:', error);
+            throw error;
         }
     },
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
 import { useMessage } from "@/context/MessageContext";
 import type { Conversation, Message } from "@/types/Post";
 import MessageBubble from "@/components/chat/MessageBubble";
@@ -282,14 +282,22 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
 
     // First try to get from participantInfo
     if (conversation.participantInfo) {
-      // Find the other participant (excluding current admin user)
       const otherParticipantId = Object.keys(conversation.participantInfo).find(
         (uid) => uid !== userData.uid
       );
 
       if (otherParticipantId && conversation.participantInfo[otherParticipantId]) {
         const info = conversation.participantInfo[otherParticipantId];
-        return info.photoURL || info.photo || null;
+        return (
+          info.photoURL ||
+          info.photo ||
+          info.profilePicture ||
+          info.profileImageUrl ||
+          info.avatar ||
+          info.picture ||
+          info.image ||
+          null
+        );
       }
     }
 
@@ -311,7 +319,16 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
     if (typeof participant === 'boolean') {
       return null;
     }
-    return participant.profilePicture || participant.profileImageUrl || null;
+    return (
+      participant.profilePicture ||
+      participant.profileImageUrl ||
+      participant.photoURL ||
+      participant.photo ||
+      participant.avatar ||
+      participant.picture ||
+      participant.image ||
+      null
+    );
   };
 
   const getOtherParticipantName = (conversation: Conversation) => {
@@ -367,6 +384,45 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
 
     return `${firstName} ${lastName}`.trim() || "Unknown User";
   };
+
+  const getMessageProfilePicture = useCallback(
+    (message: Message) => {
+      if (message.senderProfilePicture) {
+        return message.senderProfilePicture;
+      }
+      if (!conversation) {
+        return null;
+      }
+      const info = conversation.participantInfo?.[message.senderId];
+      if (info) {
+        return (
+          info.photoURL ||
+          info.photo ||
+          info.profilePicture ||
+          info.profileImageUrl ||
+          info.avatar ||
+          info.picture ||
+          info.image ||
+          null
+        );
+      }
+      const participant = conversation.participants?.[message.senderId];
+      if (!participant || typeof participant === "boolean") {
+        return null;
+      }
+      return (
+        participant.profilePicture ||
+        participant.profileImageUrl ||
+        participant.photoURL ||
+        participant.photo ||
+        participant.avatar ||
+        participant.picture ||
+        participant.image ||
+        null
+      );
+    },
+    [conversation]
+  );
 
   if (!conversation) {
     return (
@@ -489,7 +545,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
             <div key={message.id} className="flex items-start gap-3 group">
               {!message.senderName?.startsWith('[ADMIN]') && (
                 <ProfilePicture
-                  src={message.senderProfilePicture}
+                  src={getMessageProfilePicture(message) || undefined}
                   alt={message.senderName}
                   className="size-6"
                 />

@@ -9,6 +9,7 @@ import {
 import type {
   ChartData,
   ChartOptions,
+  ScriptableContext,
 } from 'chart.js';
 import type { Post } from "@/types/Post";
 import type { DateRange } from 'react-day-picker';
@@ -39,44 +40,57 @@ export const CategoryDistributionChart: React.FC<CategoryDistributionChartProps>
   posts,
   dateRange,
 }) => {
-  // Process data for the chart
+  const normalizeDate = React.useCallback((value: unknown) => {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    if (typeof value === 'number') {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+    if (typeof value === 'string') {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+    if (typeof value === 'object' && value !== null && 'seconds' in (value as Record<string, unknown>)) {
+      const seconds = (value as { seconds: number }).seconds;
+      return new Date(seconds * 1000);
+    }
+    return null;
+  }, []);
+
   const chartData = React.useMemo<ChartData<'doughnut'>>(() => {
     if (!posts.length) return { labels: [], datasets: [] };
 
-    // Filter posts by date range if provided
-    const filteredPosts = dateRange?.from || dateRange?.to
-      ? posts.filter(post => {
-          if (!post.createdAt) return false;
-          const postDate = new Date(post.createdAt);
-          if (dateRange.from && postDate < dateRange.from) return false;
-          if (dateRange.to) {
-            const nextDay = new Date(dateRange.to);
-            nextDay.setDate(nextDay.getDate() + 1);
-            if (postDate >= nextDay) return false;
+    const fromDate = dateRange?.from ? normalizeDate(dateRange.from) : null;
+    const toDate = dateRange?.to ? normalizeDate(dateRange.to) : null;
+
+    const filteredPosts = fromDate || toDate
+      ? posts.filter((post) => {
+          const created = normalizeDate(post.createdAt);
+          if (!created) return false;
+          if (fromDate && created < fromDate) return false;
+          if (toDate) {
+            const boundary = new Date(toDate);
+            boundary.setHours(23, 59, 59, 999);
+            if (created > boundary) return false;
           }
           return true;
         })
       : posts;
 
-    // Count posts by category
     const categoryCounts = filteredPosts.reduce<Record<string, number>>((acc, post) => {
       const category = post.category || 'Uncategorized';
       acc[category] = (acc[category] || 0) + 1;
       return acc;
     }, {});
 
-    // Sort by count (descending)
     const sortedCategories = Object.entries(categoryCounts)
       .sort(([, a], [, b]) => b - a)
       .map(([category]) => category);
 
-    // Get counts in the same order as sorted categories
-    const counts = sortedCategories.map(category => categoryCounts[category]);
+    const counts = sortedCategories.map((category) => categoryCounts[category]);
 
-    // Use colors based on the number of categories
-    const backgroundColors = sortedCategories.map((_, index) => 
-      COLORS[index % COLORS.length]
-    );
+    const backgroundColors = sortedCategories.map((_, index) => COLORS[index % COLORS.length]);
 
     return {
       labels: sortedCategories,
@@ -84,15 +98,24 @@ export const CategoryDistributionChart: React.FC<CategoryDistributionChartProps>
         {
           data: counts,
           backgroundColor: backgroundColors,
+          hoverBackgroundColor: backgroundColors,
           borderWidth: 1,
+          hoverOffset: 8,
         },
       ],
     };
-  }, [posts]);
+  }, [posts, dateRange, normalizeDate]);
 
   const options: ChartOptions<'doughnut'> = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: {
+      animateRotate: true,
+      animateScale: true,
+      duration: 900,
+      easing: 'easeOutQuart',
+      delay: (context: ScriptableContext<'doughnut'>) => context.dataIndex * 80,
+    },
     plugins: {
       legend: {
         position: 'right',
@@ -126,9 +149,14 @@ export const CategoryDistributionChart: React.FC<CategoryDistributionChartProps>
     );
   }
 
+  const chartKey = React.useMemo(() => {
+    const data = chartData.datasets[0]?.data ?? [];
+    return `${chartData.labels.join('-')}|${data.join('-')}`;
+  }, [chartData]);
+
   return (
     <div className="h-full w-full">
-      <Doughnut data={chartData} options={options} />
+      <Doughnut key={chartKey} data={chartData} options={options} />
     </div>
   );
 };

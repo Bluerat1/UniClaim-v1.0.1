@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatusDistributionChart } from "./charts/StatusDistributionChart.tsx";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatusDistributionChart } from "./charts/StatusDistributionChart";
 import type { DateRange } from 'react-day-picker';
 import type { Post } from "@/types/Post";
 
@@ -26,21 +26,22 @@ export const StatusAnalytics: React.FC<StatusAnalyticsProps> = ({
       expired: 0,
       other: 0,
     };
-    
+
     posts.forEach((post) => {
-      const status = post.status?.toLowerCase() || 'pending';
-      if (status in counts) {
-        counts[status as keyof typeof counts]++;
+      const rawStatus = post.status?.toLowerCase() || "pending";
+      const normalizedStatus = rawStatus === "completed" ? "resolved" : rawStatus;
+      if (normalizedStatus in counts) {
+        counts[normalizedStatus as keyof typeof counts]++;
       } else {
         counts.other++;
       }
     });
-    
+
     return Object.entries(counts).map(([status, count]) => ({
       status: status.charAt(0).toUpperCase() + status.slice(1),
       count,
-      percentage: (count / posts.length) * 100,
-    }));
+      percentage: posts.length ? (count / posts.length) * 100 : 0,
+    })).filter(({ count }) => count > 0 || posts.length === 0);
   }, [posts]);
 
   if (loading) {
@@ -61,71 +62,51 @@ export const StatusAnalytics: React.FC<StatusAnalyticsProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Status Overview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {statusCounts.map(({ status, count, percentage }) => (
-                <div key={status} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-300">
-                    {status}
-                  </span>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm font-medium">{count}</span>
-                    <span className="text-xs text-gray-500 w-12 text-right">
+      <Card>
+        <CardHeader>
+          <CardTitle>Status Distribution</CardTitle>
+          <CardDescription>Visual representation of item status distribution</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80">
+            <StatusDistributionChart 
+              posts={posts} 
+              dateRange={dateRange} 
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Status Breakdown</CardTitle>
+          <CardDescription>Detailed statistics of items by status</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-sm font-medium text-muted-foreground border-b">
+                  <th className="pb-3 px-4">Status</th>
+                  <th className="pb-3 px-4 text-right">Count</th>
+                  <th className="pb-3 px-4 text-right">Percentage</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {statusCounts.map(({ status, count, percentage }) => (
+                  <tr key={status} className="hover:bg-muted/50">
+                    <td className="py-3 px-4 font-medium">{status}</td>
+                    <td className="py-3 px-4 text-right">{count}</td>
+                    <td className="py-3 px-4 text-right font-medium">
                       {percentage.toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="lg:col-span-2">
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle className="text-lg">Status Distribution</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <StatusDistributionChart 
-                  posts={posts} 
-                  dateRange={dateRange} 
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      <div className="mt-6">
-        <h3 className="text-lg font-semibold mb-4">Status Breakdown</h3>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {statusCounts.map(({ status, count, percentage }) => (
-            <Card key={status} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">{status}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{count}</div>
-                <p className="text-xs text-muted-foreground">
-                  {percentage.toFixed(1)}% of total
-                </p>
-                <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-                  <div 
-                    className="bg-blue-600 h-1.5 rounded-full" 
-                    style={{ width: `${percentage}%` }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

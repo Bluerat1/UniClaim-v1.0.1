@@ -54,16 +54,40 @@ export const authService = {
         studentId: string
     ): Promise<UserCredential> {
         const startTime = Date.now();
-        console.log('🔑 Starting user registration...', {
+        const requestId = `reg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+        
+        console.log('🔑 [AUTH] Starting user registration', {
+            requestId,
             email,
             firstName,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'server'
         });
 
         try {
-            console.log('1️⃣ Creating user in Firebase Authentication...');
+            console.log(`[AUTH:${requestId}] 1️⃣ Creating user in Firebase Authentication...`, {
+                email,
+                hasPassword: !!password,
+                firstNameLength: firstName.length,
+                lastNameLength: lastName.length,
+                contactNumLength: contactNum.length,
+                studentIdLength: studentId.length
+            });
+            
+            const authStart = Date.now();
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const authTime = Date.now();
+            
+            console.log(`✅ [AUTH:${requestId}] User created in Firebase Auth`, {
+                uid: userCredential.user.uid,
+                email: userCredential.user.email,
+                timeTaken: `${authTime - authStart}ms`,
+                emailVerified: userCredential.user.emailVerified,
+                metadata: {
+                    creationTime: userCredential.user.metadata.creationTime,
+                    lastSignInTime: userCredential.user.metadata.lastSignInTime
+                }
+            });
 
             console.log('✅ User created in Firebase Auth', {
                 uid: userCredential.user.uid,
@@ -73,30 +97,56 @@ export const authService = {
 
             // Update profile with additional user data
             if (userCredential.user) {
-                console.log('2️⃣ Updating user profile with display name...');
+                console.log(`[AUTH:${requestId}] 2️⃣ Updating user profile with display name...`);
                 const profileStart = Date.now();
-                await updateProfile(userCredential.user, {
-                    displayName: `${firstName} ${lastName}`
-                });
-                console.log('✅ Profile updated', {
-                    displayName: `${firstName} ${lastName}`,
-                    timeTaken: `${Date.now() - profileStart}ms`
-                });
+                const displayName = `${firstName} ${lastName}`.trim();
+                
+                try {
+                    await updateProfile(userCredential.user, {
+                        displayName
+                    });
+                    
+                    console.log(`✅ [AUTH:${requestId}] Profile updated`, {
+                        uid: userCredential.user.uid,
+                        displayName,
+                        timeTaken: `${Date.now() - profileStart}ms`,
+                        timestamp: new Date().toISOString()
+                    });
+                } catch (error: unknown) {
+                    const errorObj = error as Error & { code?: string };
+                    console.error(`❌ [AUTH:${requestId}] Failed to update profile`, {
+                        error: errorObj.message,
+                        code: errorObj.code || 'unknown',
+                        stack: errorObj.stack,
+                        timestamp: new Date().toISOString()
+                    });
+                    // Continue with registration even if profile update fails
+                }
 
                 // Send email verification
-                console.log('3️⃣ Sending email verification...');
+                console.log(`[AUTH:${requestId}] 3️⃣ Sending email verification...`);
                 const verificationStart = Date.now();
                 try {
-                    await sendEmailVerification(userCredential.user, {
-                        url: 'https://uniclaim2.firebaseapp.com/__/auth/action', // Replace with your actual verification URL
+                    const verificationSettings = {
+                        url: 'https://uniclaim2.firebaseapp.com/__/auth/action',
                         handleCodeInApp: true
-                    });
-                    console.log('📧 Email verification sent successfully', {
-                        email: userCredential.user.email,
-                        timeTaken: `${Date.now() - verificationStart}ms`,
+                    };
+                    
+                    console.log(`[AUTH:${requestId}] Email verification settings:`, verificationSettings);
+                    
+                    await sendEmailVerification(userCredential.user, verificationSettings);
+                    
+                    console.log(`🏁 [AUTH:${requestId}] Registration completed successfully`, {
                         uid: userCredential.user.uid,
+                        email: userCredential.user.email,
+                        totalTime: `${Date.now() - startTime}ms`,
                         timestamp: new Date().toISOString(),
-                        emailVerified: userCredential.user.emailVerified
+                        metrics: {
+                            authTime: authTime - startTime,
+                            profileUpdateTime: profileStart ? authTime - profileStart : 0,
+                            verificationTime: verificationStart ? Date.now() - verificationStart : 0,
+                            firestoreTime: 0
+                        }
                     });
                 } catch (verificationError) {
                     console.error('❌ Failed to send verification email:', {
@@ -114,80 +164,83 @@ export const authService = {
                 try {
                     const userData: UserData = {
                         uid: userCredential.user.uid,
-                        email: userCredential.user.email || '',
-                        firstName: firstName,
-                        lastName: lastName,
-                        contactNum: contactNum,
-                        studentId: studentId,
-                        role: 'user', // This is now type-checked against the UserData interface
+                        email: userCredential.user.email || email,
+                        firstName,
+                        lastName,
+                        contactNum,
+                        studentId,
+                        role: 'user',
                         status: 'active',
                         emailVerified: false,
                         createdAt: serverTimestamp(),
-                        updatedAt: serverTimestamp()
+                        updatedAt: serverTimestamp(),
                     };
 
+                    console.log(`[AUTH:${requestId}] 4️⃣ Creating user document in Firestore...`, {
+                        uid: userCredential.user.uid,
+                        email: userData.email,
+                        dataToSave: {
+                            ...userData,
+                            // Don't log sensitive data in production
+                            contactNum: '[REDACTED]',
+                            studentId: studentId ? `${studentId.substring(0, 2)}...${studentId.substring(studentId.length - 2)}` : ''
+                        }
+                    });
+                    
                     await userService.createUser(userCredential.user.uid, userData);
+                    
+                    console.log(`✅ [AUTH:${requestId}] User document created successfully`, {
+                        uid: userCredential.user.uid,
+                        timeTaken: `${Date.now() - firestoreStart}ms`,
+                        timestamp: new Date().toISOString()
+                    });
                     console.log('✅ Firestore user document created', {
                         uid: userCredential.user.uid,
                         timeTaken: `${Date.now() - firestoreStart}ms`,
                         documentData: userData
                     });
-
-                    // Store credentials for auto-login
-                    console.log('5️⃣ Storing credentials for auto-login...');
-                    const credentialsStart = Date.now();
-                    try {
-                        await credentialStorage.saveCredentials(email, password);
-                        console.log('🔐 Credentials stored', {
-                            timeTaken: `${Date.now() - credentialsStart}ms`
-                        });
-                    } catch (credentialError) {
-                        console.warn('⚠️ Failed to store credentials for auto-login:', {
-                            error: credentialError,
-                            timeTaken: `${Date.now() - credentialsStart}ms`
-                        });
-                        // Continue with registration even if credential storage fails
-                        // The user can still login manually
-                    }
-                } catch (firestoreError) {
-                    console.error('❌ Failed to create Firestore user document:', {
-                        error: firestoreError,
-                        uid: userCredential.user.uid,
-                        timeTaken: `${Date.now() - firestoreStart}ms`,
+                } catch (error: unknown) {
+                    const errorObj = error as Error & { code?: string };
+                    console.error(`❌ [AUTH:${requestId}] Error creating user document:`, {
+                        error: errorObj.message,
+                        code: errorObj.code || 'unknown',
+                        stack: errorObj.stack,
                         timestamp: new Date().toISOString()
                     });
-                    // Don't fail the entire registration if Firestore creation fails
-                    // The AuthContext will handle creating the document later if needed
+                    // Continue with registration even if Firestore fails
                 }
 
             }
 
             return userCredential;
         } catch (error: any) {
-            // Helper function to get readable error messages (inline to avoid circular dependency)
-            const getFirebaseErrorMessage = (error: any): string => {
-                switch (error.code) {
-                    case 'auth/user-not-found':
-                        return 'No account found with this email address.';
-                    case 'auth/wrong-password':
-                        return 'Incorrect password.';
-                    case 'auth/email-already-in-use':
-                        return 'An account already exists with this email address.';
-                    case 'auth/weak-password':
-                        return 'Password should be at least 6 characters long.';
-                    case 'auth/invalid-email':
-                        return 'Please enter a valid email address.';
-                    case 'auth/invalid-credential':
-                        return 'Invalid email or password. Please check your credentials and try again.';
-                    case 'auth/too-many-requests':
-                        return 'Too many failed login attempts. Please try again later.';
-                    case 'auth/network-request-failed':
-                        return 'Network error. Please check your internet connection.';
-                    default:
-                        return error.message || 'An unexpected error occurred. Please try again.';
-                }
+            const errorTime = Date.now();
+            const errorDetails = {
+                requestId,
+                errorCode: error?.code,
+                errorMessage: error?.message,
+                timeTaken: `${errorTime - startTime}ms`,
+                timestamp: new Date().toISOString(),
+                stack: error?.stack,
+                auth: error?.auth,
+                email: error?.email,
+                credential: error?.credential ? '[REDACTED]' : undefined,
+                tenantId: error?.tenantId,
+                appName: error?.appName,
+                emailLink: error?.emailLink ? '[REDACTED]' : undefined,
+                phoneNumber: error?.phoneNumber ? '[REDACTED]' : undefined,
+                verificationId: error?.verificationId ? '[REDACTED]' : undefined
             };
-            throw new Error(getFirebaseErrorMessage(error));
+            
+            console.error(`❌ [AUTH:${requestId}] Registration failed:`, errorDetails);
+            
+            // Re-throw with additional context
+            const enhancedError = new Error(`Registration failed: ${error.message}`);
+            enhancedError.name = error.name || 'RegistrationError';
+            enhancedError.stack = error.stack;
+            (enhancedError as any).details = errorDetails;
+            
+            throw enhancedError;
         }
     },
 

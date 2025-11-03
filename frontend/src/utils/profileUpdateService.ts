@@ -69,15 +69,30 @@ export const profileUpdateService: ProfileUpdateService = {
     // Update all posts created by the user
     async updateUserPosts(userId: string, updates: UserProfileUpdate): Promise<void> {
         try {
-            // Find all posts where the user is the creator
+            // Find all posts where the user is the creator or the original finder in turnoverDetails
             const postsQuery = query(
                 collection(db, 'posts'),
                 where('creatorId', '==', userId)
             );
 
-            const postsSnapshot = await getDocs(postsQuery);
+            // Also find posts where the user is the original finder in turnoverDetails
+            const turnoverPostsQuery = query(
+                collection(db, 'posts'),
+                where('turnoverDetails.originalFinder.uid', '==', userId)
+            );
 
-            if (postsSnapshot.empty) {
+            const [postsSnapshot, turnoverPostsSnapshot] = await Promise.all([
+                getDocs(postsQuery),
+                getDocs(turnoverPostsQuery)
+            ]);
+
+            // Combine post IDs from both queries, removing duplicates
+            const allPostIds = new Set([
+                ...postsSnapshot.docs.map(doc => doc.id),
+                ...turnoverPostsSnapshot.docs.map(doc => doc.id)
+            ]);
+
+            if (allPostIds.size === 0) {
                 console.log('No posts found for user, skipping post updates');
                 return;
             }
@@ -86,37 +101,72 @@ export const profileUpdateService: ProfileUpdateService = {
             const batch = writeBatch(db);
             let updateCount = 0;
 
-            postsSnapshot.forEach((postDoc) => {
-                const postRef = doc(db, 'posts', postDoc.id);
-
-                // Update the embedded user data in the post
+            // Process each post
+            for (const postId of allPostIds) {
+                const postRef = doc(db, 'posts', postId);
+                const postDoc = postsSnapshot.docs.find(doc => doc.id === postId) || 
+                               turnoverPostsSnapshot.docs.find(doc => doc.id === postId);
+                
+                if (!postDoc) continue;
+                
+                const postData = postDoc.data();
                 const postUpdates: any = {
                     updatedAt: serverTimestamp()
                 };
 
-                // Only update fields that exist in the updates
-                if (updates.firstName !== undefined) {
-                    postUpdates['user.firstName'] = updates.firstName;
+                // Update user data in the post if the user is the creator
+                if (postData.creatorId === userId) {
+                    // Only update fields that exist in the updates
+                    if (updates.firstName !== undefined) {
+                        postUpdates['user.firstName'] = updates.firstName;
+                    }
+                    if (updates.lastName !== undefined) {
+                        postUpdates['user.lastName'] = updates.lastName;
+                    }
+                    if (updates.email !== undefined) {
+                        postUpdates['user.email'] = updates.email;
+                    }
+                    if (updates.contactNum !== undefined) {
+                        postUpdates['user.contactNum'] = updates.contactNum;
+                    }
+                    if (updates.studentId !== undefined) {
+                        postUpdates['user.studentId'] = updates.studentId;
+                    }
+                    if (updates.profilePicture !== undefined) {
+                        postUpdates['user.profilePicture'] = updates.profilePicture;
+                        postUpdates['user.profileImageUrl'] = updates.profilePicture; // For backward compatibility
+                    }
                 }
-                if (updates.lastName !== undefined) {
-                    postUpdates['user.lastName'] = updates.lastName;
-                }
-                if (updates.email !== undefined) {
-                    postUpdates['user.email'] = updates.email;
-                }
-                if (updates.contactNum !== undefined) {
-                    postUpdates['user.contactNum'] = updates.contactNum;
-                }
-                if (updates.studentId !== undefined) {
-                    postUpdates['user.studentId'] = updates.studentId;
-                }
-                if (updates.profilePicture !== undefined) {
-                    postUpdates['user.profilePicture'] = updates.profilePicture;
+
+                // Update turnoverDetails.originalFinder if the user is the original finder
+                if (postData.turnoverDetails?.originalFinder?.uid === userId) {
+                    const updatedOriginalFinder = { ...postData.turnoverDetails.originalFinder };
+                    
+                    if (updates.firstName !== undefined) {
+                        updatedOriginalFinder.firstName = updates.firstName;
+                    }
+                    if (updates.lastName !== undefined) {
+                        updatedOriginalFinder.lastName = updates.lastName;
+                    }
+                    if (updates.email !== undefined) {
+                        updatedOriginalFinder.email = updates.email;
+                    }
+                    if (updates.contactNum !== undefined) {
+                        updatedOriginalFinder.contactNum = updates.contactNum;
+                    }
+                    if (updates.studentId !== undefined) {
+                        updatedOriginalFinder.studentId = updates.studentId;
+                    }
+                    if (updates.profilePicture !== undefined) {
+                        updatedOriginalFinder.profilePicture = updates.profilePicture;
+                    }
+                    
+                    postUpdates['turnoverDetails.originalFinder'] = updatedOriginalFinder;
                 }
 
                 batch.update(postRef, postUpdates);
                 updateCount++;
-            });
+            }
 
             // Execute batch update
             await batch.commit();
@@ -172,6 +222,7 @@ export const profileUpdateService: ProfileUpdateService = {
                     updates.email !== undefined || updates.contactNum !== undefined ||
                     updates.studentId !== undefined || updates.profilePicture !== undefined) {
 
+                    // Update participants object
                     const currentParticipant = conversationData.participants[userId] || {};
                     const updatedParticipant = {
                         ...currentParticipant,
@@ -184,6 +235,27 @@ export const profileUpdateService: ProfileUpdateService = {
                     };
 
                     conversationUpdates[`participants.${userId}`] = updatedParticipant;
+                    
+                    // Also update participantInfo if it exists
+                    if (conversationData.participantInfo && conversationData.participantInfo[userId]) {
+                        const currentInfo = conversationData.participantInfo[userId] || {};
+                        const updatedInfo = {
+                            ...currentInfo,
+                            ...(updates.firstName !== undefined && { firstName: updates.firstName }),
+                            ...(updates.lastName !== undefined && { lastName: updates.lastName }),
+                            ...(updates.firstName !== undefined && updates.lastName !== undefined && { 
+                                displayName: `${updates.firstName} ${updates.lastName}`.trim() 
+                            }),
+                            ...(updates.email !== undefined && { email: updates.email }),
+                            ...(updates.contactNum !== undefined && { contactNum: updates.contactNum }),
+                            ...(updates.profilePicture !== undefined && { 
+                                photoURL: updates.profilePicture,
+                                photo: updates.profilePicture 
+                            })
+                        };
+                        conversationUpdates[`participantInfo.${userId}`] = updatedInfo;
+                    }
+                    
                     hasConversationUpdates = true;
                 }
 

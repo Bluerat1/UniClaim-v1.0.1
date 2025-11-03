@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useRef, useEffect, useCallback } from 'react';
+import Toast from '../components/Toast';
 
 interface ToastContextType {
   showToast: boolean;
@@ -22,6 +23,9 @@ const DEFAULT_TOAST_DURATIONS = {
   info: 3000,
 } as const;
 
+// Track if we're currently showing a toast
+let isToastShowing = false;
+
 export const ToastProvider = ({ children }: { children: ReactNode }) => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
@@ -41,16 +45,24 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+        isToastShowing = false;
       }
     };
   }, []);
 
-  const showToastMessage = (
+  const showToastMessage = React.useCallback((
     message: string, 
     type: "success" | "error" | "warning" | "info" = 'success', 
     duration?: number
   ) => {
-    console.log('ToastContext: showToastMessage called with:', { message, type, duration });
+    console.log('ToastContext: showToastMessage called with:', { message, type, duration, isToastShowing });
+    
+    // If a toast is already showing, don't show another one
+    if (isToastShowing) {
+      console.log('ToastContext: Toast already showing, ignoring duplicate');
+      return;
+    }
     
     // Clear any existing timeouts
     if (timeoutRef.current) {
@@ -67,31 +79,64 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
     setToastDuration(toastDuration);
     
     // Show the toast
+    isToastShowing = true;
     setShowToast(true);
+    
+    console.log('ToastContext: Showing toast with message:', message);
     
     // Set timeout to hide the toast
     timeoutRef.current = setTimeout(() => {
       console.log('ToastContext: Auto-hiding toast');
+      isToastShowing = false;
       setShowToast(false);
       timeoutRef.current = null;
     }, toastDuration);
-  };
+  }, []);
+  
+  // Handle toast hide animation complete
+  const handleToastHide = React.useCallback(() => {
+    isToastShowing = false;
+  }, []);
+
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = React.useMemo(() => ({
+    showToast,
+    toastMessage,
+    toastType,
+    toastDuration,
+    setShowToast: (show: boolean) => {
+      console.log('ToastContext: setShowToast called with:', show);
+      setShowToast(show);
+      if (!show) {
+        isToastShowing = false;
+      }
+    },
+    setToastMessage,
+    setToastType,
+    setToastDuration,
+    showToastMessage,
+  }), [showToast, toastMessage, toastType, toastDuration, showToastMessage]);
 
   return (
-    <ToastContext.Provider
-      value={{
-        showToast,
-        toastMessage,
-        toastType,
-        toastDuration,
-        setShowToast,
-        setToastMessage,
-        setToastType,
-setToastDuration,
-        showToastMessage,
-      }}
-    >
+    <ToastContext.Provider value={contextValue}>
       {children}
+      {/* Render the Toast component here to ensure it's only in the tree once */}
+      <Toast
+        visible={showToast}
+        message={toastMessage}
+        type={toastType}
+        onClose={() => {
+          console.log('ToastContext: onClose called');
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+          }
+          isToastShowing = false;
+          setShowToast(false);
+        }}
+        onAnimationEnd={handleToastHide}
+        duration={toastDuration}
+      />
     </ToastContext.Provider>
   );
 };

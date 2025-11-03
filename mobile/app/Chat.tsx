@@ -77,6 +77,23 @@ const styles = StyleSheet.create({
   },
 });
 
+// Debug logging utility with performance tracking
+const DEBUG_ENABLED = true;
+const debugLog = (section: string, message: string, data?: any) => {
+  if (!DEBUG_ENABLED) return;
+  const timestamp = new Date().toLocaleTimeString("en-US", {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    fractionalSecondDigits: 3,
+  });
+  console.log(
+    `\n[CHAT-PERF:${timestamp}] ${section.padEnd(25)} | ${message}`,
+    data ? data : ""
+  );
+};
+
 export default function Chat() {
   const navigation = useNavigation<ChatNavigationProp>();
   const route = useRoute<ChatRouteProp>();
@@ -91,6 +108,24 @@ export default function Chat() {
     foundAction,
     postCreatorId, // Add postCreatorId parameter
   } = route.params;
+
+  // Log component mount with initial params
+  const performanceStartRef = useRef(Date.now());
+  useEffect(() => {
+    debugLog("COMPONENT", "🚀 Chat component mounted", {
+      initialConversationId,
+      postId,
+      postOwnerId,
+      hasPostOwnerUserData: !!postOwnerUserData,
+    });
+    return () => {
+      const elapsed = Date.now() - performanceStartRef.current;
+      debugLog(
+        "COMPONENT",
+        `🏁 Chat component unmounted (total time: ${elapsed}ms)`
+      );
+    };
+  }, []);
 
   const {
     sendMessage,
@@ -117,7 +152,9 @@ export default function Chat() {
   const [conversationId, setConversationId] = useState<string>(
     initialConversationId || ""
   );
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(
+    initialConversationId ? true : false
+  );
   const [conversationData, setConversationData] = useState<any>(null);
 
   const [showClaimModal, setShowClaimModal] = useState(false);
@@ -187,52 +224,107 @@ export default function Chat() {
   const [otherParticipantPic, setOtherParticipantPic] = useState<string | null>(
     null
   );
-  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
 
-  // Effect to load other participant's profile picture
+  // Effect to load other participant's profile picture - optimized to use route params first
   useEffect(() => {
-    if (!userData?.uid || !conversationData?.participants) {
-      setIsLoadingProfile(false);
+    if (!userData?.uid) {
       return;
     }
 
+    const profileStartTime = Date.now();
+    debugLog("PROFILE-PIC", "📸 Profile picture loading started");
+
     const loadProfilePicture = async () => {
       try {
-        // Find the other participant
-        const otherParticipant = Object.entries(
-          conversationData.participants
-        ).find(([uid]) => uid !== userData.uid);
-
-        if (!otherParticipant) {
-          setIsLoadingProfile(false);
-          return;
-        }
-
-        const [uid, participantData] = otherParticipant;
-
-        // If participant data is an object with profile info
-        if (participantData && typeof participantData === "object") {
-          const pictureUrl = getProfilePictureUrl(participantData);
+        // First, try to get picture from postOwnerUserData (passed from Message screen)
+        if (postOwnerUserData && typeof postOwnerUserData === "object") {
+          const pictureUrl = getProfilePictureUrl(postOwnerUserData);
           if (pictureUrl) {
+            const elapsed = Date.now() - profileStartTime;
+            debugLog(
+              "PROFILE-PIC",
+              `✅ Found in postOwnerUserData (${elapsed}ms)`,
+              {
+                source: "route_params",
+                pictureUrl: pictureUrl.substring(0, 50) + "...",
+              }
+            );
             setOtherParticipantPic(pictureUrl);
-            setIsLoadingProfile(false);
             return;
           }
         }
 
-        // If no picture in participant data, fetch from users collection
-        const { getDoc, doc } = await import("firebase/firestore");
-        const { db } = await import("../utils/firebase/config");
-        const userDoc = await getDoc(doc(db, "users", uid));
+        // Then, try conversationData if available
+        if (conversationData?.participants) {
+          const otherParticipant = Object.entries(
+            conversationData.participants
+          ).find(([uid]) => uid !== userData.uid);
 
-        if (userDoc.exists()) {
-          const userData = userDoc.data() as ParticipantData;
-          const pictureUrl = getProfilePictureUrl(userData);
-          if (pictureUrl) {
-            setOtherParticipantPic(pictureUrl);
+          if (otherParticipant) {
+            const [uid, participantData] = otherParticipant;
+
+            if (participantData && typeof participantData === "object") {
+              const pictureUrl = getProfilePictureUrl(participantData);
+              if (pictureUrl) {
+                const elapsed = Date.now() - profileStartTime;
+                debugLog(
+                  "PROFILE-PIC",
+                  `✅ Found in conversationData (${elapsed}ms)`,
+                  {
+                    source: "conversation_data",
+                    pictureUrl: pictureUrl.substring(0, 50) + "...",
+                  }
+                );
+                setOtherParticipantPic(pictureUrl);
+                return;
+              }
+            }
+          }
+        }
+
+        // Only fetch from Firestore if we still don't have a picture
+        if (postOwnerId && !otherParticipantPic) {
+          debugLog("PROFILE-PIC", "🔥 Fetching from Firestore...", {
+            postOwnerId,
+          });
+          setIsLoadingProfile(true);
+          const firebaseStartTime = Date.now();
+
+          const { getDoc, doc } = await import("firebase/firestore");
+          const { db } = await import("../utils/firebase/config");
+          const userDoc = await getDoc(doc(db, "users", postOwnerId));
+
+          const firebaseElapsed = Date.now() - firebaseStartTime;
+
+          if (userDoc.exists()) {
+            const userData = userDoc.data() as ParticipantData;
+            const pictureUrl = getProfilePictureUrl(userData);
+            if (pictureUrl) {
+              const totalElapsed = Date.now() - profileStartTime;
+              debugLog(
+                "PROFILE-PIC",
+                `✅ Found in Firestore (fetch: ${firebaseElapsed}ms, total: ${totalElapsed}ms)`,
+                {
+                  source: "firestore",
+                  firebaseFetchTime: firebaseElapsed,
+                  pictureUrl: pictureUrl.substring(0, 50) + "...",
+                }
+              );
+              setOtherParticipantPic(pictureUrl);
+            }
+          } else {
+            debugLog(
+              "PROFILE-PIC",
+              "⚠️  User document not found in Firestore",
+              { postOwnerId }
+            );
           }
         }
       } catch (error) {
+        debugLog("PROFILE-PIC", "❌ Error loading profile picture", {
+          error: (error as Error).message,
+        });
         console.error("Error loading profile picture:", error);
       } finally {
         setIsLoadingProfile(false);
@@ -240,7 +332,13 @@ export default function Chat() {
     };
 
     loadProfilePicture();
-  }, [conversationData, userData]);
+  }, [
+    userData?.uid,
+    postOwnerId,
+    postOwnerUserData,
+    conversationData?.participants,
+    otherParticipantPic,
+  ]);
 
   // Get the other participant's ID
   const getOtherParticipantId = useCallback(() => {
@@ -335,9 +433,21 @@ export default function Chat() {
     setIsFlatListReady(true);
   };
 
+  // Ref to track pending scroll operations to prevent duplicate animations
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Track if we just sent a message to avoid redundant scroll on Firebase confirmation
+  const [justSentMessageCount, setJustSentMessageCount] = useState(0);
+  const justSentRef = useRef(false);
+
   // Scroll to bottom function - defined after state declarations so it can be used in useEffect hooks
   const scrollToBottom = useCallback(() => {
     if (flatListRef.current && messages.length > 0 && isFlatListReady) {
+      // Clear any pending scroll operations
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+
       // Use requestAnimationFrame for better timing with UI updates
       requestAnimationFrame(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
@@ -367,18 +477,39 @@ export default function Chat() {
       return;
     }
 
+    let isMounted = true; // Track if component is still mounted
+    const createConvStartTime = Date.now();
+    debugLog("CREATE-CONV", "🆕 Creating new conversation", {
+      postId,
+      postOwnerId,
+    });
+
     const createNewConversation = async () => {
       try {
         setLoading(true);
 
         // Double-check that conversation doesn't exist before creating
+        debugLog("CREATE-CONV", "🔍 Checking for existing conversation");
         const existingConversation = await getConversation(
           conversationId || "dummy"
         );
+
+        if (!isMounted) return; // Component was unmounted
+
         if (existingConversation) {
+          debugLog(
+            "CREATE-CONV",
+            "⚠️  Existing conversation found, skipping creation"
+          );
           setLoading(false);
           return;
         }
+
+        debugLog(
+          "CREATE-CONV",
+          "📝 No existing conversation, creating new one"
+        );
+        const createStartTime = Date.now();
 
         const newConversationId = await createConversation(
           postId,
@@ -391,9 +522,30 @@ export default function Chat() {
           postStatus,
           foundAction
         );
+
+        const createElapsed = Date.now() - createStartTime;
+        const totalElapsed = Date.now() - createConvStartTime;
+        debugLog(
+          "CREATE-CONV",
+          `✅ Conversation created (create: ${createElapsed}ms, total: ${totalElapsed}ms)`,
+          {
+            conversationId: newConversationId,
+          }
+        );
+
+        if (!isMounted) return; // Component was unmounted
+
         setConversationId(newConversationId);
       } catch (error: any) {
+        const errorElapsed = Date.now() - createConvStartTime;
+        debugLog(
+          "CREATE-CONV",
+          `❌ Error creating conversation (${errorElapsed}ms)`,
+          { error: error.message }
+        );
         console.error("❌ Chat: Error creating conversation:", error);
+
+        if (!isMounted) return; // Component was unmounted
 
         // Check if conversation was deleted during creation process
         if (
@@ -409,17 +561,23 @@ export default function Chat() {
         Alert.alert("Error", "Failed to start conversation. Please try again.");
         navigation.goBack();
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     createNewConversation();
+
+    return () => {
+      isMounted = false;
+    };
   }, [
     conversationId,
     postId,
     postTitle,
     postOwnerId,
-    userData,
+    userData?.uid,
     postOwnerUserData,
     createConversation,
     navigation,
@@ -433,32 +591,81 @@ export default function Chat() {
     if (!initialConversationId) {
       return;
     }
-    const loadMessages = async () => {
-      try {
-        setLoading(true);
-        const conversationData = await getConversation(initialConversationId);
 
-        if (conversationData) {
-          setConversationData(conversationData);
-          // Mark messages as read when conversation is loaded
-          if (user?.uid) {
-            await markAllUnreadMessagesAsRead(initialConversationId, user.uid);
-          }
+    let isMounted = true;
+    const conversationLoadStartTime = Date.now();
+    debugLog("CONVERSATION", "📋 Loading conversation data", {
+      conversationId: initialConversationId,
+    });
+
+    const loadConversationData = async () => {
+      try {
+        // Mark messages as read first (critical path)
+        if (user?.uid) {
+          const markReadStartTime = Date.now();
+          debugLog("MESSAGES", "📍 Marking messages as read (critical path)");
+          await markAllUnreadMessagesAsRead(initialConversationId, user.uid);
+          const markReadElapsed = Date.now() - markReadStartTime;
+          debugLog("MESSAGES", `✅ Marked as read (${markReadElapsed}ms)`);
         }
+
+        // Defer loading conversation data to avoid blocking UI
+        // Use a small delay to allow messages to start loading first
+        setTimeout(async () => {
+          if (!isMounted) return;
+
+          const deferred = Date.now() - conversationLoadStartTime;
+          debugLog(
+            "CONVERSATION",
+            `⏱️  Deferred loading starting (deferred by ${deferred}ms)`
+          );
+
+          try {
+            const dataLoadStartTime = Date.now();
+            const conversationData = await getConversation(
+              initialConversationId
+            );
+            const dataLoadElapsed = Date.now() - dataLoadStartTime;
+
+            if (isMounted && conversationData) {
+              debugLog(
+                "CONVERSATION",
+                `✅ Data loaded (${dataLoadElapsed}ms)`,
+                {
+                  hasParticipants: !!conversationData.participants,
+                  postType: conversationData.postType,
+                  postStatus: conversationData.postStatus,
+                }
+              );
+              setConversationData(conversationData);
+            }
+          } catch (error) {
+            debugLog("CONVERSATION", "❌ Error loading conversation data", {
+              error: (error as Error).message,
+            });
+            console.error("Error loading conversation data:", error);
+            // Don't show error for conversation data fetch as it's not critical
+          }
+        }, 100);
       } catch (error) {
-        showToastMessage("Failed to load conversation", "error");
-      } finally {
-        setLoading(false);
+        debugLog("MESSAGES", "❌ Error marking messages as read", {
+          error: (error as Error).message,
+        });
+        console.error("Error marking messages as read:", error);
       }
     };
 
-    loadMessages();
+    loadConversationData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [
     initialConversationId,
-    getConversation,
-    markAllUnreadMessagesAsRead,
     user?.uid,
-    showToastMessage,
+    // Note: getConversation and markAllUnreadMessagesAsRead are now memoized with useCallback
+    // in MessageContext, so they have stable references and don't need to be dependencies.
+    // This prevents the effect from re-running unnecessarily after every render.
   ]);
 
   // Load messages when conversation changes
@@ -468,70 +675,87 @@ export default function Chat() {
       return;
     }
 
+    let isActive = true; // Track if this effect is still active
+    const messagesLoadStartTime = Date.now();
+    debugLog("MESSAGES", "💬 Setting up message listener", { conversationId });
+
     const unsubscribe = getConversationMessages(
       conversationId,
       (loadedMessages) => {
+        // Only process if this effect is still active (not cleaned up)
+        if (!isActive) {
+          return;
+        }
+
+        const messagesLoadElapsed = Date.now() - messagesLoadStartTime;
+        debugLog(
+          "MESSAGES",
+          `📨 Received messages (${messagesLoadElapsed}ms)`,
+          {
+            messageCount: loadedMessages.length,
+            oldestMessage: loadedMessages[0]?.timestamp,
+            newestMessage: loadedMessages[loadedMessages.length - 1]?.timestamp,
+          }
+        );
+
         setMessages(loadedMessages);
+        setLoading(false); // Clear loading state when messages are received
+
+        // Skip animated scroll if this is just confirming our sent message
+        if (
+          justSentRef.current &&
+          loadedMessages.length === justSentMessageCount
+        ) {
+          debugLog("MESSAGES", "⏭️  Skipping scroll (just sent message)");
+          return;
+        }
 
         // Scroll to bottom when messages are loaded (for any number of messages)
         if (isFlatListReady) {
-          requestAnimationFrame(() => {
-            setTimeout(() => scrollToBottom(), 150);
-          });
-        }
-      }
-    );
+          debugLog("MESSAGES", "📜 Scrolling to bottom");
+          // Clear any pending timeouts to prevent multiple animations
+          if (scrollTimeoutRef.current) {
+            clearTimeout(scrollTimeoutRef.current);
+          }
 
-    return () => unsubscribe();
-  }, [
-    conversationId,
-    getConversationMessages,
-    isFlatListReady,
-    scrollToBottom,
-  ]);
-
-  // Auto-scroll to bottom when messages are updated (e.g., new message received)
-  useEffect(() => {
-    if (messages.length > 0 && isFlatListReady) {
-      requestAnimationFrame(() => {
-        setTimeout(() => scrollToBottom(), 150);
-      });
-    }
-  }, [messages.length, isFlatListReady, scrollToBottom]);
-
-  // Scroll to bottom when FlatList becomes ready (for existing messages)
-  useEffect(() => {
-    if (isFlatListReady && messages.length > 0) {
-      requestAnimationFrame(() => {
-        setTimeout(() => scrollToBottom(), 100);
-      });
-    }
-  }, [isFlatListReady, messages.length, scrollToBottom]);
-
-  // Set up real-time message listener
-  useEffect(() => {
-    if (!initialConversationId) {
-      return;
-    }
-
-    const unsubscribe = getConversationMessages(
-      initialConversationId,
-      (messages) => {
-        setMessages(messages);
-
-        // Auto-scroll to bottom when new messages arrive
-        if (flatListRef.current && messages.length > 0) {
-          setTimeout(() => {
+          scrollTimeoutRef.current = setTimeout(() => {
             flatListRef.current?.scrollToEnd({ animated: true });
+            scrollTimeoutRef.current = null;
+            debugLog("MESSAGES", "✅ Scroll complete");
           }, 100);
         }
       }
     );
 
     return () => {
-      if (unsubscribe) unsubscribe();
+      isActive = false; // Mark this effect as inactive
+      unsubscribe();
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
     };
-  }, [initialConversationId, getConversationMessages]);
+  }, [conversationId]);
+
+  // Scroll to bottom when FlatList becomes ready (for existing messages)
+  useEffect(() => {
+    if (isFlatListReady && messages.length > 0) {
+      // Clear any pending timeouts to prevent duplicate animations
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+
+      scrollTimeoutRef.current = setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: false }); // No animation on initial load
+        scrollTimeoutRef.current = null;
+      }, 50);
+    }
+
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, [isFlatListReady]);
 
   // Handle message visibility changes to mark messages as read
   const handleViewableItemsChanged = useCallback(
@@ -574,9 +798,13 @@ export default function Chat() {
     const messageText = newMessage.trim();
 
     try {
+      // Track message count before sending
+      const countBeforeSend = messages.length;
+
       // Verify conversation exists before sending message
       const conversation = await getConversation(conversationId);
       if (!conversation) {
+        console.error("Conversation not found");
         Alert.alert("Error", "Conversation not found. Please try again.");
         return;
       }
@@ -591,15 +819,28 @@ export default function Chat() {
         userData.profilePicture
       );
 
+      // Mark that we just sent a message with the count it should reach
+      justSentRef.current = true;
+      setJustSentMessageCount(countBeforeSend + 1);
+
+      // Clear the flag after 2 seconds to allow normal scrolling again
+      setTimeout(() => {
+        justSentRef.current = false;
+      }, 2000);
+
       if (isFlatListReady) {
         requestAnimationFrame(() => {
-          setTimeout(() => scrollToBottom(), 100);
+          setTimeout(() => {
+            // Scroll without animation for instant feedback
+            flatListRef.current?.scrollToEnd({ animated: false });
+          }, 50);
         });
       }
-    } catch {
-      console.error("❌ Chat: Failed to send message:");
+    } catch (error) {
+      console.error("Failed to send message:", error);
       Alert.alert("Error", "Failed to send message. Please try again.");
       setNewMessage(messageText); // Restore message on error
+      justSentRef.current = false; // Clear flag on error
     }
   };
 
@@ -783,7 +1024,9 @@ export default function Chat() {
       }
 
       showToastMessage(
-        `Claim request ${status === "accepted" ? "accepted - awaiting verification" : status}!`,
+        `Claim request ${
+          status === "accepted" ? "accepted - awaiting verification" : status
+        }!`,
         "success"
       );
     } catch {
@@ -1150,7 +1393,9 @@ export default function Chat() {
 
           {/* Input Area with bottom spacing */}
           <View
-            className={`bg-white px-4 pt-2 ${isKeyboardVisible ? "pb-16" : "pb-0"}`}
+            className={`bg-white px-4 pt-2 ${
+              isKeyboardVisible ? "pb-0" : "pb-16"
+            }`}
           >
             <View className="flex-row items-center gap-3">
               <View className="flex-1">

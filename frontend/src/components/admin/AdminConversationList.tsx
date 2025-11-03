@@ -207,14 +207,25 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
     // First try to get from participantInfo
     if (conversation.participantInfo?.[participantId]) {
       const info = conversation.participantInfo[participantId];
-      if (info.photoURL || info.photo) {
-        return info.photoURL || info.photo || '';
+      // Only use properties that exist in the participantInfo type
+      const infoPhoto = info.photoURL || info.photo || '';
+      if (infoPhoto) {
+        return infoPhoto;
       }
     }
     
     // Fallback to participants object
     if (!participant || typeof participant === 'boolean') return '';
-    return participant.profilePicture || participant.profileImageUrl || '';
+    return (
+      participant.profilePicture ||
+      participant.profileImageUrl ||
+      participant.photoURL ||
+      participant.photo ||
+      participant.avatar ||
+      participant.picture ||
+      participant.image ||
+      ''
+    );
   };
 
   const getSenderName = (

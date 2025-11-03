@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CategoryDistributionChart } from "./charts/CategoryDistributionChart";
 import type { DateRange } from 'react-day-picker';
 import type { Post } from "@/types/Post";
@@ -63,94 +63,55 @@ export const CategoryAnalytics: React.FC<CategoryAnalyticsProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Top Categories</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {categoryCounts.slice(0, 5).map(({ category, total, percentage }) => (
-                <div key={category} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-300">
-                    {category}
-                  </span>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm font-medium">{total}</span>
-                    <span className="text-xs text-gray-500 w-12 text-right">
-                      {percentage.toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Category Distribution</CardTitle>
+          <CardDescription>Visual representation of lost and found items by category</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80">
+            <CategoryDistributionChart 
+              posts={posts} 
+              dateRange={dateRange} 
+            />
+          </div>
+        </CardContent>
+      </Card>
 
-        <div className="lg:col-span-2">
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle className="text-lg">Category Distribution</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <CategoryDistributionChart 
-                  posts={posts} 
-                  dateRange={dateRange} 
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      <div className="mt-6">
-        <h3 className="text-lg font-semibold mb-4">Category Breakdown</h3>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-800">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Category
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Total
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Lost
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Found
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Percentage
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-              {categoryCounts.map(({ category, total, lost, found, percentage }) => (
-                <tr key={category} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {category}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                    {total}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                    {lost}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                    {found}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                    {percentage.toFixed(1)}%
-                  </td>
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Category Breakdown</CardTitle>
+          <CardDescription>Detailed statistics of lost and found items by category</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-sm font-medium text-muted-foreground border-b">
+                  <th className="pb-3 px-4">Category</th>
+                  <th className="pb-3 px-4 text-right">Total</th>
+                  <th className="pb-3 px-4 text-right">Lost</th>
+                  <th className="pb-3 px-4 text-right">Found</th>
+                  <th className="pb-3 px-4 text-right">Percentage</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </thead>
+              <tbody className="divide-y">
+                {categoryCounts.map(({ category, total, lost, found, percentage }) => (
+                  <tr key={category} className="hover:bg-muted/50">
+                    <td className="py-3 px-4 font-medium">{category}</td>
+                    <td className="py-3 px-4 text-right">{total}</td>
+                    <td className="py-3 px-4 text-right">{lost}</td>
+                    <td className="py-3 px-4 text-right">{found}</td>
+                    <td className="py-3 px-4 text-right font-medium">
+                      {percentage.toFixed(1)}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
