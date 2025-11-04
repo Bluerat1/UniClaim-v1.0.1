@@ -500,62 +500,76 @@ export const messageService = {
                 return () => { };
             }
 
-            const conversationRef = doc(db, 'conversations', conversationId);
+            let unsubscribe: (() => void) | null = null;
+            let cleanedUp = false;
 
-            // First, verify the user has access to this conversation
-            getDoc(conversationRef).then((docSnap) => {
-                if (!docSnap.exists()) {
-                    const error = new Error('Conversation not found');
-                    if (errorCallback) errorCallback(error);
-                    return () => { };
+            const cleanup = () => {
+                if (unsubscribe) {
+                    unsubscribe();
+                    unsubscribe = null;
                 }
+            };
 
-                const conversationData = docSnap.data();
-                const participants = conversationData.participants || {};
+            const setupListener = async () => {
+                try {
+                    const conversationRef = doc(db, 'conversations', conversationId);
+                    const docSnap = await getDoc(conversationRef);
 
-                // Check if current user is a participant
-                if (!participants[currentUserId]) {
-                    const error = new Error('You do not have permission to view this conversation');
-                    if (errorCallback) errorCallback(error);
-                    return () => { };
-                }
-
-                // If we get here, the user has access to the conversation
-                const q = query(
-                    collection(db, 'conversations', conversationId, 'messages'),
-                    orderBy('timestamp', 'asc'),
-                    limit(50) // Limit to 50 messages for performance
-                );
-
-                const unsubscribe = onSnapshot(
-                    q,
-                    (snapshot) => {
-                        const messages = snapshot.docs.map(doc => ({
-                            id: doc.id,
-                            ...doc.data()
-                        }));
-                        callback(messages);
-                    },
-                    (error) => {
-                        console.error('Error in conversation messages listener:', error);
+                    if (!docSnap.exists()) {
+                        const error = new Error('Conversation not found');
                         if (errorCallback) errorCallback(error);
+                        return;
                     }
-                );
 
-                // Return unsubscribe function
-                return unsubscribe;
-            }).catch((error) => {
-                console.error('Error verifying conversation access:', error);
-                if (errorCallback) errorCallback(error);
-                return () => { }; // Return empty cleanup function
-            });
+                    const conversationData = docSnap.data();
+                    const participants = conversationData.participants || {};
 
-            // Return a cleanup function that will be called if the component unmounts before the promise resolves
-            return () => { };
+                    if (!participants[currentUserId]) {
+                        const error = new Error('You do not have permission to view this conversation');
+                        if (errorCallback) errorCallback(error);
+                        return;
+                    }
+
+                    const q = query(
+                        collection(db, 'conversations', conversationId, 'messages'),
+                        orderBy('timestamp', 'asc'),
+                        limit(50)
+                    );
+
+                    unsubscribe = onSnapshot(
+                        q,
+                        (snapshot) => {
+                            const messages = snapshot.docs.map(doc => ({
+                                id: doc.id,
+                                ...doc.data()
+                            }));
+                            callback(messages);
+                        },
+                        (error) => {
+                            console.error('Error in conversation messages listener:', error);
+                            if (errorCallback) errorCallback(error);
+                        }
+                    );
+
+                    if (cleanedUp) {
+                        cleanup();
+                    }
+                } catch (error: any) {
+                    console.error('Error verifying conversation access:', error);
+                    if (errorCallback) errorCallback(error);
+                }
+            };
+
+            setupListener();
+
+            return () => {
+                cleanedUp = true;
+                cleanup();
+            };
         } catch (error) {
             console.error('Error setting up conversation messages listener:', error);
             if (errorCallback) errorCallback(error);
-            return () => { }; // Return empty cleanup function
+            return () => { };
         }
     },
 

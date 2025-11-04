@@ -193,6 +193,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const previousConversationIdRef = useRef<string | null>(null);
   const { sendMessage, getConversationMessages, markConversationAsRead, markMessageAsRead, markAllUnreadMessagesAsRead, sendClaimRequest } = useMessage();
   const { showToast } = useToast();
 
@@ -253,13 +254,27 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   useEffect(() => {
     if (!conversation) {
       setMessages([]);
+      setIsLoading(false);
+      previousConversationIdRef.current = null;
       return;
     }
 
-    setIsLoading(true);
+    const isNewConversation = previousConversationIdRef.current !== conversation.id;
+
+    if (isNewConversation) {
+      setIsLoading(true);
+      previousConversationIdRef.current = conversation.id;
+    }
+
+    let isActive = true;
+
     const unsubscribe = getConversationMessages(
       conversation.id,
       (loadedMessages) => {
+        if (!isActive) {
+          return;
+        }
+
         setMessages(loadedMessages);
         setIsLoading(false);
 
@@ -269,25 +284,29 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           conversation?.id
         ) {
           markConversationAsRead(conversation.id);
-        }
-
-        if (
-          userData &&
-          conversation?.unreadCounts?.[userData.uid] > 0 &&
-          conversation?.id
-        ) {
           markAllUnreadMessagesAsRead(conversation.id);
         }
 
         requestAnimationFrame(() => {
+          if (!isActive) {
+            return;
+          }
+
           requestAnimationFrame(() => {
+            if (!isActive) {
+              return;
+            }
+
             scrollToBottom();
           });
         });
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      isActive = false;
+      unsubscribe();
+    };
   }, [
     conversation,
     getConversationMessages,
@@ -900,6 +919,80 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     return !!conversation.postCreatorId;
   }, [conversation, userData]);
 
+  type ParticipantDisplayData = {
+    profilePicture?: string;
+    profileImageUrl?: string;
+    firstName: string;
+    lastName: string;
+    displayName?: string;
+  };
+
+  const conversationParticipantDetails = useMemo<Record<string, ParticipantDisplayData>>(() => {
+    if (!conversation) {
+      return {};
+    }
+
+    const merged: Record<string, ParticipantDisplayData> = {};
+    const participants = conversation.participants || {};
+    const participantInfo = conversation.participantInfo || {};
+
+    Object.keys(participants).forEach((uid) => {
+      const participant = participants[uid] as any;
+
+      if (participant && typeof participant === "object") {
+        merged[uid] = {
+          ...(participant.profilePicture && { profilePicture: participant.profilePicture }),
+          ...(participant.profileImageUrl && { profileImageUrl: participant.profileImageUrl }),
+          firstName: participant.firstName || "",
+          lastName: participant.lastName || "",
+          displayName: participant.displayName || "",
+        };
+      } else {
+        merged[uid] = {
+          firstName: "",
+          lastName: "",
+          displayName: "",
+        };
+      }
+    });
+
+    Object.keys(participantInfo).forEach((uid) => {
+      const info = participantInfo[uid];
+      if (!info) {
+        return;
+      }
+
+      const existing = merged[uid] || {
+        firstName: "",
+        lastName: "",
+        displayName: "",
+      };
+
+      const displayName = info.displayName || info.name || existing.displayName || "";
+
+      let firstName = existing.firstName || info.firstName || "";
+      let lastName = existing.lastName || info.lastName || "";
+
+      if (!firstName && !lastName && displayName) {
+        const parts = displayName.split(" ");
+        firstName = parts[0] || "";
+        lastName = parts.slice(1).join(" ") || "";
+      }
+
+      merged[uid] = {
+        ...(existing.profilePicture && { profilePicture: existing.profilePicture }),
+        ...(existing.profileImageUrl && { profileImageUrl: existing.profileImageUrl }),
+        ...(info.photoURL && { profilePicture: info.photoURL, profileImageUrl: info.photoURL }),
+        ...(info.photo && { profilePicture: info.photo, profileImageUrl: info.photo }),
+        firstName,
+        lastName,
+        displayName,
+      };
+    });
+
+    return merged;
+  }, [conversation]);
+
   const shouldShowClaimItemButton = useMemo(() => {
     if (!conversation || !userData || !conversation.postCreatorId) {
       return false;
@@ -1130,7 +1223,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   onClaimResponse={handleClaimResponse}
                   onConfirmIdPhotoSuccess={handleConfirmIdPhotoSuccess}
                   onMessageSeen={() => handleMessageSeen(message.id)}
-                  conversationParticipants={conversation.participants}
+                  conversationParticipants={conversationParticipantDetails}
                 />
               ));
             })()}

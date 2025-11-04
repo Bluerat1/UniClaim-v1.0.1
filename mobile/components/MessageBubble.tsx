@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, FC, useMemo } from "react";
 import {
   Text,
   TouchableOpacity,
@@ -16,6 +16,21 @@ import {
   handoverClaimService,
   type HandoverClaimCallbacks,
 } from "../utils/handoverClaimService";
+
+interface ParticipantData {
+  profilePicture?: string;
+  photoURL?: string;
+  avatar?: string;
+  profilePic?: string;
+  image?: string;
+  picture?: string;
+  photo?: string;
+  profilePicUrl?: string;
+  profileImageUrl?: string;
+  firstName: string;
+  lastName: string;
+  [key: string]: any; // Allow any other properties
+}
 
 interface MessageBubbleProps {
   message: Message;
@@ -38,16 +53,12 @@ interface MessageBubbleProps {
   triggerImagePicker?: (messageId: string, messageType: "handover_request" | "claim_request") => void;
   isConfirmationInProgress?: boolean;
   conversationParticipants?: {
-    [uid: string]: {
-      profilePicture?: string;
-      firstName: string;
-      lastName: string;
-    };
+    [uid: string]: ParticipantData;
   };
   isLastSeenByOthers?: boolean;
 }
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({
+const MessageBubble: FC<MessageBubbleProps> = ({
   message,
   isOwnMessage,
   conversationId,
@@ -69,10 +80,51 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [photoViewerImages, setPhotoViewerImages] = useState<string[]>([]);
   const [photoViewerInitialIndex, setPhotoViewerInitialIndex] = useState(0);
 
+  // Format time helper function
   const formatTime = (timestamp: any) => {
     if (!timestamp) return "";
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
+  // Main message content
+  const renderMessageContent = () => {
+    if (!message?.text) return null;
+    
+    // Determine message delivery status
+    const isDelivered = message.readBy && message.readBy.length > 0;
+    
+    return (
+      <View className="flex-1">
+        <View
+          className={`p-3 rounded-2xl ${
+            isOwnMessage ? 'bg-blue-500' : 'bg-gray-200'
+          }`}
+        >
+          <Text
+            className={`text-sm ${isOwnMessage ? 'text-white' : 'text-gray-800'}`}
+          >
+            {message.text}
+          </Text>
+          <Text
+            className={`text-xs mt-1 ${
+              isOwnMessage ? 'text-blue-100' : 'text-gray-500'
+            }`}
+          >
+            {formatTime(message.timestamp)}
+          </Text>
+        </View>
+        
+        {/* Render message status */}
+        {isOwnMessage && (
+          <View className="flex-row items-center justify-end mt-1">
+            <Text className="text-xs text-gray-500">
+              {isDelivered ? 'Delivered' : 'Sent'}
+            </Text>
+          </View>
+        )}
+      </View>
+    );
   };
 
   // Helper function to open photo viewer modal
@@ -82,14 +134,86 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     setShowPhotoViewerModal(true);
   };
 
+  // Get the other participant's data (for the profile picture)
+  const getOtherParticipantData = (): ParticipantData | null => {
+    if (!conversationParticipants) return null;
+    
+    // Find the first participant that's not the current user
+    const participantId = Object.keys(conversationParticipants).find(
+      (uid) => uid !== currentUserId
+    );
+    
+    if (!participantId) return null;
+    
+    const participant = conversationParticipants[participantId];
+    if (!participant) return null;
+    
+    // Try to find the first non-empty profile picture URL from various possible field names
+    const possibleProfilePicFields = [
+      'profilePicture',
+      'photoURL',
+      'avatar',
+      'profilePic',
+      'image',
+      'picture',
+      'photo',
+      'profilePicUrl',
+      'profileImageUrl',
+      'profile_pic',
+      'profile_pic_url'
+    ];
+    
+    let profilePicUrl = '';
+    for (const field of possibleProfilePicFields) {
+      if (participant[field] && typeof participant[field] === 'string') {
+        profilePicUrl = participant[field];
+        break;
+      }
+    }
+    
+    return {
+      ...participant,
+      firstName: participant.firstName || 'Unknown',
+      lastName: participant.lastName || 'User',
+      profilePicture: profilePicUrl || undefined
+    };
+  };
+
+  // Memoize the other participant data
+  const otherParticipant = useMemo(() => getOtherParticipantData(), [conversationParticipants, currentUserId]);
+  
+  
+  // Add a check for message existence
+  if (!message) {
+    return null;
+  }
+
   // Convert readBy user IDs to user objects with profile data
   const getReadersWithProfileData = () => {
     if (!message.readBy || !Array.isArray(message.readBy)) return [];
+    if (!conversationParticipants) return [];
 
     return message.readBy
       .filter((uid: string) => uid !== currentUserId) // Exclude current user
       .map((uid: string) => {
         const participant = conversationParticipants[uid];
+        if (!participant) return null;
+        
+        // Find the first non-empty profile picture URL
+        const profilePicFields = [
+          'profilePicture', 'photoURL', 'avatar', 'profilePic', 'image',
+          'picture', 'photo', 'profilePicUrl', 'profileImageUrl', 'profile_pic', 'profile_pic_url'
+        ];
+        
+        let profilePic: string | undefined;
+        for (const field of profilePicFields) {
+          const value = participant[field];
+          if (typeof value === 'string' && value.trim() !== '') {
+            profilePic = value;
+            break;
+          }
+        }
+        
         return {
           uid,
           profilePicture: participant?.profilePicture || null,
@@ -210,7 +334,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const renderHandoverRequest = () => {
     if (message.messageType !== "handover_request") return null;
 
-    const handoverData = message.handoverData;
+    const handoverData = message.handoverData as {
+      status: string;
+      postTitle?: string;
+      idPhotoUrl?: string;
+      photosDeleted?: boolean;
+      ownerIdPhoto?: string;
+      itemPhotos?: Array<{ url: string }>;
+      respondedAt?: any;
+      idPhotoConfirmed?: boolean;
+      itemPhotosConfirmed?: boolean;
+      photosConfirmed?: boolean;
+    } | undefined;
     if (!handoverData) return null;
 
     const canRespond = handoverData.status === "pending" && !isOwnMessage;
@@ -421,7 +556,20 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const renderClaimRequest = () => {
     if (message.messageType !== "claim_request") return null;
 
-    const claimData = message.claimData;
+    const claimData = message.claimData as {
+      status: string;
+      postTitle?: string;
+      claimReason?: string;
+      idPhotoUrl?: string;
+      photosDeleted?: boolean;
+      ownerIdPhoto?: string;
+      evidencePhotos?: Array<{ url: string }>;
+      verificationPhotos?: Array<{ url: string }>;
+      respondedAt?: any;
+      idPhotoConfirmed?: boolean;
+      evidencePhotosConfirmed?: boolean;
+      photosConfirmed?: boolean;
+    } | undefined;
     if (!claimData) return null;
 
     const canRespond = claimData.status === "pending" && !isOwnMessage;
@@ -710,13 +858,17 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         className={`flex-row items-end gap-2 ${isOwnMessage ? "flex-row-reverse" : ""}`}
       >
         {/* Profile Picture - only show for other user's messages */}
-        {!isOwnMessage && (
-          <ProfilePicture
-            src={message.senderProfilePicture}
-            size="sm"
-            style={{ marginBottom: 6 }}
+        {!isOwnMessage && otherParticipant && (
+          <View className="mr-2">
+            <ProfilePicture
+              src={otherParticipant.profilePicture}
+              size="sm"
           />
-        )}
+          {isLastSeenByOthers && (
+            <View className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full w-3 h-3 border-2 border-white" />
+          )}
+        </View>
+      )}
 
         <View className="flex-1">
           <View

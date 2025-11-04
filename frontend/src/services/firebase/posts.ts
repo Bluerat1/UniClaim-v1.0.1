@@ -152,7 +152,7 @@ export const postService = {
             console.log(`🔄 [CACHE] Invalidated post caches after creating post ${postId}`);
 
             // Log analytics for the new post creation
-            await analyticsService.logPostCreation(post.type);
+            await analyticsService.logPostCreation(postId, post.type);
             console.log(`📊 [ANALYTICS] Logged ${post.type} post creation for analytics`);
 
             const endTime = performance.now();
@@ -340,7 +340,7 @@ export const postService = {
             }
 
             // Log analytics for the new post creation
-            await analyticsService.logPostCreation(post.type);
+            await analyticsService.logPostCreation(postId, post.type);
             console.log(`📊 [CONCURRENT] Logged ${post.type} post creation for analytics`);
 
             const endTime = performance.now();

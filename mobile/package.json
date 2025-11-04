@@ -70,6 +70,7 @@
     "@babel/core": "^7.25.2",
     "@expo/webpack-config": "^19.0.1",
     "@react-native-community/cli": "^13.4.1",
+    "@types/lodash": "^4.17.20",
     "@types/react": "~19.1.0",
     "@types/react-native-crypto-js": "^1.0.3",
     "eslint": "^9.25.0",

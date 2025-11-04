@@ -191,6 +191,7 @@ export default function Chat() {
     picture?: string;
     photo?: string;
     profilePicUrl?: string;
+    profileImageUrl?: string;
     profile_pic?: string;
     profile_pic_url?: string;
     displayName?: string;
@@ -213,6 +214,7 @@ export default function Chat() {
       user.picture,
       user.photo,
       user.profilePicUrl,
+      user.profileImageUrl,
       user.profile_pic,
       user.profile_pic_url,
     ].find(Boolean);
@@ -237,8 +239,13 @@ export default function Chat() {
 
     const loadProfilePicture = async () => {
       try {
-        // First, try to get picture from postOwnerUserData (passed from Message screen)
-        if (postOwnerUserData && typeof postOwnerUserData === "object") {
+        let targetParticipantId: string | null = null;
+
+        if (
+          postOwnerUserData &&
+          typeof postOwnerUserData === "object" &&
+          postOwnerId !== userData.uid
+        ) {
           const pictureUrl = getProfilePictureUrl(postOwnerUserData);
           if (pictureUrl) {
             const elapsed = Date.now() - profileStartTime;
@@ -255,7 +262,6 @@ export default function Chat() {
           }
         }
 
-        // Then, try conversationData if available
         if (conversationData?.participants) {
           const otherParticipant = Object.entries(
             conversationData.participants
@@ -263,6 +269,7 @@ export default function Chat() {
 
           if (otherParticipant) {
             const [uid, participantData] = otherParticipant;
+            targetParticipantId = uid;
 
             if (participantData && typeof participantData === "object") {
               const pictureUrl = getProfilePictureUrl(participantData);
@@ -283,17 +290,20 @@ export default function Chat() {
           }
         }
 
-        // Only fetch from Firestore if we still don't have a picture
-        if (postOwnerId && !otherParticipantPic) {
+        if (!targetParticipantId && postOwnerId && postOwnerId !== userData.uid) {
+          targetParticipantId = postOwnerId;
+        }
+
+        if (targetParticipantId && !otherParticipantPic) {
           debugLog("PROFILE-PIC", "🔥 Fetching from Firestore...", {
-            postOwnerId,
+            targetParticipantId,
           });
           setIsLoadingProfile(true);
           const firebaseStartTime = Date.now();
 
           const { getDoc, doc } = await import("firebase/firestore");
           const { db } = await import("../utils/firebase/config");
-          const userDoc = await getDoc(doc(db, "users", postOwnerId));
+          const userDoc = await getDoc(doc(db, "users", targetParticipantId));
 
           const firebaseElapsed = Date.now() - firebaseStartTime;
 
@@ -317,7 +327,7 @@ export default function Chat() {
             debugLog(
               "PROFILE-PIC",
               "⚠️  User document not found in Firestore",
-              { postOwnerId }
+              { targetParticipantId }
             );
           }
         }
@@ -371,6 +381,7 @@ export default function Chat() {
         postOwnerUserData.picture ||
         postOwnerUserData.photo ||
         postOwnerUserData.profilePicUrl ||
+        postOwnerUserData.profileImageUrl ||
         postOwnerUserData.profile_pic ||
         postOwnerUserData.profile_pic_url ||
         null

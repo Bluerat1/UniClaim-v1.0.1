@@ -245,21 +245,26 @@ export class NotificationSender {
         senderName: string;
         messageText: string;
         conversationData: any;
+        trigger?: 'message' | 'read';
+        readByUserId?: string;
     }): Promise<void> {
         try {
+            const recipients = userIds.filter(userId => userId && userId !== messageData.senderId);
+            if (recipients.length === 0) {
+                return;
+            }
+
             const notifications = [];
             const adminNotifications = [];
             const adminUserIds: string[] = [];
 
-            for (const userId of userIds) {
+            for (const userId of recipients) {
                 try {
-                    // Check if user should receive message notifications (only for regular users)
                     const shouldNotify = await notificationService.shouldSendNotification(userId, 'message');
                     if (!shouldNotify) {
                         continue;
                     }
 
-                    // Get user data to check if they're an admin and determine if they're mobile or web
                     const userDoc = await getDoc(doc(db, 'users', userId));
                     if (!userDoc.exists()) {
                         continue;
@@ -270,15 +275,20 @@ export class NotificationSender {
                     const isAdmin = userData.role === 'admin' || userData.role === 'campus_security';
 
                     if (isAdmin) {
-                        // Handle admin users differently - they get admin notifications
                         adminUserIds.push(userId);
 
                         const adminNotificationData = {
-                            type: 'activity_summary' as const, // Use activity_summary for message activity
-                            title: `New Message Activity`,
-                            message: `${messageData.senderName} sent a message in conversation about "${messageData.conversationData?.postTitle || 'Unknown Item'}"`,
+                            type: 'activity_summary' as const,
+                            title: messageData.trigger === 'read'
+                                ? `Message Seen`
+                                : `New Message Activity`,
+                            message: messageData.trigger === 'read'
+                                ? `${messageData.readByUserId === userId
+                                    ? 'You'
+                                    : `${messageData.senderName}`} saw a message in "${messageData.conversationData?.postTitle || 'Unknown Item'}"`
+                                : `${messageData.senderName} sent a message in conversation about "${messageData.conversationData?.postTitle || 'Unknown Item'}"`,
                             priority: 'normal' as const,
-                            adminId: userId, // Send to specific admin
+                            adminId: userId,
                             data: {
                                 conversationId: messageData.conversationId,
                                 senderId: messageData.senderId,
@@ -286,7 +296,9 @@ export class NotificationSender {
                                 messageText: messageData.messageText,
                                 postId: messageData.conversationData?.postId || null,
                                 postTitle: messageData.conversationData?.postTitle || null,
-                                conversationParticipants: messageData.conversationData?.participants || {}
+                                conversationParticipants: messageData.conversationData?.participants || {},
+                                trigger: messageData.trigger,
+                                readByUserId: messageData.readByUserId
                             },
                             actionRequired: false,
                             relatedEntity: {
@@ -298,22 +310,26 @@ export class NotificationSender {
 
                         adminNotifications.push(adminNotificationData);
                     } else {
-                        // Handle regular users - send regular notifications
-                        // Create notification data
                         const notificationData = {
                             userId,
                             type: 'message' as const,
-                            title: `New message from ${messageData.senderName}`,
-                            body: messageData.messageText.length > 50
-                                ? `${messageData.messageText.substring(0, 50)}...`
-                                : messageData.messageText,
+                            title: messageData.trigger === 'read'
+                                ? `Message seen by ${messageData.readByUserId === userId ? 'you' : messageData.senderName}`
+                                : `New message from ${messageData.senderName}`,
+                            body: messageData.trigger === 'read'
+                                ? `${messageData.senderName}'s message was seen`
+                                : messageData.messageText.length > 50
+                                    ? `${messageData.messageText.substring(0, 50)}...`
+                                    : messageData.messageText,
                             data: {
                                 conversationId: messageData.conversationId,
                                 senderId: messageData.senderId,
                                 senderName: messageData.senderName,
                                 messageText: messageData.messageText,
                                 postId: messageData.conversationData?.postId || null,
-                                postTitle: messageData.conversationData?.postTitle || null
+                                postTitle: messageData.conversationData?.postTitle || null,
+                                trigger: messageData.trigger,
+                                readByUserId: messageData.readByUserId
                             },
                             read: false,
                             createdAt: serverTimestamp(),
@@ -322,7 +338,6 @@ export class NotificationSender {
 
                         notifications.push(notificationData);
 
-                        // Send push notification immediately if user is on mobile
                         if (isMobileUser) {
                             try {
                                 await notificationService.sendPushNotification(
@@ -334,23 +349,22 @@ export class NotificationSender {
                                         conversationId: messageData.conversationId,
                                         senderId: messageData.senderId,
                                         senderName: messageData.senderName,
-                                        messageText: messageData.messageText
+                                        messageText: messageData.messageText,
+                                        trigger: messageData.trigger,
+                                        readByUserId: messageData.readByUserId
                                     }
                                 );
                             } catch (pushError) {
                                 console.warn(`⚠️ Mobile: Failed to send push notification to ${userId}:`, pushError);
-                                // Continue - database notification will still be created
                             }
                         }
                     }
 
                 } catch (userError) {
                     console.error(`❌ Mobile: Error processing notification for user ${userId}:`, userError);
-                    // Continue with other users
                 }
             }
 
-            // Batch create regular user notifications using notificationService
             if (notifications.length > 0) {
                 for (const notification of notifications) {
                     try {
@@ -368,7 +382,6 @@ export class NotificationSender {
                 }
             }
 
-            // Batch create admin notifications
             if (adminNotifications.length > 0) {
                 const adminBatch = adminNotifications.map(adminNotification =>
                     adminNotificationService.createAdminNotification(adminNotification)
@@ -379,7 +392,6 @@ export class NotificationSender {
 
         } catch (error) {
             console.error('❌ Mobile: Error sending message notifications:', error);
-            // Don't throw error - notification failures shouldn't break message sending
         }
     }
 }

@@ -202,12 +202,12 @@ export const messageService: MessageService = {
                             senderId,
                             senderName,
                             messageText: text,
-                            conversationData
+                            conversationData,
+                            trigger: 'message'
                         }
                     );
                 } catch (notificationError) {
                     console.warn('⚠️ Firebase: Failed to send message notifications, but message was sent:', notificationError);
-                    // Continue even if notifications fail - message is already sent
                 }
             }
         } catch (error: any) {

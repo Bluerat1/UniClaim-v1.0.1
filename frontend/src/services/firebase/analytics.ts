@@ -27,12 +27,36 @@ export interface TimeRangeAnalytics {
   yearly: AnalyticsData[];
 }
 
+const POST_ANALYTICS_CACHE_TTL_MS = 5 * 60 * 1000;
+const processedAnalyticsPostIds = new Map<string, number>();
+function cleanupExpiredAnalyticsEntries(now: number) {
+  for (const [id, timestamp] of processedAnalyticsPostIds) {
+    if (now - timestamp > POST_ANALYTICS_CACHE_TTL_MS) {
+      processedAnalyticsPostIds.delete(id);
+    }
+  }
+}
+function hasRecentAnalyticsEntry(postId: string, now: number): boolean {
+  cleanupExpiredAnalyticsEntries(now);
+  const last = processedAnalyticsPostIds.get(postId);
+  return !!last && now - last < POST_ANALYTICS_CACHE_TTL_MS;
+}
+function rememberAnalyticsEntry(postId: string, now: number) {
+  cleanupExpiredAnalyticsEntries(now);
+  processedAnalyticsPostIds.set(postId, now);
+}
 export const analyticsService = {
   /**
    * Log a new post creation for analytics tracking
    */
-  async logPostCreation(postType: 'lost' | 'found'): Promise<void> {
+  async logPostCreation(postId: string, postType: 'lost' | 'found'): Promise<void> {
     try {
+      const nowTime = Date.now();
+      if (hasRecentAnalyticsEntry(postId, nowTime)) {
+        console.log('⏭️ Skipping duplicate analytics log for post:', postId);
+        return;
+      }
+      rememberAnalyticsEntry(postId, nowTime);
       const now = new Date();
       const periods = this.getTimePeriods(now);
 
