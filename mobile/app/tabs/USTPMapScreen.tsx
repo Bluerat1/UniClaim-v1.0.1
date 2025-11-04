@@ -14,28 +14,33 @@ export default function USTPMapScreen() {
 
   const onMessage = (event: any) => {
     const coords = JSON.parse(event.nativeEvent.data);
-    
+
     // Detect location from coordinates
     const detectionResult = detectLocationFromCoordinates({
       latitude: coords.lat,
-      longitude: coords.lng
+      longitude: coords.lng,
     });
-    
+
     // Use the primary location if available and has good confidence
     let detectedLocation = detectionResult.location;
-    
+
     // If no primary location but we have alternatives, use the top alternative
-    if (!detectedLocation && detectionResult.alternatives && detectionResult.alternatives.length > 0) {
+    if (
+      !detectedLocation &&
+      detectionResult.alternatives &&
+      detectionResult.alternatives.length > 0
+    ) {
       const topAlternative = detectionResult.alternatives[0];
-      if (topAlternative.confidence >= 10) { // Use reasonable confidence threshold
+      if (topAlternative.confidence >= 10) {
+        // Use reasonable confidence threshold
         detectedLocation = topAlternative.location;
       }
     }
-    
+
     setCoordinatesFromMap({
       latitude: coords.lat,
       longitude: coords.lng,
-      detectedLocation: detectedLocation
+      detectedLocation: detectedLocation,
     });
     navigation.goBack();
   };
@@ -97,27 +102,23 @@ export default function USTPMapScreen() {
       <script>
         let selectedLatLng = null;
         const map = L.map('map', {
-          center: [8.485713351944865, 124.6570494294046],
-          zoom: 18,
-          minZoom: 16,
-          maxZoom: 20,
-          maxBounds: [
-            [8.483, 124.654],
-            [8.488, 124.660]
-          ],
-          maxBoundsViscosity: 1.0,
-          zoomControl: false,
-        });
+  center: [8.485713351944865, 124.6570494294046],
+  zoom: 18,
+  minZoom: 2,
+  maxZoom: 20, // match OSM's actual limit
+  maxBounds: [
+    [8.482, 124.653], // slightly expanded
+    [8.489, 124.661]
+  ],
+  maxBoundsViscosity: 0.7, // loosen the restriction
+  zoomControl: false,
+});
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: 'Map data © OpenStreetMap contributors',
-          maxZoom: 19,
-          noWrap: true,
-          bounds: [
-            [8.483, 124.654],
-            [8.488, 124.660]
-          ]
-        }).addTo(map);
+  attribution: 'Map data © OpenStreetMap contributors',
+  maxZoom: 20,      // must match map's maxZoom
+  noWrap: false,    // allow continuous tile loading near edges
+}).addTo(map);
 
         // Add building polygons with highlights
         const buildings = [
