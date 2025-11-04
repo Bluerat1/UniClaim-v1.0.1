@@ -28,7 +28,7 @@ type EmailVerificationNavigationProp = NativeStackNavigationProp<
 >;
 
 // Constants
-const RESEND_COOLDOWN_DURATION = 60; // seconds
+const RESEND_COOLDOWN_DURATION = 30; // seconds
 const VERIFICATION_CHECK_TIMEOUT = 30000; // 30 seconds
 
 export default function EmailVerification() {
