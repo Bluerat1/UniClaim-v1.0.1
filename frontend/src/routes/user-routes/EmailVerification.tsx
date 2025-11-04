@@ -3,9 +3,13 @@ import { useAuth } from "../../context/AuthContext";
 import { authService } from "../../services/firebase/auth";
 import { useNavigate } from "react-router-dom";
 
+// Constants
+const RESEND_COOLDOWN_DURATION = 30; // seconds
+
 export default function EmailVerification() {
   const { user, userData, logout, handleEmailVerificationComplete } = useAuth();
   const [isResending, setIsResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [resendMessage, setResendMessage] = useState("");
   const [isCheckingVerification, setIsCheckingVerification] = useState(false);
   const navigate = useNavigate();
@@ -30,8 +34,19 @@ export default function EmailVerification() {
     }
   }, [user, userData, navigate]);
 
+  // Countdown timer for resend button
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
   const handleResendVerification = async () => {
-    if (!user) return;
+    if (!user || resendCooldown > 0) return;
 
     try {
       setIsResending(true);
@@ -39,6 +54,7 @@ export default function EmailVerification() {
 
       await authService.sendEmailVerificationToCurrentUser();
       setResendMessage("Verification email sent! Please check your inbox.");
+      setResendCooldown(RESEND_COOLDOWN_DURATION);
     } catch (error: any) {
       setResendMessage(`Failed to send verification email: ${error.message || 'Please try again.'}`);
       console.error("Error sending verification email:", error);
@@ -155,10 +171,10 @@ export default function EmailVerification() {
 
             <button
               onClick={handleResendVerification}
-              disabled={isResending}
+              disabled={isResending || resendCooldown > 0}
               className="w-full flex justify-center py-2 px-4 rounded-md text-sm border border-yellow-500 font-medium text-yellow-500 bg-white hover:border-yellow-600 hover:text-yellow-600 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isResending ? "Sending..." : "Resend Verification Email"}
+              {isResending ? "Sending..." : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend Verification Email"}
             </button>
           </div>
 
