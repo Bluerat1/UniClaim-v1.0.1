@@ -25,12 +25,12 @@ export const AnalyticsDashboard: React.FC = () => {
   const [isOverviewVisible, setIsOverviewVisible] = React.useState(true);
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Analytics Dashboard</h1>
+    <div className="space-y-4 px-2 sm:px-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <h1 className="text-xl sm:text-2xl font-bold">Analytics Dashboard</h1>
         <button
           onClick={() => setIsOverviewVisible(!isOverviewVisible)}
-          className="flex items-center text-sm text-gray-600 hover:text-gray-900"
+          className="flex items-center text-sm text-gray-600 hover:text-gray-900 self-end sm:self-auto"
         >
           {isOverviewVisible ? (
             <>
@@ -99,7 +99,8 @@ export const AnalyticsDashboard: React.FC = () => {
         </div>
       )}
 
-      <Tabs defaultValue="posts" className="space-y-4">
+      <Tabs defaultValue="posts" className="space-y-4 -mx-2 sm:mx-0">
+        <div className="px-2 sm:px-0">
         <TabsList>
           <TabsTrigger value="posts">Posts Over Time</TabsTrigger>
           <TabsTrigger value="categories">Category Distribution</TabsTrigger>
@@ -137,6 +138,7 @@ export const AnalyticsDashboard: React.FC = () => {
         <TabsContent value="export" className="space-y-4">
           <DataExport posts={posts} loading={loading} dateRange={dateRange} />
         </TabsContent>
+        </div>
       </Tabs>
     </div>
   );
