@@ -216,7 +216,7 @@ const MessageBubble: FC<MessageBubbleProps> = ({
         
         return {
           uid,
-          profilePicture: participant?.profilePicture || null,
+          profilePicture: profilePic || participant?.profilePicture || null,
           firstName: participant?.firstName || "Unknown",
           lastName: participant?.lastName || "User",
         };
