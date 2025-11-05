@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,14 +11,13 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { Post } from "../types/type";
 import * as ImagePicker from "expo-image-picker";
 import CustomDropdownWithSearch from "./DropdownWithSearch";
 import { cleanupRemovedPostImages } from "../utils/cloudinary";
-import { ITEM_CATEGORIES } from '../constants';
+import { ITEM_CATEGORIES } from "../constants";
 
 interface EditTicketModalProps {
   post: Post;
@@ -26,177 +25,7 @@ interface EditTicketModalProps {
   onClose: () => void;
   onSave: (updatedPost: Post) => void;
   isSaving?: boolean;
-};
-
-const styles = StyleSheet.create({
-  keyboardAvoidingView: {
-    flex: 1,
-    backgroundColor: 'white',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    backgroundColor: 'white',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  saveButton: {
-    backgroundColor: '#EAB308',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  saveButtonDisabled: {
-    backgroundColor: '#E5E7EB',
-  },
-  saveButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  formContainer: {
-    flex: 1,
-    padding: 16,
-  },
-  formSection: {
-    marginBottom: 16,
-  },
-  sectionLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  textInputPlaceholder: {
-    color: '#9CA3AF',
-  },
-  textArea: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#1F2937',
-    textAlignVertical: 'top',
-    minHeight: 96,
-  },
-  imageSection: {
-    marginBottom: 16,
-  },
-  imageSectionTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  imageGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
-  },
-  imageContainer: {
-    position: 'relative',
-  },
-  image: {
-    width: 80,
-    height: 80,
-    borderRadius: 6,
-  },
-  deleteButton: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    backgroundColor: '#EF4444',
-    borderRadius: 12,
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addImageButton: {
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
-    borderStyle: 'dashed',
-    borderRadius: 6,
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addImageText: {
-    color: '#6B7280',
-    fontSize: 14,
-    fontWeight: '500',
-    marginTop: 8,
-  },
-  statusSection: {
-    marginBottom: 16,
-  },
-  statusContainer: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  statusResolved: {
-    backgroundColor: '#DCFCE7',
-  },
-  statusPending: {
-    backgroundColor: '#FEF3C7',
-  },
-  statusTextResolved: {
-    color: '#15803D',
-    fontSize: 14,
-    fontWeight: '500',
-    textTransform: 'capitalize',
-  },
-  statusTextPending: {
-    color: '#92400E',
-    fontSize: 14,
-    fontWeight: '500',
-    textTransform: 'capitalize',
-  },
-  cleanupContainer: {
-    marginBottom: 16,
-    padding: 12,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  cleanupSuccess: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#10B981',
-  },
-  cleanupWarning: {
-    backgroundColor: '#FFFBEB',
-    borderColor: '#F59E0B',
-  },
-  cleanupText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  cleanupSuccessText: {
-    color: '#059669',
-  },
-  cleanupWarningText: {
-    color: '#D97706',
-  },
-});
+}
 
 export default function EditTicketModal({
   post,
@@ -205,59 +34,40 @@ export default function EditTicketModal({
   onSave,
   isSaving = false,
 }: EditTicketModalProps) {
-  // Form state
   const [editedTitle, setEditedTitle] = useState(post.title);
   const [editedDescription, setEditedDescription] = useState(post.description);
-  const [editedCategory, setEditedCategory] = useState<string | null>(post.category);
-
-  // Image state - handle both string URLs and File objects
-  const [editedImages, setEditedImages] = useState<string[]>(
-    post.images.map((img) => {
-      if (typeof img === "string") return img;
-      if (img instanceof File) return img.name; // Handle File objects
-      return String(img); // Fallback for other types
-    })
+  const [editedCategory, setEditedCategory] = useState<string | null>(
+    post.category
   );
+
+  const [editedImages, setEditedImages] = useState<string[]>(
+    post.images.map((img) => (typeof img === "string" ? img : String(img)))
+  );
+
   const [cleanupStatus, setCleanupStatus] = useState<{
     isCleaning: boolean;
     deleted: string[];
     failed: string[];
   }>({ isCleaning: false, deleted: [], failed: [] });
-  React.useEffect(() => {
-    const checkPermissions = async () => {
-      try {
-        const permissionResult =
-          await ImagePicker.getMediaLibraryPermissionsAsync();
-        if (permissionResult.status !== "granted") {
-          console.log(
-            "Photo library permission status:",
-            permissionResult.status
-          );
-        }
-      } catch (error) {
-        console.log("Error checking permissions:", error);
-      }
-    };
 
-    checkPermissions();
+  useEffect(() => {
+    ImagePicker.getMediaLibraryPermissionsAsync().then((permissionResult) => {
+      if (permissionResult.status !== "granted") {
+        console.log("Photo library permission not granted");
+      }
+    });
   }, []);
 
-  // Reset form when post changes
-  React.useEffect(() => {
+  useEffect(() => {
     setEditedTitle(post.title);
     setEditedDescription(post.description);
     setEditedCategory(post.category);
     setEditedImages(
-      post.images.map((img) => {
-        if (typeof img === "string") return img;
-        if (img instanceof File) return img.name; // Handle File objects
-        return String(img); // Fallback for other types
-      })
+      post.images.map((img) => (typeof img === "string" ? img : String(img)))
     );
-  }, [post]); // ✅ FIXED: Removed locationOptions from dependencies
+  }, [post]);
 
   const handleSave = async () => {
-    // Basic validation
     if (!editedTitle.trim()) {
       Alert.alert("Error", "Title is required");
       return;
@@ -271,11 +81,6 @@ export default function EditTicketModal({
       return;
     }
 
-    // Log for debugging
-    // console.log("Original post images:", post.images);
-    // console.log("Edited images to save:", editedImages);
-
-    // Clean up removed images from Cloudinary before saving
     setCleanupStatus({ isCleaning: true, deleted: [], failed: [] });
 
     try {
@@ -289,23 +94,9 @@ export default function EditTicketModal({
         deleted: cleanupResult.deleted,
         failed: cleanupResult.failed,
       });
-
-      if (cleanupResult.deleted.length > 0) {
-        console.log(
-          `Successfully cleaned up ${cleanupResult.deleted.length} removed images from Cloudinary`
-        );
-      }
-
-      if (cleanupResult.failed.length > 0) {
-        console.warn(
-          `Failed to clean up ${cleanupResult.failed.length} images from Cloudinary:`,
-          cleanupResult.failed
-        );
-      }
-    } catch (cleanupError: any) {
-      console.error("Error during image cleanup:", cleanupError.message);
+    } catch (error: any) {
+      console.error("Cleanup error:", error.message);
       setCleanupStatus({ isCleaning: false, deleted: [], failed: [] });
-      // Don't block the save operation - continue with profile update
     }
 
     const updatedPost: Post = {
@@ -313,24 +104,18 @@ export default function EditTicketModal({
       title: editedTitle.trim(),
       description: editedDescription.trim(),
       category: editedCategory,
-      images: editedImages, // This should contain the updated image array
+      images: editedImages,
     };
 
-    // console.log("Final updated post:", updatedPost);
     onSave(updatedPost);
   };
 
   const handleCancel = () => {
-    // Reset form to original values
     setEditedTitle(post.title);
     setEditedDescription(post.description);
     setEditedCategory(post.category);
     setEditedImages(
-      post.images.map((img) => {
-        if (typeof img === "string") return img;
-        if (img instanceof File) return img.name; // Handle File objects
-        return String(img); // Fallback for other types
-      })
+      post.images.map((img) => (typeof img === "string" ? img : String(img)))
     );
     onClose();
   };
@@ -342,13 +127,8 @@ export default function EditTicketModal({
     }
 
     const updated = [...editedImages];
-    const deletedImage = updated.splice(index, 1)[0];
+    updated.splice(index, 1);
     setEditedImages(updated);
-
-    // Log for debugging
-    console.log("Deleted image:", deletedImage);
-    console.log("Updated images array:", updated);
-    console.log("Current editedImages state length:", updated.length);
   };
 
   const handleAddImage = async () => {
@@ -357,69 +137,26 @@ export default function EditTicketModal({
       return;
     }
 
-    try {
-      // Check permissions first
-      const permissionResult =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-      if (permissionResult.status !== "granted") {
-        Alert.alert(
-          "Permission Required",
-          "Please grant photo library access to add images to your ticket.",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "OK",
-              onPress: () => {
-                // User needs to manually go to settings
-                // openSettingsAsync is not available in this version
-              },
-            },
-          ]
-        );
-        return;
-      }
+    if (permissionResult.status !== "granted") {
+      Alert.alert(
+        "Permission Required",
+        "Please grant photo library access to add images."
+      );
+      return;
+    }
 
-      // Launch image picker with better error handling
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images, // ✅ Using the working API
-        allowsEditing: false,
-        quality: 1.0,
-        allowsMultipleSelection: false,
-      });
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 1,
+    });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const newImage = result.assets[0];
-        if (newImage.uri) {
-          setEditedImages([...editedImages, newImage.uri]);
-        } else {
-          Alert.alert("Error", "Selected image has no URI");
-        }
-      }
-    } catch (error: any) {
-      console.error("Image picker error:", error);
-
-      // Show more specific error messages
-      let errorMessage = "Failed to pick image";
-      if (error.message) {
-        errorMessage = error.message;
-      } else if (error.code) {
-        switch (error.code) {
-          case "E_PICKER_CANCELLED":
-            errorMessage = "Image selection was cancelled";
-            break;
-          case "E_PICKER_NO_DATA":
-            errorMessage = "No image data received";
-            break;
-          case "E_PICKER_CANNOT_RUN":
-            errorMessage = "Image picker cannot run on this device";
-            break;
-          default:
-            errorMessage = `Image picker error: ${error.code}`;
-        }
-      }
-
-      Alert.alert("Error", errorMessage);
+    if (!result.canceled && result.assets?.length) {
+      const newImage = result.assets[0].uri;
+      setEditedImages([...editedImages, newImage]);
     }
   };
 
@@ -431,68 +168,68 @@ export default function EditTicketModal({
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardAvoidingView}
+        className="flex-1 bg-white"
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
           <TouchableOpacity onPress={handleCancel}>
             <Ionicons name="close" size={24} color="#374151" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>
+          <Text className="text-lg font-manrope-bold text-gray-800">
             Edit Ticket
           </Text>
           <TouchableOpacity
             onPress={handleSave}
             disabled={isSaving}
-            style={[
-              styles.saveButton,
-              isSaving && styles.saveButtonDisabled
-            ]}
+            className={`px-4 py-2 rounded-md ${
+              isSaving ? "bg-gray-300" : "bg-yellow-500"
+            }`}
           >
             {isSaving ? (
               <ActivityIndicator size="small" color="white" />
             ) : (
-              <Text style={styles.saveButtonText}>Save</Text>
+              <Text className="text-white text-sm font-manrope-semibold">
+                Save
+              </Text>
             )}
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.formContainer}>
+        <ScrollView className="flex-1 p-4">
           {/* Title Input */}
-          <View style={styles.formSection}>
-            <Text style={styles.sectionLabel}>
-              Title *
+          <View className="mb-4">
+            <Text className="text-sm font-manrope-semibold text-black mb-2">
+              Title
             </Text>
             <TextInput
-              style={styles.textInput}
+              className="border border-gray-300 rounded-md px-3 py-3 text-base text-gray-900"
               value={editedTitle}
               onChangeText={setEditedTitle}
               placeholder="Enter ticket title"
-              placeholderTextColor={styles.textInputPlaceholder.color}
+              placeholderTextColor="#9CA3AF"
             />
           </View>
 
           {/* Description Input */}
-          <View style={styles.formSection}>
-            <Text style={styles.sectionLabel}>
-              Description *
+          <View className="mb-4">
+            <Text className="text-sm font-manrope-semibold text-black  mb-2">
+              Description
             </Text>
             <TextInput
-              style={styles.textArea}
+              className="border border-gray-300 rounded-md px-3 pb-3 text-base text-gray-900 min-h-24 text-top"
               value={editedDescription}
               onChangeText={setEditedDescription}
               placeholder="Enter description"
-              placeholderTextColor={styles.textInputPlaceholder.color}
+              placeholderTextColor="#9CA3AF"
               multiline
-              numberOfLines={4}
               textAlignVertical="top"
             />
           </View>
 
-          {/* Category Selection */}
-          <View style={styles.formSection}>
-            <Text style={styles.sectionLabel}>
-              Category *
+          {/* Category Dropdown */}
+          <View className="mb-4">
+            <Text className="text-sm font-manrope-semibold text-black mb-2">
+              Category
             </Text>
             <CustomDropdownWithSearch
               label=""
@@ -504,23 +241,22 @@ export default function EditTicketModal({
           </View>
 
           {/* Images Section */}
-          <View style={styles.imageSection}>
-            <Text style={styles.imageSectionTitle}>
+          <View className="mb-4">
+            <Text className="text-sm font-manrope-semibold text-black mb-4">
               Images ({editedImages.length}/3)
             </Text>
 
-            {/* Current Images */}
-            <View style={styles.imageGrid}>
+            <View className="flex-row flex-wrap gap-2 mb-3">
               {editedImages.map((image, index) => (
-                <View key={index} style={styles.imageContainer}>
+                <View key={index} className="relative">
                   <Image
                     source={{ uri: image }}
-                    style={styles.image}
+                    className="w-20 h-20 rounded-md"
                     resizeMode="cover"
                   />
                   <TouchableOpacity
                     onPress={() => handleDeleteImage(index)}
-                    style={styles.deleteButton}
+                    className="absolute -top-1.5 -right-1.5 bg-red-500 w-6 h-6 rounded-full items-center justify-center"
                   >
                     <Ionicons name="close" size={16} color="white" />
                   </TouchableOpacity>
@@ -528,67 +264,64 @@ export default function EditTicketModal({
               ))}
             </View>
 
-            {/* Add Image Button */}
             {editedImages.length < 3 && (
               <TouchableOpacity
                 onPress={handleAddImage}
-                style={styles.addImageButton}
+                className="border-2 border-dashed border-gray-300 rounded-md p-4 items-center justify-center"
               >
                 <Ionicons name="add" size={24} color="#9CA3AF" />
-                <Text style={styles.addImageText}>
+                <Text className="text-sm font-manrope-semibold text-gray-500 mt-2">
                   Add Image
                 </Text>
               </TouchableOpacity>
             )}
           </View>
 
-          {/* Current Status Display */}
-          <View style={styles.statusSection}>
-            <Text style={styles.sectionLabel}>
+          {/* Current Status */}
+          <View className="mb-4">
+            <Text className="text-sm font-manrope-semibold text-black mb-2">
               Current Status
             </Text>
             <View
-              style={[
-                styles.statusContainer,
-                post.status === "resolved" ? styles.statusResolved : styles.statusPending
-              ]}
+              className={`px-3 py-2 rounded-md ${
+                post.status === "resolved" ? "bg-green-100" : "bg-yellow-100"
+              }`}
             >
               <Text
-                style={
-                  post.status === "resolved" ? styles.statusTextResolved : styles.statusTextPending
-                }
+                className={`text-sm font-manrope-semibold capitalize ${
+                  post.status === "resolved"
+                    ? "text-green-700"
+                    : "text-yellow-700"
+                }`}
               >
                 {post.status || "pending"}
               </Text>
             </View>
           </View>
 
-          {/* Image Cleanup Status */}
+          {/* Cleanup Status */}
           {cleanupStatus.isCleaning && (
-            <View style={[styles.cleanupContainer, styles.cleanupSuccess]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <ActivityIndicator size="small" color="#10B981" />
-                <Text style={[styles.cleanupText, styles.cleanupSuccessText]}>
-                  Cleaning up removed images...
-                </Text>
-              </View>
+            <View className="mb-4 p-3 rounded-md border border-green-500 bg-green-50 flex-row items-center space-x-2">
+              <ActivityIndicator size="small" color="#10B981" />
+              <Text className="text-sm font-medium text-green-700">
+                Cleaning up removed images...
+              </Text>
             </View>
           )}
 
           {cleanupStatus.deleted.length > 0 && (
-            <View style={[styles.cleanupContainer, styles.cleanupSuccess]}>
-              <Text style={[styles.cleanupText, styles.cleanupSuccessText]}>
+            <View className="mb-4 p-3 rounded-md border border-green-500 bg-green-50">
+              <Text className="text-sm font-medium text-green-700">
                 ✅ Successfully cleaned up {cleanupStatus.deleted.length}{" "}
-                removed image(s) from storage
+                image(s)
               </Text>
             </View>
           )}
 
           {cleanupStatus.failed.length > 0 && (
-            <View style={[styles.cleanupContainer, styles.cleanupWarning]}>
-              <Text style={[styles.cleanupText, styles.cleanupWarningText]}>
+            <View className="mb-4 p-3 rounded-md border border-yellow-500 bg-yellow-50">
+              <Text className="text-sm font-medium text-yellow-700">
                 ⚠️ Failed to clean up {cleanupStatus.failed.length} image(s)
-                from storage (will be cleaned up later)
               </Text>
             </View>
           )}
