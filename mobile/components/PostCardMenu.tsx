@@ -170,16 +170,6 @@ export default function PostCardMenu({
             style={{ zIndex: 50 }}
             pointerEvents="auto"
           >
-            {/* Close button */}
-            <View className="flex-row justify-end p-2 border-b border-gray-200">
-              <TouchableOpacity
-                onPress={() => closeMenu()}
-                className="p-1"
-              >
-                <Ionicons name="close" size={16} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-
             {/* Send Message Button */}
             <TouchableOpacity
               onPress={() => {

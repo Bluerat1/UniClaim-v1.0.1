@@ -43,7 +43,7 @@ export default function FlagModal({
   return (
     <Modal visible={true} transparent={true} onRequestClose={onClose}>
       <View className="flex-1 bg-black/50 justify-center items-center p-4">
-        <View className="bg-white rounded-lg p-6 w-full max-w-[340px]">
+        <View className="bg-white rounded-md p-5 w-full max-w-[340px]">
           <Text className="text-lg font-manrope-bold mb-3 text-gray-900">
             Why did you flag this post?
           </Text>
@@ -98,11 +98,11 @@ export default function FlagModal({
             </View>
           )}
 
-          <View className="flex-row justify-end gap-2 w-full">
+          <View className="flex-row justify-between w-full mt-2">
             <TouchableOpacity
               onPress={onClose}
               disabled={isLoading}
-              className="px-4 py-2 bg-gray-100 rounded-md"
+              className="flex-1 mr-2 px-4 py-2.5 bg-gray-100 rounded-md items-center"
             >
               <Text className="text-sm font-manrope-semibold text-gray-700">
                 Cancel
@@ -116,7 +116,7 @@ export default function FlagModal({
                 (selectedReason === "Other" && !customReason.trim()) ||
                 isLoading
               }
-              className={`px-4 py-2 rounded-md items-center ${
+              className={`flex-1 ml-2 px-4 py-2 rounded-md items-center ${
                 !selectedReason ||
                 (selectedReason === "Other" && !customReason.trim()) ||
                 isLoading
