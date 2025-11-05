@@ -115,7 +115,7 @@ export default function Login() {
         <Header />
         <div className="flex-1 flex flex-col items-center justify-center font-manrope">
           <div className="w-full max-w-sm px-4 space-y-3">
-            <h1 className="text-lg text-brand font-bold text-center">
+            <h1 className="text-lg text-blue-900 font-bold text-center">
               User Login
             </h1>
             <h1 className="text-3xl text-black font-bold text-center">
@@ -190,8 +190,8 @@ export default function Login() {
                 <button
                   className={`w-full py-2.5 text-white rounded-lg transition-all duration-200 ${
                     loading
-                      ? "bg-brand cursor-not-allowed"
-                      : "bg-brand hover:bg-yellow-600 hover:cursor-pointer"
+                      ? "bg-blue-900 cursor-not-allowed"
+                      : "bg-blue-900 hover:bg-navyblue hover:cursor-pointer"
                   }`}
                   type="submit"
                   disabled={loading}
@@ -208,7 +208,7 @@ export default function Login() {
 
                 <Link
                   to="/adminlogin"
-                  className="block w-full border text-center text-brand hover:text-yellow-600 hover:border-yellow-600 py-2.5 border-brand rounded-lg"
+                  className="block w-full text-center text-white bg-brand hover:bg-yellow-600 py-2.5 rounded-lg"
                 >
                   Login as admin
                 </Link>
@@ -218,7 +218,7 @@ export default function Login() {
             <div className="mt-5">
               <h1 className="text-sm text-center">
                 Don't have an account?{" "}
-                <Link to="/register" className="text-brand hover:underline">
+                <Link to="/register" className="text-blue-900 hover:underline">
                   Register here
                 </Link>
               </h1>
@@ -237,7 +237,7 @@ export default function Login() {
           <div className=" space-y-6 lg:space-y-7">
             {/* title text */}
             <h1 className="font-bold font-manrope text-xl text-center lg:text-2xl">
-              Download our <span className="text-brand">UniClaim</span> App
+              Download our UniClaim App
             </h1>
             {/* qr code image */}
             <div className="flex items-center justify-center">
@@ -276,7 +276,7 @@ export default function Login() {
           <div className=" space-y-6 lg:space-y-7">
             {/* title text */}
             <h1 className="font-bold font-manrope text-xl text-center lg:text-2xl">
-              Take Our <span className="text-brand">Survey</span>
+              Take Our Survey
             </h1>
             {/* qr code image */}
             <div className="flex items-center justify-center">

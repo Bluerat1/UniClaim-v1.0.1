@@ -72,7 +72,7 @@ export default function AdminLogin() {
 
         // Use real Firebase authentication with admin check
         await authService.login(trimmedAdminEmail, trimmedAdminPassword, true);
-        
+
         // If we get here, the user is an admin and was successfully logged in
         navigate("/admin");
       } catch (error: any) {
@@ -163,7 +163,7 @@ export default function AdminLogin() {
               <div className="space-y-4 mt-8">
                 {/* submit button */}
                 <button
-                  className={`w-full py-2 text-white rounded-lg transition-all duration-200 ${
+                  className={`w-full py-2.5 text-white rounded-lg transition-all duration-200 ${
                     isLoading
                       ? "bg-gray-400 cursor-not-allowed"
                       : "bg-brand hover:bg-yellow-600 hover:cursor-pointer"
@@ -183,7 +183,7 @@ export default function AdminLogin() {
 
                 <Link
                   to="/login"
-                  className="block w-full border text-center text-brand hover:text-yellow-600 hover:border-yellow-600 py-2 border-brand rounded-lg"
+                  className="block w-full text-center text-white bg-blue-900 hover:bg-navyblue py-2.5 rounded-lg"
                 >
                   Login as user
                 </Link>

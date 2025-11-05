@@ -125,7 +125,9 @@ const TicketModal = ({
 
   const [editedTitle, setEditedTitle] = useState(post.title);
   const [editedDescription, setEditedDescription] = useState(post.description);
-  const [editedDateTime, setEditedDateTime] = useState(getDateTimeForInput(post.createdAt));
+  const [editedDateTime, setEditedDateTime] = useState(
+    getDateTimeForInput(post.createdAt)
+  );
 
   // Admin-editable fields
   const [editedStatus, setEditedStatus] = useState(post.status);
@@ -134,7 +136,10 @@ const TicketModal = ({
 
   // Prevent editing resolved or completed posts (unless admin)
   const handleEditClick = () => {
-    if ((post.status === "resolved" || post.status === "completed") && !isAdmin) {
+    if (
+      (post.status === "resolved" || post.status === "completed") &&
+      !isAdmin
+    ) {
       return; // Do nothing for resolved or completed posts (unless admin)
     }
     setIsEditing(true);
@@ -154,7 +159,10 @@ const TicketModal = ({
     setEditedType(post.type);
 
     // Prevent editing state for resolved or completed posts (unless admin)
-    if ((post.status === "resolved" || post.status === "completed") && !isAdmin) {
+    if (
+      (post.status === "resolved" || post.status === "completed") &&
+      !isAdmin
+    ) {
       setIsEditing(false);
     }
   }, [post, isAdmin]);
@@ -279,7 +287,11 @@ const TicketModal = ({
           ],
           onChange: (e: React.ChangeEvent<HTMLSelectElement>) =>
             setEditedStatus(
-              e.target.value as "pending" | "resolved" | "completed" | "unclaimed"
+              e.target.value as
+                | "pending"
+                | "resolved"
+                | "completed"
+                | "unclaimed"
             ),
         },
         {
@@ -373,14 +385,19 @@ const TicketModal = ({
             <>
               <button
                 onClick={handleEditClick}
-                disabled={(post.status === "resolved" || post.status === "completed") && !isAdmin}
-                className={`text-xs px-3 py-2 mr-2 rounded hover:bg-yellow-600 ${
-                  (post.status === "resolved" || post.status === "completed") && !isAdmin
+                disabled={
+                  (post.status === "resolved" || post.status === "completed") &&
+                  !isAdmin
+                }
+                className={`text-xs font-manrope px-3 py-2 mr-2 rounded hover:bg-yellow-600 ${
+                  (post.status === "resolved" || post.status === "completed") &&
+                  !isAdmin
                     ? "bg-gray-400 text-gray-600 cursor-not-allowed"
                     : "bg-brand text-white hover:bg-yellow-600"
                 }`}
                 title={
-                  (post.status === "resolved" || post.status === "completed") && !isAdmin
+                  (post.status === "resolved" || post.status === "completed") &&
+                  !isAdmin
                     ? "Cannot edit resolved or completed tickets"
                     : "Edit ticket details"
                 }
@@ -389,18 +406,27 @@ const TicketModal = ({
               </button>
               <button
                 onClick={() => onDelete(post.id)}
-                disabled={isDeleting || ((post.status === "resolved" || post.status === "completed") && !isAdmin)}
+                disabled={
+                  isDeleting ||
+                  ((post.status === "resolved" ||
+                    post.status === "completed") &&
+                    !isAdmin)
+                }
                 className={`text-xs px-3 py-2 mr-2 rounded disabled:opacity-50 disabled:cursor-not-allowed ${
-                  (post.status === "resolved" || post.status === "completed") && !isAdmin
+                  (post.status === "resolved" || post.status === "completed") &&
+                  !isAdmin
                     ? "bg-gray-400 text-gray-600 cursor-not-allowed"
                     : "bg-[#FD8E74] text-white hover:bg-[#c07c6d]"
                 }`}
                 title={
-                  (post.status === "resolved" || post.status === "completed") && !isAdmin
+                  (post.status === "resolved" || post.status === "completed") &&
+                  !isAdmin
                     ? "Cannot delete resolved or completed tickets"
                     : isDeleting
                     ? "Deleting ticket..."
-                    : `Delete ticket "${post.title}" and ${post.images.length} associated image${post.images.length !== 1 ? "s" : ""}`
+                    : `Delete ticket "${post.title}" and ${
+                        post.images.length
+                      } associated image${post.images.length !== 1 ? "s" : ""}`
                 }
               >
                 {isDeleting ? "Deleting..." : "Delete Ticket"}
@@ -596,71 +622,101 @@ const TicketModal = ({
                       <h1 className="text-sm mt-3 mb-2">Turnover Details</h1>
                       <div className="bg-orange-50 p-3 rounded border border-orange-200 space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-orange-800">Original Finder:</span>
+                          <span className="text-sm font-medium text-orange-800">
+                            Original Finder:
+                          </span>
                           <div className="flex items-center gap-2">
-                            {post.turnoverDetails.originalFinder.profilePicture && (
+                            {post.turnoverDetails.originalFinder
+                              .profilePicture && (
                               <img
-                                src={post.turnoverDetails.originalFinder.profilePicture}
+                                src={
+                                  post.turnoverDetails.originalFinder
+                                    .profilePicture
+                                }
                                 alt={`${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`}
                                 className="w-8 h-8 rounded-full object-cover border-2 border-orange-200"
                               />
                             )}
                             <span className="text-sm text-orange-700">
-                              {post.turnoverDetails.originalFinder.firstName} {post.turnoverDetails.originalFinder.lastName}
+                              {post.turnoverDetails.originalFinder.firstName}{" "}
+                              {post.turnoverDetails.originalFinder.lastName}
                             </span>
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-orange-800">Student ID:</span>
-                          <span className="text-sm text-orange-700">{post.turnoverDetails.originalFinder.studentId}</span>
+                          <span className="text-sm font-medium text-orange-800">
+                            Student ID:
+                          </span>
+                          <span className="text-sm text-orange-700">
+                            {post.turnoverDetails.originalFinder.studentId}
+                          </span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-orange-800">Action:</span>
+                          <span className="text-sm font-medium text-orange-800">
+                            Action:
+                          </span>
                           <span className="text-sm text-orange-700 font-medium">
-                            {post.turnoverDetails.turnoverAction === "turnover to OSA"
+                            {post.turnoverDetails.turnoverAction ===
+                            "turnover to OSA"
                               ? "Turned over to OSA"
                               : "Turned over to Campus Security"}
                           </span>
                         </div>
                         {post.turnoverDetails.turnoverReason && (
                           <div className="mt-2">
-                            <span className="text-sm font-medium text-orange-800 block">Reason:</span>
+                            <span className="text-sm font-medium text-orange-800 block">
+                              Reason:
+                            </span>
                             <p className="text-sm text-orange-700 bg-orange-100 p-2 rounded mt-1">
                               {post.turnoverDetails.turnoverReason}
                             </p>
                           </div>
                         )}
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-orange-800">Status:</span>
-                          <span className={`text-sm px-2 py-1 rounded-full ${
-                            post.turnoverDetails.turnoverStatus === "declared"
-                              ? "bg-blue-100 text-blue-800"
-                              : post.turnoverDetails.turnoverStatus === "confirmed"
-                              ? "bg-green-100 text-green-800"
-                              : post.turnoverDetails.turnoverStatus === "not_received"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}>
+                          <span className="text-sm font-medium text-orange-800">
+                            Status:
+                          </span>
+                          <span
+                            className={`text-sm px-2 py-1 rounded-full ${
+                              post.turnoverDetails.turnoverStatus === "declared"
+                                ? "bg-blue-100 text-blue-800"
+                                : post.turnoverDetails.turnoverStatus ===
+                                  "confirmed"
+                                ? "bg-green-100 text-green-800"
+                                : post.turnoverDetails.turnoverStatus ===
+                                  "not_received"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-gray-100 text-gray-800"
+                            }`}
+                          >
                             {post.turnoverDetails.turnoverStatus === "declared"
                               ? "Declared for Turnover"
-                              : post.turnoverDetails.turnoverStatus === "confirmed"
+                              : post.turnoverDetails.turnoverStatus ===
+                                "confirmed"
                               ? "Confirmed by OSA"
-                              : post.turnoverDetails.turnoverStatus === "not_received"
+                              : post.turnoverDetails.turnoverStatus ===
+                                "not_received"
                               ? "Not Received"
                               : "Transferred"}
                           </span>
                         </div>
                         {post.turnoverDetails.confirmedAt && (
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-orange-800">Confirmed Date:</span>
+                            <span className="text-sm font-medium text-orange-800">
+                              Confirmed Date:
+                            </span>
                             <span className="text-sm text-orange-700">
-                              {getSafeDateDisplay(post.turnoverDetails.confirmedAt)}
+                              {getSafeDateDisplay(
+                                post.turnoverDetails.confirmedAt
+                              )}
                             </span>
                           </div>
                         )}
                         {post.turnoverDetails.confirmationNotes && (
                           <div className="mt-2">
-                            <span className="text-sm font-medium text-orange-800 block">Confirmation Notes:</span>
+                            <span className="text-sm font-medium text-orange-800 block">
+                              Confirmation Notes:
+                            </span>
                             <p className="text-sm text-orange-700 bg-orange-100 p-2 rounded mt-1">
                               {post.turnoverDetails.confirmationNotes}
                             </p>
