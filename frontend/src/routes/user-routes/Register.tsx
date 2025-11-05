@@ -110,7 +110,7 @@ export default function Register() {
         <Header />
         <div className="flex-1 flex flex-col items-center justify-center font-manrope py-15 md:py-15 md:p-0">
           <div className="w-full max-w-sm px-4 space-y-2 text-center">
-            <h1 className="text-lg text-brand font-bold text-center">
+            <h1 className="text-lg text-blue-900 font-bold text-center">
               User Registration
             </h1>
             <h1 className="text-2xl text-black font-bold text-center sm:text-2xl md:text-3xl">
@@ -262,8 +262,8 @@ export default function Register() {
               type="submit"
               className={`w-full mt-4 text-white py-2.5 rounded-lg transition-all ${
                 loading
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-brand hover:bg-yellow-600"
+                  ? "bg-navyblue cursor-not-allowed"
+                  : "bg-blue-900 hover:bg-navyblue"
               }`}
               disabled={loading}
             >
@@ -281,7 +281,7 @@ export default function Register() {
           <div className="mt-5">
             <h1 className="text-sm text-center">
               Already have an account?{" "}
-              <Link to="/login" className="text-brand hover:underline">
+              <Link to="/login" className="text-blue-900 hover:underline">
                 Login Now
               </Link>
             </h1>

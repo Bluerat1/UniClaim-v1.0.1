@@ -190,7 +190,7 @@ export default function Login() {
                 <button
                   className={`w-full py-2.5 text-white rounded-lg transition-all duration-200 ${
                     loading
-                      ? "bg-blue-900 cursor-not-allowed"
+                      ? "bg-navyblue cursor-not-allowed"
                       : "bg-blue-900 hover:bg-navyblue hover:cursor-pointer"
                   }`}
                   type="submit"
