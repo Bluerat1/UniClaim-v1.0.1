@@ -315,6 +315,7 @@ export interface Conversation {
       lastName?: string;
       name?: string;
       photo?: string;
+      role?: 'user' | 'admin' | 'campus_security';
     };
   };
   lastMessage?: {

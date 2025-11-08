@@ -95,11 +95,14 @@ export const messageService = {
                                 return null;
                             }
                         }).filter(conv => {
-                            const isValid = conv !== null;
-                            if (!isValid) {
+                            if (conv === null) {
                                 console.warn('⚠️ [getUserConversations] Filtered out invalid conversation');
+                                return false;
                             }
-                            return isValid;
+                            
+                            // No need to filter deleted conversations as we're using hard deletes
+                            
+                            return true;
                         });
 
                         callback(conversations);
@@ -1829,24 +1832,92 @@ export const messageService = {
         }
     },
 
-    // Delete entire conversation (admin only)
-    async deleteConversation(conversationId: string): Promise<void> {
+    // Delete a conversation if it's not resolved
+    async deleteConversation(conversationId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+        const batch = writeBatch(db);
+        
         try {
-            // First, delete all messages in the conversation
-            const messagesQuery = query(collection(db, 'conversations', conversationId, 'messages'));
-            const messagesSnapshot = await getDocs(messagesQuery);
-
-            // Delete all messages
-            for (const messageDoc of messagesSnapshot.docs) {
-                await deleteDoc(doc(db, 'conversations', conversationId, 'messages', messageDoc.id));
+            if (!conversationId || !userId) {
+                console.error('❌ [deleteConversation] Missing required parameters');
+                return { success: false, error: 'Missing required parameters' };
             }
 
-            // Then delete the conversation document
-            await deleteDoc(doc(db, 'conversations', conversationId));
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
+            
+            if (!conversationDoc.exists()) {
+                console.error(`❌ [deleteConversation] Conversation ${conversationId} not found`);
+                return { success: false, error: 'Conversation not found' };
+            }
 
-            console.log(`Conversation ${conversationId} and all its messages deleted successfully`);
-        } catch (error: any) {
-            console.error('Failed to delete conversation:', error);
+            const conversationData = conversationDoc.data();
+            
+            // Check if user is a participant
+            if (!conversationData.participantIds?.includes(userId) && 
+                conversationData.participants?.[userId] !== true) {
+                console.error(`❌ [deleteConversation] User ${userId} is not a participant in conversation ${conversationId}`);
+                return { success: false, error: 'Not authorized to delete this conversation' };
+            }
+
+            // Check if conversation is resolved
+            if (conversationData.status === 'resolved' || 
+                conversationData.status === 'handed_over' || 
+                conversationData.status === 'claimed' || 
+                conversationData.status === 'returned') {
+                console.log(`⚠️ [deleteConversation] Cannot delete resolved conversation ${conversationId}`);
+                return { success: false, error: 'Cannot delete a resolved conversation' };
+            }
+
+            // Delete all messages in the conversation
+            const messagesQuery = query(
+                collection(db, `conversations/${conversationId}/messages`)
+            );
+            const messagesSnapshot = await getDocs(messagesQuery);
+            
+            // Delete each message in the conversation
+            messagesSnapshot.docs.forEach((doc) => {
+                batch.delete(doc.ref);
+            });
+            
+            // Delete the conversation document
+            batch.delete(conversationRef);
+            
+            // Commit the batch
+            await batch.commit();
+            
+            console.log(`✅ [deleteConversation] Successfully deleted conversation ${conversationId}`);
+            return { success: true };
+        } catch (error) {
+            console.error(`❌ [deleteConversation] Error deleting conversation ${conversationId}:`, error);
+            return { 
+                success: false, 
+                error: error instanceof Error ? error.message : 'Failed to delete conversation' 
+            };
+        }
+    },
+
+    // Admin function to hard delete conversation (keep this for admin use)
+    async adminDeleteConversation(conversationId: string): Promise<void> {
+        if (!conversationId) {
+            throw new Error('Conversation ID is required');
+        }
+
+        try {
+            const conversationRef = doc(db, 'conversations', conversationId);
+            await deleteDoc(conversationRef);
+            
+            // Also delete all messages in the conversation
+            const messagesRef = collection(db, `conversations/${conversationId}/messages`);
+            const messagesSnapshot = await getDocs(messagesRef);
+            const batch = writeBatch(db);
+            messagesSnapshot.docs.forEach((doc) => {
+                batch.delete(doc.ref);
+            });
+            await batch.commit();
+            
+            console.log(`✅ [adminDeleteConversation] Successfully deleted conversation ${conversationId}`);
+        } catch (error) {
+            console.error(`❌ [adminDeleteConversation] Error deleting conversation ${conversationId}:`, error);
             throw error;
         }
     },

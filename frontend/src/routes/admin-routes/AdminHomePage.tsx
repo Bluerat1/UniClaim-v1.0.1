@@ -265,11 +265,10 @@ export default function AdminHomePage() {
 
       // Only use hard delete if we're in the deleted view, otherwise always use soft delete
       const isHardDelete = viewType === "deleted";
+      const { postService } = await import("../../services/firebase/posts");
 
       for (const postId of selectedPostIds) {
         try {
-          const { postService } = await import("../../services/firebase/posts");
-
           if (isHardDelete) {
             // When on deleted view, posts are in deleted_posts collection, so use permanentlyDeletePost
             await postService.permanentlyDeletePost(postId);
@@ -284,6 +283,20 @@ export default function AdminHomePage() {
         }
       }
 
+      // Refresh the appropriate data based on the current view
+      if (successCount > 0) {
+        if (isHardDelete) {
+          // If we're in the deleted view and did a hard delete, refresh the deleted posts
+          const updatedDeletedPosts = await postService.getDeletedPosts();
+          setDeletedPosts(updatedDeletedPosts);
+        } else {
+          // For soft deletes, the useAdminPosts hook will automatically refresh the posts
+          // We just need to refresh the deleted posts list
+          const updatedDeletedPosts = await postService.getDeletedPosts();
+          setDeletedPosts(updatedDeletedPosts);
+        }
+      }
+
       if (errorCount === 0) {
         const willSwitchView = successCount > 0 && !isHardDelete && (viewType === "all" || viewType === "lost" || viewType === "found");
         const didHardDeleteFromDeleted = successCount > 0 && isHardDelete && viewType === "deleted";
@@ -291,7 +304,7 @@ export default function AdminHomePage() {
         showToast(
           "success",
           "Bulk Delete Complete",
-          `Successfully ${isHardDelete ? 'permanently deleted' : 'moved'} ${successCount} posts${isHardDelete ? '' : ' to Recently Deleted'}${willSwitchView ? ". View switched to Recently Deleted." : didHardDeleteFromDeleted ? ". List refreshed." : isHardDelete ? '' : ". Check Recently Deleted tab to see them."}`
+          `Successfully ${isHardDelete ? 'permanently deleted' : 'moved'} ${successCount} post${successCount !== 1 ? 's' : ''}${isHardDelete ? '' : ' to Recently Deleted'}${willSwitchView ? ". View switched to Recently Deleted." : didHardDeleteFromDeleted ? ". List refreshed." : isHardDelete ? '' : ". Check Recently Deleted tab to see them."}`
         );
       } else {
         const willSwitchView = successCount > 0 && !isHardDelete && (viewType === "all" || viewType === "lost" || viewType === "found");
@@ -300,7 +313,7 @@ export default function AdminHomePage() {
         showToast(
           "warning",
           "Bulk Delete Partial",
-          `${isHardDelete ? 'Permanently deleted' : 'Moved'} ${successCount} posts successfully, ${errorCount} failed${willSwitchView ? ". View switched to Recently Deleted." : didHardDeleteFromDeleted ? ". List refreshed." : ""}`
+          `${isHardDelete ? 'Permanently deleted' : 'Moved'} ${successCount} post${successCount !== 1 ? 's' : ''} successfully, ${errorCount} failed${willSwitchView ? ". View switched to Recently Deleted." : didHardDeleteFromDeleted ? ". List refreshed." : ""}`
         );
       }
 
@@ -308,22 +321,15 @@ export default function AdminHomePage() {
       // Only switch if doing soft delete and currently on main item report views (all, lost, found)
       if (successCount > 0 && !isHardDelete && (viewType === "all" || viewType === "lost" || viewType === "found")) {
         setViewType("deleted");
-        fetchDeletedPosts();
-      } else if (successCount > 0 && isHardDelete) {
-        // If we did hard delete from deleted view, refresh the deleted posts list
-        fetchDeletedPosts();
       }
     } catch (err: any) {
-      showToast("error", "Bulk Delete Failed", "Failed to delete selected posts");
+      console.error("Error in bulk delete:", err);
+      showToast("error", "Bulk Delete Failed", "An error occurred while processing your request");
     } finally {
       setIsBulkDeleting(false);
       setShowBulkDeleteConfirmModal(false);
       setBulkDeleteAction(null);
-      // Clear selection and update local state
       setSelectedPosts(new Set());
-      if (viewType === "deleted") {
-        fetchDeletedPosts();
-      }
     }
   };
 
@@ -331,19 +337,35 @@ export default function AdminHomePage() {
     setSelectedPosts(new Set());
   };
 
-  const moveToDeleted = useCallback(async () => {
-    if (!postToDelete) return;
+  const moveToDeleted = useCallback(async (post: Post) => {
+    if (!post) return;
 
     try {
-      setDeletingPostId(postToDelete.id);
+      setDeletingPostId(post.id);
       const { postService } = await import("../../services/firebase/posts");
 
       // Move to deleted (soft delete)
       await postService.deletePost(
-        postToDelete.id,
+        post.id,
         false,
         userData?.email || "admin"
       );
+
+      // Refresh the deleted posts list from Firestore to ensure we have the latest data
+      try {
+        const { postService } = await import("../../services/firebase/posts");
+        const updatedDeletedPosts = await postService.getDeletedPosts();
+        setDeletedPosts(updatedDeletedPosts);
+      } catch (error) {
+        console.error("Failed to refresh deleted posts:", error);
+        // Fallback to local state update if refresh fails
+        setDeletedPosts(prevDeletedPosts => {
+          if (prevDeletedPosts.some(p => p.id === post.id)) {
+            return prevDeletedPosts;
+          }
+          return [...prevDeletedPosts, { ...post, deletedAt: new Date().toISOString(), isDeleted: true }];
+        });
+      }
 
       showToast(
         "success",
@@ -354,23 +376,23 @@ export default function AdminHomePage() {
       setPostToDelete(null);
 
       // Send notification to the post creator
-      if (postToDelete.creatorId) {
+      if (post.creatorId) {
         try {
           // Check if this post has been turned over and use the original finder instead
           const notificationRecipientId =
-            postToDelete.turnoverDetails?.originalFinder?.uid ||
-            postToDelete.creatorId;
+            post.turnoverDetails?.originalFinder?.uid ||
+            post.creatorId;
 
           await notificationSender.sendDeleteNotification({
-            postId: postToDelete.id,
-            postTitle: postToDelete.title,
-            postType: postToDelete.type as "lost" | "found",
+            postId: post.id,
+            postTitle: post.title,
+            postType: post.type as "lost" | "found",
             creatorId: notificationRecipientId,
-            creatorName: postToDelete.turnoverDetails?.originalFinder
-              ? `${postToDelete.turnoverDetails.originalFinder.firstName} ${postToDelete.turnoverDetails.originalFinder.lastName}`
-              : postToDelete.user.firstName && postToDelete.user.lastName
-              ? `${postToDelete.user.firstName} ${postToDelete.user.lastName}`
-              : postToDelete.user.email?.split("@")[0] || "User",
+            creatorName: post.turnoverDetails?.originalFinder
+              ? `${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`
+              : post.user?.firstName && post.user?.lastName
+              ? `${post.user.firstName} ${post.user.lastName}`
+              : post.user?.email || "User",
             adminName:
               userData?.firstName && userData?.lastName
                 ? `${userData.firstName} ${userData.lastName}`
@@ -1614,7 +1636,7 @@ export default function AdminHomePage() {
 
               <div className="space-y-3 mb-6">
                 <button
-                  onClick={moveToDeleted}
+                  onClick={() => moveToDeleted(postToDelete)}
                   className="w-full px-4 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex flex-col items-center"
                   disabled={!!deletingPostId}
                 >

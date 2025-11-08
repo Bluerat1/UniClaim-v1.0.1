@@ -10,6 +10,10 @@ import type { Conversation } from "@/types/Post";
 import LoadingSpinner from "@/components/layout/LoadingSpinner";
 import ProfilePicture from "@/components/user/ProfilePicture";
 import { useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
+
+// Icons
+import { Trash2 } from "lucide-react";
 
 interface ConversationListProps {
   onSelectConversation: (conversation: Conversation | null) => void;
@@ -20,10 +24,14 @@ const ConversationList: React.FC<ConversationListProps> = ({
   onSelectConversation,
   selectedConversationId,
 }) => {
-  const { conversations, loading } = useMessage();
+  const { conversations, loading, deleteConversation } = useMessage();
   const { userData } = useAuth();
   const [searchParams] = useSearchParams();
   const conversationIdFromUrl = searchParams.get("conversation");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Track deleted conversation IDs to prevent re-selection
+  const [deletedConversationIds, setDeletedConversationIds] = useState<Set<string>>(new Set());
 
   // Auto-select conversation from URL on initial load only
   useEffect(() => {
@@ -32,7 +40,8 @@ const ConversationList: React.FC<ConversationListProps> = ({
     if (
       conversationIdFromUrl &&
       conversations.length > 0 &&
-      !selectedConversationId
+      !selectedConversationId &&
+      !deletedConversationIds.has(conversationIdFromUrl)
     ) {
       console.log(
         "Auto-selecting conversation from URL:",
@@ -43,6 +52,13 @@ const ConversationList: React.FC<ConversationListProps> = ({
       );
       if (conversation) {
         onSelectConversation(conversation);
+      } else if (conversationIdFromUrl && !conversations.some(c => c.id === conversationIdFromUrl)) {
+        // If conversation is not found in the list, it might be deleted
+        console.log("Conversation not found, might be deleted:", conversationIdFromUrl);
+        // Update URL to remove the deleted conversation ID
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('conversation');
+        window.history.replaceState({}, '', newUrl.toString());
       }
     }
   }, [
@@ -50,6 +66,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
     conversations,
     selectedConversationId,
     onSelectConversation,
+    deletedConversationIds
   ]);
 
   // Prevent auto-selection when conversation is explicitly cleared
@@ -63,13 +80,14 @@ const ConversationList: React.FC<ConversationListProps> = ({
     }
   }, [selectedConversationId, conversationIdFromUrl]);
 
-  // Modified auto-selection that respects user clearing
+  // Modified auto-selection that respects user clearing and deleted conversations
   useEffect(() => {
     if (
       conversationIdFromUrl &&
       conversations.length > 0 &&
       !selectedConversationId &&
-      !isUserClearing
+      !isUserClearing &&
+      !deletedConversationIds.has(conversationIdFromUrl)
     ) {
       console.log(
         "Auto-selecting conversation from URL:",
@@ -80,6 +98,13 @@ const ConversationList: React.FC<ConversationListProps> = ({
       );
       if (conversation) {
         onSelectConversation(conversation);
+      } else if (!conversations.some(c => c.id === conversationIdFromUrl)) {
+        // If conversation is not found in the list, it might be deleted
+        console.log("Conversation not found in auto-select, might be deleted:", conversationIdFromUrl);
+        // Update URL to remove the deleted conversation ID
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('conversation');
+        window.history.replaceState({}, '', newUrl.toString());
       }
     }
   }, [
@@ -91,8 +116,118 @@ const ConversationList: React.FC<ConversationListProps> = ({
   ]);
 
   // Handle conversation selection
-  const handleConversationClick = (conversation: Conversation) => {
+  const handleConversationClick = (conversation: Conversation, e: React.MouseEvent) => {
+    // Prevent navigation if clicking on delete button
+    if ((e.target as HTMLElement).closest('.delete-conversation-btn')) {
+      e.stopPropagation();
+      return;
+    }
     onSelectConversation(conversation);
+  };
+
+  // Handle delete conversation
+  const handleDeleteConversation = async (conversationId: string, e: React.MouseEvent) => {
+    // Debug log the current state
+    console.group(`[Delete] Starting deletion of conversation ${conversationId}`);
+    console.log('Current state:', {
+      userId: userData?.uid,
+      selectedConversationId,
+      conversationIdFromUrl,
+      deletingId,
+      deletedConversationIds: Array.from(deletedConversationIds)
+    });
+    
+    e.stopPropagation();
+    
+    console.log(`[Delete] Delete button clicked for conversation: ${conversationId}`);
+    
+    if (!userData?.uid) {
+      const errorMsg = 'No user ID available for deletion';
+      console.error(`[Delete] ${errorMsg}`);
+      toast.error(errorMsg);
+      return;
+    }
+    
+    // Show confirmation dialog
+    const confirmDelete = window.confirm('Are you sure you want to delete this conversation? This action cannot be undone.');
+    if (!confirmDelete) {
+      console.log('[Delete] User cancelled deletion');
+      return;
+    }
+    
+    try {
+      console.log(`[Delete] Setting deletingId to: ${conversationId}`);
+      setDeletingId(conversationId);
+      
+      // Add to deleted conversations set to prevent re-selection
+      console.log(`[Delete] Adding ${conversationId} to deletedConversationIds`);
+      setDeletedConversationIds(prev => {
+        const newSet = new Set(prev);
+        newSet.add(conversationId);
+        console.log(`[Delete] New deletedConversationIds:`, Array.from(newSet));
+        return newSet;
+      });
+      
+      // Clear the selected conversation before deletion to prevent re-selection
+      if (selectedConversationId === conversationId) {
+        console.log(`[Delete] Clearing selected conversation: ${conversationId}`);
+        onSelectConversation(null);
+      }
+      
+      console.log(`[Delete] Calling deleteConversation service with:`, {
+        conversationId,
+        userId: userData.uid
+      });
+      
+      const result = await deleteConversation(conversationId, userData.uid);
+      
+      if (result.success) {
+        console.log(`[Delete] Success response from deleteConversation:`, result);
+        toast.success('Conversation deleted successfully');
+        
+        // Update the URL to remove the conversation ID if it's in the URL
+        if (conversationIdFromUrl === conversationId) {
+          console.log(`[Delete] Updating URL to remove conversation ID: ${conversationId}`);
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.delete('conversation');
+          window.history.replaceState({}, '', newUrl.toString());
+          console.log(`[Delete] Updated URL to: ${newUrl.toString()}`);
+        }
+        
+        console.log(`[Delete] Successfully processed deletion of ${conversationId}`);
+      } else {
+        // If deletion failed, remove from deleted set to allow retry
+        console.error(`[Delete] Failed to delete conversation:`, result);
+        setDeletedConversationIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(conversationId);
+          console.log(`[Delete] Removed ${conversationId} from deleted set after failure`);
+          return newSet;
+        });
+        toast.error(result.error || 'Failed to delete conversation');
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[Delete] Error in handleDeleteConversation:', {
+        error: errorMsg,
+        stack: error instanceof Error ? error.stack : undefined,
+        conversationId
+      });
+      
+      // Make sure to clean up the deletedConversationIds on error
+      setDeletedConversationIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(conversationId);
+        console.log(`[Delete] Error cleanup: Removed ${conversationId} from deletedConversationIds`);
+        return newSet;
+      });
+      
+      toast.error('An error occurred while deleting the conversation');
+    } finally {
+      console.log(`[Delete] Cleanup: Resetting deletingId from ${deletingId} to null`);
+      setDeletingId(null);
+      console.groupEnd();
+    }
   };
 
   // Sort conversations by most recent message timestamp, with fallback to createdAt (newest first)
@@ -226,17 +361,29 @@ const ConversationList: React.FC<ConversationListProps> = ({
     return participant.profilePicture || participant.profileImageUrl || null;
   };
 
-  // Get the other participant's name (exclude current user)
+  // Get the other participant's name (exclude current user and campus security)
   const getOtherParticipantName = (
     conversation: Conversation,
     currentUserId: string
   ) => {
     // First try to get from participantInfo
-    const otherParticipantInfo = Object.entries(conversation.participantInfo || {})
-      .find(([id]) => id !== currentUserId);
+    const participantFromInfo = Object.entries(conversation.participantInfo || {})
+      .find(([id, participant]) => {
+        // Skip current user
+        if (id === currentUserId) return false;
+        
+        // Get the participant's role from either participantInfo or participants
+        const participantObj = conversation.participants?.[id];
+        const role = 
+          participant.role || 
+          (typeof participantObj === 'object' ? participantObj?.role : undefined);
+          
+        // Skip campus security users
+        return role !== 'campus_security' && !role?.includes('campus_security');
+      });
     
-    if (otherParticipantInfo) {
-      const [, participant] = otherParticipantInfo;
+    if (participantFromInfo) {
+      const [, participant] = participantFromInfo;
       const name = participant.displayName || 
                   `${participant.firstName || ''} ${participant.lastName || ''}`.trim() ||
                   participant.name;
@@ -247,15 +394,20 @@ const ConversationList: React.FC<ConversationListProps> = ({
     }
 
     // Fallback to old participants object
-    const otherParticipant = Object.entries(conversation.participants || {})
+    const participantFromParticipants = Object.entries(conversation.participants || {})
       .find(([uid, p]) => {
         if (uid === currentUserId) return false;
         if (typeof p === 'boolean') return false;
+        if (typeof p === 'object' && p !== null) {
+          // Skip campus security users
+          const userRole = p.role || '';
+          return userRole !== 'campus_security' && !userRole.includes('campus_security');
+        }
         return true;
       });
 
-    if (otherParticipant) {
-      const [, participant] = otherParticipant;
+    if (participantFromParticipants) {
+      const [, participant] = participantFromParticipants;
       if (typeof participant === 'object' && participant !== null) {
         const name = `${participant.firstName || ''} ${participant.lastName || ''}`.trim();
         if (name && name !== `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim()) {
@@ -267,32 +419,48 @@ const ConversationList: React.FC<ConversationListProps> = ({
     return "Unknown User";
   };
 
-  // Get the other participant's profile picture (exclude current user)
+  // Get the other participant's profile picture (exclude current user and campus security)
   const getOtherParticipantProfilePicture = (
     conversation: Conversation,
     currentUserId: string
   ) => {
     // First try to get from participantInfo
-    const otherParticipantId = Object.keys(conversation.participantInfo || {}).find(
-      id => id !== currentUserId
-    );
+    const participantFromInfo = Object.entries(conversation.participantInfo || {})
+      .find(([id, participant]) => {
+        // Skip current user
+        if (id === currentUserId) return false;
+        
+        // Get the participant's role from either participantInfo or participants
+        const participantObj = conversation.participants?.[id];
+        const role = 
+          participant.role || 
+          (typeof participantObj === 'object' ? participantObj?.role : undefined);
+          
+        // Skip campus security users
+        return role !== 'campus_security' && !role?.includes('campus_security');
+      });
     
-    if (otherParticipantId && conversation.participantInfo?.[otherParticipantId]) {
-      const participant = conversation.participantInfo[otherParticipantId];
+    if (participantFromInfo) {
+      const [, participant] = participantFromInfo;
       return participant.photoURL || participant.photo || null;
     }
 
     // Fallback to old participants object
-    const otherParticipant = Object.entries(conversation.participants || {}).find(
-      ([uid]) => uid !== currentUserId
-    );
+    const participantFromParticipants = Object.entries(conversation.participants || {})
+      .find(([uid, p]) => {
+        if (uid === currentUserId) return false;
+        if (typeof p !== 'object' || p === null) return false;
+        // Skip campus security users
+        const userRole = (p as any).role || '';
+        return userRole !== 'campus_security' && !userRole.includes('campus_security');
+      });
 
-    if (!otherParticipant) return null;
+    if (!participantFromParticipants) return null;
     
-    const participant = otherParticipant[1];
+    const participant = participantFromParticipants[1];
     if (typeof participant !== 'object' || participant === null) return null;
     
-    return participant.profilePicture || participant.profileImageUrl || null;
+    return (participant as any).profilePicture || (participant as any).profileImageUrl || null;
   };
 
   // Get the name of the user who sent the last message
@@ -360,13 +528,26 @@ const ConversationList: React.FC<ConversationListProps> = ({
           return (
             <div
               key={conversation.id}
-              onClick={() => handleConversationClick(conversation)}
-              className={`p-4 border-b border-gray-100 cursor-pointer transition-colors hover:bg-zinc-100 ${
+              onClick={(e) => handleConversationClick(conversation, e)}
+              className={`group relative p-4 border-b border-gray-100 cursor-pointer transition-colors hover:bg-zinc-100 ${
                 isSelected
                   ? "bg-brand/10 border-l-3 border-l-brand"
                   : "hover:bg-brand/10"
               }`}
             >
+              {/* Delete button */}
+              <button
+                onClick={(e) => handleDeleteConversation(conversation.id, e)}
+                disabled={deletingId === conversation.id}
+                className="delete-conversation-btn absolute right-2 top-2 p-1.5 rounded-full text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-red-200 disabled:opacity-50"
+                title="Delete conversation"
+              >
+                {deletingId === conversation.id ? (
+                  <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
+              </button>
               <div className="flex items-start justify-between mb-2 pl-3">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="relative flex-shrink-0">

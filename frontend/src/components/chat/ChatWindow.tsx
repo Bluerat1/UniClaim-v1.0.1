@@ -112,8 +112,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                           : conversation.createdAt.toDate
                           ? conversation.createdAt.toDate()
                           : new Date(conversation.createdAt);
-                      console.log('conversation:', conversation);
-                      console.log('participant data:', conversation.participants);
                       return date.toLocaleString();
                     } catch (error) {
                       console.error("Error formatting created date:", error);
@@ -925,6 +923,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     firstName: string;
     lastName: string;
     displayName?: string;
+    role?: 'user' | 'admin' | 'campus_security';
+    uid?: string;
   };
 
   const conversationParticipantDetails = useMemo<Record<string, ParticipantDisplayData>>(() => {
@@ -932,65 +932,190 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       return {};
     }
 
+
     const merged: Record<string, ParticipantDisplayData> = {};
     const participants = conversation.participants || {};
     const participantInfo = conversation.participantInfo || {};
 
-    Object.keys(participants).forEach((uid) => {
-      const participant = participants[uid] as any;
+    // First, process participants from the participants object
+    Object.entries(participants).forEach(([uid, participant]) => {
+      try {
+        // Skip if participant is not an object or is null/undefined
+        if (!participant || typeof participant !== 'object') {
+          console.log(`Skipping invalid participant: ${uid}`, participant);
+          return;
+        }
+        
+        // Check for Campus Security role in multiple possible locations
+        const role = (participant as any)?.role || 
+                    (participant as any)?.userRole || 
+                    (participantInfo[uid] as any)?.role ||
+                    'user';
+        
+        // Skip Campus Security users
+        if (role && (role === 'campus_security' || role.includes('campus_security'))) {
+          console.log(`🚫 Filtering out Campus Security participant: ${uid}`, { role });
+          return;
+        }
 
-      if (participant && typeof participant === "object") {
+        // Safely get display name from the participant object with fallbacks
+        let displayName = '';
+        try {
+          displayName = (participant as any)?.displayName || 
+                       (participant as any)?.name ||
+                       `${participant.firstName || ''} ${participant.lastName || ''}`.trim() ||
+                       (participantInfo[uid]?.displayName || participantInfo[uid]?.name || '');
+        } catch (e) {
+          console.warn(`Error getting display name for ${uid}:`, e);
+          displayName = 'User';
+        }
+        
         merged[uid] = {
           ...(participant.profilePicture && { profilePicture: participant.profilePicture }),
           ...(participant.profileImageUrl && { profileImageUrl: participant.profileImageUrl }),
-          firstName: participant.firstName || "",
-          lastName: participant.lastName || "",
-          displayName: participant.displayName || "",
+          firstName: participant.firstName || participantInfo[uid]?.firstName || '',
+          lastName: participant.lastName || participantInfo[uid]?.lastName || '',
+          displayName: displayName,
+          role: role,
+          uid: uid // Ensure UID is always included
         };
-      } else {
-        merged[uid] = {
+        
+      } catch (error) {
+        console.error(`Error processing participant ${uid}:`, error);
+      }
+    });
+
+    // Then, process participantInfo, which can override participant data
+    Object.entries(participantInfo).forEach(([uid, info]) => {
+      try {
+        if (!info) {
+          console.log(`Skipping empty participant info for ${uid}`);
+          return;
+        }
+        
+        // Skip if this is a Campus Security user
+        const role = (info as any)?.role || 
+                    (participants[uid] as any)?.role || 
+                    (info as any)?.userRole || 
+                    'user';
+        
+        if (role && (role === 'campus_security' || role.includes('campus_security'))) {
+          console.log(`🚫 Filtering out Campus Security participant info: ${uid}`, { role });
+          // Remove from merged if somehow added earlier
+          if (merged[uid]) {
+            console.log(`Removing previously added Campus Security user: ${uid}`);
+            delete merged[uid];
+          }
+          return;
+        }
+
+        const existing = merged[uid] || {
           firstName: "",
           lastName: "",
           displayName: "",
+          role: role || 'user',
+          uid: uid
         };
+
+        // Get the best available display name
+        const displayName = info.displayName || 
+                          info.name || 
+                          existing.displayName ||
+                          `${info.firstName || ''} ${info.lastName || ''}`.trim() ||
+                          existing.firstName + ' ' + existing.lastName;
+        
+        // Get the best available first and last names
+        let firstName = info.firstName || existing.firstName || '';
+        let lastName = info.lastName || existing.lastName || '';
+
+        // If we still don't have names but have a display name, try to split it
+        if ((!firstName && !lastName) && displayName) {
+          const parts = displayName.trim().split(/\s+/);
+          if (parts.length > 0) {
+            firstName = parts[0];
+            if (parts.length > 1) {
+              lastName = parts.slice(1).join(' ');
+            }
+          }
+        }
+
+        merged[uid] = {
+          ...(existing.profilePicture && { profilePicture: existing.profilePicture }),
+          ...(existing.profileImageUrl && { profileImageUrl: existing.profileImageUrl }),
+          ...(info.photoURL && { 
+            profilePicture: info.photoURL, 
+            profileImageUrl: info.photoURL 
+          }),
+          ...(info.photo && { 
+            profilePicture: info.photo, 
+            profileImageUrl: info.photo 
+          }),
+          firstName,
+          lastName,
+          displayName: displayName || `${firstName} ${lastName}`.trim(),
+          role: role || existing.role || 'user',
+          uid: uid // Ensure UID is always included
+        };
+        
+        console.log(`✅ Updated participant info for ${uid}:`, {
+          name: displayName,
+          role: role || existing.role,
+          hasProfilePic: !!(info.photoURL || info.photo || existing.profilePicture || existing.profileImageUrl)
+        });
+      } catch (error) {
+        console.error(`Error processing participant info for ${uid}:`, error);
       }
     });
 
-    Object.keys(participantInfo).forEach((uid) => {
-      const info = participantInfo[uid];
-      if (!info) {
-        return;
+    // Final pass to ensure no Campus Security users slipped through
+    const finalMerged: Record<string, ParticipantDisplayData> = {};
+    let removedCount = 0;
+    
+    Object.entries(merged).forEach(([uid, data]) => {
+      try {
+        // Check role from multiple possible locations
+        const role = (data as any)?.role || 
+                    (participants[uid] as any)?.role || 
+                    (participantInfo[uid] as any)?.role ||
+                    'user';
+        
+        // Check if this is a Campus Security user
+        if (role && (role === 'campus_security' || role.includes('campus_security'))) {
+          console.log(`🚫 Final filter: Removing Campus Security user: ${uid}`, { 
+            role,
+            source: data.role ? 'data' : 
+                   (participants[uid]?.role ? 'participants' : 
+                   (participantInfo[uid]?.role ? 'participantInfo' : 'unknown'))
+          });
+          removedCount++;
+          return;
+        }
+        
+        // Check if this is a system or admin user that should be hidden
+        const isSystemUser = uid === 'system' || data.displayName?.toLowerCase().includes('system');
+        const isCampusSecurityName = data.displayName?.toLowerCase().includes('campus') && 
+                                   data.displayName?.toLowerCase().includes('security');
+        
+        if (isSystemUser || isCampusSecurityName) {
+          removedCount++;
+          return;
+        }
+        
+        // Only include valid participants
+        if (uid && data && (data.firstName || data.lastName || data.displayName)) {
+          finalMerged[uid] = {
+            ...data,
+            uid: uid // Ensure UID is always included
+          };
+        } else {
+        }
+      } catch (error) {
+        console.error(`Error in final filter for ${uid}:`, error);
       }
-
-      const existing = merged[uid] || {
-        firstName: "",
-        lastName: "",
-        displayName: "",
-      };
-
-      const displayName = info.displayName || info.name || existing.displayName || "";
-
-      let firstName = existing.firstName || info.firstName || "";
-      let lastName = existing.lastName || info.lastName || "";
-
-      if (!firstName && !lastName && displayName) {
-        const parts = displayName.split(" ");
-        firstName = parts[0] || "";
-        lastName = parts.slice(1).join(" ") || "";
-      }
-
-      merged[uid] = {
-        ...(existing.profilePicture && { profilePicture: existing.profilePicture }),
-        ...(existing.profileImageUrl && { profileImageUrl: existing.profileImageUrl }),
-        ...(info.photoURL && { profilePicture: info.photoURL, profileImageUrl: info.photoURL }),
-        ...(info.photo && { profilePicture: info.photo, profileImageUrl: info.photo }),
-        firstName,
-        lastName,
-        displayName,
-      };
     });
 
-    return merged;
+    
+    return finalMerged;
   }, [conversation]);
 
   const shouldShowClaimItemButton = useMemo(() => {
@@ -1452,87 +1577,101 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   <p className="text-sm text-gray-500">Participants</p>
                   <div className="mt-3 space-y-1">
                     {(() => {
-                      // Debug log the conversation data
-                      console.log('Conversation data:', {
-                        participants: conversation?.participants,
-                        participantInfo: conversation?.participantInfo,
-                        currentUser: userData?.uid,
-                        combined: {
-                          ...(conversation?.participantInfo || {}),
-                          ...(conversation?.participants || {})
-                        }
-                      });
-
-                      // Get all participant IDs from both sources
-                      const participantIds = new Set([
-                        ...Object.keys(conversation?.participants || {}),
-                        ...Object.keys(conversation?.participantInfo || {})
-                      ]);
-
-                      return Array.from(participantIds).map(uid => {
-                        // Try to get user data from both sources
-                        const userFromInfo = conversation?.participantInfo?.[uid];
-                        const userFromParticipants = conversation?.participants?.[uid];
-                        const user = userFromInfo || userFromParticipants;
+                      // Get all participant data with proper merging and filtering
+                      const participants = new Map();
+                      
+                      // Process participantInfo first (higher priority)
+                      Object.entries(conversation?.participantInfo || {}).forEach(([uid, info]) => {
+                        if (!info) return;
                         
-                        if (!user) return null;
-
-                        // Type guard to check if user is an object
-                        const isUserObject = (u: any): u is Record<string, any> => 
-                          typeof u === 'object' && u !== null;
-
-                        // Get display name with fallbacks
-                        let displayName = 'Unknown User';
-                        if (isUserObject(user)) {
-                          // TypeScript now knows user is an object
-                          const userObj = user as Record<string, any>;
-                          
-                          if (userObj.displayName) {
-                            displayName = String(userObj.displayName);
-                          } else if (userObj.name) {
-                            displayName = String(userObj.name);
-                          } else if (userObj.firstName || userObj.lastName) {
-                            displayName = `${userObj.firstName || ''} ${userObj.lastName || ''}`.trim();
-                          }
+                        // Skip campus security users
+                        if (info.role === 'campus_security' || info.role?.includes('campus_security')) {
+                          return;
                         }
-
-                        // Get profile picture with fallbacks
-                        let profilePic = '';
-                        if (isUserObject(user)) {
-                          const userObj = user as Record<string, any>;
-                          profilePic = [
-                            userObj.profilePicture,
-                            userObj.profileImageUrl,
-                            userObj.photoURL,
-                            userObj.photo
-                          ].find(Boolean) || '';
-                        }
-
-                        const isCurrentUser = uid === userData?.uid;
-                        const isPostCreator = conversation?.postCreatorId === uid;
-
-                        console.log('Rendering participant:', {
+                        
+                        const existing = participants.get(uid) || {};
+                        participants.set(uid, {
+                          ...existing,
                           uid,
-                          displayName,
-                          isCurrentUser,
-                          isPostCreator,
-                          userData: user
+                          displayName: info.displayName || info.name || existing.displayName || '',
+                          firstName: info.firstName || existing.firstName || '',
+                          lastName: info.lastName || existing.lastName || '',
+                          profilePicture: info.photoURL || info.photo || existing.profilePicture,
+                          role: info.role || existing.role,
+                          isFromInfo: true
                         });
+                      });
+                      
+                      // Process participants (lower priority)
+                      Object.entries(conversation?.participants || {}).forEach(([uid, p]) => {
+                        // Skip if already processed from participantInfo
+                        if (participants.has(uid)) return;
+                        
+                        // Handle case where participant might be a boolean
+                        if (typeof p !== 'object' || p === null) return;
+                        
+                        // Skip campus security users
+                        const role = (p as any).role || '';
+                        if (role === 'campus_security' || role.includes('campus_security')) {
+                          return;
+                        }
+                        
+                        const existing = participants.get(uid) || {};
+                        participants.set(uid, {
+                          ...existing,
+                          uid,
+                          displayName: (p as any).displayName || (p as any).name || existing.displayName || '',
+                          firstName: (p as any).firstName || existing.firstName || '',
+                          lastName: (p as any).lastName || existing.lastName || '',
+                          profilePicture: (p as any).profilePicture || (p as any).profileImageUrl || existing.profilePicture,
+                          role: role || existing.role,
+                          isFromParticipants: true
+                        });
+                      });
+                      
+                      // Convert to array and filter out any invalid entries
+                      return Array.from(participants.values())
+                        .filter(p => p.uid) // Ensure we have a valid UID
+                        .map(participant => {
+                          const {
+                            uid,
+                            displayName,
+                            firstName,
+                            lastName,
+                            profilePicture,
+                            role
+                          } = participant;
+                          
+                          // Final display name with fallbacks
+                          const finalDisplayName = displayName || 
+                                                (firstName || lastName ? `${firstName} ${lastName}`.trim() : 'Unknown User');
+                          
+                          const isCurrentUser = uid === userData?.uid;
+                          const isPostCreator = conversation?.postCreatorId === uid;
+                          
+                          console.log('Rendering participant:', {
+                            uid,
+                            displayName: finalDisplayName,
+                            isCurrentUser,
+                            isPostCreator,
+                            role,
+                            profilePicture
+                          });
 
-                        return (
-                          <div key={uid} className="flex items-center gap-3">
-                            <ProfilePicture
-                              src={profilePic}
-                              alt={displayName}
-                              className="size-9"
-                            />
-                            <span className="text-sm font-inter font-regular">
-                              {displayName}
-                              {isPostCreator && " (Post Creator)"}
-                              {isCurrentUser && " (You)"}
-                            </span>
-                          </div>
-                        );
+                          return (
+                            <div key={uid} className="flex items-center gap-3">
+                              <ProfilePicture
+                                src={profilePicture}
+                                alt={finalDisplayName}
+                                className="size-9"
+                              />
+                              <span className="text-sm font-inter font-regular">
+                                {finalDisplayName}
+                                {isPostCreator && " (Post Creator)"}
+                                {isCurrentUser && " (You)"}
+                              </span>
+                            </div>
+                          );
                       });
                     })()}
                   </div>

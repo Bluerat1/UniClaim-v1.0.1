@@ -143,8 +143,7 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
 
     setDeletingConversationId(conversationId);
     try {
-      // Delete the conversation (this will also delete all messages)
-      await messageService.deleteConversation(conversationId);
+      await messageService.adminDeleteConversation(conversationId);
       showToast("success", "Conversation deleted successfully");
     } catch (error: any) {
       console.error("Failed to delete conversation:", error);

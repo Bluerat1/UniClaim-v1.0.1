@@ -163,6 +163,9 @@ export default function ReportPage() {
       setSelectedReport(type);
       if (type === "found") {
         setShowFoundActionModal(true); // Show modal for found items
+      } else {
+        // Clear found action when switching to lost
+        setSelectedFoundAction(null);
       }
     }
     setWasSubmitted(false);

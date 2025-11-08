@@ -2238,8 +2238,39 @@ export const postService = {
 
             console.log(`✅ Turnover status updated successfully for post ${postId}`);
 
+            // Get the current turnover action, checking updateData first, then postData
+            const currentTurnoverAction = updateData['turnoverDetails.turnoverAction'] || 
+                                       postData.turnoverDetails?.turnoverAction;
+            const originalTurnoverAction = updateData['turnoverDetails.originalTurnoverAction'] || 
+                                        postData.turnoverDetails?.originalTurnoverAction;
+
+            // Debug: Log current state before updating conversations
+            console.log('📝 Current turnover state:', {
+                status,
+                currentTurnoverAction,
+                originalTurnoverAction,
+                updateDataTurnoverAction: updateData['turnoverDetails.turnoverAction'],
+                postDataTurnoverAction: postData.turnoverDetails?.turnoverAction,
+                isCampusSecurity: currentTurnoverAction === 'turnover to Campus Security',
+                isOSA: currentTurnoverAction === 'turnover to OSA'
+            });
+
             // Update existing conversations to reflect the new post creator
-            if (status === "confirmed" && (postData.turnoverDetails?.turnoverAction === "turnover to OSA" || postData.turnoverDetails?.turnoverAction === "turnover to Campus Security")) {
+            // Check if this is an OSA turnover OR was originally a Campus Security transfer
+            const isOSATurnover = currentTurnoverAction === "turnover to OSA";
+            const isCampusSecurityTransfer = originalTurnoverAction === "turnover to Campus Security" || 
+                                         (currentTurnoverAction === "turnover to Campus Security" && status === "confirmed");
+            
+            console.log('🔍 Conversation update check:', { 
+                isOSATurnover, 
+                isCampusSecurityTransfer, 
+                status,
+                currentTurnoverAction,
+                originalTurnoverAction
+            });
+            
+            if (status === "confirmed" && (isOSATurnover || isCampusSecurityTransfer)) {
+                console.log('✅ Proceeding with conversation updates');
                 try {
                     console.log(`🔄 Updating conversations for post ${postId} to reflect new creator`);
 
@@ -2252,46 +2283,262 @@ export const postService = {
                     const conversationsSnapshot = await getDocs(conversationsQuery);
 
                     if (!conversationsSnapshot.empty) {
-                        const { updateDoc, doc } = await import('firebase/firestore');
+                        const { updateDoc, doc, getDoc } = await import('firebase/firestore');
+
+                        // Get the new admin's information
+                        const adminRef = doc(db, 'users', confirmedBy);
+                        const adminDoc = await getDoc(adminRef);
+                        
+                        if (!adminDoc.exists()) {
+                            throw new Error('Admin user not found');
+                        }
+                        
+                        const adminData = adminDoc.data();
+                        const adminInfo = {
+                            uid: confirmedBy,
+                            firstName: adminData.firstName || 'OSA',
+                            lastName: adminData.lastName || 'Admin',
+                            profilePicture: adminData.profilePicture || null,
+                            email: adminData.email || '',
+                            role: 'admin',
+                            contactNum: adminData.contactNum || ''
+                        } as const;
 
                         // Update each conversation
                         for (const convDoc of conversationsSnapshot.docs) {
                             const conversationRef = doc(db, 'conversations', convDoc.id);
                             const conversationData = convDoc.data();
 
-                            // Get the new admin's information
-                            const adminRef = doc(db, 'users', confirmedBy);
-                            const adminDoc = await getDoc(adminRef);
+                            // Initialize participant data structures
+                            const updatedParticipants = {
+                                ...conversationData.participants
+                            };
+                            
+                            // Start with existing participantIds or derive from participants
+                            let updatedParticipantIds = [...(conversationData.participantIds || Object.keys(updatedParticipants))];
+                            
+                            // Initialize participantInfo with existing data or empty object
+                            const updatedParticipantInfo = {
+                                ...(conversationData.participantInfo || {})
+                            };
 
-                            if (adminDoc.exists()) {
-                                const adminData = adminDoc.data();
+                            // When collected button is clicked, remove the specific Campus Security user by UID
+                            if (isCampusSecurityTransfer) {
+                                console.log('🔄 COLLECTED BUTTON: Removing specific Campus Security user by UID');
+                                
+                                // 1. Get all participant IDs from all sources
+                                const allParticipantIds = new Set([
+                                    ...Object.keys(updatedParticipants),
+                                    ...updatedParticipantIds,
+                                    ...Object.keys(updatedParticipantInfo)
+                                ]);
 
-                                // Update conversation participants and post creator info
-                                const updatedParticipants = {
-                                    ...conversationData.participants
-                                };
+                                console.log('🔍 All participant IDs before cleanup:', Array.from(allParticipantIds));
 
-                                // Update the post owner participant with new admin info
-                                if (updatedParticipants[postData.creatorId]) {
-                                    updatedParticipants[confirmedBy] = {
-                                        uid: confirmedBy,
-                                        firstName: adminData.firstName || '',
-                                        lastName: adminData.lastName || '',
-                                        profilePicture: adminData.profilePicture || null,
-                                        joinedAt: updatedParticipants[postData.creatorId]?.joinedAt || serverTimestamp()
-                                    };
-                                    delete updatedParticipants[postData.creatorId];
-                                }
-
-                                await updateDoc(conversationRef, {
-                                    postOwnerId: confirmedBy,
-                                    postCreatorId: confirmedBy,
-                                    participants: updatedParticipants,
-                                    updatedAt: serverTimestamp()
+                                // 2. Find and log all participants
+                                console.log('👥 Current participants:');
+                                allParticipantIds.forEach(id => {
+                                    const p = updatedParticipants[id] || updatedParticipantInfo[id] || {};
+                                    console.log(`   - ${id}:`, {
+                                        displayName: p.displayName || 'No display name',
+                                        role: p.role || 'No role',
+                                        type: id === 'system' ? 'System' : (id === confirmedBy ? 'Admin' : 'User')
+                                    });
                                 });
 
-                                console.log(`✅ Updated conversation ${convDoc.id} with new creator`);
+                                // 3. Specific UID to remove (Campus Security)
+                                const campusSecurityUid = 'hedUWuv96VWQek5OucPzXTCkpQU2';
+                                const campusSecurityId = allParticipantIds.has(campusSecurityUid) ? campusSecurityUid : null;
+                                
+                                if (campusSecurityId) {
+                                    console.log(`🔍 Found Campus Security user with UID: ${campusSecurityId}`);
+                                } else {
+                                    console.log('ℹ️ Campus Security user with specified UID not found in conversation');
+                                }
+
+                                // 4. Remove only the specific Campus Security user by UID
+                                if (campusSecurityId) {
+                                    console.log(`🔨 Removing Campus Security user with UID: ${campusSecurityId}`);
+                                    
+                                    // Remove from participants
+                                    if (updatedParticipants[campusSecurityId]) {
+                                        console.log(`   - Removing from participants`);
+                                        delete updatedParticipants[campusSecurityId];
+                                        console.log(`   - Removed from participants`);
+                                    }
+                                    
+                                    // Remove from participantIds
+                                    const initialCount = updatedParticipantIds.length;
+                                    updatedParticipantIds = updatedParticipantIds.filter(id => id !== campusSecurityId);
+                                    if (initialCount > updatedParticipantIds.length) {
+                                        console.log(`   - Removed from participantIds`);
+                                    }
+                                    
+                                    // Remove from participantInfo
+                                    if (updatedParticipantInfo[campusSecurityId]) {
+                                        console.log(`   - Removing from participantInfo`);
+                                        delete updatedParticipantInfo[campusSecurityId];
+                                        console.log(`   - Removed from participantInfo`);
+                                    }
+                                    
+                                    console.log('✅ Specific Campus Security user removed successfully');
+                                    
+                                    // Log remaining participants
+                                    console.log('👥 Remaining participants after removal:', {
+                                        participants: Object.keys(updatedParticipants),
+                                        participantIds: updatedParticipantIds,
+                                        participantInfo: Object.keys(updatedParticipantInfo)
+                                    });
+                                }
+
+                                // Log completion of participant cleanup
+                                console.log('✅ Participant cleanup completed. Remaining participants:', {
+                                    participants: Object.keys(updatedParticipants),
+                                    participantIds: updatedParticipantIds,
+                                    participantInfo: Object.keys(updatedParticipantInfo)
+                                });
+
+                                // 3. Always keep the admin who collected the item
+                                if (!updatedParticipants[confirmedBy]) {
+                                    updatedParticipants[confirmedBy] = {
+                                        ...adminInfo,
+                                        joinedAt: serverTimestamp()
+                                    };
+                                    updatedParticipantIds.push(confirmedBy);
+                                    updatedParticipantInfo[confirmedBy] = {
+                                        displayName: `${adminInfo.firstName} ${adminInfo.lastName}`.trim(),
+                                        photoURL: adminInfo.profilePicture || '',
+                                        email: adminInfo.email || '',
+                                        role: 'admin'
+                                    };
+                                }
+
+                                console.log('✅ After cleanup, participants:', {
+                                    participants: Object.keys(updatedParticipants),
+                                    participantIds: updatedParticipantIds,
+                                    participantInfo: Object.keys(updatedParticipantInfo)
+                                });
                             }
+
+                            // 2. Add or update the admin in participants (only if not already present)
+                            if (!updatedParticipants[confirmedBy]) {
+                                updatedParticipants[confirmedBy] = {
+                                    ...adminInfo,
+                                    joinedAt: serverTimestamp()
+                                };
+
+                                // Add to participantIds if not already present
+                                if (!updatedParticipantIds.includes(confirmedBy)) {
+                                    updatedParticipantIds.push(confirmedBy);
+                                }
+
+                                // Update participantInfo with admin details
+                                updatedParticipantInfo[confirmedBy] = {
+                                    displayName: `${adminInfo.firstName} ${adminInfo.lastName}`.trim(),
+                                    photoURL: adminInfo.profilePicture || '',
+                                    email: adminInfo.email || '',
+                                    ...(adminInfo.contactNum && { contactNum: adminInfo.contactNum }),
+                                    role: 'admin' // Explicitly set role
+                                };
+                            } else {
+                                console.log('ℹ️ Admin already in participants, updating info');
+                                // Just update the role to ensure it's set correctly
+                                updatedParticipants[confirmedBy] = {
+                                    ...updatedParticipants[confirmedBy],
+                                    role: 'admin'
+                                };
+                                
+                                if (updatedParticipantInfo[confirmedBy]) {
+                                    updatedParticipantInfo[confirmedBy] = {
+                                        ...updatedParticipantInfo[confirmedBy],
+                                        role: 'admin'
+                                    };
+                                }
+                            }
+
+                            console.log('✅ Final participant state:', {
+                                participants: Object.keys(updatedParticipants),
+                                participantIds: updatedParticipantIds,
+                                participantInfo: Object.keys(updatedParticipantInfo)
+                            });
+
+                            // Debug: Log the updates we're about to make
+                            const updates = {
+                                postOwnerId: confirmedBy,
+                                postCreatorId: confirmedBy,
+                                postCreatorInfo: adminInfo,
+                                participants: updatedParticipants,
+                                participantIds: updatedParticipantIds,
+                                participantInfo: updatedParticipantInfo,
+                                updatedAt: 'serverTimestamp()'
+                            };
+                            
+                            console.log('🔄 Updating conversation with:', {
+                                conversationId: convDoc.id,
+                                updates: {
+                                    ...updates,
+                                    participants: Object.keys(updates.participants),
+                                    participantIds: updates.participantIds,
+                                    participantInfo: Object.keys(updates.participantInfo || {})
+                                }
+                            });
+
+                            // Prepare the update data
+                            const updateData: any = {
+                                postOwnerId: confirmedBy,
+                                postCreatorId: confirmedBy,
+                                postCreatorInfo: adminInfo,
+                                participants: updatedParticipants,
+                                participantIds: updatedParticipantIds,
+                                participantInfo: updatedParticipantInfo,
+                                updatedAt: serverTimestamp(),
+                                // Ensure the post status is updated
+                                postStatus: 'transferred',
+                                // Update the last message to reflect the transfer
+                                lastMessage: {
+                                    text: `Item transferred to ${adminInfo.firstName} ${adminInfo.lastName}`,
+                                    senderId: 'system',
+                                    senderName: 'System',
+                                    timestamp: serverTimestamp(),
+                                    isSystemMessage: true
+                                }
+                            };
+
+                            // If we have a lastMessage, preserve its read status but update the content
+                            if (conversationData.lastMessage) {
+                                updateData.lastMessage = {
+                                    ...conversationData.lastMessage,
+                                    text: `Item transferred to ${adminInfo.firstName} ${adminInfo.lastName}`,
+                                    isSystemMessage: true,
+                                    timestamp: serverTimestamp()
+                                };
+                            }
+
+                            // Update unread counts for all participants except the admin
+                            const unreadCounts = { ...conversationData.unreadCounts };
+                            Object.keys(updatedParticipants).forEach(participantId => {
+                                if (participantId !== confirmedBy) {
+                                    unreadCounts[participantId] = (unreadCounts[participantId] || 0) + 1;
+                                } else {
+                                    unreadCounts[participantId] = 0; // Reset unread count for admin
+                                }
+                            });
+                            updateData.unreadCounts = unreadCounts;
+
+                            console.log('🔄 Updating conversation with:', {
+                                conversationId: convDoc.id,
+                                updateData: {
+                                    ...updateData,
+                                    participants: Object.keys(updateData.participants),
+                                    participantIds: updateData.participantIds,
+                                    participantInfo: Object.keys(updateData.participantInfo || {})
+                                }
+                            });
+
+                            // Update the conversation
+                            await updateDoc(conversationRef, updateData);
+
+                            console.log(`✅ Updated conversation ${convDoc.id} with new admin info`);
                         }
                     }
                 } catch (conversationUpdateError) {

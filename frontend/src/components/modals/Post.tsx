@@ -12,6 +12,7 @@ import FlagButton from "@/components/posts/FlagButton";
 import TurnoverConfirmationModal from "@/components/modals/TurnoverConfirmation";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { usePostCreatorData } from "@/hooks/usePostCreatorData";
+import ConversationHistory from "@/components/posts/ConversationHistory";
 
 interface PostModalProps {
   post: Post;
@@ -719,6 +720,13 @@ export default function PostModal({
                 conversationData={post.conversationData}
               />
             )}
+
+          {/* Conversation History - Show only to post creator */}
+          {(isCurrentUserCreator || isAdmin) && post.status === 'resolved' && (
+            <div className="mt-6">
+              <ConversationHistory postId={post.id} />
+            </div>
+          )}
 
           {/* Turnover Confirmation Buttons - Show only for posts awaiting OSA confirmation */}
           {post.turnoverDetails &&

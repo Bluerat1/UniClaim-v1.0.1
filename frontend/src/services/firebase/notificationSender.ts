@@ -757,24 +757,35 @@ export class NotificationSender {
                 return;
             }
 
+            // Clean the notification data to remove any undefined values
+            const cleanNotificationData = {
+                ...notificationData,
+                data: Object.entries(notificationData.data || {}).reduce((acc, [key, value]) => {
+                    if (value !== undefined) {
+                        acc[key] = value;
+                    }
+                    return acc;
+                }, {} as Record<string, any>)
+            };
+
             // Create admin notification for each admin user using the admin notification service
             for (const admin of adminUsers) {
                 await adminNotificationService.createAdminNotification({
                     type: 'system_alert', // Use system_alert for message notifications to admins
-                    title: notificationData.title,
-                    message: notificationData.body,
+                    title: cleanNotificationData.title,
+                    message: cleanNotificationData.body,
                     priority: 'normal',
                     adminId: admin.uid, // Send to specific admin
                     data: {
-                        ...notificationData.data,
+                        ...cleanNotificationData.data,
                         isAdminNotification: true,
-                        adminNotificationType: notificationData.type
+                        adminNotificationType: cleanNotificationData.type
                     },
                     actionRequired: false,
-                    relatedEntity: notificationData.data?.conversationId ? {
+                    relatedEntity: cleanNotificationData.data?.conversationId ? {
                         type: 'conversation',
-                        id: notificationData.data.conversationId,
-                        name: notificationData.data.postTitle || 'Conversation'
+                        id: cleanNotificationData.data.conversationId,
+                        name: cleanNotificationData.data.postTitle || 'Conversation'
                     } : undefined
                 });
             }

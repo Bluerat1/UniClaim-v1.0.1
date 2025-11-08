@@ -14,6 +14,7 @@ interface MessageContextType {
   markMessageAsRead: (conversationId: string, messageId: string) => Promise<void>;
   markAllUnreadMessagesAsRead: (conversationId: string) => Promise<void>;
   deleteMessage: (conversationId: string, messageId: string) => Promise<void>;
+  deleteConversation: (conversationId: string, userId: string) => Promise<{ success: boolean; error?: string }>;
   updateHandoverResponse: (conversationId: string, messageId: string, status: 'accepted' | 'rejected') => Promise<void>;
   confirmHandoverIdPhoto: (conversationId: string, messageId: string) => Promise<{ success: boolean; conversationDeleted: boolean; postId?: string; error?: string }>;
   sendClaimRequest: (conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, postType: 'lost' | 'found', claimReason?: string, idPhotoUrl?: string, evidencePhotos?: { url: string; uploadedAt: any; description?: string }[]) => Promise<void>;
@@ -233,6 +234,47 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
     }
   };
 
+  const deleteConversation = async (conversationId: string, userId: string): Promise<{ success: boolean; error?: string }> => {
+    if (!conversationId || !userId) {
+      console.error('❌ [deleteConversation] Missing conversationId or userId');
+      return { success: false, error: 'Missing required parameters' };
+    }
+
+    try {
+      // First, check if the conversation exists in the current state
+      const conversationExists = conversations.some(conv => conv.id === conversationId);
+      if (!conversationExists) {
+        console.error(`❌ [deleteConversation] Conversation ${conversationId} not found in local state`);
+        return { success: false, error: 'Conversation not found' };
+      }
+
+      // Call the service to delete the conversation
+      const result = await messageService.deleteConversation(conversationId, userId);
+      
+      if (result.success) {
+        // Update local state to remove the deleted conversation
+        setConversations(prev => {
+          const updatedConversations = prev.filter(conv => conv.id !== conversationId);
+          console.log(`✅ [deleteConversation] Updated conversations list. Remaining: ${updatedConversations.length}`);
+          return updatedConversations;
+        });
+      } else {
+        console.error(`❌ [deleteConversation] Failed to delete conversation: ${result.error}`);
+      }
+      
+      return result;
+    } catch (error: any) {
+      console.error('❌ [deleteConversation] Error:', {
+        message: error?.message,
+        stack: error?.stack
+      });
+      return { 
+        success: false, 
+        error: error.message || 'Failed to delete conversation' 
+      };
+    }
+  };
+
   const refreshConversations = async (): Promise<void> => {
     console.log('🔄 [refreshConversations] Refreshing conversations for user:', userId);
     
@@ -247,14 +289,34 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
       // Create a temporary listener to get fresh data
       const unsubscribe = messageService.getUserConversations(userId, 
         (loadedConversations) => {
-          console.log('✅ [refreshConversations] Refreshed conversations:', {
+          console.log('✅ [refreshConversations] Loaded conversations:', {
             count: loadedConversations.length,
             hasConversations: loadedConversations.length > 0
           });
-          setConversations(loadedConversations);
+          
+          // Filter out conversations that have been deleted by the current user
+          const filteredConversations = loadedConversations.filter(conv => {
+            const isDeleted = !!conv.deletedBy?.[userId];
+            if (isDeleted) {
+              console.log(`[refreshConversations] Filtering out deleted conversation:`, {
+                conversationId: conv.id,
+                deletedAt: conv.deletedBy?.[userId]
+              });
+            }
+            return !isDeleted;
+          });
+          
+          console.log(`✅ [refreshConversations] Filtered conversations: ${filteredConversations.length} (${loadedConversations.length - filteredConversations.length} deleted)`);
+          
+          setConversations(filteredConversations);
           setLoading(false);
+          
           // Unsubscribe immediately after getting the data to avoid duplicate listeners
-          unsubscribe();
+          try {
+            unsubscribe();
+          } catch (error) {
+            console.error('❌ [refreshConversations] Error unsubscribing:', error);
+          }
         }, 
         (error) => {
           console.error('❌ [refreshConversations] Error loading conversations:', {
@@ -263,7 +325,15 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
             stack: error?.stack
           });
           setLoading(false);
-          unsubscribe();
+          
+          // Try to unsubscribe if possible
+          try {
+            if (typeof unsubscribe === 'function') {
+              unsubscribe();
+            }
+          } catch (e) {
+            console.error('❌ [refreshConversations] Error unsubscribing after error:', e);
+          }
         }
       );
     } catch (error: any) {
@@ -287,6 +357,7 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
     markMessageAsRead,
     markAllUnreadMessagesAsRead,
     deleteMessage,
+    deleteConversation,
     updateHandoverResponse,
     confirmHandoverIdPhoto,
     sendClaimRequest,

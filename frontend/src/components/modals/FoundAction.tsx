@@ -36,34 +36,49 @@ export default function FoundActionModal({
   const handleActionSelect = (action: (typeof actions)[number]) => {
     if (action === "turnover to Campus Security") {
       setShowTurnoverConfirmation(true);
+      // Don't call onActionSelect here, wait for confirmation
     } else if (action === "turnover to OSA") {
       setShowOSATurnoverConfirmation(true);
+      // Don't call onActionSelect here, wait for confirmation
     } else {
+      // For "keep" action, update immediately
       onActionSelect(action);
       onClose();
     }
   };
 
-  const handleTurnoverConfirmation = (didTurnOver: boolean) => {
+  const handleTurnoverConfirmation = async (didTurnOver: boolean) => {
+    setShowTurnoverConfirmation(false);
+    
     if (didTurnOver) {
+      // Update the parent component's state with the selected action
       onActionSelect("turnover to Campus Security");
+      // Close the main modal after a small delay to ensure state updates
+      setTimeout(() => {
+        onClose();
+      }, 100);
     } else {
       // If they selected "No", reset the selection
       onResetSelection?.();
+      // The main modal stays open for them to choose another option
     }
-    setShowTurnoverConfirmation(false);
-    onClose();
   };
 
   const handleOSATurnoverConfirmation = (didTurnOver: boolean) => {
+    setShowOSATurnoverConfirmation(false);
+    
     if (didTurnOver) {
+      // Update the parent component's state with the selected action
       onActionSelect("turnover to OSA");
+      // Close the main modal after a small delay to ensure state updates
+      setTimeout(() => {
+        onClose();
+      }, 100);
     } else {
       // If they selected "No", reset the selection
       onResetSelection?.();
+      // The main modal stays open for them to choose another option
     }
-    setShowOSATurnoverConfirmation(false);
-    onClose();
   };
 
   // const handleBackdropClick = (e: React.MouseEvent) => {
