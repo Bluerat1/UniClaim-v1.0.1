@@ -18,6 +18,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { doc, updateDoc, getDoc, arrayUnion } from "firebase/firestore";
 import { db } from "../../utils/firebase/config";
+import { getProfilePictureUrl } from "../../utils/profileUtils";
 import PageLayout from "../../layout/PageLayout";
 import { useMessage } from "../../context/MessageContext";
 import { useAuth } from "../../context/AuthContext";
@@ -47,39 +48,6 @@ const debugLog = (section: string, message: string, data?: any) => {
   );
 };
 
-/**
- * Gets the profile picture URL from user data, checking multiple possible field names
- * in order of preference.
- */
-const getProfilePictureUrl = (
-  data: Record<string, any> | null | undefined
-): string | null => {
-  if (!data) return null;
-
-  const pictureFields = [
-    "profilePicture",
-    "photoURL",
-    "avatar",
-    "profilePic",
-    "profile_picture",
-    "profilePicUrl",
-    "profileImageUrl",
-    "profile_pic",
-    "profile_pic_url",
-    "image",
-    "picture",
-    "photo",
-  ];
-
-  for (const field of pictureFields) {
-    const value = data?.[field];
-    if (typeof value === "string" && value.trim().length > 0) {
-      return value;
-    }
-  }
-
-  return null;
-};
 
 const ConversationItem = React.memo(
   ({

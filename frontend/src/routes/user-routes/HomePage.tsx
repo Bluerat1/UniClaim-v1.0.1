@@ -7,7 +7,6 @@ import PostModal from "@/components/modals/Post";
 import MobileNavText from "@/components/layout/NavHead";
 import SearchBar from "@/components/common/SearchBar";
 import FlagModal from "@/components/modals/Flag";
-import { IoInformationCircle } from "react-icons/io5";
 import MobileFilter from "@/components/common/MobileFilter";
 type ViewType = 'all' | 'lost' | 'found' | 'completed';
 
@@ -407,29 +406,22 @@ export default function HomePage() {
             Found Items
           </button>
 
-          <div className="relative group">
-            <button
-              className={`flex items-center gap-2 px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
-                viewType === "completed"
-                  ? "bg-navyblue text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-dark-navyblue/15 border-gray-300"
-              }`}
-              onClick={() => {
-                setIsLoading(true);
-                setViewType("completed");
-                setCurrentPage(1);
-                setRawResults(null);
-                setTimeout(() => setIsLoading(false), 200);
-              }}
-            >
-              Completed Items
-              <IoInformationCircle className="w-4 h-4" />
-            </button>
-            <div className="absolute z-10 hidden group-hover:block w-64 px-2 py-1 mt-1 text-xs text-gray-600 bg-white border border-gray-200 rounded shadow-lg">
-              After 30 days, the posts will be automatically removed from the
-              system.
-            </div>
-          </div>
+          <button
+            className={`px-4 py-2 cursor-pointer lg:px-8 rounded text-[14px] lg:text-base font-medium transition-colors duration-300 ${
+              viewType === "completed"
+                ? "bg-navyblue text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-dark-navyblue/15 border-gray-300"
+            }`}
+            onClick={() => {
+              setIsLoading(true);
+              setViewType("completed");
+              setCurrentPage(1);
+              setRawResults(null);
+              setTimeout(() => setIsLoading(false), 200);
+            }}
+          >
+            Completed Items
+          </button>
         </div>
       </div>
 

@@ -6,18 +6,18 @@ import React, {
   useMemo,
 } from "react";
 import {
-  Text,
-  FlatList,
-  TouchableOpacity,
-  Modal,
-  Image as RNImage,
-  StyleSheet,
   View,
+  Text,
   TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  FlatList,
+  KeyboardAvoidingView,
   Platform,
+  Image as RNImage,
+  Modal,
   Alert,
   Keyboard,
-  KeyboardAvoidingView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
@@ -32,6 +32,7 @@ import MessageBubble from "../components/MessageBubble";
 import HandoverModal from "../components/HandoverModal";
 import ClaimModal from "../components/ClaimModal";
 import ImagePicker from "../components/ImagePicker";
+import { getProfilePictureUrl } from "../utils/profileUtils";
 
 type ChatRouteProp = RouteProp<RootStackParamList, "Chat">;
 type ChatNavigationProp = NativeStackNavigationProp<RootStackParamList, "Chat">;
@@ -166,37 +167,6 @@ export default function Chat() {
     email?: string;
   }
 
-  /**
-   * Gets the profile picture URL from user data, checking multiple possible field names
-   * in order of preference.
-   */
-  const getProfilePictureUrl = (user: any): string | null => {
-    if (!user) return null;
-
-    const pictureFields = [
-      "profilePicture",
-      "photoURL",
-      "avatar",
-      "profilePic",
-      "profile_picture",
-      "profilePicUrl",
-      "profileImageUrl",
-      "profile_pic",
-      "profile_pic_url",
-      "image",
-      "picture",
-      "photo",
-    ];
-
-    for (const field of pictureFields) {
-      const value = user?.[field];
-      if (typeof value === "string" && value.trim().length > 0) {
-        return value;
-      }
-    }
-
-    return null;
-  };
 
   // State for other participant's profile picture
   const [otherParticipantPic, setOtherParticipantPic] = useState<string | null>(
