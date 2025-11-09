@@ -1068,43 +1068,45 @@ export default function Chat() {
 
     try {
       // Import the handoverClaimService
-      const handoverClaimService = await import('../utils/handoverClaimService');
-      
+      const handoverClaimService = await import(
+        "../utils/handoverClaimService"
+      );
+
       // Upload the ID photo
       const uploadResult = await handoverClaimService.uploadIdPhotoMobile(
-        photoUri, 
-        imagePickerMessageType === 'handover_request' ? 'handover' : 'claim'
+        photoUri,
+        imagePickerMessageType === "handover_request" ? "handover" : "claim"
       );
 
       if (!uploadResult.success) {
-        throw new Error(uploadResult.error || 'Failed to upload ID photo');
+        throw new Error(uploadResult.error || "Failed to upload ID photo");
       }
 
       // Update the appropriate response based on message type
-      if (imagePickerMessageType === 'handover_request') {
+      if (imagePickerMessageType === "handover_request") {
         // Use the handoverClaimService to handle the response
         await handoverClaimService.updateHandoverResponse(
           conversationId,
           imagePickerMessageId,
-          'accepted',
+          "accepted",
           user.uid,
           uploadResult.url
         );
-        
+
         // Refresh messages to show updated status
         if (conversationId) {
           getConversationMessages(conversationId, setMessages);
         }
-      } else if (imagePickerMessageType === 'claim_request') {
+      } else if (imagePickerMessageType === "claim_request") {
         // Use the handoverClaimService to handle the response
         await handoverClaimService.updateClaimResponse(
           conversationId,
           imagePickerMessageId,
-          'accepted',
+          "accepted",
           user.uid,
           uploadResult.url
         );
-        
+
         // Refresh messages to show updated status
         if (conversationId) {
           getConversationMessages(conversationId, setMessages);
@@ -1113,19 +1115,19 @@ export default function Chat() {
 
       // Show success message
       showToastMessage(
-        'ID photo uploaded successfully! The item owner will now review and confirm.',
-        'success'
+        "ID photo uploaded successfully! The item owner will now review and confirm.",
+        "success"
       );
-      
+
       // Close the modal and reset states
       setShowImagePickerModal(false);
-      setImagePickerMessageId('');
-      setImagePickerMessageType('handover_request');
+      setImagePickerMessageId("");
+      setImagePickerMessageType("handover_request");
     } catch (error: any) {
-      console.error('Error in handleImagePickerSelect:', error);
+      console.error("Error in handleImagePickerSelect:", error);
       Alert.alert(
-        'Upload Failed', 
-        error.message || 'Failed to upload ID photo. Please try again.'
+        "Upload Failed",
+        error.message || "Failed to upload ID photo. Please try again."
       );
     } finally {
       setIsImagePickerUploading(false);
@@ -1157,8 +1159,10 @@ export default function Chat() {
 
     try {
       // Import the handoverClaimService
-      const handoverClaimService = await import('../utils/handoverClaimService');
-      
+      const handoverClaimService = await import(
+        "../utils/handoverClaimService"
+      );
+
       // Get the message data before trying to confirm
       // Find the message and log its details for debugging
       const message = messages.find((m) => m.id === messageId);
@@ -1166,67 +1170,74 @@ export default function Chat() {
         throw new Error("Message not found");
       }
 
-      console.log('🔍 Message found for confirmation:', {
+      console.log("🔍 Message found for confirmation:", {
         messageId: message.id,
         messageType: message.messageType,
-        isHandover: message.messageType === 'handover_request',
-        isClaim: message.messageType === 'claim_request',
+        isHandover: message.messageType === "handover_request",
+        isClaim: message.messageType === "claim_request",
         hasClaimData: !!message.claimData,
-        hasHandoverData: !!message.handoverData
+        hasHandoverData: !!message.handoverData,
       });
 
       let result;
-      
+
       // Check both messageType and the existence of the corresponding data object
-      const isHandover = message.messageType === 'handover_request' || message.handoverData;
-      const isClaim = message.messageType === 'claim_request' || message.claimData;
-      
-      console.log('🔍 Confirmation type check:', { isHandover, isClaim });
-      
+      const isHandover =
+        message.messageType === "handover_request" || message.handoverData;
+      const isClaim =
+        message.messageType === "claim_request" || message.claimData;
+
+      console.log("🔍 Confirmation type check:", { isHandover, isClaim });
+
       if (isHandover && !isClaim) {
-        console.log('🔄 Confirming handover ID photo...');
+        console.log("🔄 Confirming handover ID photo...");
         result = await handoverClaimService.confirmHandoverIdPhoto(
-          conversationId, 
-          messageId, 
+          conversationId,
+          messageId,
           user.uid
         );
-        
+
         if (result && result.success) {
-          console.log('✅ Handover ID photo confirmed successfully');
+          console.log("✅ Handover ID photo confirmed successfully");
           showToastMessage(
             "Handover ID photo confirmed! The post is now marked as completed.",
             "success"
           );
         } else {
-          throw new Error(result?.error || 'Failed to confirm handover ID photo');
+          throw new Error(
+            result?.error || "Failed to confirm handover ID photo"
+          );
         }
       } else if (isClaim) {
-        console.log('🔄 Confirming claim ID photo...');
+        console.log("🔄 Confirming claim ID photo...");
         result = await handoverClaimService.confirmClaimIdPhoto(
-          conversationId, 
-          messageId, 
+          conversationId,
+          messageId,
           user.uid
         );
-        
+
         if (result && result.success) {
-          console.log('✅ Claim ID photo confirmed successfully');
+          console.log("✅ Claim ID photo confirmed successfully");
           showToastMessage(
             "Claim ID photo confirmed! The post is now marked as completed.",
             "success"
           );
         } else {
-          throw new Error(result?.error || 'Failed to confirm claim ID photo');
+          throw new Error(result?.error || "Failed to confirm claim ID photo");
         }
       } else {
-        console.error('❌ Invalid message type for ID photo confirmation:', message.messageType);
-        throw new Error('Invalid message type for ID photo confirmation');
+        console.error(
+          "❌ Invalid message type for ID photo confirmation:",
+          message.messageType
+        );
+        throw new Error("Invalid message type for ID photo confirmation");
       }
 
       // Clear messages and navigate back after successful confirmation
       setMessages([]);
       navigation.goBack();
     } catch (error: any) {
-      console.error('Error in handleConfirmIdPhotoSuccess:', error);
+      console.error("Error in handleConfirmIdPhotoSuccess:", error);
       setIsConfirmationInProgress(false);
 
       // Handle different error scenarios
@@ -1240,7 +1251,7 @@ export default function Chat() {
         navigation.goBack();
       } else {
         Alert.alert(
-          "Confirmation Failed", 
+          "Confirmation Failed",
           error.message || "Failed to confirm ID photo. Please try again."
         );
       }
@@ -1497,7 +1508,7 @@ export default function Chat() {
           {/* Input Area with bottom spacing */}
           <View
             className={`bg-white px-4 pt-2 transition-all duration-300 ${
-              isKeyboardVisible ? "pb-0" : "pb-14"
+              isKeyboardVisible ? "pb-0" : "pb-11"
             }`}
           >
             <View className="flex-row items-center gap-3">
