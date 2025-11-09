@@ -242,7 +242,7 @@ export default function MyTicket() {
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               placeholder="Search a ticket"
-              className="w-full md:max-w-sm border px-3 py-2 rounded placeholder:text-sm"
+              className="w-full md:max-w-sm border border-gray-500 ring-1 ring-transparent focus:outline-none focus:ring-0.5 focus:ring-gray-600 px-3 py-2 rounded placeholder:text-sm"
             />
             <button className="bg-brand rounded text-white text-sm lg:text-base px-3 py-2 hover:bg-yellow-600 transition-colors">
               Search

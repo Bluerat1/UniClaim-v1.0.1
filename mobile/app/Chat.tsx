@@ -36,53 +36,6 @@ import ImagePicker from "../components/ImagePicker";
 type ChatRouteProp = RouteProp<RootStackParamList, "Chat">;
 type ChatNavigationProp = NativeStackNavigationProp<RootStackParamList, "Chat">;
 
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.9)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  imageContainer: {
-    width: "100%",
-    maxWidth: "95%",
-    maxHeight: "80%",
-    alignItems: "center",
-    zIndex: 2,
-  },
-  fullImage: {
-    width: "100%",
-    height: "100%",
-  },
-  imageCaption: {
-    color: "white",
-    marginTop: 10,
-    textAlign: "center",
-    fontSize: 16,
-    opacity: 0.8,
-  },
-  closeButton: {
-    position: "absolute",
-    top: 40,
-    right: 20,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 3,
-  },
-  dismissArea: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 1,
-  },
-});
-
 // Debug logging utility with performance tracking
 const DEBUG_ENABLED = false;
 const debugLog = (section: string, message: string, data?: any) => {
@@ -1116,43 +1069,45 @@ export default function Chat() {
 
     try {
       // Import the handoverClaimService
-      const handoverClaimService = await import('../utils/handoverClaimService');
-      
+      const handoverClaimService = await import(
+        "../utils/handoverClaimService"
+      );
+
       // Upload the ID photo
       const uploadResult = await handoverClaimService.uploadIdPhotoMobile(
-        photoUri, 
-        imagePickerMessageType === 'handover_request' ? 'handover' : 'claim'
+        photoUri,
+        imagePickerMessageType === "handover_request" ? "handover" : "claim"
       );
 
       if (!uploadResult.success) {
-        throw new Error(uploadResult.error || 'Failed to upload ID photo');
+        throw new Error(uploadResult.error || "Failed to upload ID photo");
       }
 
       // Update the appropriate response based on message type
-      if (imagePickerMessageType === 'handover_request') {
+      if (imagePickerMessageType === "handover_request") {
         // Use the handoverClaimService to handle the response
         await handoverClaimService.updateHandoverResponse(
           conversationId,
           imagePickerMessageId,
-          'accepted',
+          "accepted",
           user.uid,
           uploadResult.url
         );
-        
+
         // Refresh messages to show updated status
         if (conversationId) {
           getConversationMessages(conversationId, setMessages);
         }
-      } else if (imagePickerMessageType === 'claim_request') {
+      } else if (imagePickerMessageType === "claim_request") {
         // Use the handoverClaimService to handle the response
         await handoverClaimService.updateClaimResponse(
           conversationId,
           imagePickerMessageId,
-          'accepted',
+          "accepted",
           user.uid,
           uploadResult.url
         );
-        
+
         // Refresh messages to show updated status
         if (conversationId) {
           getConversationMessages(conversationId, setMessages);
@@ -1161,19 +1116,19 @@ export default function Chat() {
 
       // Show success message
       showToastMessage(
-        'ID photo uploaded successfully! The item owner will now review and confirm.',
-        'success'
+        "ID photo uploaded successfully! The item owner will now review and confirm.",
+        "success"
       );
-      
+
       // Close the modal and reset states
       setShowImagePickerModal(false);
-      setImagePickerMessageId('');
-      setImagePickerMessageType('handover_request');
+      setImagePickerMessageId("");
+      setImagePickerMessageType("handover_request");
     } catch (error: any) {
-      console.error('Error in handleImagePickerSelect:', error);
+      console.error("Error in handleImagePickerSelect:", error);
       Alert.alert(
-        'Upload Failed', 
-        error.message || 'Failed to upload ID photo. Please try again.'
+        "Upload Failed",
+        error.message || "Failed to upload ID photo. Please try again."
       );
     } finally {
       setIsImagePickerUploading(false);
@@ -1205,8 +1160,10 @@ export default function Chat() {
 
     try {
       // Import the handoverClaimService
-      const handoverClaimService = await import('../utils/handoverClaimService');
-      
+      const handoverClaimService = await import(
+        "../utils/handoverClaimService"
+      );
+
       // Get the message data before trying to confirm
       // Find the message and log its details for debugging
       const message = messages.find((m) => m.id === messageId);
@@ -1214,67 +1171,74 @@ export default function Chat() {
         throw new Error("Message not found");
       }
 
-      console.log('🔍 Message found for confirmation:', {
+      console.log("🔍 Message found for confirmation:", {
         messageId: message.id,
         messageType: message.messageType,
-        isHandover: message.messageType === 'handover_request',
-        isClaim: message.messageType === 'claim_request',
+        isHandover: message.messageType === "handover_request",
+        isClaim: message.messageType === "claim_request",
         hasClaimData: !!message.claimData,
-        hasHandoverData: !!message.handoverData
+        hasHandoverData: !!message.handoverData,
       });
 
       let result;
-      
+
       // Check both messageType and the existence of the corresponding data object
-      const isHandover = message.messageType === 'handover_request' || message.handoverData;
-      const isClaim = message.messageType === 'claim_request' || message.claimData;
-      
-      console.log('🔍 Confirmation type check:', { isHandover, isClaim });
-      
+      const isHandover =
+        message.messageType === "handover_request" || message.handoverData;
+      const isClaim =
+        message.messageType === "claim_request" || message.claimData;
+
+      console.log("🔍 Confirmation type check:", { isHandover, isClaim });
+
       if (isHandover && !isClaim) {
-        console.log('🔄 Confirming handover ID photo...');
+        console.log("🔄 Confirming handover ID photo...");
         result = await handoverClaimService.confirmHandoverIdPhoto(
-          conversationId, 
-          messageId, 
+          conversationId,
+          messageId,
           user.uid
         );
-        
+
         if (result && result.success) {
-          console.log('✅ Handover ID photo confirmed successfully');
+          console.log("✅ Handover ID photo confirmed successfully");
           showToastMessage(
             "Handover ID photo confirmed! The post is now marked as completed.",
             "success"
           );
         } else {
-          throw new Error(result?.error || 'Failed to confirm handover ID photo');
+          throw new Error(
+            result?.error || "Failed to confirm handover ID photo"
+          );
         }
       } else if (isClaim) {
-        console.log('🔄 Confirming claim ID photo...');
+        console.log("🔄 Confirming claim ID photo...");
         result = await handoverClaimService.confirmClaimIdPhoto(
-          conversationId, 
-          messageId, 
+          conversationId,
+          messageId,
           user.uid
         );
-        
+
         if (result && result.success) {
-          console.log('✅ Claim ID photo confirmed successfully');
+          console.log("✅ Claim ID photo confirmed successfully");
           showToastMessage(
             "Claim ID photo confirmed! The post is now marked as completed.",
             "success"
           );
         } else {
-          throw new Error(result?.error || 'Failed to confirm claim ID photo');
+          throw new Error(result?.error || "Failed to confirm claim ID photo");
         }
       } else {
-        console.error('❌ Invalid message type for ID photo confirmation:', message.messageType);
-        throw new Error('Invalid message type for ID photo confirmation');
+        console.error(
+          "❌ Invalid message type for ID photo confirmation:",
+          message.messageType
+        );
+        throw new Error("Invalid message type for ID photo confirmation");
       }
 
       // Clear messages and navigate back after successful confirmation
       setMessages([]);
       navigation.goBack();
     } catch (error: any) {
-      console.error('Error in handleConfirmIdPhotoSuccess:', error);
+      console.error("Error in handleConfirmIdPhotoSuccess:", error);
       setIsConfirmationInProgress(false);
 
       // Handle different error scenarios
@@ -1288,7 +1252,7 @@ export default function Chat() {
         navigation.goBack();
       } else {
         Alert.alert(
-          "Confirmation Failed", 
+          "Confirmation Failed",
           error.message || "Failed to confirm ID photo. Please try again."
         );
       }
@@ -1547,7 +1511,7 @@ export default function Chat() {
           {/* Input Area with bottom spacing */}
           <View
             className={`bg-white px-4 pt-2 transition-all duration-300 ${
-              isKeyboardVisible ? "pb-0" : "pb-14"
+              isKeyboardVisible ? "pb-0" : "pb-11"
             }`}
           >
             <View className="flex-row items-center gap-3">
@@ -1589,33 +1553,38 @@ export default function Chat() {
         animationType="fade"
         onRequestClose={() => setSelectedImage(null)}
       >
-        <View style={styles.modalOverlay}>
+        <View className="flex-1 bg-black/90 justify-center items-center">
+          {/* Close Button */}
           <TouchableOpacity
-            style={styles.closeButton}
+            className="absolute top-10 right-5 w-10 h-10 rounded-full bg-black/50 justify-center items-center z-30"
             onPress={() => setSelectedImage(null)}
             activeOpacity={0.7}
           >
             <Ionicons name="close" size={28} color="white" />
           </TouchableOpacity>
 
-          <View style={styles.imageContainer}>
+          {/* Image Container */}
+          <View className="w-[95%] max-h-[80%] items-center z-20">
             {selectedImage && (
               <>
                 <RNImage
                   source={{ uri: selectedImage.uri }}
-                  style={styles.fullImage}
+                  className="w-full h-full"
                   resizeMode="contain"
                 />
-                <Text style={styles.imageCaption} numberOfLines={1}>
+                <Text
+                  className="text-white text-center mt-2 text-base opacity-80"
+                  numberOfLines={1}
+                >
                   {selectedImage.alt}
                 </Text>
               </>
             )}
           </View>
 
-          {/* Invisible touch area that covers the entire screen */}
+          {/* Invisible dismiss area */}
           <TouchableOpacity
-            style={styles.dismissArea}
+            className="absolute inset-0 z-10"
             activeOpacity={1}
             onPress={() => setSelectedImage(null)}
           />
