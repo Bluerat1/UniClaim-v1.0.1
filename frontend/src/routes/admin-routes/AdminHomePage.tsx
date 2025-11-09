@@ -1250,11 +1250,13 @@ export default function AdminHomePage() {
         </div>
 
         {/* Home Title and Description */}
-        <div className="hidden lg:block lg:max-w-sm lg:text-right space-y-1">
-          <h1 className="text-sm font-medium">Admin Home</h1>
-          <p className="text-xs text-gray-600">
-            Manage all lost and found items here
-          </p>
+        <div className="hidden lg:flex lg:items-center lg:space-x-4">
+          <div className="text-right space-y-1">
+            <h1 className="text-sm font-medium">Admin Home</h1>
+            <p className="text-xs text-gray-600">
+              Manage all lost and found items here
+            </p>
+          </div>
         </div>
       </div>
 

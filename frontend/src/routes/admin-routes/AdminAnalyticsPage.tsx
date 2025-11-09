@@ -18,8 +18,8 @@ const AdminAnalyticsPage: React.FC = () => {
               Admin View
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <p className="text-xs text-gray-500 mt-1">{pageDescription}</p>
+          <div className="flex items-center">
+            <p className="text-xs text-gray-500">{pageDescription}</p>
           </div>
         </div>
 

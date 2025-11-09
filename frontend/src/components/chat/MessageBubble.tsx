@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import type { Message } from "@/types/Post";
 import { useMessage } from "@/context/MessageContext";
 import handoverClaimService, {
@@ -12,6 +12,31 @@ import ProfilePictureSeenIndicator from "@/components/user/ProfilePictureSeenInd
 import ProfilePicture from "@/components/user/ProfilePicture";
 import ImageModal from "@/components/modals/Image";
 
+const PROFILE_PICTURE_FIELDS = [
+  "profilePicture",
+  "profileImageUrl",
+  "photoURL",
+  "avatar",
+  "profilePic",
+  "profilePicUrl",
+  "profile_pic",
+  "profile_pic_url",
+  "image",
+  "picture",
+  "photo",
+];
+
+const getProfilePictureFromData = (data: any): string | null => {
+  if (!data || typeof data !== "object") return null;
+  for (const field of PROFILE_PICTURE_FIELDS) {
+    const value = data?.[field];
+    if (typeof value === "string" && value.trim() !== "") {
+      return value;
+    }
+  }
+  return null;
+};
+
 interface MessageBubbleProps {
   message: Message;
   isOwnMessage: boolean;
@@ -24,10 +49,22 @@ interface MessageBubbleProps {
     [uid: string]: {
       profilePicture?: string;
       profileImageUrl?: string;
-      firstName: string;
-      lastName: string;
+      photoURL?: string;
+      photo?: string;
+      avatar?: string;
+      profilePic?: string;
+      profilePicUrl?: string;
+      profile_pic?: string;
+      profile_pic_url?: string;
+      image?: string;
+      picture?: string;
+      firstName?: string;
+      lastName?: string;
+      uid?: string;
+      [key: string]: any;
     };
   };
+  fallbackProfilePicture?: string | null;
   onHandoverResponse?: (
     messageId: string,
     status: "accepted" | "rejected"
@@ -49,6 +86,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   postOwnerId,
   isLastSeenMessage = false,
   conversationParticipants = {},
+  fallbackProfilePicture = null,
   onHandoverResponse,
   onClaimResponse,
   onConfirmIdPhotoSuccess,
@@ -71,6 +109,36 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const { showToast } = useToast();
   const userRole = userData?.role ?? "";
 
+  const resolvedSenderProfilePicture = useMemo(() => {
+    if (
+      typeof message.senderProfilePicture === "string" &&
+      message.senderProfilePicture.trim() !== ""
+    ) {
+      return message.senderProfilePicture;
+    }
+
+    const participantData = conversationParticipants?.[message.senderId];
+    const participantPicture = getProfilePictureFromData(participantData);
+    if (participantPicture) {
+      return participantPicture;
+    }
+
+    if (!isOwnMessage && typeof fallbackProfilePicture === "string") {
+      const trimmed = fallbackProfilePicture.trim();
+      if (trimmed !== "") {
+        return trimmed;
+      }
+    }
+
+    return null;
+  }, [
+    message.senderProfilePicture,
+    conversationParticipants,
+    message.senderId,
+    isOwnMessage,
+    fallbackProfilePicture,
+  ]);
+
   const formatTime = (timestamp: any) => {
     if (!timestamp) return "";
     const date = timestamp instanceof Date ? timestamp : timestamp.toDate();
@@ -90,14 +158,34 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     if (!message.readBy || !Array.isArray(message.readBy)) return [];
 
     return message.readBy
-      .filter((uid: string) => uid !== currentUserId) // Exclude current user
+      .filter((uid: string) => uid !== currentUserId)
       .map((uid: string) => {
-        const participant = conversationParticipants[uid];
+        const participant = conversationParticipants?.[uid];
+        let profilePicture = getProfilePictureFromData(participant);
+
+        if (!profilePicture && uid === message.senderId) {
+          profilePicture = resolvedSenderProfilePicture || null;
+        }
+
+        if (!profilePicture && typeof fallbackProfilePicture === "string") {
+          const trimmed = fallbackProfilePicture.trim();
+          if (trimmed !== "") {
+            profilePicture = trimmed;
+          }
+        }
+
+        const firstName =
+          (participant?.firstName as string | undefined) ||
+          "Unknown";
+        const lastName =
+          (participant?.lastName as string | undefined) ||
+          "User";
+
         return {
           uid,
-          profilePicture: participant?.profilePicture || null,
-          firstName: participant?.firstName || "Unknown",
-          lastName: participant?.lastName || "User",
+          profilePicture: profilePicture || null,
+          firstName,
+          lastName,
         };
       })
       .filter((reader) => reader !== null);
@@ -1216,11 +1304,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         <div className={`mb-1 ${isOwnMessage ? "text-right" : "text-left"}`}>
           <div className="flex items-center gap-2">
             <ProfilePicture
-              src={
-                message.senderProfilePicture ||
-                conversationParticipants[message.senderId]?.profilePicture ||
-                conversationParticipants[message.senderId]?.profileImageUrl
-              }
+              src={resolvedSenderProfilePicture || undefined}
               alt={`${
                 message.senderName ||
                 `${

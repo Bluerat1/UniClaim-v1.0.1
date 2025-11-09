@@ -13,6 +13,7 @@ import TurnoverConfirmationModal from "@/components/modals/TurnoverConfirmation"
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { usePostCreatorData } from "@/hooks/usePostCreatorData";
 import ConversationHistory from "@/components/posts/ConversationHistory";
+import { userService } from "@/services/firebase/users";
 
 interface PostModalProps {
   post: Post;
@@ -66,6 +67,10 @@ export default function PostModal({
   const [imageLoadingError, setImageLoadingError] = useState<string | null>(
     null
   );
+  const [originalFinderProfilePicture, setOriginalFinderProfilePicture] =
+    useState<string | null>(
+      post.turnoverDetails?.originalFinder?.profilePicture ?? null
+    );
 
   // State for turnover confirmation modal
   const [showTurnoverModal, setShowTurnoverModal] = useState(false);
@@ -124,6 +129,42 @@ export default function PostModal({
       setImageLoadingError("Failed to load images");
     }
   }, [post.images]);
+
+  useEffect(() => {
+    let canceled = false;
+    const loadProfilePicture = async () => {
+      const originalFinder = post.turnoverDetails?.originalFinder;
+      if (!originalFinder) {
+        if (!canceled) {
+          setOriginalFinderProfilePicture(null);
+        }
+        return;
+      }
+      const fallback = originalFinder.profilePicture ?? null;
+      try {
+        const user = await userService.getUserById(originalFinder.uid);
+        if (!canceled) {
+          setOriginalFinderProfilePicture(
+            user?.profilePicture ||
+              user?.profileImageUrl ||
+              user?.photoURL ||
+              fallback
+          );
+        }
+      } catch (error) {
+        if (!canceled) {
+          setOriginalFinderProfilePicture(fallback);
+        }
+      }
+    };
+    loadProfilePicture();
+    return () => {
+      canceled = true;
+    };
+  }, [
+    post.turnoverDetails?.originalFinder?.uid,
+    post.turnoverDetails?.originalFinder?.profilePicture,
+  ]);
 
   // Handle send message button click
   const handleSendMessage = async () => {
@@ -621,7 +662,7 @@ export default function PostModal({
                     <div className="flex items-center gap-2">
                       <span className="font-medium">Originally found by:</span>
                       <ProfilePicture
-                        src={post.turnoverDetails.originalFinder.profilePicture}
+                        src={originalFinderProfilePicture ?? undefined}
                         alt={`${post.turnoverDetails.originalFinder.firstName} ${post.turnoverDetails.originalFinder.lastName}`}
                         className="border-blue-300 size-5"
                       />

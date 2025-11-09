@@ -29,8 +29,33 @@ interface ParticipantData {
   profileImageUrl?: string;
   firstName: string;
   lastName: string;
-  [key: string]: any; // Allow any other properties
+  [key: string]: any;
 }
+
+const PROFILE_PICTURE_FIELDS = [
+  "profilePicture",
+  "photoURL",
+  "avatar",
+  "profilePic",
+  "image",
+  "picture",
+  "photo",
+  "profilePicUrl",
+  "profileImageUrl",
+  "profile_pic",
+  "profile_pic_url",
+];
+
+const getProfilePictureFromData = (data: any): string | null => {
+  if (!data || typeof data !== "object") return null;
+  for (const field of PROFILE_PICTURE_FIELDS) {
+    const value = data[field];
+    if (typeof value === "string" && value.trim() !== "") {
+      return value;
+    }
+  }
+  return null;
+};
 
 interface MessageBubbleProps {
   message: Message;
@@ -56,6 +81,7 @@ interface MessageBubbleProps {
     [uid: string]: ParticipantData;
   };
   isLastSeenByOthers?: boolean;
+  fallbackProfilePicture?: string | null;
 }
 
 const MessageBubble: FC<MessageBubbleProps> = ({
@@ -73,6 +99,7 @@ const MessageBubble: FC<MessageBubbleProps> = ({
   isConfirmationInProgress = false,
   conversationParticipants = {},
   isLastSeenByOthers = false,
+  fallbackProfilePicture = null,
 }) => {
   const { deleteMessage } = useMessage();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -146,42 +173,56 @@ const MessageBubble: FC<MessageBubbleProps> = ({
     if (!participantId) return null;
     
     const participant = conversationParticipants[participantId];
-    if (!participant) return null;
-    
-    // Try to find the first non-empty profile picture URL from various possible field names
-    const possibleProfilePicFields = [
-      'profilePicture',
-      'photoURL',
-      'avatar',
-      'profilePic',
-      'image',
-      'picture',
-      'photo',
-      'profilePicUrl',
-      'profileImageUrl',
-      'profile_pic',
-      'profile_pic_url'
-    ];
-    
-    let profilePicUrl = '';
-    for (const field of possibleProfilePicFields) {
-      if (participant[field] && typeof participant[field] === 'string') {
-        profilePicUrl = participant[field];
-        break;
-      }
-    }
-    
+    if (!participant || typeof participant !== "object") return null;
+
+    const profilePicUrl = getProfilePictureFromData(participant);
+
     return {
       ...participant,
-      firstName: participant.firstName || 'Unknown',
-      lastName: participant.lastName || 'User',
-      profilePicture: profilePicUrl || undefined
+      firstName: participant.firstName || "Unknown",
+      lastName: participant.lastName || "User",
+      profilePicture: profilePicUrl || undefined,
     };
   };
 
   // Memoize the other participant data
   const otherParticipant = useMemo(() => getOtherParticipantData(), [conversationParticipants, currentUserId]);
-  
+
+  const resolvedSenderProfilePicture = useMemo(() => {
+    if (
+      typeof message.senderProfilePicture === "string" &&
+      message.senderProfilePicture.trim() !== ""
+    ) {
+      return message.senderProfilePicture;
+    }
+
+    const participantData = conversationParticipants?.[message.senderId];
+    const participantPicture = getProfilePictureFromData(participantData);
+    if (participantPicture) {
+      return participantPicture;
+    }
+
+    if (!isOwnMessage) {
+      const otherPicture = getProfilePictureFromData(otherParticipant);
+      if (otherPicture) {
+        return otherPicture;
+      }
+    }
+
+    if (fallbackProfilePicture && typeof fallbackProfilePicture === "string") {
+      return fallbackProfilePicture;
+    }
+
+    return null;
+  }, [
+    message.senderProfilePicture,
+    conversationParticipants,
+    message.senderId,
+    otherParticipant,
+    isOwnMessage,
+    fallbackProfilePicture,
+  ]);
+
   
   // Add a check for message existence
   if (!message) {
@@ -191,34 +232,58 @@ const MessageBubble: FC<MessageBubbleProps> = ({
   // Convert readBy user IDs to user objects with profile data
   const getReadersWithProfileData = () => {
     if (!message.readBy || !Array.isArray(message.readBy)) return [];
-    if (!conversationParticipants) return [];
 
     return message.readBy
-      .filter((uid: string) => uid !== currentUserId) // Exclude current user
+      .filter((uid: string) => uid !== currentUserId)
       .map((uid: string) => {
-        const participant = conversationParticipants[uid];
-        if (!participant) return null;
-        
-        // Find the first non-empty profile picture URL
-        const profilePicFields = [
-          'profilePicture', 'photoURL', 'avatar', 'profilePic', 'image',
-          'picture', 'photo', 'profilePicUrl', 'profileImageUrl', 'profile_pic', 'profile_pic_url'
-        ];
-        
-        let profilePic: string | undefined;
-        for (const field of profilePicFields) {
-          const value = participant[field];
-          if (typeof value === 'string' && value.trim() !== '') {
-            profilePic = value;
-            break;
+        const participant = conversationParticipants?.[uid];
+        const resolvedParticipant =
+          participant ||
+          (otherParticipant && (otherParticipant as any)?.uid === uid
+            ? otherParticipant
+            : undefined);
+
+        let profilePicture = getProfilePictureFromData(participant);
+
+        if (!profilePicture && resolvedParticipant) {
+          profilePicture = getProfilePictureFromData(resolvedParticipant);
+        }
+
+        if (!profilePicture) {
+          if (uid === message.senderId && resolvedSenderProfilePicture) {
+            profilePicture = resolvedSenderProfilePicture;
+          } else if (
+            otherParticipant &&
+            (otherParticipant as any)?.uid === uid &&
+            typeof fallbackProfilePicture === "string"
+          ) {
+            profilePicture = fallbackProfilePicture;
+          } else if (typeof fallbackProfilePicture === "string") {
+            profilePicture = fallbackProfilePicture;
           }
         }
-        
+
+        const firstName =
+          resolvedParticipant?.firstName ||
+          participant?.firstName ||
+          (otherParticipant && (otherParticipant as any)?.uid === uid
+            ? otherParticipant.firstName
+            : undefined) ||
+          "Unknown";
+
+        const lastName =
+          resolvedParticipant?.lastName ||
+          participant?.lastName ||
+          (otherParticipant && (otherParticipant as any)?.uid === uid
+            ? otherParticipant.lastName
+            : undefined) ||
+          "User";
+
         return {
           uid,
-          profilePicture: profilePic || participant?.profilePicture || null,
-          firstName: participant?.firstName || "Unknown",
-          lastName: participant?.lastName || "User",
+          profilePicture: profilePicture || null,
+          firstName,
+          lastName,
         };
       })
       .filter((reader) => reader !== null);
@@ -862,18 +927,17 @@ const MessageBubble: FC<MessageBubbleProps> = ({
       <View
         className={`flex-row items-end gap-2 ${isOwnMessage ? "flex-row-reverse" : ""}`}
       >
-        {/* Profile Picture - only show for other user's messages */}
-        {!isOwnMessage && otherParticipant && (
+        {!isOwnMessage && (
           <View className="mr-2">
             <ProfilePicture
-              src={otherParticipant.profilePicture}
+              src={resolvedSenderProfilePicture}
               size="sm"
-          />
-          {isLastSeenByOthers && (
-            <View className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full w-3 h-3 border-2 border-white" />
-          )}
-        </View>
-      )}
+            />
+            {isLastSeenByOthers && (
+              <View className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full w-3 h-3 border-2 border-white" />
+            )}
+          </View>
+        )}
 
         <View className="flex-1">
           <View

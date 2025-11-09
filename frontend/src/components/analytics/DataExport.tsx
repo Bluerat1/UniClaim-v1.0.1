@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { FileText, FileSpreadsheet, FileJson, Check } from "lucide-react";
+import { FileText, FileSpreadsheet, FileJson, Check, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { DateRange } from "react-day-picker";
 import type { Post } from "@/types/Post";
 import { exportToExcel } from "@/utils/exportUtils";
@@ -31,6 +32,7 @@ export const DataExport: React.FC<DataExportProps> = ({
   dateRange,
 }) => {
   const [isExporting, setIsExporting] = useState<string | null>(null);
+  const [exportType, setExportType] = useState<'all' | 'lost' | 'found'>('all');
   const [lastExport, setLastExport] = useState<{
     type: string;
     time: Date;
@@ -43,7 +45,12 @@ export const DataExport: React.FC<DataExportProps> = ({
 
   // Format posts for export
   const formatPostsForExport = () => {
-    return posts.map((post) => ({
+    // Filter posts by selected type
+    const filteredPosts = exportType === 'all' 
+      ? posts 
+      : posts.filter(post => post.type === exportType);
+
+    return filteredPosts.map((post) => ({
       ID: post.id,
       Title: post.title,
       Type: post.type,
@@ -72,7 +79,8 @@ export const DataExport: React.FC<DataExportProps> = ({
       }
 
       const timestamp = format(new Date(), "yyyy-MM-dd");
-      const filename = `posts-export-${timestamp}`;
+      const typeSuffix = exportType === 'all' ? 'all' : exportType === 'lost' ? 'lost' : 'found';
+      const filename = `posts-${typeSuffix}-export-${timestamp}`;
 
       // Prepare charts for export
       const charts: ChartImage[] = [];
@@ -244,12 +252,47 @@ export const DataExport: React.FC<DataExportProps> = ({
     <Card>
       {renderExportCharts()}
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Export Data</CardTitle>
-            <CardDescription>
-              Export {stats.total} records in various formats
-            </CardDescription>
+        <div className="flex flex-col space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium">Export Data</h3>
+              <p className="text-sm text-muted-foreground">
+                Export your analytics data in various formats
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col space-y-2">
+            <label className="text-sm font-medium">Filter by Post Type</label>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full justify-between min-w-[180px] max-w-[180px]">
+                  <span className="truncate">
+                    {exportType === 'all' ? 'All Items' : exportType === 'lost' ? 'Lost Items Only' : 'Found Items Only'}
+                  </span>
+                  <ChevronDown className="ml-2 h-4 w-4 flex-shrink-0" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-[180px]">
+                <DropdownMenuItem 
+                  onClick={() => setExportType('all')}
+                  className="whitespace-nowrap"
+                >
+                  All Items
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => setExportType('lost')}
+                  className="whitespace-nowrap"
+                >
+                  Lost Items Only
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => setExportType('found')}
+                  className="whitespace-nowrap"
+                >
+                  Found Items Only
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           {lastExport && (
             <div className="text-xs text-muted-foreground flex items-center gap-1">

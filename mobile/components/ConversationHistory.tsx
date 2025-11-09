@@ -1,17 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, ActivityIndicator, ScrollView } from 'react-native';
 import { messageService } from '../utils/firebase/messages';
 import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+// Using require for local image to avoid TypeScript module resolution issues
+const emptyProfile = require('../assets/images/empty_profile.jpg');
+import { userService } from '../utils/firebase/auth';
 
 interface Message {
   id: string;
   text?: string;
   senderId: string;
   senderName: string;
-  senderProfilePicture?: string;
+  senderProfilePicture?: string | null;
   timestamp: any;
   messageType: string;
   images?: string[];
@@ -27,6 +30,57 @@ const ConversationHistory: React.FC<ConversationHistoryProps> = ({ postId, isAdm
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { userData } = useAuth();
+  const profileCacheRef = useRef<Record<string, string | null>>({});
+
+  const enrichMessagesWithProfilePictures = async (
+    messageList: Message[]
+  ): Promise<Message[]> => {
+    if (messageList.length === 0) {
+      return messageList;
+    }
+
+    const uniqueSenderIds = Array.from(
+      new Set(
+        messageList
+          .map((msg) => msg.senderId)
+          .filter((id): id is string => Boolean(id))
+      )
+    );
+
+    const cache = profileCacheRef.current;
+    const idsToFetch = uniqueSenderIds.filter((id) => !(id in cache));
+
+    if (idsToFetch.length > 0) {
+      await Promise.all(
+        idsToFetch.map(async (id) => {
+          try {
+            const user = await userService.getUserData(id);
+            cache[id] =
+              user?.profilePicture ||
+              user?.profileImageUrl ||
+              (user as any)?.photoURL || // Using type assertion as a fallback
+              null;
+          } catch (err) {
+            cache[id] = null;
+          }
+        })
+      );
+    }
+
+    return messageList.map((msg) => {
+      const resolved = cache[msg.senderId];
+      if (resolved !== undefined) {
+        return {
+          ...msg,
+          senderProfilePicture: resolved,
+        };
+      }
+      return {
+        ...msg,
+        senderProfilePicture: msg.senderProfilePicture ?? null,
+      };
+    });
+  };
 
   useEffect(() => {
     const fetchConversationHistory = async () => {
@@ -63,7 +117,8 @@ const ConversationHistory: React.FC<ConversationHistoryProps> = ({ postId, isAdm
                 images: msg.images || (msg.imageUrl ? [msg.imageUrl] : [])
               }));
               
-            setMessages(formattedMessages);
+            const enrichedMessages = await enrichMessagesWithProfilePictures(formattedMessages);
+            setMessages(enrichedMessages);
             return;
           }
         }
@@ -130,7 +185,8 @@ const ConversationHistory: React.FC<ConversationHistoryProps> = ({ postId, isAdm
           return timeA - timeB;
         });
 
-        setMessages(allMessages);
+        const enrichedMessages = await enrichMessagesWithProfilePictures(allMessages);
+        setMessages(enrichedMessages);
       } catch (err) {
         console.error('Error fetching conversation history:', err);
         setError('Failed to load conversation history');
@@ -144,27 +200,27 @@ const ConversationHistory: React.FC<ConversationHistoryProps> = ({ postId, isAdm
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View className="flex-row items-center justify-center p-5">
         <ActivityIndicator size="small" color="#4B5563" />
-        <Text style={styles.loadingText}>Loading conversation history...</Text>
+        <Text className="ml-2.5 text-gray-600 font-manrope-medium">Loading conversation history...</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.errorContainer}>
+      <View className="flex-row items-center justify-center p-5 bg-red-50 rounded-lg mx-4 my-3">
         <MaterialIcons name="error-outline" size={24} color="#EF4444" />
-        <Text style={styles.errorText}>{error}</Text>
+        <Text className="ml-2 text-red-600 font-manrope-medium">{error}</Text>
       </View>
     );
   }
 
   if (messages.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
+      <View className="items-center justify-center p-6 bg-gray-50 rounded-xl border border-gray-200 my-3">
         <MaterialIcons name="chat-bubble-outline" size={32} color="#9CA3AF" />
-        <Text style={styles.emptyText}>No conversation history available</Text>
+        <Text className="mt-2 text-gray-500 text-center font-manrope-medium">No conversation history available</Text>
       </View>
     );
   }
@@ -185,73 +241,100 @@ const ConversationHistory: React.FC<ConversationHistoryProps> = ({ postId, isAdm
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerText}>Conversation History</Text>
-        <Text style={styles.messageCount}>{messages.length} messages</Text>
+    <View className="flex-1 mt-5 bg-gray-50 rounded-xl border border-gray-200 min-h-[200px]">
+      <View className="flex-row items-center justify-between p-4 bg-gray-100 border-b border-gray-200">
+        <Text className="text-base font-semibold text-gray-800 font-manrope-semibold">Conversation History</Text>
+        <Text className="text-xs text-gray-500 font-manrope-medium">{messages.length} messages</Text>
       </View>
       
-      <ScrollView style={styles.messagesContainer}>
+      <ScrollView 
+        className="flex-1 p-3 max-h-[300px] min-h-[100px]"
+        contentContainerStyle={{ flexGrow: 1 }}
+        showsVerticalScrollIndicator={true}
+        nestedScrollEnabled={true}
+      >
         {messages.map((message, index) => {
           const isCurrentUser = message.senderId === userData?.uid;
           const isSystemMessage = message.messageType === 'handover_request' || 
                                 message.messageType === 'claim_request';
+          const senderAvatarSource = message.senderProfilePicture
+            ? { uri: message.senderProfilePicture }
+            : emptyProfile;
           
           return (
             <View 
               key={`${message.id}-${index}`}
-              style={[
-                styles.messageBubble,
-                isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble,
-                isSystemMessage && styles.systemMessageBubble
-              ]}
+              className={`max-w-[80%] p-3 rounded-xl mb-3 shadow-sm ${
+                isSystemMessage 
+                  ? 'self-center bg-gray-100 max-w-[90%] p-2' 
+                  : isCurrentUser 
+                    ? 'self-end bg-blue-500 rounded-tr-sm' 
+                    : 'self-start bg-white rounded-tl-sm'
+              }`}
             >
               {!isCurrentUser && !isSystemMessage && (
-                <View style={styles.senderInfo}>
-                  <Image 
-                    source={{ uri: message.senderProfilePicture }} 
-                    style={styles.avatar}
-                    contentFit="cover"
-                    transition={200}
-                  />
-                  <Text style={styles.senderName}>{message.senderName}</Text>
+                <View className="flex-row items-center mb-1">
+                  <View className="w-6 h-6 rounded-full overflow-hidden mr-2 bg-gray-200">
+                    <View className="w-full h-full">
+                      {message.senderProfilePicture ? (
+                        <Image 
+                          source={{ uri: message.senderProfilePicture }}
+                          style={{ width: '100%', height: '100%' }}
+                          contentFit="cover"
+                          transition={200}
+                          onError={() => {
+                            // If there's an error, we'll render the fallback image
+                            return <Image source={emptyProfile} style={{ width: '100%', height: '100%' }} contentFit="cover" />;
+                          }}
+                        />
+                      ) : (
+                        <Image 
+                          source={emptyProfile}
+                          style={{ width: '100%', height: '100%' }}
+                          contentFit="cover"
+                        />
+                      )}
+                    </View>
+                  </View>
+                  <Text className="text-xs font-semibold text-gray-600 font-manrope-semibold">
+                    {message.senderName}
+                  </Text>
                 </View>
               )}
               
               {message.messageType === 'handover_request' && (
-                <View style={styles.systemMessageContent}>
-                  <MaterialIcons name="swap-horiz" size={20} color="#4B5563" />
-                  <Text style={styles.systemMessageText}>
+                <View className="flex-row items-center">
+                  <MaterialIcons name="swap-horiz" size={20} className="text-gray-600" />
+                  <Text className="ml-1 text-sm text-gray-600 font-manrope-medium">
                     {message.senderName} initiated a handover request
                   </Text>
                 </View>
               )}
               
               {message.messageType === 'claim_request' && (
-                <View style={styles.systemMessageContent}>
-                  <MaterialIcons name="assignment-returned" size={20} color="#4B5563" />
-                  <Text style={styles.systemMessageText}>
+                <View className="flex-row items-center">
+                  <MaterialIcons name="assignment-returned" size={20} className="text-gray-600" />
+                  <Text className="ml-1 text-sm text-gray-600 font-manrope-medium">
                     {message.senderName} submitted a claim request
                   </Text>
                 </View>
               )}
               
               {message.text && (
-                <Text style={[
-                  styles.messageText,
-                  isCurrentUser ? styles.currentUserText : styles.otherUserText
-                ]}>
+                <Text className={`text-sm leading-5 font-manrope-medium ${
+                  isCurrentUser ? 'text-white' : 'text-gray-800'
+                }`}>
                   {message.text}
                 </Text>
               )}
               
               {message.images && message.images.length > 0 && (
-                <View style={styles.imagesContainer}>
+                <View className="flex-row flex-wrap mt-2">
                   {message.images.map((img, idx) => (
                     <Image
                       key={`img-${idx}`}
                       source={{ uri: img }}
-                      style={styles.messageImage}
+                      className="w-[100px] h-[100px] rounded-lg mr-2 mb-2 bg-gray-200"
                       contentFit="cover"
                       transition={200}
                     />
@@ -259,10 +342,9 @@ const ConversationHistory: React.FC<ConversationHistoryProps> = ({ postId, isAdm
                 </View>
               )}
               
-              <Text style={[
-                styles.timestamp,
-                isCurrentUser ? styles.currentUserTimestamp : styles.otherUserTimestamp
-              ]}>
+              <Text className={`text-xs mt-1 font-manrope-medium ${
+                isCurrentUser ? 'text-gray-200 text-right' : 'text-gray-500'
+              }`}>
                 {formatMessageTime(message.timestamp)}
               </Text>
             </View>
@@ -273,170 +355,5 @@ const ConversationHistory: React.FC<ConversationHistoryProps> = ({ postId, isAdm
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    marginTop: 20,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    overflow: 'hidden',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#F3F4F6',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  headerText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    fontFamily: 'Manrope_600SemiBold',
-  },
-  messageCount: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontFamily: 'Manrope_500Medium',
-  },
-  messagesContainer: {
-    maxHeight: 300,
-    padding: 12,
-  },
-  messageBubble: {
-    maxWidth: '80%',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 12,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  currentUserBubble: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#3B82F6',
-    borderTopRightRadius: 4,
-  },
-  otherUserBubble: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 4,
-  },
-  systemMessageBubble: {
-    alignSelf: 'center',
-    backgroundColor: '#F3F4F6',
-    maxWidth: '90%',
-    padding: 8,
-  },
-  senderInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  avatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    marginRight: 8,
-  },
-  senderName: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#4B5563',
-    fontFamily: 'Manrope_600SemiBold',
-  },
-  systemMessageContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  systemMessageText: {
-    marginLeft: 4,
-    fontSize: 13,
-    color: '#4B5563',
-    fontFamily: 'Manrope_500Medium',
-  },
-  messageText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily: 'Manrope_500Medium',
-  },
-  currentUserText: {
-    color: '#FFFFFF',
-  },
-  otherUserText: {
-    color: '#1F2937',
-  },
-  timestamp: {
-    fontSize: 10,
-    marginTop: 4,
-    fontFamily: 'Manrope_500Medium',
-  },
-  currentUserTimestamp: {
-    color: '#E5E7EB',
-    textAlign: 'right',
-  },
-  otherUserTimestamp: {
-    color: '#6B7280',
-  },
-  imagesContainer: {
-    marginTop: 8,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  messageImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
-    marginRight: 8,
-    marginBottom: 8,
-    backgroundColor: '#E5E7EB',
-  },
-  loadingContainer: {
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  loadingText: {
-    marginLeft: 10,
-    color: '#4B5563',
-    fontFamily: 'Manrope_500Medium',
-  },
-  errorContainer: {
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    backgroundColor: '#FEE2E2',
-    borderRadius: 8,
-    margin: 16,
-  },
-  errorText: {
-    marginLeft: 8,
-    color: '#DC2626',
-    fontFamily: 'Manrope_500Medium',
-  },
-  emptyContainer: {
-    padding: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    marginVertical: 12,
-  },
-  emptyText: {
-    marginTop: 8,
-    color: '#6B7280',
-    textAlign: 'center',
-    fontFamily: 'Manrope_500Medium',
-  },
-});
 
 export default ConversationHistory;

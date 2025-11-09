@@ -7,6 +7,7 @@ import HandoverDetailsDisplay from "@/components/common/HandoverDetailsDisplay";
 import { postService } from "@/services/firebase/posts";
 import { useToast } from "@/context/ToastContext";
 import ActivationModal from "@/components/modals/Activation";
+import ConversationHistory from "@/components/posts/ConversationHistory";
 
 interface AdminPostModalProps {
   post: Post;
@@ -213,15 +214,15 @@ export default function AdminPostModal({
     const handleKeyPress = (e: KeyboardEvent) => {
       if (imageUrls.length <= 1) return;
 
-      if (e.key === 'ArrowLeft') {
+      if (e.key === "ArrowLeft") {
         goToPreviousImage();
-      } else if (e.key === 'ArrowRight') {
+      } else if (e.key === "ArrowRight") {
         goToNextImage();
       }
     };
 
-    document.addEventListener('keydown', handleKeyPress);
-    return () => document.removeEventListener('keydown', handleKeyPress);
+    document.addEventListener("keydown", handleKeyPress);
+    return () => document.removeEventListener("keydown", handleKeyPress);
   }, [imageUrls.length]);
 
   return (
@@ -461,8 +462,18 @@ export default function AdminPostModal({
                   className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   aria-label="Previous image"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
                   </svg>
                 </button>
               )}
@@ -495,8 +506,18 @@ export default function AdminPostModal({
                   className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   aria-label="Next image"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
                   </svg>
                 </button>
               )}
@@ -727,6 +748,16 @@ export default function AdminPostModal({
                     post.coordinates.lat
                   }%2C${post.coordinates.lng}`}
                 />
+              </div>
+            )}
+
+            {/* Conversation History - Show for resolved posts */}
+            {post.status === 'resolved' && (
+              <div className="mt-4 border-t border-gray-200 pt-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Conversation History</h3>
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <ConversationHistory postId={post.id} />
+                </div>
               </div>
             )}
 

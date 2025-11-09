@@ -2,6 +2,7 @@ import { FiX } from "react-icons/fi";
 import { useState, useEffect, useRef } from "react";
 import type { Post } from "@/types/Post";
 import LocationMap from "@/components/common/LocationMap";
+import ConversationHistory from "@/components/posts/ConversationHistory";
 
 // Helper function to get status color and text
 const getStatusStyles = (status: string | undefined) => {
@@ -760,6 +761,15 @@ const TicketModal = ({
                   </div>
                 </div>
               </div>
+              {/* Conversation History - Show for resolved tickets */}
+              {post.status === 'resolved' && (
+                <div className="mt-6 border-t border-gray-200 pt-4 col-span-full">
+                  <h3 className="text-lg font-medium text-gray-900 mb-3">Conversation History</h3>
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <ConversationHistory postId={post.id} />
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

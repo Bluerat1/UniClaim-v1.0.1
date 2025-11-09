@@ -71,7 +71,6 @@ export default function Ticket() {
   useFocusEffect(
     useCallback(() => {
       // Tab is focused - listeners are active
-      console.log("Ticket tab focused - listeners active");
 
       return () => {
         // Tab is unfocused - listeners are paused

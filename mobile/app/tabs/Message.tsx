@@ -215,9 +215,6 @@ const ConversationItem = React.memo(
       );
 
       return () => {
-        debugLog('PROFILE-PIC', 'Cleaning up profile listener', {
-          otherParticipantId,
-        });
         profileUnsubscribeRef.current?.();
         profileUnsubscribeRef.current = null;
       };

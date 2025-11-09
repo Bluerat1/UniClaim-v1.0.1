@@ -150,6 +150,11 @@ export default function Chat() {
 
   const { user, userData } = useAuth();
 
+  const currentUserProfilePicture = useMemo(
+    () => getProfilePictureUrl(userData),
+    [userData]
+  );
+
   // Add toast context
   const { showToastMessage } = useToast();
 
@@ -400,8 +405,51 @@ export default function Chat() {
 
   // Get the other participant's profile picture (exclude current user)
   const getOtherParticipantProfilePicture = useCallback(() => {
-    return otherParticipantPic;
-  }, [otherParticipantPic]);
+    if (otherParticipantPic) {
+      return otherParticipantPic;
+    }
+
+    if (otherParticipantId && conversationData?.participants) {
+      const participantData = conversationData.participants[otherParticipantId];
+      const participantPicture = getProfilePictureUrl(participantData);
+      if (participantPicture) {
+        return participantPicture;
+      }
+    }
+
+    if (otherParticipantId) {
+      for (let i = messages.length - 1; i >= 0; i -= 1) {
+        const message = messages[i];
+        if (
+          message.senderId === otherParticipantId &&
+          typeof message.senderProfilePicture === "string" &&
+          message.senderProfilePicture.trim() !== ""
+        ) {
+          return message.senderProfilePicture;
+        }
+      }
+    }
+
+    if (
+      otherParticipantId &&
+      postOwnerUserData &&
+      postOwnerId === otherParticipantId
+    ) {
+      const ownerPicture = getProfilePictureUrl(postOwnerUserData);
+      if (ownerPicture) {
+        return ownerPicture;
+      }
+    }
+
+    return null;
+  }, [
+    otherParticipantPic,
+    otherParticipantId,
+    conversationData?.participants,
+    messages,
+    postOwnerUserData,
+    postOwnerId,
+  ]);
 
   // Fetch post data from Firestore
   const fetchPostData = async (postId: string) => {
@@ -839,7 +887,7 @@ export default function Chat() {
         userData.uid,
         `${userData.firstName} ${userData.lastName}`,
         messageText,
-        userData.profilePicture
+        currentUserProfilePicture || undefined
       );
 
       // Mark that we just sent a message with the count it should reach
@@ -934,7 +982,7 @@ export default function Chat() {
         conversationId,
         user.uid,
         `${userData.firstName} ${userData.lastName}`,
-        userData.profilePicture || "",
+        currentUserProfilePicture || "",
         conversationData?.postId || "",
         postTitle,
         data.handoverReason,
@@ -970,7 +1018,7 @@ export default function Chat() {
         conversationId,
         user.uid,
         `${userData.firstName} ${userData.lastName}`,
-        userData.profilePicture || "",
+        currentUserProfilePicture || "",
         conversationData?.postId || "",
         postTitle,
         data.claimReason,
@@ -1393,6 +1441,7 @@ export default function Chat() {
                           conversationData?.participants || {}
                         }
                         isLastSeenByOthers={false}
+                        fallbackProfilePicture={getOtherParticipantProfilePicture()}
                       />
                     );
                   };
@@ -1433,6 +1482,7 @@ export default function Chat() {
                         conversationData?.participants || {}
                       }
                       isLastSeenByOthers={isLastSeenByOthers}
+                      fallbackProfilePicture={getOtherParticipantProfilePicture()}
                     />
                   );
                 }}

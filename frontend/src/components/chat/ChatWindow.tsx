@@ -793,36 +793,38 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
 
-  const getOtherParticipantProfilePicture = (conversation: Conversation): string | null => {
+  const getOtherParticipantProfilePicture = (conversation: Conversation): string | undefined => {
     if (!userData?.uid) {
-      return null;
+      return undefined;
     }
     
-    // First try to get from participantInfo (uses photoURL or photo)
+    // First try to get from participantInfo
     const otherParticipantId = Object.keys(conversation.participantInfo || {}).find(
       id => id !== userData.uid
     );
     
     if (otherParticipantId && conversation.participantInfo?.[otherParticipantId]) {
-      const participant = conversation.participantInfo[otherParticipantId];
-      return participant.photoURL || participant.photo || null;
+      const participant = conversation.participantInfo[otherParticipantId] as any;
+      return participant.profilePicture || participant.photoURL || participant.photo || undefined;
     }
     
-    // Fallback to participants object (uses profilePicture or profileImageUrl)
+    // Fallback to participants object
     const otherParticipant = Object.entries(conversation.participants || {}).find(
       ([uid]) => uid !== userData.uid
     );
 
     if (!otherParticipant) {
-      return null;
+      return undefined;
     }
     
     const participant = otherParticipant[1];
     if (typeof participant !== 'object' || participant === null) {
-      return null;
+      return undefined;
     }
     
-    return participant.profilePicture || participant.profileImageUrl || null;
+    // Return the first available profile picture or undefined to use default
+    const p = participant as any;
+    return p.profilePicture || p.profileImageUrl || p.photoURL || p.photo || undefined;
   };
 
   const getOtherParticipantName = (conversation: Conversation) => {
@@ -970,9 +972,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           displayName = 'User';
         }
         
+        // Normalize profile picture to use only profilePicture
+        const profilePicture = participant.profilePicture || 
+                             participant.profileImageUrl || 
+                             (participant as any)?.photoURL || 
+                             (participant as any)?.photo || 
+                             null;
+
         merged[uid] = {
-          ...(participant.profilePicture && { profilePicture: participant.profilePicture }),
-          ...(participant.profileImageUrl && { profileImageUrl: participant.profileImageUrl }),
+          ...(profilePicture && { profilePicture }),
           firstName: participant.firstName || participantInfo[uid]?.firstName || '',
           lastName: participant.lastName || participantInfo[uid]?.lastName || '',
           displayName: displayName,
@@ -1039,17 +1047,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           }
         }
 
+        // Normalize profile picture to use only profilePicture
+        const profilePicture = info.photoURL || 
+                             info.photo || 
+                             existing.profilePicture || 
+                             existing.profileImageUrl || 
+                             null;
+
         merged[uid] = {
-          ...(existing.profilePicture && { profilePicture: existing.profilePicture }),
-          ...(existing.profileImageUrl && { profileImageUrl: existing.profileImageUrl }),
-          ...(info.photoURL && { 
-            profilePicture: info.photoURL, 
-            profileImageUrl: info.photoURL 
-          }),
-          ...(info.photo && { 
-            profilePicture: info.photo, 
-            profileImageUrl: info.photo 
-          }),
+          ...(profilePicture && { profilePicture }),
           firstName,
           lastName,
           displayName: displayName || `${firstName} ${lastName}`.trim(),
@@ -1349,6 +1355,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   onConfirmIdPhotoSuccess={handleConfirmIdPhotoSuccess}
                   onMessageSeen={() => handleMessageSeen(message.id)}
                   conversationParticipants={conversationParticipantDetails}
+                  fallbackProfilePicture={getOtherParticipantProfilePicture(conversation) || null}
                 />
               ));
             })()}
