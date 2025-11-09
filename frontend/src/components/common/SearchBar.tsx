@@ -66,7 +66,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
           onKeyDown={(e) => {
             if (e.key === "Enter") handleSearch();
           }}
-          className="w-full md:max-w-sm border border-gray-500 px-3 py-2 rounded placeholder:text-sm"
+          className="w-full md:max-w-sm border border-gray-500 ring-1 ring-transparent focus:outline-none focus:ring-0.5 focus:ring-gray-600 px-3 py-2 rounded placeholder:text-sm"
         />
         <button
           onClick={handleSearch}
