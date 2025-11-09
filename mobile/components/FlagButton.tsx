@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { TouchableOpacity, Text, Alert, ActivityIndicator, StyleSheet } from 'react-native';
-import { postService } from '../utils/firebase/posts';
-import { useAuth } from '../context/AuthContext';
-import FlagModal from './FlagModal';
+import React, { useState } from "react";
+import { TouchableOpacity, Text, Alert, ActivityIndicator } from "react-native";
+import { postService } from "../utils/firebase/posts";
+import { useAuth } from "../context/AuthContext";
+import FlagModal from "./FlagModal";
 
 interface FlagButtonProps {
   postId: string;
@@ -10,49 +10,14 @@ interface FlagButtonProps {
   flaggedBy?: string;
   onFlagSuccess?: () => void;
   className?: string;
-};
+}
 
-const styles = StyleSheet.create({
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  flaggedButton: {
-    backgroundColor: '#F3F4F6',
-  },
-  unflaggedButton: {
-    backgroundColor: '#FEF2F2',
-  },
-  loadingText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#DC2626',
-  },
-  flagIcon: {
-    fontSize: 12,
-  },
-  flaggedText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  unflaggedText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#DC2626',
-  },
-});
-
-export default function FlagButton({ 
-  postId, 
-  isFlagged = false, 
-  flaggedBy, 
+export default function FlagButton({
+  postId,
+  isFlagged = false,
+  flaggedBy,
   onFlagSuccess,
-  className = ""
+  className = "",
 }: FlagButtonProps) {
   const [showFlagModal, setShowFlagModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -60,7 +25,7 @@ export default function FlagButton({
 
   const handleFlagClick = () => {
     if (!user) {
-      Alert.alert('Login Required', 'Please log in to flag posts');
+      Alert.alert("Login Required", "Please log in to flag posts");
       return;
     }
     setShowFlagModal(true);
@@ -68,20 +33,19 @@ export default function FlagButton({
 
   const handleFlagSubmit = async (reason: string) => {
     if (!user) return;
-    
+
     setIsLoading(true);
     try {
       await postService.flagPost(postId, user.uid, reason);
       setShowFlagModal(false);
       onFlagSuccess?.();
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to flag post');
+      Alert.alert("Error", error.message || "Failed to flag post");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Check if current user has already flagged this post
   const isAlreadyFlaggedByUser = isFlagged && flaggedBy === user?.uid;
 
   return (
@@ -89,24 +53,26 @@ export default function FlagButton({
       <TouchableOpacity
         onPress={handleFlagClick}
         disabled={isAlreadyFlaggedByUser || isLoading}
-        style={[
-          styles.button,
-          isAlreadyFlaggedByUser ? styles.flaggedButton : styles.unflaggedButton,
-          { opacity: isAlreadyFlaggedByUser || isLoading ? 0.6 : 1 }
-        ]}
+        className={`flex-row items-center gap-1 px-2 py-1 rounded ${
+          isAlreadyFlaggedByUser ? "bg-gray-100" : "bg-red-50"
+        } ${isAlreadyFlaggedByUser || isLoading ? "opacity-60" : "opacity-100"} ${className}`}
       >
         {isLoading ? (
           <>
             <ActivityIndicator size="small" color="#DC2626" />
-            <Text style={styles.loadingText}>
+            <Text className="text-xs font-medium text-red-600">
               Flagging...
             </Text>
           </>
         ) : (
           <>
-            <Text style={styles.flagIcon}>🚩</Text>
-            <Text style={isAlreadyFlaggedByUser ? styles.flaggedText : styles.unflaggedText}>
-              {isAlreadyFlaggedByUser ? 'Flagged' : 'Flag'}
+            <Text className="text-xs">🚩</Text>
+            <Text
+              className={`text-xs font-medium ${
+                isAlreadyFlaggedByUser ? "text-gray-500" : "text-red-600"
+              }`}
+            >
+              {isAlreadyFlaggedByUser ? "Flagged" : "Flag"}
             </Text>
           </>
         )}

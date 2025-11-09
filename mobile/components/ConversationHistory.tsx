@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ActivityIndicator, ScrollView } from 'react-native';
-import { messageService } from '../utils/firebase/messages';
-import { useAuth } from '../context/AuthContext';
-import { format } from 'date-fns';
-import { MaterialIcons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
+import React, { useState, useEffect, useRef } from "react";
+import { View, Text, ActivityIndicator, ScrollView } from "react-native";
+import { messageService } from "../utils/firebase/messages";
+import { useAuth } from "../context/AuthContext";
+import { format } from "date-fns";
+import { MaterialIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 // Using require for local image to avoid TypeScript module resolution issues
-const emptyProfile = require('../assets/images/empty_profile.jpg');
-import { userService } from '../utils/firebase/auth';
+const emptyProfile = require("../assets/images/empty_profile.jpg");
+import { userService } from "../utils/firebase/auth";
 
 interface Message {
   id: string;
@@ -121,7 +121,8 @@ const ConversationHistory: React.FC<ConversationHistoryProps> = ({
                 images: msg.images || (msg.imageUrl ? [msg.imageUrl] : []),
               }));
 
-            const enrichedMessages = await enrichMessagesWithProfilePictures(formattedMessages);
+            const enrichedMessages =
+              await enrichMessagesWithProfilePictures(formattedMessages);
             setMessages(enrichedMessages);
             return;
           }
@@ -204,7 +205,8 @@ const ConversationHistory: React.FC<ConversationHistoryProps> = ({
           return timeA - timeB;
         });
 
-        const enrichedMessages = await enrichMessagesWithProfilePictures(allMessages);
+        const enrichedMessages =
+          await enrichMessagesWithProfilePictures(allMessages);
         setMessages(enrichedMessages);
       } catch (err) {
         console.error("Error fetching conversation history:", err);
@@ -221,7 +223,9 @@ const ConversationHistory: React.FC<ConversationHistoryProps> = ({
     return (
       <View className="flex-row items-center justify-center p-5">
         <ActivityIndicator size="small" color="#4B5563" />
-        <Text className="ml-2.5 text-gray-600 font-manrope-medium">Loading conversation history...</Text>
+        <Text className="ml-2.5 text-gray-600 font-manrope-medium">
+          Loading conversation history...
+        </Text>
       </View>
     );
   }
@@ -238,8 +242,10 @@ const ConversationHistory: React.FC<ConversationHistoryProps> = ({
   if (messages.length === 0) {
     return (
       <View className="items-center justify-center p-6 bg-gray-50 rounded-xl border border-gray-200 my-3">
-        <MaterialIcons name="chat-bubble-outline" size={32} color="#9CA3AF" />
-        <Text className="mt-2 text-gray-500 text-center font-manrope-medium">No conversation history available</Text>
+        <MaterialIcons name="chat-bubble-outline" size={25} color="#9CA3AF" />
+        <Text className="mt-2 text-gray-500 text-center font-manrope-medium">
+          No conversation history available
+        </Text>
       </View>
     );
   }
@@ -260,69 +266,65 @@ const ConversationHistory: React.FC<ConversationHistoryProps> = ({
   };
 
   return (
-    <View className="flex-1 mt-5 bg-gray-50 rounded-xl border border-gray-200 min-h-[200px]">
-      <View className="flex-row items-center justify-between p-4 bg-gray-100 border-b border-gray-200">
-        <Text className="text-base font-semibold text-gray-800 font-manrope-semibold">Conversation History</Text>
-        <Text className="text-xs text-gray-500 font-manrope-medium">{messages.length} messages</Text>
+    <View className="flex-1 bg-gray-50 rounded-lg border border-gray-200 min-h-[30rem] max-h-[50rem]">
+      <View className="flex-row rounded-t-lg items-center justify-between p-4 bg-gray-100 border-b border-gray-200">
+        <Text className="text-base font-semibold text-gray-800 font-manrope-semibold">
+          Conversation History
+        </Text>
+        <Text className="text-xs text-blue-500 font-manrope-medium">
+          {messages.length} messages
+        </Text>
       </View>
-      <ScrollView className="max-h-[300px] p-3">
+
+      <ScrollView
+        className="flex-1 px-3 pb-6 py-5"
+        contentContainerStyle={{ paddingBottom: 30 }}
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled={true} // FIX: ensures ScrollView scroll works inside flex containers
+      >
         {messages.map((message, index) => {
           const isCurrentUser = message.senderId === userData?.uid;
-          const isSystemMessage = message.messageType === 'handover_request' || 
-                                message.messageType === 'claim_request';
-          const senderAvatarSource = message.senderProfilePicture
-            ? { uri: message.senderProfilePicture }
-            : emptyProfile;
-          
+          const isSystemMessage =
+            message.messageType === "handover_request" ||
+            message.messageType === "claim_request";
+
           return (
             <View
               key={`${message.id}-${index}`}
-              className={`max-w-[80%] p-3 rounded-xl mb-3 shadow-sm ${
-                isSystemMessage 
-                  ? 'self-center bg-gray-100 max-w-[90%] p-2' 
-                  : isCurrentUser 
-                    ? 'self-end bg-blue-500 rounded-tr-sm' 
-                    : 'self-start bg-white rounded-tl-sm'
+              className={`max-w-[80%] p-3 rounded-lg mb-3 shadow-sm ${
+                isSystemMessage
+                  ? "bg-green-200 max-w-[90%] p-2"
+                  : isCurrentUser
+                    ? "self-end bg-navyblue rounded-tr-sm"
+                    : "self-start bg-white rounded-tl-sm"
               }`}
             >
               {!isCurrentUser && !isSystemMessage && (
                 <View className="flex-row items-center mb-1">
                   <View className="w-6 h-6 rounded-full overflow-hidden mr-2 bg-gray-200">
-                    <Image 
-                      source={message.senderProfilePicture ? { uri: message.senderProfilePicture } : emptyProfile}
-                      style={{ width: '100%', height: '100%' }}
+                    <Image
+                      source={
+                        message.senderProfilePicture
+                          ? { uri: message.senderProfilePicture }
+                          : emptyProfile
+                      }
+                      style={{ width: "100%", height: "100%" }}
                       contentFit="cover"
                       transition={200}
                     />
                   </View>
-                  <Text className="text-xs font-semibold text-gray-600 font-manrope-semibold">
+                  <Text className="text-xs text-gray-600 font-manrope-semibold">
                     {message.senderName}
-                  </Text>
-                </View>
-              )}
-              
-              {message.messageType === 'handover_request' && (
-                <View className="flex-row items-center">
-                  <MaterialIcons name="swap-horiz" size={20} color="#4B5563" />
-                  <Text className="ml-1 text-sm text-gray-600 font-manrope-medium">
-                    {message.senderName} initiated a handover request
-                  </Text>
-                </View>
-              )}
-              
-              {message.messageType === 'claim_request' && (
-                <View className="flex-row items-center">
-                  <MaterialIcons name="assignment-returned" size={20} color="#4B5563" />
-                  <Text className="ml-1 text-sm text-gray-600 font-manrope-medium">
-                    {message.senderName} submitted a claim request
                   </Text>
                 </View>
               )}
 
               {message.text && (
-                <Text className={`text-sm leading-5 font-manrope-medium ${
-                  isCurrentUser ? 'text-white' : 'text-gray-800'
-                }`}>
+                <Text
+                  className={`text-sm leading-5 font-manrope-medium ${
+                    isCurrentUser ? "text-white" : "text-gray-800"
+                  }`}
+                >
                   {message.text}
                 </Text>
               )}
@@ -340,10 +342,12 @@ const ConversationHistory: React.FC<ConversationHistoryProps> = ({
                   ))}
                 </View>
               )}
-              
-              <Text className={`text-xs mt-1 font-manrope-medium ${
-                isCurrentUser ? 'text-gray-200 text-right' : 'text-gray-500'
-              }`}>
+
+              <Text
+                className={`text-xs mt-1 font-inter ${
+                  isCurrentUser ? "text-gray-200 text-right" : "text-gray-500"
+                }`}
+              >
                 {formatMessageTime(message.timestamp)}
               </Text>
             </View>
