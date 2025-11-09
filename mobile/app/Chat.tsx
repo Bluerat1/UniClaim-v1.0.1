@@ -36,53 +36,6 @@ import ImagePicker from "../components/ImagePicker";
 type ChatRouteProp = RouteProp<RootStackParamList, "Chat">;
 type ChatNavigationProp = NativeStackNavigationProp<RootStackParamList, "Chat">;
 
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.9)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  imageContainer: {
-    width: "100%",
-    maxWidth: "95%",
-    maxHeight: "80%",
-    alignItems: "center",
-    zIndex: 2,
-  },
-  fullImage: {
-    width: "100%",
-    height: "100%",
-  },
-  imageCaption: {
-    color: "white",
-    marginTop: 10,
-    textAlign: "center",
-    fontSize: 16,
-    opacity: 0.8,
-  },
-  closeButton: {
-    position: "absolute",
-    top: 40,
-    right: 20,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 3,
-  },
-  dismissArea: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 1,
-  },
-});
-
 // Debug logging utility with performance tracking
 const DEBUG_ENABLED = false;
 const debugLog = (section: string, message: string, data?: any) => {
@@ -1550,33 +1503,38 @@ export default function Chat() {
         animationType="fade"
         onRequestClose={() => setSelectedImage(null)}
       >
-        <View style={styles.modalOverlay}>
+        <View className="flex-1 bg-black/90 justify-center items-center">
+          {/* Close Button */}
           <TouchableOpacity
-            style={styles.closeButton}
+            className="absolute top-10 right-5 w-10 h-10 rounded-full bg-black/50 justify-center items-center z-30"
             onPress={() => setSelectedImage(null)}
             activeOpacity={0.7}
           >
             <Ionicons name="close" size={28} color="white" />
           </TouchableOpacity>
 
-          <View style={styles.imageContainer}>
+          {/* Image Container */}
+          <View className="w-[95%] max-h-[80%] items-center z-20">
             {selectedImage && (
               <>
                 <RNImage
                   source={{ uri: selectedImage.uri }}
-                  style={styles.fullImage}
+                  className="w-full h-full"
                   resizeMode="contain"
                 />
-                <Text style={styles.imageCaption} numberOfLines={1}>
+                <Text
+                  className="text-white text-center mt-2 text-base opacity-80"
+                  numberOfLines={1}
+                >
                   {selectedImage.alt}
                 </Text>
               </>
             )}
           </View>
 
-          {/* Invisible touch area that covers the entire screen */}
+          {/* Invisible dismiss area */}
           <TouchableOpacity
-            style={styles.dismissArea}
+            className="absolute inset-0 z-10"
             activeOpacity={1}
             onPress={() => setSelectedImage(null)}
           />
