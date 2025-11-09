@@ -304,12 +304,14 @@ export interface Conversation {
       joinedAt: any;
     };
   };
+  participantIds: string[];
   lastMessage?: {
     text: string;
     senderId: string;
     timestamp: any;
   };
   createdAt: any;
+  updatedAt?: any;
   // Replace global unreadCount with user-specific counts
   unreadCounts: {
     [userId: string]: number;

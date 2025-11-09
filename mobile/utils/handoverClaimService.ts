@@ -6,6 +6,7 @@ import { cloudinaryService } from './cloudinary';
 import { messageService } from './firebase';
 import { notificationSender } from './firebase/notificationSender';
 import { Alert } from 'react-native';
+import { updateDoc, serverTimestamp } from 'firebase/firestore';
 
 // Types
 export interface HandoverClaimCallbacks {
@@ -155,17 +156,71 @@ export const handleConfirmIdPhoto = async (
     conversationId: string,
     messageId: string,
     confirmBy: string,
+    type: 'handover' | 'claim',
     callbacks: HandoverClaimCallbacks
 ): Promise<void> => {
     try {
-        const result = await confirmHandoverIdPhoto(conversationId, messageId, confirmBy);
+        // First, fetch the conversation history
+        const { getDoc, doc, collection, query, orderBy, getDocs } = await import('firebase/firestore');
+        const { db } = await import('./firebase/config');
+        
+        // Get conversation data to find the post ID
+        const conversationRef = doc(db, 'conversations', conversationId);
+        const conversationDoc = await getDoc(conversationRef);
+        
+        if (!conversationDoc.exists()) {
+            throw new Error('Conversation not found');
+        }
+        
+        const conversationData = conversationDoc.data();
+        const postId = conversationData.postId;
+        
+        if (!postId) {
+            throw new Error('No post ID found in conversation');
+        }
+        
+        // Get all messages from the conversation to preserve the chat history
+        const messagesRef = collection(db, 'conversations', conversationId, 'messages');
+        const messagesQuery = query(messagesRef, orderBy('timestamp', 'asc'));
+        const messagesSnap = await getDocs(messagesQuery);
+        
+        const conversationMessages = messagesSnap.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        
+        // Update post with conversation data before confirming the ID photo
+        const postRef = doc(db, 'posts', postId);
+        await updateDoc(postRef, {
+            conversationData: {
+                conversationId: conversationId,
+                messages: conversationMessages,
+                participants: conversationData.participants || {},
+                createdAt: conversationData.createdAt || serverTimestamp(),
+                lastMessage: conversationData.lastMessage || null
+            },
+            updatedAt: serverTimestamp()
+        });
+        
+        console.log('✅ Conversation history saved to post before confirming ID photo');
+        
+        // Now proceed with the ID photo confirmation
+        let result;
+        if (type === 'handover') {
+            result = await confirmHandoverIdPhoto(conversationId, messageId, confirmBy);
+        } else {
+            result = await confirmClaimIdPhoto(conversationId, messageId, confirmBy);
+        }
 
         if (result.success) {
+            const successMessage = type === 'handover' 
+                ? '✅ Handover confirmed successfully! The post is now marked as resolved.'
+                : '✅ Claim confirmed successfully! The post is now marked as resolved.';
+                
             if (result.conversationDeleted) {
-                callbacks.onSuccess?.('✅ Handover confirmed successfully! The conversation has been archived and the post is now marked as resolved.');
-                // Don't call onClearConversation if conversation is already deleted - this prevents duplicate confirmations
+                callbacks.onSuccess?.(`${successMessage} The conversation has been archived.`);
             } else {
-                callbacks.onSuccess?.('✅ Handover confirmed successfully! The post is now marked as resolved.');
+                callbacks.onSuccess?.(successMessage);
                 callbacks.onClearConversation?.();
             }
         } else {

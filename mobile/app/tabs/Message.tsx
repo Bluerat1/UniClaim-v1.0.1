@@ -11,27 +11,18 @@ import {
   FlatList,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import {
-  collection,
-  doc,
-  onSnapshot,
-  updateDoc,
-  Timestamp,
-  query,
-  where,
-  orderBy,
-  limit,
-  getDoc,
-  arrayUnion,
-} from "firebase/firestore";
+import { Ionicons } from "@expo/vector-icons";
+import { doc, updateDoc, getDoc, arrayUnion } from "firebase/firestore";
 import { db } from "../../utils/firebase/config";
 import PageLayout from "../../layout/PageLayout";
 import { useMessage } from "../../context/MessageContext";
 import { useAuth } from "../../context/AuthContext";
 import ProfilePicture from "../../components/ProfilePicture";
+import { Alert } from 'react-native';
 import type { Conversation, RootStackParamList } from "../../types/type";
 
 type MessageNavigationProp = NativeStackNavigationProp<
@@ -40,7 +31,7 @@ type MessageNavigationProp = NativeStackNavigationProp<
 >;
 
 // Debug logging utility
-const DEBUG_ENABLED = true;
+const DEBUG_ENABLED = true; // Enable debug logging for profile picture issues
 const debugLog = (section: string, message: string, data?: any) => {
   if (!DEBUG_ENABLED) return;
   const timestamp = new Date().toLocaleTimeString("en-US", {
@@ -56,15 +47,86 @@ const debugLog = (section: string, message: string, data?: any) => {
   );
 };
 
+/**
+ * Gets the profile picture URL from user data, checking multiple possible field names
+ * in order of preference.
+ */
+const getProfilePictureUrl = (
+  data: Record<string, any> | null | undefined
+): string | null => {
+  if (!data) return null;
+
+  const pictureFields = [
+    "profilePicture",
+    "photoURL",
+    "avatar",
+    "profilePic",
+    "profile_picture",
+    "profilePicUrl",
+    "profileImageUrl",
+    "profile_pic",
+    "profile_pic_url",
+    "image",
+    "picture",
+    "photo",
+  ];
+
+  for (const field of pictureFields) {
+    const value = data?.[field];
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+  }
+
+  return null;
+};
+
 const ConversationItem = React.memo(
   ({
     conversation,
     onPress,
+    onDelete,
   }: {
     conversation: Conversation;
     onPress: () => void;
+    onDelete: (conversationId: string) => Promise<void>;
   }) => {
+    const [isDeleting, setIsDeleting] = useState(false);
+    
+    const handleDelete = async () => {
+      try {
+        setIsDeleting(true);
+        await onDelete(conversation.id);
+      } catch (error) {
+        console.error('Error deleting conversation:', error);
+        Alert.alert('Error', 'Failed to delete conversation. Please try again.');
+      } finally {
+        setIsDeleting(false);
+      }
+    };
+    
+    const showDeleteConfirmation = () => {
+      Alert.alert(
+        'Delete Conversation',
+        'Are you sure you want to delete this conversation? This action cannot be undone.',
+        [
+          { 
+            text: 'Cancel', 
+            style: 'cancel',
+            onPress: () => console.log('Delete cancelled')
+          },
+          { 
+            text: 'Delete', 
+            onPress: handleDelete, 
+            style: 'destructive' 
+          },
+        ]
+      );
+    };
     const { userData } = useAuth();
+    const { listenToParticipantProfile } = useMessage();
+    const profileUnsubscribeRef = useRef<(() => void) | null>(null);
+    const currentParticipantIdRef = useRef<string | null>(null);
 
     const formatTime = useCallback((timestamp: any) => {
       if (!timestamp) return "";
@@ -85,11 +147,86 @@ const ConversationItem = React.memo(
     const [participantName, setParticipantName] =
       useState<string>("Loading...");
 
-    const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(
-      null
-    );
-    const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+    const [otherParticipantPic, setOtherParticipantPic] = useState<string | null>(null);
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    
+    // Get the other participant's ID
+    const otherParticipantId = useMemo(() => {
+      if (!userData?.uid) return null;
+
+      if (Array.isArray(conversation.participantIds)) {
+        const fromParticipantIds = conversation.participantIds.find(
+          (id) => id !== userData.uid
+        );
+        if (fromParticipantIds) {
+          return fromParticipantIds;
+        }
+      }
+
+      if (conversation.participants) {
+        const fromParticipants = Object.keys(conversation.participants).find(
+          (id) => id !== userData.uid
+        );
+        if (fromParticipants) {
+          return fromParticipants;
+        }
+      }
+
+      return null;
+    }, [conversation.participantIds, conversation.participants, userData?.uid]);
+
+    // Effect to load and subscribe to the other participant's profile picture
+    useEffect(() => {
+      if (!otherParticipantId) {
+        debugLog('PROFILE-PIC', 'No other participant ID found for conversation');
+        currentParticipantIdRef.current = null;
+        setOtherParticipantPic(null);
+        profileUnsubscribeRef.current?.();
+        profileUnsubscribeRef.current = null;
+        return;
+      }
+
+      debugLog('PROFILE-PIC', 'Subscribing to participant profile', {
+        otherParticipantId,
+      });
+
+      currentParticipantIdRef.current = otherParticipantId;
+      setOtherParticipantPic(null);
+      profileUnsubscribeRef.current?.();
+
+      profileUnsubscribeRef.current = listenToParticipantProfile(
+        otherParticipantId,
+        (participant) => {
+          if (currentParticipantIdRef.current !== otherParticipantId) {
+            debugLog('PROFILE-PIC', 'Ignored stale profile update', {
+              expectedId: currentParticipantIdRef.current,
+              receivedId: otherParticipantId,
+            });
+            return;
+          }
+
+          const pictureUrl = getProfilePictureUrl(participant);
+          debugLog('PROFILE-PIC', 'Received profile update', {
+            otherParticipantId,
+            hasPicture: !!pictureUrl,
+          });
+          setOtherParticipantPic(pictureUrl || null);
+        }
+      );
+
+      return () => {
+        debugLog('PROFILE-PIC', 'Cleaning up profile listener', {
+          otherParticipantId,
+        });
+        profileUnsubscribeRef.current?.();
+        profileUnsubscribeRef.current = null;
+      };
+    }, [otherParticipantId, listenToParticipantProfile]);
+
+    // Get the other participant's profile picture (exclude current user)
+    const getOtherParticipantProfilePicture = useCallback((): string | null => {
+      return otherParticipantPic;
+    }, [otherParticipantPic]);
 
     // Function to fetch user data from Firestore with timeout
     const fetchUserData = useCallback(
@@ -100,8 +237,6 @@ const ConversationItem = React.memo(
         }
 
         try {
-          setIsLoadingProfile(true);
-
           // Check if participant data is just a boolean
           const participant = conversation.participants?.[userId] as any;
           if (participant === true) {
@@ -132,7 +267,7 @@ const ConversationItem = React.memo(
                   await updateDoc(doc(db, "conversations", conversation.id), {
                     [`participants.${userId}`]: {
                       displayName: name,
-                      photoURL: userData.photoURL || userData.profilePicture,
+                      photoURL: getProfilePictureUrl(userData),
                       email: userData.email,
                       participantIds: arrayUnion(userId),
                     },
@@ -142,21 +277,11 @@ const ConversationItem = React.memo(
                 }
               }, 2000);
 
-              // Set profile picture
-              const pictureUrl = [
-                userData.photoURL,
-                userData.profilePicture,
-                userData.avatar,
-                userData.profilePic,
-                userData.image,
-                userData.picture,
-                userData.photo,
-                userData.profilePicUrl,
-                userData.profile_pic,
-                userData.profile_pic_url,
-              ].find(Boolean) as string | undefined;
-
-              setProfilePictureUrl(pictureUrl || null);
+              // Set profile picture using the utility function
+              const pictureUrl = getProfilePictureUrl(userData);
+              if (currentParticipantIdRef.current === userId) {
+                setOtherParticipantPic(pictureUrl);
+              }
             } else {
               // If user document doesn't exist, try to get name from participant data
               const participant = conversation.participants?.[userId];
@@ -179,7 +304,7 @@ const ConversationItem = React.memo(
               } else {
                 setParticipantName("User");
               }
-              setProfilePictureUrl(null);
+              setOtherParticipantPic(null);
             }
           } else {
             // Original fetch logic for non-boolean participants
@@ -202,20 +327,10 @@ const ConversationItem = React.memo(
 
               setParticipantName(name);
 
-              const pictureUrl = [
-                userData.photoURL,
-                userData.profilePicture,
-                userData.avatar,
-                userData.profilePic,
-                userData.image,
-                userData.picture,
-                userData.photo,
-                userData.profilePicUrl,
-                userData.profile_pic,
-                userData.profile_pic_url,
-              ].find(Boolean) as string | undefined;
-
-              setProfilePictureUrl(pictureUrl || null);
+              const pictureUrl = getProfilePictureUrl(userData);
+              if (currentParticipantIdRef.current === userId) {
+                setOtherParticipantPic(pictureUrl || null);
+              }
             } else {
               // If user document doesn't exist, try to get name from participant data
               const participant = conversation.participants?.[userId];
@@ -238,15 +353,13 @@ const ConversationItem = React.memo(
               } else {
                 setParticipantName("User");
               }
-              setProfilePictureUrl(null);
+              setOtherParticipantPic(null);
             }
           }
         } catch (error) {
           console.error("Error loading user data:", error);
           setParticipantName("User");
-          setProfilePictureUrl(null);
-        } finally {
-          setIsLoadingProfile(false);
+          setOtherParticipantPic(null);
         }
       },
       [conversation.id, conversation.participants]
@@ -282,32 +395,6 @@ const ConversationItem = React.memo(
       [fetchUserData]
     );
 
-    // Function to get the best available profile picture URL from participant data
-    const getProfilePictureUrl = useCallback(
-      (participantData: any): string | null => {
-        if (!participantData || typeof participantData === "boolean") {
-          return null;
-        }
-
-        const p = participantData as Record<string, any>;
-        return (
-          [
-            p?.photoURL,
-            p?.profilePicture,
-            p?.avatar,
-            p?.profilePic,
-            p?.image,
-            p?.picture,
-            p?.photo,
-            p?.profilePicUrl,
-            p?.profile_pic,
-            p?.profile_pic_url,
-          ].find(Boolean) || null
-        );
-      },
-      []
-    );
-
     // Cleanup timeout on unmount
     useEffect(() => {
       return () => {
@@ -319,32 +406,32 @@ const ConversationItem = React.memo(
 
     // Effect to handle participant data and update name/picture
     useEffect(() => {
-      if (!userData) return;
-
-      // Find the other participant (not the current user)
-      const otherParticipant = Object.entries(
-        conversation.participants || {}
-      ).find(([uid]) => uid !== userData.uid);
-
-      if (otherParticipant) {
-        const [userId, participantData] = otherParticipant;
-
-        // Update participant name
-        const name = getParticipantName(participantData, userId);
-        setParticipantName(name);
-
-        // Update profile picture
-        const pictureUrl = getProfilePictureUrl(participantData);
-        if (pictureUrl) {
-          setProfilePictureUrl(pictureUrl);
-        } else if (typeof participantData === "boolean") {
-          // If we only have a boolean, try to fetch the user data
-          fetchUserData(userId);
-        }
-      } else {
-        setProfilePictureUrl(null);
+      if (!otherParticipantId) {
+        setParticipantName("User");
+        setOtherParticipantPic(null);
+        return;
       }
-    }, [conversation.participants, userData?.uid, fetchUserData]);
+
+      const participantData = conversation.participants?.[otherParticipantId];
+
+      if (!participantData) {
+        fetchUserData(otherParticipantId);
+        return;
+      }
+
+      const name = getParticipantName(participantData, otherParticipantId);
+      setParticipantName(name);
+
+      if (typeof participantData === "boolean") {
+        fetchUserData(otherParticipantId);
+        return;
+      }
+    }, [
+      conversation.participants,
+      otherParticipantId,
+      fetchUserData,
+      getParticipantName,
+    ]);
 
     const lastMessageSenderName = useMemo(() => {
       if (!conversation.lastMessage?.senderId || !userData) {
@@ -413,14 +500,18 @@ const ConversationItem = React.memo(
     );
 
     return (
-      <TouchableOpacity
-        onPress={onPress}
-        className="bg-white p-4 border-b border-gray-200"
-      >
+      <View className="bg-white border-b border-gray-200">
+        <TouchableOpacity
+          onPress={onPress}
+          className="p-4"
+        >
         <View className="flex-row items-start">
           {/* Profile Picture */}
           <View className="mr-3">
-            <ProfilePicture src={profilePictureUrl} size="md" />
+            <ProfilePicture 
+              src={getOtherParticipantProfilePicture()} 
+              size="md" 
+            />
           </View>
 
           {/* Conversation Details */}
@@ -479,10 +570,26 @@ const ConversationItem = React.memo(
                   )}
                 </Text>
               </View>
-              <View className="ml-2">
-                <Text className="text-gray-500 text-xs font-manrope">
-                  {formattedTime}
-                </Text>
+              <View className="ml-2 items-end">
+                <View className="flex-row items-center">
+                  <TouchableOpacity 
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      showDeleteConfirmation();
+                    }}
+                    disabled={isDeleting}
+                    className="p-2 -mr-2"
+                  >
+                    {isDeleting ? (
+                      <ActivityIndicator size="small" color="#EF4444" />
+                    ) : (
+                      <Ionicons name="trash-outline" size={16} color="#9CA3AF" />
+                    )}
+                  </TouchableOpacity>
+                  <Text className="text-gray-500 text-xs font-manrope">
+                    {formattedTime}
+                  </Text>
+                </View>
                 {/* Get the current user's unread count from this conversation */}
                 {unreadCount > 0 && (
                   <View className="bg-blue-500 rounded-full px-2 py-1 mt-1 self-end min-w-[20px] items-center justify-center">
@@ -495,7 +602,8 @@ const ConversationItem = React.memo(
             </View>
           </View>
         </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
     );
   }
 );
@@ -506,15 +614,17 @@ export default function Message() {
   const navigation = useNavigation<MessageNavigationProp>();
   const {
     conversations,
-    loading,
     refreshConversations,
     markConversationAsRead,
+    deleteConversation: deleteConversationInContext,
   } = useMessage();
   const { userData } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const handleConversationPress = useCallback(
-    async (conversation: Conversation) => {
+    (conversation: Conversation) => {
       const pressStartTime = Date.now();
       debugLog("ITEM-PRESS", "👆 Conversation tapped", {
         conversationId: conversation.id,
@@ -562,6 +672,21 @@ export default function Message() {
     [userData?.uid, markConversationAsRead, navigation]
   );
 
+  const handleDeleteConversation = async (conversationId: string) => {
+    if (!userData?.uid) return;
+    
+    try {
+      setIsDeleting(true);
+      await deleteConversationInContext(conversationId, userData.uid);
+      // No need to check success/error here as the MessageContext will handle the state update
+    } catch (error) {
+      console.error('Error in handleDeleteConversation:', error);
+      Alert.alert('Error', 'An unexpected error occurred while deleting the conversation');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -600,12 +725,38 @@ export default function Message() {
     });
   }, [conversations]);
 
-  if (loading) {
+  // Set loading to false after initial load
+  useEffect(() => {
+    if (conversations.length > 0) {
+      setIsLoading(false);
+    } else {
+      // If no conversations but we've finished loading, set loading to false
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [conversations]);
+
+  if (isLoading) {
     return (
       <PageLayout>
-        <SafeAreaView className="flex-1 items-center justify-center">
-          <Text className="text-gray-500">Loading conversations...</Text>
-        </SafeAreaView>
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#3B82F6" />
+        </View>
+      </PageLayout>
+    );
+  }
+
+  if (conversations.length === 0) {
+    return (
+      <PageLayout>
+        <View className="flex-1 items-center justify-center">
+          <Text className="text-gray-500 text-center">
+            No conversations yet.{"\n"}Start a conversation by contacting
+            someone about their post!
+          </Text>
+        </View>
       </PageLayout>
     );
   }
@@ -613,7 +764,7 @@ export default function Message() {
   return (
     <PageLayout>
       <SafeAreaView className="flex-1 bg-gray-50">
-        {loading ? (
+        {isLoading ? (
           <View className="flex-1 items-center justify-center">
             <Text className="text-gray-500">Loading conversations...</Text>
           </View>
@@ -628,10 +779,11 @@ export default function Message() {
           <FlatList
             data={sortedConversations}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
+            renderItem={({ item: conversation }) => (
               <ConversationItem
-                conversation={item}
-                onPress={() => handleConversationPress(item)}
+                conversation={conversation}
+                onPress={() => handleConversationPress(conversation)}
+                onDelete={() => handleDeleteConversation(conversation.id)}
               />
             )}
             showsVerticalScrollIndicator={false}

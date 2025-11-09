@@ -261,10 +261,15 @@ const MessageBubble: FC<MessageBubbleProps> = ({
       },
     };
 
+    // Determine if this is a handover or claim request
+    const isHandover = message.messageType === 'handover_request' || message.handoverData;
+    const type = isHandover ? 'handover' : 'claim';
+
     await handoverClaimService.handleConfirmIdPhoto(
       conversationId,
       message.id,
       currentUserId,
+      type,
       callbacks
     );
   };
@@ -316,7 +321,7 @@ const MessageBubble: FC<MessageBubbleProps> = ({
           onPress: async () => {
             try {
               setIsDeleting(true);
-              await deleteMessage(conversationId, message.id);
+              await deleteMessage(conversationId, message.id, currentUserId);
             } catch (error: any) {
               Alert.alert(
                 "Error",

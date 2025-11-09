@@ -41,6 +41,8 @@ interface MessageService {
     confirmHandoverIdPhoto(conversationId: string, messageId: string, userId: string): Promise<{ success: boolean; conversationDeleted: boolean; postId?: string; error?: string }>;
     confirmClaimIdPhoto(conversationId: string, messageId: string, userId: string): Promise<{ success: boolean; conversationDeleted: boolean; postId?: string; error?: string }>;
     getCurrentConversations(userId: string): Promise<any[]>;
+    deleteConversation(conversationId: string, userId: string): Promise<{ success: boolean; error?: string }>;
+    updateConversationParticipant(conversationId: string, participantId: string, data: any): Promise<void>;
 }
 
 // Message service implementation
@@ -1149,6 +1151,79 @@ export const messageService: MessageService = {
     },
 
     // Get current conversations (one-time query)
+    // Delete conversation for a user
+    async updateConversationParticipant(conversationId: string, participantId: string, data: any): Promise<void> {
+    const conversationRef = doc(db, 'conversations', conversationId);
+    await updateDoc(conversationRef, {
+      [`participants.${participantId}`]: data,
+      updatedAt: serverTimestamp()
+    });
+  },
+
+  async deleteConversation(conversationId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+    const batch = writeBatch(db);
+    
+    try {
+      if (!conversationId || !userId) {
+        console.error('❌ [deleteConversation] Missing required parameters');
+        return { success: false, error: 'Missing required parameters' };
+      }
+
+      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationDoc = await getDoc(conversationRef);
+      
+      if (!conversationDoc.exists()) {
+        console.error(`❌ [deleteConversation] Conversation ${conversationId} not found`);
+        return { success: false, error: 'Conversation not found' };
+      }
+
+      const conversationData = conversationDoc.data();
+      
+      // Check if user is a participant
+      if (!conversationData.participantIds?.includes(userId) && 
+          conversationData.participants?.[userId] !== true) {
+        console.error(`❌ [deleteConversation] User ${userId} is not a participant in conversation ${conversationId}`);
+        return { success: false, error: 'Not authorized to delete this conversation' };
+      }
+
+      // Check if conversation is resolved
+      if (conversationData.status === 'resolved' || 
+          conversationData.status === 'handed_over' || 
+          conversationData.status === 'claimed' || 
+          conversationData.status === 'returned') {
+        console.log(`⚠️ [deleteConversation] Cannot delete resolved conversation ${conversationId}`);
+        return { success: false, error: 'Cannot delete a resolved conversation' };
+      }
+
+      // Delete all messages in the conversation
+      const messagesQuery = query(
+        collection(db, `conversations/${conversationId}/messages`)
+      );
+      const messagesSnapshot = await getDocs(messagesQuery);
+      
+      // Delete each message in the conversation
+      messagesSnapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+      
+      // Delete the conversation document
+      batch.delete(conversationRef);
+      
+      // Commit the batch
+      await batch.commit();
+      
+      console.log(`✅ [deleteConversation] Successfully deleted conversation ${conversationId}`);
+      return { success: true };
+    } catch (error) {
+      console.error(`❌ [deleteConversation] Error deleting conversation ${conversationId}:`, error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to delete conversation' 
+      };
+    }
+    },
+
+    // Get current conversations (one-time query)
     async getCurrentConversations(userId: string): Promise<any[]> {
         if (!userId) {
             return [];
@@ -1166,8 +1241,8 @@ export const messageService: MessageService = {
             
             const conversations = snapshot.docs.map(doc => {
                 const data = doc.data();
-                // Ensure backward compatibility
-                const participants = data.participants || {};
+                    // Ensure backward compatibility
+                    const participants = data.participants || {};
                 
                 // If participantIds doesn't exist, fall back to using participants keys
                 const participantIds = data.participantIds || Object.keys(participants);

@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   Text,
   FlatList,
@@ -78,7 +84,7 @@ const styles = StyleSheet.create({
 });
 
 // Debug logging utility with performance tracking
-const DEBUG_ENABLED = true;
+const DEBUG_ENABLED = false;
 const debugLog = (section: string, message: string, data?: any) => {
   if (!DEBUG_ENABLED) return;
   const timestamp = new Date().toLocaleTimeString("en-US", {
@@ -139,6 +145,7 @@ export default function Chat() {
     updateClaimResponse,
     confirmHandoverIdPhoto,
     confirmClaimIdPhoto,
+    listenToParticipantProfile,
   } = useMessage();
 
   const { user, userData } = useAuth();
@@ -201,25 +208,36 @@ export default function Chat() {
     email?: string;
   }
 
-  // Function to get profile picture URL from user data
+  /**
+   * Gets the profile picture URL from user data, checking multiple possible field names
+   * in order of preference.
+   */
   const getProfilePictureUrl = (user: any): string | null => {
     if (!user) return null;
 
-    const pictureUrl = [
-      user.photoURL,
-      user.profilePicture,
-      user.avatar,
-      user.profilePic,
-      user.image,
-      user.picture,
-      user.photo,
-      user.profilePicUrl,
-      user.profileImageUrl,
-      user.profile_pic,
-      user.profile_pic_url,
-    ].find(Boolean);
+    const pictureFields = [
+      "profilePicture",
+      "photoURL",
+      "avatar",
+      "profilePic",
+      "profile_picture",
+      "profilePicUrl",
+      "profileImageUrl",
+      "profile_pic",
+      "profile_pic_url",
+      "image",
+      "picture",
+      "photo",
+    ];
 
-    return pictureUrl || null;
+    for (const field of pictureFields) {
+      const value = user?.[field];
+      if (typeof value === "string" && value.trim().length > 0) {
+        return value;
+      }
+    }
+
+    return null;
   };
 
   // State for other participant's profile picture
@@ -227,112 +245,141 @@ export default function Chat() {
     null
   );
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const profileUnsubscribeRef = useRef<(() => void) | null>(null);
+  const currentParticipantIdRef = useRef<string | null>(null);
+
+  // Get the other participant's ID (memoized)
+  const otherParticipantId = useMemo(() => {
+    if (!userData?.uid || !conversationData?.participants) return null;
+
+    const otherParticipant = Object.entries(
+      conversationData.participants || {}
+    ).find(([uid]) => uid !== userData.uid);
+
+    return otherParticipant?.[0] || null;
+  }, [userData?.uid, conversationData?.participants]);
+
+  // Subscribe to the other participant's profile updates
+  useEffect(() => {
+    if (!otherParticipantId) {
+      currentParticipantIdRef.current = null;
+      setOtherParticipantPic(null);
+      profileUnsubscribeRef.current?.();
+      profileUnsubscribeRef.current = null;
+      return;
+    }
+
+    currentParticipantIdRef.current = otherParticipantId;
+
+    // Reset cached state so we don't briefly show the previous participant's avatar
+    setOtherParticipantPic(null);
+    setIsLoadingProfile(true);
+
+    debugLog("PROFILE-PIC", "🔄 Subscribing to participant profile", {
+      otherParticipantId,
+    });
+
+    profileUnsubscribeRef.current?.();
+    profileUnsubscribeRef.current = listenToParticipantProfile(
+      otherParticipantId,
+      (participant) => {
+        if (currentParticipantIdRef.current !== otherParticipantId) {
+          debugLog("PROFILE-PIC", "⏭️ Ignored stale profile update", {
+            expectedId: currentParticipantIdRef.current,
+            receivedId: otherParticipantId,
+          });
+          return;
+        }
+
+        const pictureUrl = getProfilePictureUrl(participant);
+        debugLog("PROFILE-PIC", "🎯 Received profile update", {
+          otherParticipantId,
+          hasPicture: !!pictureUrl,
+        });
+        setOtherParticipantPic(pictureUrl);
+        setIsLoadingProfile(false);
+      }
+    );
+
+    return () => {
+      profileUnsubscribeRef.current?.();
+      profileUnsubscribeRef.current = null;
+    };
+  }, [otherParticipantId, listenToParticipantProfile]);
 
   // Effect to load other participant's profile picture - optimized to use route params first
   useEffect(() => {
-    if (!userData?.uid) {
+    if (!userData?.uid || otherParticipantPic) {
       return;
     }
 
     const profileStartTime = Date.now();
-    debugLog("PROFILE-PIC", "📸 Profile picture loading started");
+    debugLog("PROFILE-PIC", "📸 Profile picture fallback loading started");
 
     const loadProfilePicture = async () => {
       try {
-        let targetParticipantId: string | null = null;
-
         if (
+          currentParticipantIdRef.current === otherParticipantId &&
           postOwnerUserData &&
           typeof postOwnerUserData === "object" &&
-          postOwnerId !== userData.uid
+          postOwnerId !== userData.uid &&
+          postOwnerId === otherParticipantId
         ) {
           const pictureUrl = getProfilePictureUrl(postOwnerUserData);
           if (pictureUrl) {
             const elapsed = Date.now() - profileStartTime;
             debugLog(
               "PROFILE-PIC",
-              `✅ Found in postOwnerUserData (${elapsed}ms)`,
-              {
-                source: "route_params",
-                pictureUrl: pictureUrl.substring(0, 50) + "...",
-              }
+              `✅ Fallback found in postOwnerUserData (${elapsed}ms)`
             );
             setOtherParticipantPic(pictureUrl);
+            setIsLoadingProfile(false);
             return;
           }
         }
 
-        if (conversationData?.participants) {
-          const otherParticipant = Object.entries(
-            conversationData.participants
-          ).find(([uid]) => uid !== userData.uid);
-
-          if (otherParticipant) {
-            const [uid, participantData] = otherParticipant;
-            targetParticipantId = uid;
-
-            if (participantData && typeof participantData === "object") {
-              const pictureUrl = getProfilePictureUrl(participantData);
-              if (pictureUrl) {
-                const elapsed = Date.now() - profileStartTime;
-                debugLog(
-                  "PROFILE-PIC",
-                  `✅ Found in conversationData (${elapsed}ms)`,
-                  {
-                    source: "conversation_data",
-                    pictureUrl: pictureUrl.substring(0, 50) + "...",
-                  }
-                );
-                setOtherParticipantPic(pictureUrl);
-                return;
-              }
-            }
-          }
+        if (!otherParticipantId) {
+          return;
         }
 
-        if (!targetParticipantId && postOwnerId && postOwnerId !== userData.uid) {
-          targetParticipantId = postOwnerId;
-        }
+        debugLog("PROFILE-PIC", "🔥 Fallback fetching from Firestore...", {
+          otherParticipantId,
+        });
+        setIsLoadingProfile(true);
+        const firebaseStartTime = Date.now();
 
-        if (targetParticipantId && !otherParticipantPic) {
-          debugLog("PROFILE-PIC", "🔥 Fetching from Firestore...", {
-            targetParticipantId,
-          });
-          setIsLoadingProfile(true);
-          const firebaseStartTime = Date.now();
+        const { getDoc, doc } = await import("firebase/firestore");
+        const { db } = await import("../utils/firebase/config");
+        const userDoc = await getDoc(doc(db, "users", otherParticipantId));
 
-          const { getDoc, doc } = await import("firebase/firestore");
-          const { db } = await import("../utils/firebase/config");
-          const userDoc = await getDoc(doc(db, "users", targetParticipantId));
+        const firebaseElapsed = Date.now() - firebaseStartTime;
 
-          const firebaseElapsed = Date.now() - firebaseStartTime;
-
-          if (userDoc.exists()) {
-            const userData = userDoc.data() as ParticipantData;
-            const pictureUrl = getProfilePictureUrl(userData);
-            if (pictureUrl) {
-              const totalElapsed = Date.now() - profileStartTime;
-              debugLog(
-                "PROFILE-PIC",
-                `✅ Found in Firestore (fetch: ${firebaseElapsed}ms, total: ${totalElapsed}ms)`,
-                {
-                  source: "firestore",
-                  firebaseFetchTime: firebaseElapsed,
-                  pictureUrl: pictureUrl.substring(0, 50) + "...",
-                }
-              );
-              setOtherParticipantPic(pictureUrl);
+        if (userDoc.exists()) {
+          const userData = userDoc.data() as ParticipantData;
+          const pictureUrl = getProfilePictureUrl(userData);
+          if (pictureUrl) {
+            if (currentParticipantIdRef.current !== otherParticipantId) {
+              debugLog("PROFILE-PIC", "⏭️ Ignored stale Firestore fallback", {
+                expectedId: currentParticipantIdRef.current,
+                receivedId: otherParticipantId,
+              });
+              return;
             }
-          } else {
+
+            const totalElapsed = Date.now() - profileStartTime;
             debugLog(
               "PROFILE-PIC",
-              "⚠️  User document not found in Firestore",
-              { targetParticipantId }
+              `✅ Fallback found in Firestore (fetch: ${firebaseElapsed}ms, total: ${totalElapsed}ms)`
             );
+            setOtherParticipantPic(pictureUrl);
           }
+        } else {
+          debugLog("PROFILE-PIC", "⚠️  Fallback user document not found", {
+            otherParticipantId,
+          });
         }
       } catch (error) {
-        debugLog("PROFILE-PIC", "❌ Error loading profile picture", {
+        debugLog("PROFILE-PIC", "❌ Fallback error loading profile picture", {
           error: (error as Error).message,
         });
         console.error("Error loading profile picture:", error);
@@ -347,49 +394,14 @@ export default function Chat() {
     postOwnerId,
     postOwnerUserData,
     conversationData?.participants,
+    otherParticipantId,
     otherParticipantPic,
   ]);
 
-  // Get the other participant's ID
-  const getOtherParticipantId = useCallback(() => {
-    if (!userData?.uid || !conversationData?.participants) return null;
-
-    const otherParticipant = Object.entries(
-      conversationData.participants || {}
-    ).find(([uid]) => uid !== userData.uid);
-
-    return otherParticipant?.[0] || null;
-  }, [userData, conversationData]);
-
-  const otherParticipantId = getOtherParticipantId();
-
   // Get the other participant's profile picture (exclude current user)
   const getOtherParticipantProfilePicture = useCallback(() => {
-    // First try the pre-fetched profile picture
-    if (otherParticipantPic) {
-      return otherParticipantPic;
-    }
-
-    // Fallback to post owner data if available
-    if (postOwnerUserData) {
-      return (
-        postOwnerUserData.photoURL ||
-        postOwnerUserData.profilePicture ||
-        postOwnerUserData.avatar ||
-        postOwnerUserData.profilePic ||
-        postOwnerUserData.image ||
-        postOwnerUserData.picture ||
-        postOwnerUserData.photo ||
-        postOwnerUserData.profilePicUrl ||
-        postOwnerUserData.profileImageUrl ||
-        postOwnerUserData.profile_pic ||
-        postOwnerUserData.profile_pic_url ||
-        null
-      );
-    }
-
-    return null;
-  }, [otherParticipantPic, postOwnerUserData]);
+    return otherParticipantPic;
+  }, [otherParticipantPic]);
 
   // Fetch post data from Firestore
   const fetchPostData = async (postId: string) => {
@@ -1055,33 +1067,66 @@ export default function Chat() {
     setIsImagePickerUploading(true);
 
     try {
-      const { cloudinaryService } = await import("../utils/cloudinary");
-      const photoUrl = await cloudinaryService.uploadImage(
-        photoUri,
-        "id_photos"
+      // Import the handoverClaimService
+      const handoverClaimService = await import('../utils/handoverClaimService');
+      
+      // Upload the ID photo
+      const uploadResult = await handoverClaimService.uploadIdPhotoMobile(
+        photoUri, 
+        imagePickerMessageType === 'handover_request' ? 'handover' : 'claim'
       );
 
-      if (imagePickerMessageType === "handover_request") {
-        // For handover, first accept the request, then update with photo
-        await handleHandoverResponse(imagePickerMessageId, "accepted");
-        // Update the message with the ID photo URL using the same pattern as claim
-        await updateClaimResponse(
-          conversationId,
-          imagePickerMessageId,
-          "accepted",
-          user.uid,
-          photoUrl
-        );
-      } else if (imagePickerMessageType === "claim_request") {
-        await handleClaimResponse(imagePickerMessageId, "accepted", photoUrl);
+      if (!uploadResult.success) {
+        throw new Error(uploadResult.error || 'Failed to upload ID photo');
       }
 
+      // Update the appropriate response based on message type
+      if (imagePickerMessageType === 'handover_request') {
+        // Use the handoverClaimService to handle the response
+        await handoverClaimService.updateHandoverResponse(
+          conversationId,
+          imagePickerMessageId,
+          'accepted',
+          user.uid,
+          uploadResult.url
+        );
+        
+        // Refresh messages to show updated status
+        if (conversationId) {
+          getConversationMessages(conversationId, setMessages);
+        }
+      } else if (imagePickerMessageType === 'claim_request') {
+        // Use the handoverClaimService to handle the response
+        await handoverClaimService.updateClaimResponse(
+          conversationId,
+          imagePickerMessageId,
+          'accepted',
+          user.uid,
+          uploadResult.url
+        );
+        
+        // Refresh messages to show updated status
+        if (conversationId) {
+          getConversationMessages(conversationId, setMessages);
+        }
+      }
+
+      // Show success message
+      showToastMessage(
+        'ID photo uploaded successfully! The item owner will now review and confirm.',
+        'success'
+      );
+      
+      // Close the modal and reset states
       setShowImagePickerModal(false);
-      setImagePickerMessageId("");
-      setImagePickerMessageType("handover_request");
-    } catch (error) {
-      console.error("Error uploading ID photo:", error);
-      Alert.alert("Error", "Failed to upload ID photo. Please try again.");
+      setImagePickerMessageId('');
+      setImagePickerMessageType('handover_request');
+    } catch (error: any) {
+      console.error('Error in handleImagePickerSelect:', error);
+      Alert.alert(
+        'Upload Failed', 
+        error.message || 'Failed to upload ID photo. Please try again.'
+      );
     } finally {
       setIsImagePickerUploading(false);
     }
@@ -1110,34 +1155,78 @@ export default function Chat() {
     // Prevent duplicate confirmations
     setIsConfirmationInProgress(true);
 
-    // Get the message data before trying to confirm
-    const message = messages.find((m) => m.id === messageId);
-    if (!message) {
-      setIsConfirmationInProgress(false);
-      // If message is not found, conversation might already be deleted, just navigate back
-      navigation.goBack();
-      return;
-    }
-
     try {
-      if (message.messageType === "handover_request") {
-        await confirmHandoverIdPhoto(conversationId, messageId, user.uid);
-        showToastMessage(
-          "Handover ID photo confirmed! The post is now marked as completed.",
-          "success"
+      // Import the handoverClaimService
+      const handoverClaimService = await import('../utils/handoverClaimService');
+      
+      // Get the message data before trying to confirm
+      // Find the message and log its details for debugging
+      const message = messages.find((m) => m.id === messageId);
+      if (!message) {
+        throw new Error("Message not found");
+      }
+
+      console.log('🔍 Message found for confirmation:', {
+        messageId: message.id,
+        messageType: message.messageType,
+        isHandover: message.messageType === 'handover_request',
+        isClaim: message.messageType === 'claim_request',
+        hasClaimData: !!message.claimData,
+        hasHandoverData: !!message.handoverData
+      });
+
+      let result;
+      
+      // Check both messageType and the existence of the corresponding data object
+      const isHandover = message.messageType === 'handover_request' || message.handoverData;
+      const isClaim = message.messageType === 'claim_request' || message.claimData;
+      
+      console.log('🔍 Confirmation type check:', { isHandover, isClaim });
+      
+      if (isHandover && !isClaim) {
+        console.log('🔄 Confirming handover ID photo...');
+        result = await handoverClaimService.confirmHandoverIdPhoto(
+          conversationId, 
+          messageId, 
+          user.uid
         );
-      } else if (message.messageType === "claim_request") {
-        await confirmClaimIdPhoto(conversationId, messageId, user.uid);
-        showToastMessage(
-          "Claim ID photo confirmed! The post is now marked as completed.",
-          "success"
+        
+        if (result && result.success) {
+          console.log('✅ Handover ID photo confirmed successfully');
+          showToastMessage(
+            "Handover ID photo confirmed! The post is now marked as completed.",
+            "success"
+          );
+        } else {
+          throw new Error(result?.error || 'Failed to confirm handover ID photo');
+        }
+      } else if (isClaim) {
+        console.log('🔄 Confirming claim ID photo...');
+        result = await handoverClaimService.confirmClaimIdPhoto(
+          conversationId, 
+          messageId, 
+          user.uid
         );
+        
+        if (result && result.success) {
+          console.log('✅ Claim ID photo confirmed successfully');
+          showToastMessage(
+            "Claim ID photo confirmed! The post is now marked as completed.",
+            "success"
+          );
+        } else {
+          throw new Error(result?.error || 'Failed to confirm claim ID photo');
+        }
+      } else {
+        console.error('❌ Invalid message type for ID photo confirmation:', message.messageType);
+        throw new Error('Invalid message type for ID photo confirmation');
       }
 
       // Clear messages and navigate back after successful confirmation
       setMessages([]);
       navigation.goBack();
     } catch (error: any) {
+      console.error('Error in handleConfirmIdPhotoSuccess:', error);
       setIsConfirmationInProgress(false);
 
       // Handle different error scenarios
@@ -1150,7 +1239,10 @@ export default function Chat() {
         setMessages([]);
         navigation.goBack();
       } else {
-        Alert.alert("Error", "Failed to confirm ID photo. Please try again.");
+        Alert.alert(
+          "Confirmation Failed", 
+          error.message || "Failed to confirm ID photo. Please try again."
+        );
       }
     }
   };

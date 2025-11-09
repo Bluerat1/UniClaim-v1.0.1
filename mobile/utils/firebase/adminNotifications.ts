@@ -81,6 +81,15 @@ export class AdminNotificationService {
                 await this.cleanupOldNotifications(notificationData.adminId, 14); // Keep 14, delete the oldest one to make room for new one
             }
 
+            // Clean the notification data to remove any undefined values
+            const cleanData = notificationData.data ? 
+                Object.entries(notificationData.data).reduce((acc, [key, value]) => {
+                    if (value !== undefined) {
+                        acc[key] = value;
+                    }
+                    return acc;
+                }, {} as Record<string, any>) : {};
+
             const docRef = await addDoc(adminNotificationsRef, {
                 type: notificationData.type,
                 title: notificationData.title,
@@ -88,7 +97,7 @@ export class AdminNotificationService {
                 priority: notificationData.priority || 'normal',
                 read: false,
                 adminId: notificationData.adminId,
-                data: notificationData.data || {},
+                data: cleanData,
                 createdAt: serverTimestamp(),
                 actionRequired: notificationData.actionRequired || false,
                 relatedEntity: notificationData.relatedEntity || null

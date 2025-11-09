@@ -329,7 +329,7 @@ export class NotificationSender {
                                 postId: messageData.conversationData?.postId || null,
                                 postTitle: messageData.conversationData?.postTitle || null,
                                 trigger: messageData.trigger,
-                                readByUserId: messageData.readByUserId
+                                ...(messageData.readByUserId && { readByUserId: messageData.readByUserId })
                             },
                             read: false,
                             createdAt: serverTimestamp(),

@@ -43,7 +43,7 @@ interface MessageContextType {
     limit?: number
   ) => Promise<Message[]>;
   getConversation: (conversationId: string) => Promise<any>;
-  deleteMessage: (conversationId: string, messageId: string) => Promise<void>;
+  deleteMessage: (conversationId: string, messageId: string, userId: string) => Promise<void>;
   markMessageAsRead: (
     conversationId: string,
     messageId: string,
@@ -98,6 +98,15 @@ interface MessageContextType {
     messageId: string,
     userId: string
   ) => Promise<void>;
+  listenToParticipantProfile: (
+    participantId: string,
+    onUpdate: (participant: any) => void
+  ) => () => void;
+  updateParticipantProfileInConversation: (
+    conversationId: string,
+    participantId: string,
+    data: any
+  ) => Promise<void>;
   refreshConversations: () => Promise<void>;
   markConversationAsRead: (
     conversationId: string,
@@ -118,6 +127,7 @@ interface MessageContextType {
       lastMessage?: any;
     }>;
   };
+  deleteConversation: (conversationId: string, userId: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const MessageContext = createContext<MessageContextType | undefined>(undefined);
@@ -133,19 +143,93 @@ export const MessageProvider = ({
 }) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Calculate total unread count for the current user (like web version)
-  const totalUnreadCount = conversations.reduce((total, conv) => {
-    const userUnreadCount = conv.unreadCounts?.[userId || ""] || 0;
-    return total + userUnreadCount;
-  }, 0);
-
-  // Cache for storing user data to minimize Firestore reads
+  const [totalUnreadCount, setTotalUnreadCount] = useState(0);
+  const profileListeners = useRef<Record<string, () => void>>({});
   const userDataCache = useRef<Record<string, any>>({});
   const unsubscribeRef = useRef<() => void>(() => {});
-  const isMounted = useRef(true);
 
-  // Load user conversations with real-time updates
+  // Message service methods
+  const sendMessage = useCallback(
+    async (conversationId: string, senderId: string, senderName: string, text: string, senderProfilePicture?: string) => {
+      return messageService.sendMessage(conversationId, senderId, senderName, text, senderProfilePicture);
+    },
+    []
+  );
+
+  const createConversation = useCallback(
+    async (
+      postId: string,
+      postTitle: string,
+      postOwnerId: string,
+      currentUserId: string,
+      currentUserData: any,
+      postOwnerUserData?: any,
+      postType?: string,
+      postStatus?: string,
+      foundAction?: string
+    ) => {
+      return messageService.createConversation(
+        postId,
+        postTitle,
+        postOwnerId,
+        currentUserId,
+        currentUserData,
+        postOwnerUserData,
+        postType,
+        postStatus,
+        foundAction
+      );
+    },
+    []
+  );
+
+  const getConversationMessages = useCallback(
+    (conversationId: string, callback: (messages: any[]) => void, messageLimit?: number) => {
+      return messageService.getConversationMessages(conversationId, callback, messageLimit);
+    },
+    []
+  );
+
+  const getOlderMessages = useCallback(
+    (conversationId: string, lastMessageTimestamp: any, messageLimit?: number) => {
+      return messageService.getOlderMessages(conversationId, lastMessageTimestamp, messageLimit);
+    },
+    []
+  );
+
+  const getConversation = useCallback(
+    (conversationId: string) => {
+      return messageService.getConversation(conversationId);
+    },
+    []
+  );
+
+  const deleteMessage = useCallback(
+    (conversationId: string, messageId: string, userId: string) => {
+      return messageService.deleteMessage(conversationId, messageId, userId);
+    },
+    []
+  );
+
+  const markMessageAsRead = useCallback(
+    async (conversationId: string, messageId: string, userId: string) => {
+      try {
+        await messageService.markMessageAsRead(conversationId, messageId, userId);
+      } catch (error) {
+        console.error('Error marking message as read:', error);
+        throw error;
+      }
+    },
+    []
+  );
+
+  const markAllUnreadMessagesAsRead = useCallback(
+    (conversationId: string, userId: string) => {
+      return messageService.markAllUnreadMessagesAsRead(conversationId, userId);
+    },
+    []
+  );
+
   useEffect(() => {
     if (!userId || !isAuthenticated) {
       setConversations([]);
@@ -190,13 +274,25 @@ export const MessageProvider = ({
 
             // Process conversations and update cache
             const processed = updatedConversations.map((conv) => {
-              // Update user data cache
-              Object.entries(conv.participants || {}).forEach(([uid, data]) => {
-                if (data && typeof data === "object" && uid !== userId) {
-                  userDataCache.current[uid] = data;
+              const participants = conv.participants || {};
+              Object.entries(participants).forEach(([uid, data]) => {
+                if (uid === userId || !data || typeof data !== "object") {
+                  return;
+                }
+
+                const cached = userDataCache.current[uid] || {};
+                const merged = { ...cached, ...data };
+                const hasPhotoChanged = cached.photoURL !== merged.photoURL;
+
+                userDataCache.current[uid] = merged;
+
+                if (hasPhotoChanged && profileListeners.current[uid]) {
+                  // Trigger listener update so consumers get the new avatar
+                  profileListeners.current[uid]!();
+                  delete profileListeners.current[uid];
                 }
               });
-              return conv;
+              return { ...conv, participants };
             });
 
             // Only update if conversations actually changed (shallow comparison)
@@ -249,156 +345,59 @@ export const MessageProvider = ({
     };
   }, [userId, isAuthenticated]);
 
-  const sendMessage = useCallback(
-    async (
-      conversationId: string,
-      senderId: string,
-      senderName: string,
-      text: string,
-      senderProfilePicture?: string
-    ): Promise<void> => {
-      try {
-        await messageService.sendMessage(
-          conversationId,
-          senderId,
-          senderName,
-          text,
-          senderProfilePicture
-        );
-      } catch (error: any) {
-        console.error("❌ MessageContext: Failed to send message:", error);
-        throw new Error(error.message || "Failed to send message");
-      }
-    },
-    []
-  );
+  const listenToParticipantProfile = useCallback(
+    (participantId: string, onUpdate: (participant: any) => void): (() => void) => {
+      if (!participantId) return () => {};
 
-  const createConversation = useCallback(
-    async (
-      postId: string,
-      postTitle: string,
-      postOwnerId: string,
-      currentUserId: string,
-      currentUserData: any,
-      postOwnerUserData?: any,
-      postType?: string,
-      postStatus?: string,
-      foundAction?: string
-    ): Promise<string> => {
-      try {
-        return await messageService.createConversation(
-          postId,
-          postTitle,
-          postOwnerId,
-          currentUserId,
-          currentUserData,
-          postOwnerUserData,
-          postType,
-          postStatus,
-          foundAction
-        );
-      } catch (error: any) {
-        throw new Error(error.message || "Failed to create conversation");
-      }
-    },
-    []
-  );
-
-  const getConversationMessages = useCallback(
-    (
-      conversationId: string,
-      callback: (messages: Message[]) => void,
-      limit?: number
-    ) => {
-      return messageService.getConversationMessages(
-        conversationId,
-        callback,
-        limit
-      );
-    },
-    []
-  );
-
-  const getOlderMessages = useCallback(
-    async (
-      conversationId: string,
-      lastMessageTimestamp: any,
-      limit?: number
-    ) => {
-      try {
-        return await messageService.getOlderMessages(
-          conversationId,
-          lastMessageTimestamp,
-          limit
-        );
-      } catch (error: any) {
-        throw new Error(error.message || "Failed to get older messages");
-      }
-    },
-    []
-  );
-
-  const getConversation = useCallback(async (conversationId: string) => {
-    try {
-      return await messageService.getConversation(conversationId);
-    } catch (error: any) {
-      throw new Error(error.message || "Failed to get conversation");
-    }
-  }, []);
-
-  const deleteMessage = useCallback(
-    async (conversationId: string, messageId: string): Promise<void> => {
-      try {
-        await messageService.deleteMessage(conversationId, messageId, userId!);
-      } catch (error: any) {
-        throw new Error(error.message || "Failed to delete message");
-      }
-    },
-    [userId]
-  );
-
-  const markMessageAsRead = useCallback(
-    async (
-      conversationId: string,
-      messageId: string,
-      userId: string
-    ): Promise<void> => {
-      try {
-        await messageService.markMessageAsRead(
-          conversationId,
-          messageId,
-          userId
-        );
-      } catch (error: any) {
-        console.error(
-          "❌ MessageContext: Failed to mark message as read:",
-          error
-        );
-
-        // Log additional debugging information for permission errors
-        if (error.code === "permission-denied") {
-          console.error(
-            `🔒 MessageContext: Permission denied for user ${userId} in conversation ${conversationId}, message ${messageId}`
-          );
+      // Reuse existing listener if already active
+      if (profileListeners.current[participantId]) {
+        const cachedData = userDataCache.current[participantId];
+        if (cachedData) {
+          onUpdate(cachedData);
         }
-
-        throw new Error(error.message || "Failed to mark message as read");
+        return profileListeners.current[participantId] || (() => {});
       }
-    },
-    []
-  );
 
-  const markAllUnreadMessagesAsRead = useCallback(
-    async (conversationId: string, userId: string): Promise<void> => {
-      try {
-        await messageService.markAllUnreadMessagesAsRead(
-          conversationId,
-          userId
-        );
-      } catch (error: any) {
-        console.error("Failed to mark all unread messages as read:", error);
-        // Don't throw error - just log it
-      }
+      let unsubscribe: (() => void) | null = null;
+
+      const startListener = async () => {
+        try {
+          const { doc, onSnapshot } = await import("firebase/firestore");
+          const { db } = await import("../utils/firebase/config");
+          const userRef = doc(db, "users", participantId);
+
+          unsubscribe = onSnapshot(
+            userRef,
+            (snapshot) => {
+              if (!snapshot.exists()) return;
+              const userData = snapshot.data();
+              userDataCache.current[participantId] = {
+                ...userDataCache.current[participantId],
+                ...userData,
+              };
+              onUpdate(userDataCache.current[participantId]);
+            },
+            (error) => {
+              console.error("Participant listener error:", error);
+            }
+          );
+
+          if (unsubscribe) {
+            profileListeners.current[participantId] = () => {
+              unsubscribe?.();
+              delete profileListeners.current[participantId];
+            };
+          }
+        } catch (error) {
+          console.error("Failed to start participant listener:", error);
+        }
+      };
+
+      startListener();
+
+      return () => {
+        profileListeners.current[participantId]?.();
+      };
     },
     []
   );
@@ -511,6 +510,34 @@ export const MessageProvider = ({
     []
   );
 
+  const updateParticipantProfileInConversation = useCallback(
+    async (conversationId: string, participantId: string, data: any) => {
+      if (!conversationId || !participantId) return;
+      try {
+        const participant = {
+          ...(typeof data === "object" ? data : {}),
+        };
+
+        await messageService.updateConversationParticipant(
+          conversationId,
+          participantId,
+          participant
+        );
+
+        userDataCache.current[participantId] = {
+          ...userDataCache.current[participantId],
+          ...participant,
+        };
+      } catch (error) {
+        console.error(
+          "Failed to update participant profile in conversation:",
+          error
+        );
+      }
+    },
+    []
+  );
+
   const updateClaimResponse = useCallback(
     async (
       conversationId: string,
@@ -577,7 +604,11 @@ export const MessageProvider = ({
         setConversations((prevConversations) =>
           prevConversations.map((conv) =>
             conv.id === conversationId
-              ? { ...conv, unreadCounts: { ...conv.unreadCounts, [userId]: 0 } }
+              ? { 
+                  ...conv, 
+                  unreadCounts: { ...conv.unreadCounts, [userId]: 0 },
+                  updatedAt: new Date().toISOString() // Add updatedAt timestamp
+                }
               : conv
           )
         );
@@ -660,6 +691,76 @@ export const MessageProvider = ({
     };
   };
 
+  // Delete conversation implementation with debug logging
+  const deleteConversation = useCallback(async (conversationId: string, userId: string) => {
+    const debugLog = (message: string, data?: any) => {
+      console.log(`[deleteConversation] ${message}`, data || '');
+    };
+
+    debugLog('Starting deletion', { conversationId, userId });
+    
+    if (!conversationId || !userId) {
+      const error = 'Missing conversation ID or user ID';
+      debugLog('Validation failed', { error });
+      return { success: false, error };
+    }
+
+    try {
+      // Log current state before optimistic update
+      debugLog('Current conversations before deletion', {
+        conversationIds: conversations.map(c => c.id),
+        targetConversation: conversations.find(c => c.id === conversationId)
+      });
+
+      // Optimistically update the UI
+      debugLog('Performing optimistic UI update');
+      setConversations(prev => {
+        const updated = prev.filter(c => c.id !== conversationId);
+        debugLog('Updated conversations after optimistic update', {
+          previousCount: prev.length,
+          newCount: updated.length,
+          removed: prev.length - updated.length
+        });
+        return updated;
+      });
+      
+      // Call the message service to handle the deletion in Firestore
+      debugLog('Calling messageService.deleteConversation');
+      const result = await messageService.deleteConversation(conversationId, userId);
+      
+      if (!result.success) {
+        debugLog('Deletion failed, refreshing conversations', { result });
+        // If the deletion failed, refresh the conversations to restore the previous state
+        await refreshConversations();
+        debugLog('Conversations refreshed after failed deletion');
+        return result;
+      }
+      
+      debugLog('Deletion completed successfully');
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      debugLog('Error in deleteConversation', { error: errorMessage });
+      console.error('Error in deleteConversation:', error);
+      
+      // If there was an error, refresh the conversations to restore the previous state
+      debugLog('Refreshing conversations after error');
+      try {
+        await refreshConversations();
+        debugLog('Conversations refreshed after error');
+      } catch (refreshError) {
+        debugLog('Error refreshing conversations', { error: refreshError });
+        console.error('Error refreshing conversations:', refreshError);
+      }
+      
+      return { 
+        success: false, 
+        error: errorMessage
+      };
+    }
+  }, [markConversationAsRead, refreshConversations]);
+
+
   return (
     <MessageContext.Provider
       value={{
@@ -674,6 +775,7 @@ export const MessageProvider = ({
         deleteMessage,
         markMessageAsRead,
         markAllUnreadMessagesAsRead,
+        deleteConversation,
         sendHandoverRequest,
         updateHandoverResponse,
         confirmHandoverIdPhoto,
@@ -686,6 +788,8 @@ export const MessageProvider = ({
         getTotalUnreadMessageCount,
         getConversationUnreadCount,
         getUnreadConversationsSummary,
+        listenToParticipantProfile,
+        updateParticipantProfileInConversation,
       }}
     >
       {children}
