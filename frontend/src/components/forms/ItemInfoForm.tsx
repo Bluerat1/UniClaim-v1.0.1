@@ -63,9 +63,9 @@ export default function ItemInfoForm({
     };
 
     if (isDateTimeFocused) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
       return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener("mousedown", handleClickOutside);
       };
     }
   }, [isDateTimeFocused]);
@@ -257,7 +257,7 @@ export default function ItemInfoForm({
                       <button
                         type="button"
                         onClick={() => modalInputRef.current?.click()}
-                        className="flex items-center w-full justify-center gap-2 bg-brand text-white px-4 py-2 rounded hover:bg-teal-600 transition"
+                        className="flex items-center w-full justify-center gap-2 bg-brand text-white px-4 py-2 rounded hover:bg-yellow-600 transition"
                       >
                         <FiUpload className="size-4" />
                         Upload More
