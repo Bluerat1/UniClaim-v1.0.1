@@ -43,6 +43,7 @@ interface MessageService {
     getCurrentConversations(userId: string): Promise<any[]>;
     deleteConversation(conversationId: string, userId: string): Promise<{ success: boolean; error?: string }>;
     updateConversationParticipant(conversationId: string, participantId: string, data: any): Promise<void>;
+    cleanupOldMessages(conversationId: string): Promise<void>;
 }
 
 // Message service implementation
@@ -142,6 +143,83 @@ export const messageService: MessageService = {
         }
     },
 
+    // Cleanup old messages to maintain 50-message limit per conversation
+    async cleanupOldMessages(conversationId: string): Promise<void> {
+        try {
+            const messagesRef = collection(db, 'conversations', conversationId, 'messages');
+
+            // Get all messages ordered by timestamp (oldest first)
+            const messagesQuery = query(messagesRef, orderBy('timestamp', 'asc'));
+            const messagesSnapshot = await getDocs(messagesQuery);
+
+            const allMessages = messagesSnapshot.docs;
+            const totalMessages = allMessages.length;
+
+            // If we have more than 50 messages, delete the oldest ones
+            if (totalMessages > 50) {
+                const messagesToKeep: string[] = [];
+                const messagesToDelete: string[] = [];
+                const totalToDelete = totalMessages - 50;
+                let deletedCount = 0;
+
+                // First pass: Process all messages to identify which to keep and which to delete
+                for (const doc of allMessages) {
+                    const messageData = doc.data();
+                    
+                    // Always keep claim and handover request messages
+                    if (messageData.messageType === 'claim_request' || messageData.messageType === 'handover_request') {
+                        messagesToKeep.push(doc.id);
+                        continue;
+                    }
+                    
+                    // If we still need to delete more messages to reach the limit
+                    if (deletedCount < totalToDelete) {
+                        messagesToDelete.push(doc.id);
+                        deletedCount++;
+                    } else {
+                        // We've reached our target number of messages to delete
+                        messagesToKeep.push(doc.id);
+                    }
+                }
+
+                // Second pass: If we still need to delete more messages (because we hit protected messages)
+                if (messagesToDelete.length < totalToDelete) {
+                    // Find more messages to delete (excluding protected ones)
+                    for (const doc of allMessages) {
+                        if (messagesToDelete.length >= totalToDelete) break;
+                        
+                        const messageData = doc.data();
+                        if (messageData.messageType !== 'claim_request' && 
+                            messageData.messageType !== 'handover_request' &&
+                            !messagesToDelete.includes(doc.id) &&
+                            !messagesToKeep.includes(doc.id)) {
+                            messagesToDelete.push(doc.id);
+                        }
+                    }
+                }
+
+                if (messagesToDelete.length > 0) {
+                    console.log(`🧹 Cleaning up ${messagesToDelete.length} old messages in conversation ${conversationId}`);
+                    
+                    // Delete messages in batch
+                    const batch = writeBatch(db);
+                    messagesToDelete.forEach(messageId => {
+                        const messageRef = doc(messagesRef, messageId);
+                        batch.delete(messageRef);
+                    });
+
+                    await batch.commit();
+                    console.log(`✅ Cleaned up ${messagesToDelete.length} old messages`);
+                } else {
+                    console.log('⚠️ No messages to clean up after skipping protected messages');
+                }
+            }
+        } catch (error: any) {
+            console.error('Message cleanup failed:', error);
+            // Don't throw error - cleanup failure shouldn't break chat functionality
+        }
+    },
+
     // Send message
     async sendMessage(conversationId: string, senderId: string, senderName: string, text: string, senderProfilePicture?: string): Promise<void> {
         try {
@@ -161,6 +239,14 @@ export const messageService: MessageService = {
             }
 
             await addDoc(collection(db, `conversations/${conversationId}/messages`), messageData);
+            
+            // Cleanup old messages after sending new one
+            try {
+                await this.cleanupOldMessages(conversationId);
+            } catch (cleanupError) {
+                console.warn('Message cleanup failed, but message was sent successfully:', cleanupError);
+                // Don't throw error - cleanup failure shouldn't break message sending
+            }
 
             // Get conversation data to find other participants
             const conversationRef = doc(db, 'conversations', conversationId);

@@ -464,7 +464,28 @@ export const messageService = {
 
             console.log('🔄 [sendMessage] Updating conversation with:', updateData);
             await updateDoc(conversationRef, updateData);
-            console.log(`✅ [sendMessage] Conversation ${conversationId} updated successfully`);
+            console.log('✅ [sendMessage] Conversation updated with new message and unread counts');
+
+            // Update lastMessage in conversation
+            await updateDoc(conversationRef, {
+                lastMessage: {
+                    text,
+                    senderId,
+                    timestamp: serverTimestamp()
+                },
+                updatedAt: serverTimestamp()
+            });
+
+            console.log('✅ [sendMessage] Last message updated in conversation');
+
+            // Cleanup old messages to maintain 50-message limit
+            try {
+                console.log('🧹 [sendMessage] Cleaning up old messages...');
+                await messageService.cleanupOldMessages(conversationId);
+            } catch (cleanupError) {
+                console.warn('⚠️ [sendMessage] Failed to cleanup old messages, but message was sent successfully:', cleanupError);
+                // Don't throw error - cleanup failure shouldn't break message sending
+            }
 
             // Send notification to other participants
             try {
@@ -589,24 +610,63 @@ export const messageService = {
             );
 
             const messagesSnapshot = await getDocs(messagesQuery);
-            const totalMessages = messagesSnapshot.docs.length;
+            const allMessages = messagesSnapshot.docs;
+            const totalMessages = allMessages.length;
 
             // If we have more than 50 messages, delete the oldest ones
             if (totalMessages > 50) {
-                const messagesToDelete = totalMessages - 50;
-                console.log(`🔧 [cleanupOldMessages] Found ${totalMessages} messages, deleting ${messagesToDelete} oldest messages`);
+                const messagesToKeep: string[] = [];
+                const messagesToDelete: string[] = [];
+                const totalToDelete = totalMessages - 50;
 
-                // Get the oldest messages to delete
-                const oldestMessages = messagesSnapshot.docs.slice(0, messagesToDelete);
+                console.log(`🔧 [cleanupOldMessages] Found ${totalMessages} messages, need to delete ${totalToDelete} messages`);
 
-                // Delete oldest messages in batch
-                const deletePromises = oldestMessages.map(doc => {
-                    console.log(`🗑️ [cleanupOldMessages] Deleting message: ${doc.id}`);
-                    return deleteDoc(doc.ref);
-                });
+                // First pass: Identify which messages to keep (skip claim/handover requests)
+                for (const doc of allMessages) {
+                    const messageData = doc.data();
+                    // Skip claim and handover request messages
+                    if (messageData.messageType === 'claim_request' || messageData.messageType === 'handover_request') {
+                        messagesToKeep.push(doc.id);
+                    } else if (messagesToKeep.length + messagesToDelete.length < totalMessages - 50) {
+                        // If we still need to delete more messages to reach the limit
+                        messagesToDelete.push(doc.id);
+                    } else {
+                        // We've reached our target number of messages to keep
+                        messagesToKeep.push(doc.id);
+                    }
+                }
 
-                await Promise.all(deletePromises);
-                console.log(`✅ [cleanupOldMessages] Successfully deleted ${messagesToDelete} old messages`);
+                // If we still need to delete more messages (after skipping protected ones)
+                if (messagesToDelete.length < totalToDelete) {
+                    // Find more messages to delete (excluding protected ones)
+                    for (const doc of allMessages) {
+                        if (messagesToDelete.length >= totalToDelete) break;
+                        
+                        const messageData = doc.data();
+                        if (messageData.messageType !== 'claim_request' && 
+                            messageData.messageType !== 'handover_request' &&
+                            !messagesToDelete.includes(doc.id) &&
+                            !messagesToKeep.includes(doc.id)) {
+                            messagesToDelete.push(doc.id);
+                        }
+                    }
+                }
+
+                if (messagesToDelete.length > 0) {
+                    console.log(`🗑️ [cleanupOldMessages] Deleting ${messagesToDelete.length} old messages`);
+                    
+                    // Delete messages in batch
+                    const batch = writeBatch(db);
+                    messagesToDelete.forEach(messageId => {
+                        const messageRef = doc(messagesRef, messageId);
+                        batch.delete(messageRef);
+                    });
+
+                    await batch.commit();
+                    console.log(`✅ [cleanupOldMessages] Successfully deleted ${messagesToDelete.length} old messages`);
+                } else {
+                    console.log('⚠️ [cleanupOldMessages] No messages to clean up after skipping protected messages');
+                }
             } else {
                 console.log(`🔧 [cleanupOldMessages] No cleanup needed - only ${totalMessages} messages`);
             }
