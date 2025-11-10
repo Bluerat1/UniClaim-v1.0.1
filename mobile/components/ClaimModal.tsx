@@ -177,7 +177,7 @@ export default function ClaimModal({
               Evidence Photos <Text className="text-red-500">*</Text>
             </Text>
             <Text className="text-xs font-inter text-gray-400 mb-2">
-              Select photos that prove this item belongs to you (up to 5 photos)
+              Select photos that prove this item belongs to you (up to 3 photos)
             </Text>
 
             {evidencePhotoUris.map((uri, index) => (
@@ -194,14 +194,14 @@ export default function ClaimModal({
               </View>
             ))}
 
-            {evidencePhotoUris.length < 5 && (
+            {evidencePhotoUris.length < 3 && (
               <TouchableOpacity
                 onPress={() => setShowEvidencePhotoPicker(true)}
                 className="border-2 border-dashed border-gray-300 rounded-lg p-4 items-center bg-white"
               >
                 <Ionicons name="camera-outline" size={30} color="gray" />
                 <Text className="text-gray-600 text-sm font-inter mt-3 mb-1">
-                  Add Evidence Photo ({evidencePhotoUris.length}/5)
+                  Add Evidence Photo ({evidencePhotoUris.length}/3)
                 </Text>
                 <Text className="text-gray-400 text-xs font-inter">
                   Tap to select

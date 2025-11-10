@@ -100,7 +100,7 @@ export default function ViewTicketModal({
           <Text className="text-lg font-manrope-bold text-gray-800">
             Ticket Details
           </Text>
-          {onEdit && (
+          {onEdit && post.status !== 'resolved' && (
             <TouchableOpacity onPress={onEdit} className="p-2">
               <Ionicons name="pencil" size={20} color="#3B82F6" />
             </TouchableOpacity>
