@@ -197,7 +197,21 @@ export default function Report() {
 
       await postService.createPost(postData);
 
-      Alert.alert("Success", "Your report has been submitted successfully!", [
+      // Determine success message based on found action
+      let successTitle = "Success";
+      let successMessage = "Your report has been submitted successfully!";
+      
+      if (reportType === 'found' && foundAction) {
+        if (foundAction === 'turnover to Campus Security') {
+          successTitle = 'Successfully created post!';
+          successMessage = 'Your post has been successfully created! The name of the post will be changed to Campus Security, but your name will still remain visible.';
+        } else if (foundAction === 'turnover to OSA') {
+          successTitle = 'Successfully submitted!';
+          successMessage = 'Your post has been successfully submitted to the admin! Please visit the OSA office to turn in the found item. Once you hand it over, the admin will publish your post under the admin\'s name, but your name will still remain visible.';
+        }
+      }
+
+      Alert.alert(successTitle, successMessage, [
         {
           text: "OK",
           onPress: () => {
@@ -205,12 +219,12 @@ export default function Report() {
             setTitle("");
             setDescription("");
             setReportType(null);
-            setFoundAction(null);
-            setSelectedDate(null);
-            setSelectedLocation(null);
             setSelectedCategory(null);
-            setCoordinates({ latitude: 0, longitude: 0 });
+            setSelectedLocation(null);
+            setSelectedDate(null);
             setImages([]);
+            setFoundAction(null);
+            setCoordinates(null);
             setActiveTab("item");
           },
         },

@@ -8,7 +8,7 @@ interface Coordinates {
 
 interface CoordinatesContextType {
   coordinates: Coordinates | null;
-  setCoordinates: (coords: Coordinates) => void;
+  setCoordinates: (coords: Coordinates | null) => void;
   setCoordinatesFromMap: (coords: Coordinates) => void;
 }
 
@@ -26,11 +26,14 @@ interface CoordinatesProviderProps {
   children: ReactNode;
 }
 
-export const CoordinatesProvider: React.FC<CoordinatesProviderProps> = ({ children }) => {
-  const [coordinates, setCoordinatesState] = useState<Coordinates | null>(null);
+export const CoordinatesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [coordinates, setCoordinates] = useState<Coordinates | null>({
+    latitude: 0,
+    longitude: 0,
+  });
 
-  const setCoordinates = (coords: Coordinates) => {
-    setCoordinatesState(coords);
+  const setCoordinatesState = (coords: Coordinates) => {
+    setCoordinates(coords);
   };
 
   const setCoordinatesFromMap = (coords: Coordinates) => {

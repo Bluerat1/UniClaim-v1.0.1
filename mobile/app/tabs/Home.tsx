@@ -81,6 +81,51 @@ export default function Home() {
 
   const postsToDisplay = getPostsToDisplay();
 
+  // Fuzzy match function to search user details
+  const fuzzyMatch = (text: string, query: string, postUser?: any): boolean => {
+    if (!query.trim()) return false;
+    
+    const cleanedText = (text || '').toLowerCase();
+    const queryWords = query.toLowerCase().split(/\s+/).filter(Boolean);
+
+    // If no query words, return false (we don't want to match everything)
+    if (queryWords.length === 0) return false;
+
+    // Check if query matches user's name or email if user data exists
+    if (postUser) {
+      // Handle both direct user object and nested user data
+      const userData = postUser.user || postUser;
+      
+      if (userData) {
+        const firstName = (userData.firstName || '').toLowerCase();
+        const lastName = (userData.lastName || '').toLowerCase();
+        const userName = `${firstName} ${lastName}`.trim();
+        const userEmail = (userData.email || '').toLowerCase();
+        
+        // Check if any query word matches user's name or email
+        const userMatch = queryWords.some(word => 
+          (userName && userName.includes(word)) || 
+          (firstName && firstName.includes(word)) || 
+          (lastName && lastName.includes(word)) ||
+          (userEmail && userEmail.includes(word))
+        );
+        
+        if (userMatch) return true;
+      }
+    }
+
+    // Also check the text content (title/description)
+    if (!cleanedText) return false;
+
+    // For single word queries, use partial matching
+    if (queryWords.length === 1) {
+      return cleanedText.includes(queryWords[0]);
+    }
+
+    // For multiple words, require at least one word to match
+    return queryWords.some(word => cleanedText.includes(word));
+  };
+
   // Memoized filtered posts - only recalculate when dependencies change
   const filteredPosts = useMemo(() => {
     return postsToDisplay.filter((post) => {
@@ -102,7 +147,6 @@ export default function Home() {
       if (post.status === "completed") return false;
 
       // Filter out any posts that might have been missed by the service
-      // This is just an extra safety check
       if (post.movedToUnclaimed || post.isHidden === true) {
         return false;
       }
@@ -118,8 +162,13 @@ export default function Home() {
 
       const queryWords = debouncedQuery.toLowerCase().trim().split(/\s+/);
 
-      const titleMatch = queryWords.every((word) =>
-        post.title.toLowerCase().includes(word)
+      // Check if search query matches post title, description, or user details
+      const searchMatch = debouncedQuery && (
+        fuzzyMatch(post.title || '', debouncedQuery, post) ||
+        fuzzyMatch(post.description || '', debouncedQuery, post) ||
+        (post.user && fuzzyMatch('', debouncedQuery, post.user)) ||
+        (post.user && post.user.firstName && fuzzyMatch('', debouncedQuery, post.user)) ||
+        (post.user && post.user.email && fuzzyMatch('', debouncedQuery, { email: post.user.email }))
       );
 
       const descriptionMatch = debouncedDescriptionSearch
@@ -145,9 +194,12 @@ export default function Home() {
         (post.status !== "resolved" &&
           (activeButton === "all" || post.type === activeButton));
 
+      // If there's a search query, prioritize search match
+      const searchResults = debouncedQuery ? searchMatch : true;
+
       return (
         typeMatch &&
-        titleMatch &&
+        searchResults &&
         categoryMatch &&
         locationMatch &&
         descriptionMatch

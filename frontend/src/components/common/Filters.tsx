@@ -68,8 +68,8 @@ const Filters: React.FC<FiltersProps> = ({
                 className="border appearance-none px-3 py-2 w-full rounded-md text-sm"
               >
                 <option value="">All locations</option>
-                {USTP_LOCATIONS.map((loc: string) => (
-                  <option key={loc} value={loc}>
+                {USTP_LOCATIONS.map((loc: string, index: number) => (
+                  <option key={`${loc}-${index}`} value={loc}>
                     {loc}
                   </option>
                 ))}
