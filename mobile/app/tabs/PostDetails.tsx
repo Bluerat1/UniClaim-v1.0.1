@@ -27,6 +27,68 @@ export default function PostDetailsScreen() {
 
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [isSendingMessage, setIsSendingMessage] = React.useState(false);
+
+  // Handle send message button click
+  const handleSendMessage = async () => {
+    if (!userData) {
+      Alert.alert("Login Required", "Please log in to send messages");
+      return;
+    }
+
+    // Try to get postOwnerId from multiple sources
+    const postOwnerId = post.creatorId || post.postedById;
+    
+    if (!postOwnerId) {
+      Alert.alert(
+        "Messaging Unavailable",
+        "Unable to start conversation. Post owner information is missing."
+      );
+      return;
+    }
+
+    if (postOwnerId === userData.uid) {
+      Alert.alert(
+        "Cannot Send Message",
+        "You cannot send a message to yourself"
+      );
+      return;
+    }
+
+    try {
+      setIsSendingMessage(true);
+      // Create conversation
+      const conversationId = await createConversation(
+        post.id,
+        post.title,
+        postOwnerId,
+        userData.uid,
+        userData,
+        post.user // Pass the post owner's user data
+      );
+
+      // Navigate to chat
+      navigation.navigate("Chat", {
+        conversationId,
+        postTitle: post.title,
+        postId: post.id,
+        postOwnerId,
+        postOwnerUserData: post.user,
+        postType: post.type,
+        postStatus: post.status || "pending",
+        foundAction: post.foundAction,
+        postCreatorId: post.creatorId || post.postedById,
+      });
+    } catch (error: any) {
+      console.error("Error creating conversation:", error);
+      Alert.alert(
+        "Error",
+        error.message || "Failed to start conversation"
+      );
+    } finally {
+      setIsSendingMessage(false);
+    }
+  };
 
   // Check if current user is the creator of this post
   const isCurrentUserCreator =
@@ -149,37 +211,28 @@ export default function PostDetailsScreen() {
 
         {/* Send Message Button - Only show if user is NOT the creator */}
         {!isCurrentUserCreator && (
-          <TouchableOpacity
-            className="bg-brand h-[3.5rem] mb-5 w-full items-center justify-center rounded-md"
-            onPress={() => {
-              // Try to get postOwnerId from multiple sources
-              let postOwnerId = post.creatorId || post.postedById;
-
-              // Navigate to Chat screen with post details
-              if (postOwnerId) {
-                (navigation as any).navigate("Chat", {
-                  postTitle: post.title,
-                  postId: post.id,
-                  postOwnerId: postOwnerId,
-                  postOwnerUserData: post.user, // Pass the post owner's user data
-                  postType: post.type, // Pass post type (lost/found)
-                  postStatus: post.status || "pending", // Pass post status
-                  foundAction: post.foundAction, // Pass found action for found items
-                  postCreatorId: post.creatorId || post.postedById, // Pass the actual post creator ID
-                });
-              } else {
-                // Fallback: show alert that messaging is not available
-                Alert.alert(
-                  "Messaging Unavailable",
-                  "Unable to start conversation. Post owner information is missing. This post was created before messaging was enabled.",
-                  [{ text: "OK" }]
-                );
-              }
-            }}
+<TouchableOpacity
+            className="bg-brand h-[3.5rem] mb-5 w-full items-center justify-center rounded-md flex-row"
+            onPress={handleSendMessage}
+            disabled={!userData || isSendingMessage}
           >
-            <Text className="text-white font-manrope-medium text-base">
-              Send Message to {post.user.firstName}
-            </Text>
+            {isSendingMessage ? (
+              <>
+                <MaterialCommunityIcons
+                  name="loading"
+                  size={20}
+                  color="white"
+                  style={{ marginRight: 8 }}
+                />
+                <Text className="text-white font-manrope-medium text-base">
+                  Starting Chat...
+                </Text>
+              </>
+            ) : (
+              <Text className="text-white font-manrope-medium text-base">
+                Send Message to {post.user.firstName}
+              </Text>
+            )}
           </TouchableOpacity>
         )}
 

@@ -333,6 +333,6 @@ export interface Conversation {
   handoverRequested?: boolean;
   // New field for claim request limit
   hasClaimRequest?: boolean;
-  // Indicates if the post was created by an admin
+  claimRequested?: boolean; // For mobile app compatibility
   isAdminPost?: boolean;
 }

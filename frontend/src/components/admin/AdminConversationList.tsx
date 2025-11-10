@@ -69,8 +69,8 @@ const AdminConversationList: React.FC<AdminConversationListProps> = ({
           case "unread":
             return getTotalUnreadCount(conversation) > 0;
           case "claim":
-            // Check if conversation has a claim request
-            return conversation.hasClaimRequest === true;
+            // Check if conversation has a claim request (support both web and mobile field names)
+            return conversation.hasClaimRequest === true || conversation.claimRequested === true;
           default:
             return true;
         }

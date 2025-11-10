@@ -1303,6 +1303,29 @@ export const messageService = {
                 handoverDetails
             });
 
+            // Get all messages from the conversation to preserve the chat history
+            const messagesRef = collection(db, 'conversations', conversationId, 'messages');
+            const messagesQuery = query(messagesRef, orderBy('timestamp', 'asc'));
+            const messagesSnapshot = await getDocs(messagesQuery);
+            
+            const conversationMessages = messagesSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            
+            // Update post with conversation data before deleting
+            await updateDoc(postRef, {
+                conversationData: {
+                    conversationId: conversationId,
+                    messages: conversationMessages,
+                    participants: conversationData.participants || {},
+                    createdAt: conversationData.createdAt || serverTimestamp(),
+                    lastMessage: conversationData.lastMessage || null
+                }
+            });
+            
+            console.log('✅ Conversation history saved to post before deletion');
+
             // Send confirmation notification to other participants BEFORE deleting conversation
             try {
                 await notificationSender.sendResponseNotification(conversationId, {
@@ -1474,6 +1497,29 @@ export const messageService = {
                 updatedAt: serverTimestamp(),
                 claimDetails
             });
+
+            // Get all messages from the conversation to preserve the chat history
+            const messagesRef = collection(db, 'conversations', conversationId, 'messages');
+            const messagesQuery = query(messagesRef, orderBy('timestamp', 'asc'));
+            const messagesSnapshot = await getDocs(messagesQuery);
+            
+            const conversationMessages = messagesSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            
+            // Update post with conversation data before deleting
+            await updateDoc(postRef, {
+                conversationData: {
+                    conversationId: conversationId,
+                    messages: conversationMessages,
+                    participants: conversationData.participants || {},
+                    createdAt: conversationData.createdAt || serverTimestamp(),
+                    lastMessage: conversationData.lastMessage || null
+                }
+            });
+            
+            console.log('✅ Conversation history saved to post before deletion');
 
             // Send confirmation notification to other participants BEFORE deleting conversation
             try {

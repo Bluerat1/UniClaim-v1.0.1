@@ -793,11 +793,22 @@ export default function ReportPage() {
           <div className="flex flex-col items-center justify-center text-center bg-white rounded p-5 w-90 max-w-lg">
             <img src={successPic} alt="success_img" className="size-40" />
             <h1 className="text-medium text-xl text-[#39B54A] mb-5">
-              Successfully added report!
+              {selectedReport === 'lost' 
+                ? 'Successfully reported lost item!'
+                : selectedFoundAction === 'keep'
+                  ? 'Successfully reported found item!'
+                  : `Successfully ${selectedFoundAction === 'turnover to OSA' ? 'submitted to OSA' : 'turned over to Campus Security'}!`
+              }
             </h1>
             <p className="text-[12px] mb-5">
-              Your report has been added successfully. You can manage your post
-              in the my tickets dashboard
+              {selectedReport === 'lost'
+                ? 'Your lost item report has been submitted. We\'ll notify you if someone finds it!'
+                : selectedFoundAction === 'keep'
+                  ? 'Your found item has been reported. The owner can now find it in the lost items list.'
+                  : selectedFoundAction === 'turnover to OSA'
+                    ? 'Your post has been successfully submitted to the admin! Please visit the OSA office to turn in the found item. Once you hand it over, the admin will publish your post under the admin\'s name, but your name will still remain visible.'
+                    : 'Your post has been successfully created! The name of the post will be changed to Campus Security, but your name will still remain visible.'
+              }
             </p>
             <div className="h-1 my-5 rounded w-60 bg-[#39B54A]"></div>
             <button
