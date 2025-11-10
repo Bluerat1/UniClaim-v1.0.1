@@ -34,6 +34,8 @@ export default function HandoverModal({
   const [idPhotoUri, setIdPhotoUri] = useState("");
   const [itemPhotoUris, setItemPhotoUris] = useState<string[]>([]);
   const [isHandoverSubmitting, setIsHandoverSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [currentUpload, setCurrentUpload] = useState('');
   const [showIdPhotoPicker, setShowIdPhotoPicker] = useState(false);
   const [showItemPhotoPicker, setShowItemPhotoPicker] = useState(false);
 
@@ -69,23 +71,37 @@ export default function HandoverModal({
 
     try {
       setIsHandoverSubmitting(true);
+      setUploadProgress(0);
 
+      // Upload ID photo first
+      setCurrentUpload('ID photo');
       const idPhotoUrl = await cloudinaryService.uploadImage(
         idPhotoUri,
         "id_photos"
       );
+      setUploadProgress(20); // 20% complete after ID photo
 
-      const itemPhotos = await Promise.all(
-        itemPhotoUris.map(async (uri) => {
-          const url = await cloudinaryService.uploadImage(uri, "item_photos");
-          return {
-            url,
-            uploadedAt: new Date(),
-            description: "",
-          };
-        })
+      // Upload item photos in parallel
+      setCurrentUpload('item photos');
+      const itemPhotoUrls = await cloudinaryService.uploadImages(
+        itemPhotoUris,
+        "item_photos",
+        ({ completed, total }) => {
+          // Calculate progress: 20-80% for item photos (60% of total progress)
+          const progress = 20 + (completed / total) * 60;
+          setUploadProgress(Math.round(progress));
+        }
       );
 
+      // Map URLs to item photo objects
+      const itemPhotos = itemPhotoUrls.map(url => ({
+        url,
+        uploadedAt: new Date(),
+        description: ""
+      }));
+
+      // Finalize submission
+      setUploadProgress(100);
       onSubmit({
         handoverReason: handoverReason.trim(),
         idPhotoUrl,
@@ -93,9 +109,14 @@ export default function HandoverModal({
       });
     } catch (error) {
       console.error("Error uploading photos:", error);
-      Alert.alert("Error", "Failed to upload photos. Please try again.");
+      Alert.alert(
+        "Upload Error",
+        error instanceof Error ? error.message : "Failed to upload photos. Please try again."
+      );
     } finally {
       setIsHandoverSubmitting(false);
+      setUploadProgress(0);
+      setCurrentUpload('');
     }
   };
 
@@ -119,6 +140,21 @@ export default function HandoverModal({
           <Text className="text-lg font-manrope-bold mb-2 text-center">
             Handover Request
           </Text>
+          
+          {/* Upload Progress Indicator */}
+          {(isHandoverSubmitting && uploadProgress > 0) && (
+            <View className="mb-4">
+              <Text className="text-sm font-manrope-medium mb-1 text-center">
+                Uploading {currentUpload}... {uploadProgress}%
+              </Text>
+              <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                <View 
+                  className="h-full bg-green-500" 
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </View>
+            </View>
+          )}
 
           <Text className="text-sm text-blue-500 bg-blue-50 border border-blue-300 p-3 rounded-md mb-5 text-center">
             Requesting to handover: {postTitle}

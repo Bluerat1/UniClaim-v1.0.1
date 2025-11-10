@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import type { Post } from "@/types/Post";
 
 // components
@@ -19,12 +19,38 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import FooterComp from "@/layout/FooterComp";
 
-function fuzzyMatch(text: string, query: string): boolean {
+// Types
+type UserInfo = {
+  displayName?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+};
+
+function fuzzyMatch(text: string, query: string, postUser?: UserInfo): boolean {
+  if (!text) return false;
+  
   const cleanedText = text.toLowerCase();
   const queryWords = query.toLowerCase().split(/\W+/).filter(Boolean);
 
   // If no query words, return true
   if (queryWords.length === 0) return true;
+
+  // Check if query matches user's name or email
+  if (postUser) {
+    const userName = `${postUser.firstName || ''} ${postUser.lastName || ''}`.toLowerCase().trim();
+    const userEmail = postUser.email?.toLowerCase() || '';
+    
+    // Check if any query word matches user's name or email
+    const userMatch = queryWords.some(word => 
+      userName.includes(word) || 
+      (postUser.firstName?.toLowerCase().includes(word) || 
+       postUser.lastName?.toLowerCase().includes(word)) ||
+      userEmail.includes(word)
+    );
+    
+    if (userMatch) return true;
+  }
 
   // For single word queries, use partial matching
   if (queryWords.length === 1) {
@@ -193,43 +219,57 @@ export default function HomePage() {
     }
   }, [posts, selectedPost]);
 
-  const handleSearch = async (query: string, filters: any) => {
-    setLastDescriptionKeyword(filters.description || "");
-
-    // Always reset pagination when searching (now only manual searches)
-    setCurrentPage(1);
+  const handleSearch = useCallback(async (query: string, filters: any) => {
+    setLastDescriptionKeyword(filters?.description || "");
+    setSearchQuery(query);
 
     // Use appropriate posts based on current viewType
     const postsToSearch = viewType === "completed" ? resolvedPosts : posts;
-
-    const filtered = (postsToSearch ?? []).filter((item) => {
-      const matchesQuery = query.trim() ? fuzzyMatch(item.title, query) : true;
-
-      const matchesCategory =
-        filters.selectedCategory &&
-        filters.selectedCategory.toLowerCase() != "all"
-          ? item.category.toLowerCase() ===
-            filters.selectedCategory.toLowerCase()
-          : true;
-
-      const matchesDescription = filters.description
-        ? fuzzyMatch(item.description, filters.description)
-        : true;
-
-      const matchesLocation = filters.location
-        ? item.location.toLowerCase() === filters.location.toLowerCase()
-        : true;
-
+    const filteredResults = (postsToSearch ?? []).filter((item) => {
       return (
-        matchesQuery && matchesCategory && matchesDescription && matchesLocation
+        fuzzyMatch(item.title, query, item.user) ||
+        fuzzyMatch(item.description, query, item.user) ||
+        (item.user?.firstName && fuzzyMatch(item.user.firstName, query)) ||
+        (item.user?.lastName && fuzzyMatch(item.user.lastName, query)) ||
+        (item.user?.email && fuzzyMatch(item.user.email, query))
       );
     });
-    setRawResults(filtered);
-  };
+    setRawResults(filteredResults);
+  }, [rawResults, viewType, resolvedPosts, posts, searchQuery]);
 
-  // const postsToDisplay = (rawResults ?? posts ?? []).filter(
-  //   (post) => post.type === viewType
-  // );
+  const filteredPosts = useMemo(() => {
+    // If there are raw search results, filter them by view type
+    if (rawResults) {
+      return rawResults.filter((post) => {
+        if (viewType === "all") return true;
+        if (viewType === "completed") return post.status === "completed";
+        return post.type === viewType && post.status !== "completed";
+      });
+    }
+
+    // Otherwise filter the current posts by view type and search query
+    const postsToShow = viewType === "completed" ? resolvedPosts : posts;
+    
+    if (!searchQuery) return postsToShow;
+
+    return postsToShow.filter((post) => {
+      // Check if the search query matches the post's title, description, or user info
+      const matchesSearch =
+        fuzzyMatch(post.title, searchQuery, post.user) ||
+        fuzzyMatch(post.description, searchQuery, post.user) ||
+        (post.user?.firstName && fuzzyMatch(post.user.firstName, searchQuery)) ||
+        (post.user?.lastName && fuzzyMatch(post.user.lastName, searchQuery)) ||
+        (post.user?.email && fuzzyMatch(post.user.email, searchQuery));
+
+      // If viewType is 'all', we need to filter by type as well
+      if (viewType === "all") {
+        return matchesSearch && post.status !== "completed";
+      }
+
+      return matchesSearch;
+    });
+    setRawResults(filteredPosts);
+  }, [rawResults, viewType, resolvedPosts, posts, searchQuery, handleSearch]);
 
   // Determine which posts to display based on viewType and category filter
   const getPostsToDisplay = () => {

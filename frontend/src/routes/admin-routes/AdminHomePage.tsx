@@ -18,11 +18,37 @@ import { useAuth } from "@/context/AuthContext";
 import { notificationSender } from "../../services/firebase/notificationSender";
 
 export default function AdminHomePage() {
-  function fuzzyMatch(text: string, query: string): boolean {
+  function fuzzyMatch(text: string, query: string, postUser?: { firstName?: string; lastName?: string; email?: string }): boolean {
+    if (!text) return false;
+    
     const cleanedText = text.toLowerCase();
     const queryWords = query.toLowerCase().split(/\W+/).filter(Boolean);
 
-    // Make sure every keyword appears in the text
+    // If no query words, return true
+    if (queryWords.length === 0) return true;
+
+    // Check if query matches user's name or email
+    if (postUser) {
+      const userName = `${postUser.firstName || ''} ${postUser.lastName || ''}`.toLowerCase().trim();
+      const userEmail = postUser.email?.toLowerCase() || '';
+      
+      // Check if any query word matches user's name or email
+      const userMatch = queryWords.some(word => 
+        userName.includes(word) || 
+        (postUser.firstName?.toLowerCase().includes(word) || 
+         postUser.lastName?.toLowerCase().includes(word)) ||
+        userEmail.includes(word)
+      );
+      
+      if (userMatch) return true;
+    }
+
+    // For single word queries, use partial matching
+    if (queryWords.length === 1) {
+      return cleanedText.includes(queryWords[0]);
+    }
+
+    // For multiple words, require all words to match
     return queryWords.every((word) => cleanedText.includes(word));
   }
 
@@ -996,59 +1022,59 @@ export default function AdminHomePage() {
 
   // Apply view type filtering first
   const viewFilteredPosts = useMemo(() => {
+    // Handle deleted posts view
     if (viewType === "deleted") {
-      return deletedPosts;
+      return [...deletedPosts];
     }
 
-    const sourcePosts =
-      rawResults ?? (viewType === "completed" ? resolvedPosts : posts) ?? [];
+    // Otherwise filter the current posts by view type and search query
+    let postsToShow = [...posts];
+    
+    switch (viewType) {
+      case "completed":
+        postsToShow = [...resolvedPosts];
+        break;
+      case "flagged":
+        postsToShow = posts.filter(post => post.isFlagged === true);
+        break;
+      case "turnover":
+        // Show posts with turnoverStatus 'declared' or where turnoverDetails exists
+        postsToShow = posts.filter(post => 
+          post.turnoverDetails && 
+          (post.turnoverDetails.turnoverStatus === 'declared' || 
+           post.turnoverDetails.turnoverStatus === 'transferred')
+        );
+        break;
+      case "unclaimed":
+        postsToShow = posts.filter(post => post.status === "unclaimed");
+        break;
+      case "all":
+        // No additional filtering needed for 'all' view
+        break;
+      default:
+        // Handle other view types (lost, found)
+        postsToShow = posts.filter(post => post.type === viewType && post.status !== "completed");
+    }
+    
+    if (!searchQuery) return postsToShow;
 
-    return sourcePosts.filter((post) => {
-      let shouldShow = false;
+    return postsToShow.filter((post) => {
+      // Check if the search query matches the post's title, description, or user info
+      const matchesSearch =
+        fuzzyMatch(post.title, searchQuery, post.user) ||
+        fuzzyMatch(post.description, searchQuery, post.user) ||
+        (post.user?.firstName && fuzzyMatch(post.user.firstName, searchQuery)) ||
+        (post.user?.lastName && fuzzyMatch(post.user.lastName, searchQuery)) ||
+        (post.user?.email && fuzzyMatch(post.user.email, searchQuery));
 
+      // If viewType is 'all', we need to filter by type as well
       if (viewType === "all") {
-        // Show all posts EXCEPT unclaimed ones and posts awaiting OSA confirmation in "All Item Reports"
-        shouldShow =
-          post.status !== "unclaimed" &&
-          !post.movedToUnclaimed &&
-          !(
-            post.type === "found" &&
-            post.turnoverDetails &&
-            post.turnoverDetails.turnoverAction === "turnover to OSA" &&
-            post.turnoverDetails.turnoverStatus === "declared"
-          );
-      } else if (viewType === "unclaimed") {
-        // Show posts that are either status 'unclaimed' OR have movedToUnclaimed flag
-        shouldShow =
-          post.status === "unclaimed" || Boolean(post.movedToUnclaimed);
-      } else if (viewType === "completed") {
-        shouldShow = true; // resolvedPosts already filtered
-      } else if (viewType === "turnover") {
-        // Show only Found items marked for turnover to OSA that have been confirmed as received
-        shouldShow =
-          post.type === "found" &&
-          post.turnoverDetails?.turnoverAction === "turnover to OSA" &&
-          post.turnoverDetails?.turnoverStatus === "confirmed";
-      } else if (viewType === "flagged") {
-        // Show only flagged posts
-        shouldShow = Boolean(post.isFlagged);
-      } else {
-        // Exclude posts with 'awaiting confirmation' status (turnoverStatus === 'declared') for found items
-        shouldShow =
-          post.type.toLowerCase() === viewType &&
-          post.status !== "unclaimed" &&
-          !post.movedToUnclaimed &&
-          !(
-            post.type === "found" &&
-            post.turnoverDetails &&
-            post.turnoverDetails.turnoverAction === "turnover to OSA" &&
-            post.turnoverDetails.turnoverStatus === "declared"
-          );
+        return matchesSearch && post.status !== "completed" && !post.isDeleted;
       }
 
-      return shouldShow;
+      return matchesSearch;
     });
-  }, [viewType, deletedPosts, rawResults, resolvedPosts, posts]);
+  }, [rawResults, viewType, posts, resolvedPosts, deletedPosts, searchQuery]);
 
   // Apply instant category filtering
   const postsToDisplay = useMemo(() => {

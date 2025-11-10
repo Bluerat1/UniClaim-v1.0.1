@@ -51,6 +51,9 @@ export default function ClaimModal({
     setEvidencePhotoUris((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [currentUpload, setCurrentUpload] = useState('');
+
   const handleSubmit = async () => {
     if (!claimReason.trim()) {
       Alert.alert("Error", "Please provide a reason for your claim.");
@@ -70,22 +73,37 @@ export default function ClaimModal({
 
     try {
       setIsClaimSubmitting(true);
+      setUploadProgress(0);
 
+      // Upload ID photo first
+      setCurrentUpload('ID photo');
       const idPhotoUrl = await cloudinaryService.uploadImage(
         idPhotoUri,
         "id_photos"
       );
+      setUploadProgress(20); // 20% complete after ID photo
 
-      const evidencePhotos = await Promise.all(
-        evidencePhotoUris.map(async (uri) => {
-          const url = await cloudinaryService.uploadImage(
-            uri,
-            "evidence_photos"
-          );
-          return { url, uploadedAt: new Date(), description: "" };
-        })
+      // Upload evidence photos in parallel
+      setCurrentUpload('evidence photos');
+      const evidencePhotoUrls = await cloudinaryService.uploadImages(
+        evidencePhotoUris,
+        "evidence_photos",
+        ({ completed, total }) => {
+          // Calculate progress: 20-80% for evidence photos (60% of total progress)
+          const progress = 20 + (completed / total) * 60;
+          setUploadProgress(Math.round(progress));
+        }
       );
 
+      // Map URLs to evidence photo objects
+      const evidencePhotos = evidencePhotoUrls.map(url => ({
+        url,
+        uploadedAt: new Date(),
+        description: ""
+      }));
+
+      // Finalize submission
+      setUploadProgress(100);
       onSubmit({
         claimReason: claimReason.trim(),
         idPhotoUrl,
@@ -93,9 +111,14 @@ export default function ClaimModal({
       });
     } catch (error) {
       console.error("Error uploading photos:", error);
-      Alert.alert("Error", "Failed to upload photos. Please try again.");
+      Alert.alert(
+        "Upload Error",
+        error instanceof Error ? error.message : "Failed to upload photos. Please try again."
+      );
     } finally {
       setIsClaimSubmitting(false);
+      setUploadProgress(0);
+      setCurrentUpload('');
     }
   };
 
@@ -119,6 +142,21 @@ export default function ClaimModal({
           <Text className="text-lg font-manrope-bold mb-2 text-center">
             Claim Request
           </Text>
+          
+          {/* Upload Progress Indicator */}
+          {(isClaimSubmitting && uploadProgress > 0) && (
+            <View className="mb-4">
+              <Text className="text-sm font-manrope-medium mb-1 text-center">
+                Uploading {currentUpload}... {uploadProgress}%
+              </Text>
+              <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                <View 
+                  className="h-full bg-blue-500" 
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </View>
+            </View>
+          )}
           <Text className="text-sm font-inter text-blue-600 border border-blue-300 bg-blue-50 p-3 rounded-md mb-5 text-center">
             Requesting to claim: {postTitle}
           </Text>

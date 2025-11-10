@@ -146,17 +146,12 @@ const ConversationItem = React.memo(
     // Effect to load and subscribe to the other participant's profile picture
     useEffect(() => {
       if (!otherParticipantId) {
-        debugLog('PROFILE-PIC', 'No other participant ID found for conversation');
         currentParticipantIdRef.current = null;
         setOtherParticipantPic(null);
         profileUnsubscribeRef.current?.();
         profileUnsubscribeRef.current = null;
         return;
       }
-
-      debugLog('PROFILE-PIC', 'Subscribing to participant profile', {
-        otherParticipantId,
-      });
 
       currentParticipantIdRef.current = otherParticipantId;
       setOtherParticipantPic(null);
@@ -166,18 +161,10 @@ const ConversationItem = React.memo(
         otherParticipantId,
         (participant) => {
           if (currentParticipantIdRef.current !== otherParticipantId) {
-            debugLog('PROFILE-PIC', 'Ignored stale profile update', {
-              expectedId: currentParticipantIdRef.current,
-              receivedId: otherParticipantId,
-            });
             return;
           }
 
           const pictureUrl = getProfilePictureUrl(participant);
-          debugLog('PROFILE-PIC', 'Received profile update', {
-            otherParticipantId,
-            hasPicture: !!pictureUrl,
-          });
           setOtherParticipantPic(pictureUrl || null);
         }
       );

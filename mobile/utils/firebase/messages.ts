@@ -30,7 +30,8 @@ interface MessageService {
     getUserConversations(userId: string, callback: (conversations: any[]) => void): () => void;
     markConversationAsRead(conversationId: string, userId: string): Promise<void>;
     markMessageAsRead(conversationId: string, messageId: string, userId: string): Promise<void>;
-    markAllUnreadMessagesAsRead(conversationId: string, userId: string): Promise<void>;
+    hasUnreadMessages(conversationId: string, userId: string): Promise<boolean>;
+  markAllUnreadMessagesAsRead(conversationId: string, userId: string): Promise<boolean>;
     sendHandoverRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, handoverReason?: string, idPhotoUrl?: string, itemPhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void>;
     sendClaimRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, claimReason?: string, idPhotoUrl?: string, evidencePhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void>;
     updateHandoverResponse(conversationId: string, messageId: string, status: 'accepted' | 'rejected', userId: string, idPhotoUrl?: string): Promise<void>;
@@ -428,17 +429,66 @@ export const messageService: MessageService = {
         }
     },
 
-    // Mark all unread messages as read
-    async markAllUnreadMessagesAsRead(conversationId: string, userId: string): Promise<void> {
+    // Check if conversation has unread messages
+    async hasUnreadMessages(conversationId: string, userId: string): Promise<boolean> {
         try {
+            const q = query(
+                collection(db, `conversations/${conversationId}/messages`),
+                where('readBy', 'not-in', [[userId]]),
+                limit(1)
+            );
+            const snapshot = await getDocs(q);
+            
+            // Double-check if the found messages are actually unread
+            if (!snapshot.empty) {
+                for (const doc of snapshot.docs) {
+                    const messageData = doc.data();
+                    if (!messageData.readBy?.includes(userId)) {
+                        return true; // Found at least one truly unread message
+                    }
+                }
+            }
+            return false;
+        } catch (error) {
+            console.error('Error checking for unread messages:', error);
+            return false;
+        }
+    },
+
+    // Mark all unread messages as read
+    async markAllUnreadMessagesAsRead(conversationId: string, userId: string): Promise<boolean> {
+        const startTime = Date.now();
+        const debugId = Math.random().toString(36).substring(2, 8);
+        
+        try {
+            console.log(`[MARK-READ:${debugId}] 🔍 Checking for unread messages in conversation ${conversationId}`);
+            
+            // First check if there are any unread messages
+            const hasUnread = await this.hasUnreadMessages(conversationId, userId);
+            
+            if (!hasUnread) {
+                console.log(`[MARK-READ:${debugId}] ℹ️ No unread messages to mark as read`);
+                return false; // No unread messages to update
+            }
+
+            console.log(`[MARK-READ:${debugId}] 📝 Found unread messages, preparing batch update`);
+            
             // Get all unread messages for this conversation and user
             const q = query(
                 collection(db, `conversations/${conversationId}/messages`),
-                where('readBy', 'array-contains', userId)
+                where('readBy', 'not-in', [[userId]])
             );
 
             const snapshot = await getDocs(q);
+            console.log(`[MARK-READ:${debugId}] 🔢 Found ${snapshot.size} unread messages`);
+            
+            if (snapshot.empty) {
+                console.log(`[MARK-READ:${debugId}] ⚠️ No unread messages found in query, but hasUnread was true`);
+                return false;
+            }
+
             const batch = writeBatch(db);
+            let updateCount = 0;
 
             // Mark all messages as read by this user
             snapshot.docs.forEach((doc) => {
@@ -447,11 +497,23 @@ export const messageService: MessageService = {
                     batch.update(doc.ref, {
                         readBy: arrayUnion(userId)
                     });
+                    updateCount++;
                 }
             });
 
-            await batch.commit();
+            if (updateCount > 0) {
+                console.log(`[MARK-READ:${debugId}] 📝 Updating ${updateCount} messages as read`);
+                await batch.commit();
+                const elapsed = Date.now() - startTime;
+                console.log(`[MARK-READ:${debugId}] ✅ Successfully marked ${updateCount} messages as read (${elapsed}ms)`);
+                return true;
+            } else {
+                console.log(`[MARK-READ:${debugId}] ℹ️ No messages needed updating (all messages were already read)`);
+                return false;
+            }
         } catch (error: any) {
+            const elapsed = Date.now() - startTime;
+            console.error(`[MARK-READ:${debugId}] ❌ Error after ${elapsed}ms:`, error);
             throw new Error(error.message || 'Failed to mark all unread messages as read');
         }
     },

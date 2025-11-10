@@ -49,10 +49,11 @@ interface MessageContextType {
     messageId: string,
     userId: string
   ) => Promise<void>;
+  hasUnreadMessages: (conversationId: string, userId: string) => Promise<boolean>;
   markAllUnreadMessagesAsRead: (
     conversationId: string,
     userId: string
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   sendHandoverRequest: (
     conversationId: string,
     senderId: string,
@@ -223,8 +224,15 @@ export const MessageProvider = ({
     []
   );
 
-  const markAllUnreadMessagesAsRead = useCallback(
+  const hasUnreadMessages = useCallback(
     (conversationId: string, userId: string) => {
+      return messageService.hasUnreadMessages(conversationId, userId);
+    },
+    []
+  );
+
+  const markAllUnreadMessagesAsRead = useCallback(
+    async (conversationId: string, userId: string) => {
       return messageService.markAllUnreadMessagesAsRead(conversationId, userId);
     },
     []
@@ -774,6 +782,7 @@ export const MessageProvider = ({
         getConversation,
         deleteMessage,
         markMessageAsRead,
+        hasUnreadMessages,
         markAllUnreadMessagesAsRead,
         deleteConversation,
         sendHandoverRequest,

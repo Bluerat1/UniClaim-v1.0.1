@@ -156,22 +156,61 @@ export const cloudinaryService = {
         }
     },
 
-    // Upload multiple images from React Native
-    async uploadImages(imageUris: string[], folder: string = 'posts'): Promise<string[]> {
+    // Upload multiple images in parallel with progress tracking
+    async uploadImages(
+        imageUris: string[], 
+        folder: string = 'posts',
+        onProgress?: (progress: { total: number, completed: number, current: number }) => void
+    ): Promise<string[]> {
         try {
-            const uploadPromises = imageUris.map(async (uri) => {
-                // Skip if already a URL string
-                if (uri.startsWith('http')) {
-                    return uri;
+            const total = imageUris.length;
+            let completed = 0;
+            
+            // Process uploads in chunks to avoid overwhelming the network
+            const CHUNK_SIZE = 3; // Upload 3 images at a time
+            const results: string[] = [];
+            
+            for (let i = 0; i < imageUris.length; i += CHUNK_SIZE) {
+                const chunk = imageUris.slice(i, i + CHUNK_SIZE);
+                const chunkPromises = chunk.map(async (uri, index) => {
+                    try {
+                        // Skip if already a URL string
+                        if (uri.startsWith('http')) {
+                            return { success: true, url: uri };
+                        }
+                        
+                        const url = await this.uploadImage(uri, folder);
+                        return { success: true, url };
+                    } catch (error) {
+                        console.error(`Failed to upload image ${i + index + 1}:`, error);
+                        return { 
+                            success: false, 
+                            error: error instanceof Error ? error.message : 'Unknown error',
+                            index: i + index
+                        };
+                    } finally {
+                        completed++;
+                        onProgress?.({ total, completed, current: i + index + 1 });
+                    }
+                });
+
+                // Wait for current chunk to complete before starting next one
+                const chunkResults = await Promise.all(chunkPromises);
+                
+                // Process results
+                for (const result of chunkResults) {
+                    if (result.success && result.url) {
+                        results.push(result.url);
+                    } else {
+                        console.warn(`Skipping failed upload: ${result.error}`);
+                        // Optionally: You might want to retry failed uploads here
+                    }
                 }
-
-                return await this.uploadImage(uri, folder);
-            });
-
-            const results = await Promise.all(uploadPromises);
+            }
+            
             return results;
         } catch (error: any) {
-            console.error('Error uploading images to Cloudinary:', error);
+            console.error('Error in uploadImages:', error);
             throw new Error(error.message || 'Failed to upload images');
         }
     },
