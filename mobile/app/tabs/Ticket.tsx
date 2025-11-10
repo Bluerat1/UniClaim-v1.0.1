@@ -1,6 +1,6 @@
 import PageLayout from "../../layout/PageLayout";
 import React, { useState, useCallback, useMemo, useEffect } from "react";
-import { useFocusEffect , useNavigation } from "@react-navigation/native";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   Text,
   TextInput,
@@ -12,7 +12,6 @@ import {
   Image,
 } from "react-native";
 
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useAuth } from "../../context/AuthContext";
 import { useUserPostsWithSet } from "../../hooks/usePosts";
 import type { Post } from "../../types/type";
@@ -21,10 +20,19 @@ import { postService , messageService } from "../../utils/firebase";
 
 import { db } from "../../utils/firebase/config";
 import { collection, query, getDocs, deleteDoc, doc } from "firebase/firestore";
+
+// Create a context for ticket view actions
+const TicketViewContext = React.createContext<{
+  onView: ((post: Post) => void) | null;
+}>({ onView: null });
+
+// Custom hook to use the ticket view context
+export const useTicketViewContext = () => React.useContext(TicketViewContext);
 import { handoverClaimService } from "../../utils/handoverClaimService";
 import { notificationSender } from "../../utils/firebase/notificationSender";
 import { deleteMessageImages, extractMessageImages } from "../../utils/cloudinary";
 import EditTicketModal from "../../components/EditTicketModal";
+import ViewTicketModal from "../../components/ViewTicketModal";
 import { Ionicons } from "@expo/vector-icons";
 const useDebounce = (value: string, delay: number) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -62,9 +70,11 @@ export default function Ticket() {
   // Debounced search for better performance
   const debouncedSearchText = useDebounce(searchText, 300);
 
-  // Edit modal state
+  // Modal states
+  const [viewingPost, setViewingPost] = useState<Post | null>(null);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [isViewModalVisible, setIsViewModalVisible] = useState(false);
   const [isUpdatingPost, setIsUpdatingPost] = useState(false);
 
   // Pause Firebase listeners when tab is not focused
@@ -614,10 +624,16 @@ export default function Ticket() {
     [autoRejectPendingRequestsWithNotifications, deleteAllConversations, deleteConversationImages, findConversationsForPost, findPendingRequests]
   );
 
-  // Edit ticket handlers
+  // Ticket action handlers
+  const handleViewPost = useCallback((post: Post) => {
+    setViewingPost(post);
+    setIsViewModalVisible(true);
+  }, []);
+
   const handleEditPost = useCallback((post: Post) => {
     setEditingPost(post);
     setIsEditModalVisible(true);
+    setIsViewModalVisible(false); // Close view modal if open
   }, []);
 
   const handleUpdatePost = useCallback(async (updatedPost: Post) => {
@@ -649,6 +665,11 @@ export default function Ticket() {
     setEditingPost(null);
   }, []);
 
+  const handleCloseViewModal = useCallback(() => {
+    setIsViewModalVisible(false);
+    setViewingPost(null);
+  }, []);
+
   // Show loading state while checking auth
   if (authLoading) {
     return (
@@ -674,8 +695,14 @@ export default function Ticket() {
     );
   }
 
+  // Create the context value
+  const ticketViewContextValue = {
+    onView: handleViewPost,
+  };
+
   return (
-    <PageLayout>
+    <TicketViewContext.Provider value={ticketViewContextValue}>
+      <PageLayout>
       <View className="flex-1 bg-white">
         {/* Search Section */}
         <View className="px-4 mt-1 space-y-3">
@@ -801,6 +828,16 @@ export default function Ticket() {
         </ScrollView>
       </View>
 
+      {/* View Ticket Modal */}
+      {viewingPost && (
+        <ViewTicketModal
+          post={viewingPost}
+          isVisible={isViewModalVisible}
+          onClose={handleCloseViewModal}
+          onEdit={() => handleEditPost(viewingPost)}
+        />
+      )}
+
       {/* Edit Ticket Modal */}
       {editingPost && (
         <EditTicketModal
@@ -811,7 +848,8 @@ export default function Ticket() {
           isSaving={isUpdatingPost}
         />
       )}
-    </PageLayout>
+      </PageLayout>
+    </TicketViewContext.Provider>
   );
 }
 
@@ -833,8 +871,7 @@ const TicketCard = ({
   onDeletePermanently,
   isDeleting,
 }: TicketCardProps) => {
-  const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  // Navigation is no longer needed as we're using the modal for viewing posts
   const getStatusColor = (status: string) => {
     switch (status) {
       case "resolved":
@@ -896,21 +933,16 @@ const TicketCard = ({
 
   const imageSource = getImageSource(post.images);
 
+  // Get the parent component's onView function from the context
+  const { onView } = useTicketViewContext();
+
   return (
-    <TouchableOpacity
-      className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm mb-4"
-      activeOpacity={0.8}
-      onPress={() =>
-        navigation.navigate("PostDetails", {
-          post: {
-            ...post,
-            images: post.images.map((img) =>
-              typeof img === "number" ? img : img
-            ),
-          },
-        })
-      }
-    >
+    <View className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm mb-4">
+      {/* Clickable content area */}
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => onView?.(post)}
+      >
       {/* Image Section */}
       <View className="relative">
         {post.deletedAt && (
@@ -1059,12 +1091,10 @@ const TicketCard = ({
           </View>
         </View>
       </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </View>
   );
 };
 
-type RootStackParamList = {
-  PostDetails: { post: Post };
-};
-
+// Remove unused RootStackParamList type as we're using the modal now
 export { TicketCard };

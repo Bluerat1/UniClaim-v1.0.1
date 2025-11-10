@@ -4,6 +4,7 @@ import type { Post } from "@/types/Post";
 import { useNavigate } from "react-router-dom";
 import ProfilePicture from "@/components/user/ProfilePicture";
 import HandoverDetailsDisplay from "@/components/common/HandoverDetailsDisplay";
+import ClaimDetailsDisplay from "@/components/common/ClaimDetailsDisplay";
 import { postService } from "@/services/firebase/posts";
 import { useToast } from "@/context/ToastContext";
 import ActivationModal from "@/components/modals/Activation";
@@ -849,6 +850,18 @@ export default function AdminPostModal({
               Handover Details
             </h3>
             <HandoverDetailsDisplay handoverDetails={post.handoverDetails} />
+          </div>
+        )}
+
+        {post.claimDetails && (
+          <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+            <h3 className="font-semibold text-green-800 mb-2 text-sm">
+              Claim Details
+            </h3>
+            <ClaimDetailsDisplay 
+              claimDetails={post.claimDetails} 
+              conversationData={post.conversationData} 
+            />
           </div>
         )}
       </div>
