@@ -55,7 +55,8 @@ export default function UnclaimedPostsPage() {
   const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
 
   // State for bulk delete confirmation modal
-  const [showBulkDeleteConfirmModal, setShowBulkDeleteConfirmModal] = useState(false);
+  const [showBulkDeleteConfirmModal, setShowBulkDeleteConfirmModal] =
+    useState(false);
   const [bulkDeleteAction, setBulkDeleteAction] = useState<{
     count: number;
   } | null>(null);
@@ -79,7 +80,9 @@ export default function UnclaimedPostsPage() {
 
     // Apply viewType filtering
     if (viewType !== "all") {
-      filtered = filtered.filter((post) => post.type.toLowerCase() === viewType);
+      filtered = filtered.filter(
+        (post) => post.type.toLowerCase() === viewType
+      );
     }
 
     // Apply category filtering
@@ -155,8 +158,12 @@ export default function UnclaimedPostsPage() {
       setActivatingPostId(postToActivate.id);
 
       // Use updatePostStatus instead of activateTicket to support admin notes
-      const originalStatus = postToActivate.originalStatus || 'pending';
-      await postService.updatePostStatus(postToActivate.id, originalStatus, adminNotes);
+      const originalStatus = postToActivate.originalStatus || "pending";
+      await postService.updatePostStatus(
+        postToActivate.id,
+        originalStatus,
+        adminNotes
+      );
 
       // Send notification to the post creator
       if (postToActivate.creatorId) {
@@ -259,12 +266,14 @@ export default function UnclaimedPostsPage() {
       setActivatingPostId("bulk");
 
       // Convert selected post IDs to post objects
-      const postsToActivate = filteredPosts.filter(post => selectedPosts.has(post.id));
+      const postsToActivate = filteredPosts.filter((post) =>
+        selectedPosts.has(post.id)
+      );
 
       // Process each post activation
       const results = await Promise.allSettled(
         postsToActivate.map(async (post) => {
-          const originalStatus = post.originalStatus || 'pending';
+          const originalStatus = post.originalStatus || "pending";
           await postService.updatePostStatus(post.id, originalStatus);
 
           // Send notification for each post
@@ -296,13 +305,23 @@ export default function UnclaimedPostsPage() {
         })
       );
 
-      const successful = results.filter(result => result.status === 'fulfilled').length;
+      const successful = results.filter(
+        (result) => result.status === "fulfilled"
+      ).length;
       const failed = results.length - successful;
 
       if (failed === 0) {
-        showToast("success", "Bulk Activation Complete", `Successfully activated ${successful} posts`);
+        showToast(
+          "success",
+          "Bulk Activation Complete",
+          `Successfully activated ${successful} posts`
+        );
       } else {
-        showToast("warning", "Bulk Activation Partial", `Activated ${successful} posts, ${failed} failed`);
+        showToast(
+          "warning",
+          "Bulk Activation Partial",
+          `Activated ${successful} posts, ${failed} failed`
+        );
       }
 
       // Clear selection and update local state
@@ -310,7 +329,6 @@ export default function UnclaimedPostsPage() {
       setRawResults((prev) =>
         prev ? prev.filter((p) => !selectedPosts.has(p.id)) : null
       );
-
     } catch (error: any) {
       console.error("Failed to bulk activate posts:", error);
       showToast(
@@ -362,7 +380,11 @@ export default function UnclaimedPostsPage() {
             throw new Error("Post not found");
           }
 
-          await postService.deletePost(postId, false, userData?.email || "admin");
+          await postService.deletePost(
+            postId,
+            false,
+            userData?.email || "admin"
+          );
 
           // Send notification to the post creator
           if (post.creatorId) {
@@ -413,7 +435,11 @@ export default function UnclaimedPostsPage() {
         );
       }
     } catch (err: any) {
-      showToast("error", "Bulk Delete Failed", "Failed to delete selected posts");
+      showToast(
+        "error",
+        "Bulk Delete Failed",
+        "Failed to delete selected posts"
+      );
     } finally {
       setActivatingPostId(null);
       setShowBulkDeleteConfirmModal(false);
@@ -506,7 +532,7 @@ export default function UnclaimedPostsPage() {
             <p className="text-red-600 mb-4">{error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-teal-600"
+              className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-yellow-600"
             >
               Try Again
             </button>
@@ -745,15 +771,16 @@ export default function UnclaimedPostsPage() {
 
                 <div className="bg-yellow-50 p-4 rounded-lg">
                   <p className="text-sm text-yellow-800">
-                    This will move all selected posts to the Recently Deleted section.
-                    Posts can be restored from there if needed.
+                    This will move all selected posts to the Recently Deleted
+                    section. Posts can be restored from there if needed.
                   </p>
                 </div>
 
                 <div className="bg-red-50 p-4 rounded-lg">
                   <p className="text-sm text-red-800 font-medium">
                     ⚠️ This action will affect {bulkDeleteAction.count} post
-                    {bulkDeleteAction.count !== 1 ? "s" : ""} and notifications will be sent to the post creators.
+                    {bulkDeleteAction.count !== 1 ? "s" : ""} and notifications
+                    will be sent to the post creators.
                   </p>
                 </div>
               </div>

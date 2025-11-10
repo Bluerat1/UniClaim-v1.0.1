@@ -101,43 +101,43 @@ export const AnalyticsDashboard: React.FC = () => {
 
       <Tabs defaultValue="posts" className="space-y-4 -mx-2 sm:mx-0">
         <div className="px-2 sm:px-0">
-        <TabsList>
-          <TabsTrigger value="posts">Posts Over Time</TabsTrigger>
-          <TabsTrigger value="categories">Category Distribution</TabsTrigger>
-          <TabsTrigger value="status">Status Distribution</TabsTrigger>
-          <TabsTrigger value="export">Export Data</TabsTrigger>
-        </TabsList>
+          <TabsList>
+            <TabsTrigger value="posts">Posts Over Time</TabsTrigger>
+            <TabsTrigger value="categories">Category Distribution</TabsTrigger>
+            <TabsTrigger value="status">Status Distribution</TabsTrigger>
+            <TabsTrigger value="export">Export Data</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="posts" className="space-y-4">
-          <PostsAnalytics
-            posts={posts}
-            loading={loading}
-            dateRange={dateRange}
-            onDateRangeChange={handleDateRangeChange}
-          />
-        </TabsContent>
+          <TabsContent value="posts" className="space-y-4">
+            <PostsAnalytics
+              posts={posts}
+              loading={loading}
+              dateRange={dateRange}
+              onDateRangeChange={handleDateRangeChange}
+            />
+          </TabsContent>
 
-        <TabsContent value="categories" className="space-y-4">
-          <CategoryAnalytics
-            posts={posts}
-            loading={loading}
-            dateRange={dateRange}
-            onDateRangeChange={handleDateRangeChange}
-          />
-        </TabsContent>
+          <TabsContent value="categories" className="space-y-4">
+            <CategoryAnalytics
+              posts={posts}
+              loading={loading}
+              dateRange={dateRange}
+              onDateRangeChange={handleDateRangeChange}
+            />
+          </TabsContent>
 
-        <TabsContent value="status" className="space-y-4">
-          <StatusAnalytics
-            posts={posts}
-            loading={loading}
-            dateRange={dateRange}
-            onDateRangeChange={handleDateRangeChange}
-          />
-        </TabsContent>
+          <TabsContent value="status" className="space-y-4">
+            <StatusAnalytics
+              posts={posts}
+              loading={loading}
+              dateRange={dateRange}
+              onDateRangeChange={handleDateRangeChange}
+            />
+          </TabsContent>
 
-        <TabsContent value="export" className="space-y-4">
-          <DataExport posts={posts} loading={loading} dateRange={dateRange} />
-        </TabsContent>
+          <TabsContent value="export" className="space-y-4">
+            <DataExport posts={posts} loading={loading} dateRange={dateRange} />
+          </TabsContent>
         </div>
       </Tabs>
     </div>
