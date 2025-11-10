@@ -10,7 +10,7 @@ const AdminAnalyticsPage: React.FC = () => {
 
   return (
     <PageWrapper title={pageTitle}>
-      <div className="w-full mb-9 lg:mb-0">
+      <div className="w-full mb-9">
         <div className="hidden p-4 sm:px-6 lg:px-8 lg:flex items-center justify-between bg-gray-50 border-b border-zinc-200">
           <div className="flex flex-row gap-3 items-center">
             <h1 className="text-base font-medium text-gray-900">{pageTitle}</h1>
@@ -26,7 +26,7 @@ const AdminAnalyticsPage: React.FC = () => {
         <NavHeader title={pageTitle} description={pageDescription} />
 
         <div className="flex-1 overflow-y-auto p-6 sm:p-8 bg-gray-50 rounded-lg">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+          <div className="bg-white rounded-lg shadow-xs border border-gray-100">
             <div className="p-4 sm:p-6">
               <AnalyticsDashboard />
             </div>
