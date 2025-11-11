@@ -10,6 +10,8 @@ import {
 import ImagePicker from "./ImagePicker";
 import { cloudinaryService } from "../utils/cloudinary";
 import { Ionicons } from "@expo/vector-icons";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../utils/firebase";
 
 interface ClaimModalProps {
   visible: boolean;
@@ -21,6 +23,7 @@ interface ClaimModalProps {
   }) => void;
   isLoading?: boolean;
   postTitle: string;
+  conversationId: string;
 }
 
 export default function ClaimModal({
@@ -53,8 +56,10 @@ export default function ClaimModal({
 
   const [uploadProgress, setUploadProgress] = useState(0);
   const [currentUpload, setCurrentUpload] = useState('');
+  const [conversationId, setConversationId] = useState('');
 
   const handleSubmit = async () => {
+    // Validate form inputs first
     if (!claimReason.trim()) {
       Alert.alert("Error", "Please provide a reason for your claim.");
       return;
@@ -73,7 +78,7 @@ export default function ClaimModal({
 
     try {
       setIsClaimSubmitting(true);
-      setUploadProgress(0);
+      setUploadProgress(10); // 10% complete after initial check
 
       // Upload ID photo first
       setCurrentUpload('ID photo');
@@ -132,6 +137,16 @@ export default function ClaimModal({
     resetForm();
     onClose();
   };
+  
+  // Set conversation ID when modal becomes visible
+  React.useEffect(() => {
+    if (visible && conversationId) {
+      // Reset form when modal is opened
+      setClaimReason('');
+      setIdPhotoUri('');
+      setEvidencePhotoUris([]);
+    }
+  }, [visible, conversationId]);
 
   if (!visible) return null;
 

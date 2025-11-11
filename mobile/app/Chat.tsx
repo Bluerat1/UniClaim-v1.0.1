@@ -33,6 +33,8 @@ import HandoverModal from "../components/HandoverModal";
 import ClaimModal from "../components/ClaimModal";
 import ImagePicker from "../components/ImagePicker";
 import { getProfilePictureUrl } from "../utils/profileUtils";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../utils/firebase";
 
 type ChatRouteProp = RouteProp<RootStackParamList, "Chat">;
 type ChatNavigationProp = NativeStackNavigationProp<RootStackParamList, "Chat">;
@@ -791,6 +793,30 @@ export default function Chat() {
     setShowHandoverModal(true);
   };
 
+  const checkForPendingHandoverRequest = async (conversationId: string): Promise<boolean> => {
+    try {
+      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationDoc = await getDoc(conversationRef);
+
+      if (conversationDoc.exists()) {
+        const conversationData = conversationDoc.data();
+        if (conversationData?.hasHandoverRequest && conversationData.handoverRequestId) {
+          const existingRequestRef = doc(db, 'conversations', conversationId, 'messages', conversationData.handoverRequestId);
+          const existingRequestDoc = await getDoc(existingRequestRef);
+
+          if (existingRequestDoc.exists()) {
+            const existingRequest = existingRequestDoc.data();
+            return existingRequest.handoverData?.status === 'pending';
+          }
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking for pending handover request:', error);
+      return false;
+    }
+  };
+
   const handleHandoverRequestSubmit = async (data: {
     handoverReason: string;
     idPhotoUrl: string;
@@ -799,6 +825,19 @@ export default function Chat() {
     if (!conversationId || !user || !userData) return;
 
     try {
+      // First check for pending handover request before any processing
+      const hasPendingRequest = await checkForPendingHandoverRequest(conversationId);
+      if (hasPendingRequest) {
+        showToastMessage('There is already a pending handover request for this conversation', 'error');
+        return;
+      }
+
+      // Validate required fields
+      if (!data.idPhotoUrl || !data.itemPhotos?.length) {
+        showToastMessage('Please upload your ID photo and at least one item photo', 'error');
+        return;
+      }
+
       setIsHandoverSubmitting(true);
       await sendHandoverRequest(
         conversationId,
@@ -823,8 +862,50 @@ export default function Chat() {
     }
   };
 
-  const handleClaimRequest = () => {
-    setShowClaimModal(true);
+  const handleClaimRequest = async () => {
+    if (!conversationId) return;
+    
+    try {
+      setIsClaimSubmitting(true);
+      const hasPendingRequest = await checkForPendingClaimRequest(conversationId);
+      
+      if (hasPendingRequest) {
+        showToastMessage('There is already a pending claim request for this conversation', 'error');
+        return;
+      }
+      
+      // Only show the modal if there are no pending requests
+      setShowClaimModal(true);
+    } catch (error) {
+      console.error('Error checking for pending claim request:', error);
+      showToastMessage('Failed to check for existing requests. Please try again.', 'error');
+    } finally {
+      setIsClaimSubmitting(false);
+    }
+  };
+
+  const checkForPendingClaimRequest = async (conversationId: string): Promise<boolean> => {
+    try {
+      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationDoc = await getDoc(conversationRef);
+
+      if (conversationDoc.exists()) {
+        const conversationData = conversationDoc.data();
+        if (conversationData?.hasClaimRequest && conversationData.claimRequestId) {
+          const existingRequestRef = doc(db, 'conversations', conversationId, 'messages', conversationData.claimRequestId);
+          const existingRequestDoc = await getDoc(existingRequestRef);
+
+          if (existingRequestDoc.exists()) {
+            const existingRequest = existingRequestDoc.data();
+            return existingRequest.claimData?.status === 'pending';
+          }
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking for pending claim request:', error);
+      return false;
+    }
   };
 
   const handleClaimRequestSubmit = async (data: {
@@ -835,6 +916,31 @@ export default function Chat() {
     if (!conversationId || !user || !userData) return;
 
     try {
+      // First check for pending claim request before any processing
+      const hasPendingRequest = await checkForPendingClaimRequest(conversationId);
+      if (hasPendingRequest) {
+        showToastMessage('There is already a pending claim request for this conversation', 'error');
+        return;
+      }
+
+      // Validate required fields
+      const isAdminPost = 
+        conversationData?.postCreatorId === 'admin' || 
+        (conversationData?.postCreatorId?.includes('admin') ?? false) || 
+        conversationData?.postCreatorId === 'campus_security';
+
+      if (isAdminPost) {
+        if (!data.idPhotoUrl) {
+          showToastMessage('Please upload your ID photo', 'error');
+          return;
+        }
+      } else {
+        if (!data.idPhotoUrl || !data.evidencePhotos?.length) {
+          showToastMessage('Please upload your ID photo and at least one evidence photo', 'error');
+          return;
+        }
+      }
+
       setIsClaimSubmitting(true);
       await sendClaimRequest(
         conversationId,
@@ -1467,6 +1573,7 @@ export default function Chat() {
         onSubmit={handleClaimRequestSubmit}
         isLoading={isClaimSubmitting}
         postTitle={postTitle}
+        conversationId={conversationId || ''}
       />
 
       {/* Enhanced Handover Modal */}

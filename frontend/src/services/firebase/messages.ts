@@ -804,17 +804,52 @@ export const messageService = {
     // Send handover request
     async sendHandoverRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, handoverReason?: string, idPhotoUrl?: string, itemPhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void> {
         try {
-            console.log('🔄 Firebase: sendHandoverRequest called with:', { conversationId, senderId, senderName, postId, postTitle, handoverReason, idPhotoUrl, itemPhotos });
+            console.log('🔄 Firebase: sendHandoverRequest called with:', { 
+                conversationId, 
+                senderId, 
+                senderName, 
+                postId, 
+                postTitle, 
+                handoverReason, 
+                hasIdPhoto: !!idPhotoUrl, 
+                itemPhotosCount: itemPhotos?.length || 0 
+            });
 
-            // Validate ID photo URL
+            // Get conversation data first to check for pending requests
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
+
+            if (!conversationDoc.exists()) {
+                throw new Error('Conversation not found');
+            }
+
+            const conversationData = conversationDoc.data();
+            
+            // Check for existing handover request first, before any photo processing
+            if (conversationData.hasHandoverRequest && conversationData.handoverRequestId) {
+                const existingRequestRef = doc(db, 'conversations', conversationId, 'messages', conversationData.handoverRequestId);
+                const existingRequestDoc = await getDoc(existingRequestRef);
+                
+                if (existingRequestDoc.exists()) {
+                    const existingRequest = existingRequestDoc.data();
+                    if (existingRequest.handoverData?.status === 'pending') {
+                        throw new Error('There is already a pending handover request for this conversation');
+                    }
+                    // If we get here, the existing request was not pending (likely rejected)
+                    // We'll proceed but we'll update the existing request instead of creating a new one
+                } else {
+                    console.warn('⚠️ hasHandoverRequest is true but could not find the request message');
+                }
+            }
+
+            // Now validate the photo URLs since we know we'll need them
             if (idPhotoUrl && !idPhotoUrl.startsWith('http')) {
                 console.error('❌ Invalid ID photo URL in sendHandoverRequest:', { idPhotoUrl });
                 throw new Error('Invalid ID photo URL provided to sendHandoverRequest');
             }
 
-            // Validate item photos array
-            if (itemPhotos && (!Array.isArray(itemPhotos) || itemPhotos.some(photo => !photo.url || !photo.url.startsWith('http')))) {
-                console.error('❌ Invalid item photos array in sendHandoverRequest:', { itemPhotos });
+            if (itemPhotos && (!Array.isArray(itemPhotos) || itemPhotos.some(photo => !photo?.url || !photo.url.startsWith('http')))) {
+                console.error('❌ Invalid item photos array in sendHandoverRequest');
                 throw new Error('Invalid item photos array provided to sendHandoverRequest');
             }
 
@@ -835,21 +870,11 @@ export const messageService = {
                     status: 'pending'
                 }
             };
-
-            // Get conversation data to find other participants
-            const conversationRef = doc(db, 'conversations', conversationId);
-            const conversationDoc = await getDoc(conversationRef);
-
-            if (!conversationDoc.exists()) {
-                throw new Error('Conversation not found');
-            }
-
-            const conversationData = conversationDoc.data();
+            
+            
             // Normalize participants to an array of user IDs (handles both old object and new array formats)
             const participants = conversationData.participants || [];
             const participantIds = Array.isArray(participants) ? participants : Object.keys(participants);
-
-            // Increment unread count for all participants except the sender
             const otherParticipantIds = participantIds.filter((id: string) => id !== senderId);
 
             // Prepare unread count updates for each receiver
@@ -858,11 +883,25 @@ export const messageService = {
                 unreadCountUpdates[`unreadCounts.${participantId}`] = increment(1);
             });
 
-            // Add message to conversation
-            const messageRef = await addDoc(collection(db, 'conversations', conversationId, 'messages'), {
-                ...messageData,
-                readBy: [senderId] // Mark as read by the sender
-            });
+            let messageRef;
+            const currentTimestamp = new Date();
+            
+            if (conversationData.hasHandoverRequest && conversationData.handoverRequestId) {
+                // Update existing message
+                messageRef = doc(db, 'conversations', conversationId, 'messages', conversationData.handoverRequestId);
+                await updateDoc(messageRef, {
+                    ...messageData,
+                    readBy: [senderId] // Mark as read by the sender
+                });
+                console.log(`✅ Updated existing handover request: ${conversationData.handoverRequestId}`);
+            } else {
+                // Create new message
+                messageRef = await addDoc(collection(db, 'conversations', conversationId, 'messages'), {
+                    ...messageData,
+                    readBy: [senderId] // Mark as read by the sender
+                });
+                console.log(`✅ Created new handover request: ${messageRef.id}`);
+            }
 
             // Update conversation with handover request info and increment unread counts for other participants
             await updateDoc(conversationRef, {
@@ -871,7 +910,7 @@ export const messageService = {
                 lastMessage: {
                     text: `Handover Request: ${handoverReason || 'New handover request'}`,
                     senderId,
-                    timestamp: serverTimestamp()
+                    timestamp: currentTimestamp
                 },
                 updatedAt: serverTimestamp(),
                 ...unreadCountUpdates
@@ -997,22 +1036,10 @@ export const messageService = {
                 postType,
                 claimReason,
                 idPhotoUrl,
-                evidencePhotos
+                evidencePhotos: evidencePhotos ? `Array(${evidencePhotos.length})` : 'none'
             });
 
-            // Validate ID photo URL
-            if (idPhotoUrl && !idPhotoUrl.startsWith('http')) {
-                console.error('❌ Invalid ID photo URL in sendClaimRequest:', { idPhotoUrl });
-                throw new Error('Invalid ID photo URL provided to sendClaimRequest');
-            }
-
-            // Validate evidence photos array
-            if (evidencePhotos && (!Array.isArray(evidencePhotos) || evidencePhotos.some(photo => !photo.url || !photo.url.startsWith('http')))) {
-                console.error('❌ Invalid evidence photos array in sendClaimRequest:', { evidencePhotos });
-                throw new Error('Invalid evidence photos array provided to sendClaimRequest');
-            }
-
-            // Get conversation data to find other participants
+            // Get conversation data first to check for pending requests
             const conversationRef = doc(db, 'conversations', conversationId);
             const conversationDoc = await getDoc(conversationRef);
 
@@ -1021,6 +1048,36 @@ export const messageService = {
             }
 
             const conversationData = conversationDoc.data();
+            
+            // Check for existing claim request first, before any photo processing
+            if (conversationData.hasClaimRequest && conversationData.claimRequestId) {
+                const existingRequestRef = doc(db, 'conversations', conversationId, 'messages', conversationData.claimRequestId);
+                const existingRequestDoc = await getDoc(existingRequestRef);
+                
+                if (existingRequestDoc.exists()) {
+                    const existingRequest = existingRequestDoc.data();
+                    if (existingRequest.claimData?.status === 'pending') {
+                        throw new Error('There is already a pending claim request for this conversation');
+                    }
+                    // If we get here, the existing request was not pending (likely rejected)
+                    // We'll proceed but we'll update the existing request instead of creating a new one
+                } else {
+                    console.warn('⚠️ hasClaimRequest is true but could not find the request message');
+                }
+            }
+
+            // Now validate the photo URLs since we know we'll need them
+            if (idPhotoUrl && !idPhotoUrl.startsWith('http')) {
+                console.error('❌ Invalid ID photo URL in sendClaimRequest:', { idPhotoUrl });
+                throw new Error('Invalid ID photo URL provided to sendClaimRequest');
+            }
+
+            if (evidencePhotos && (!Array.isArray(evidencePhotos) || evidencePhotos.some(photo => !photo?.url || !photo.url.startsWith('http')))) {
+                console.error('❌ Invalid evidence photos array in sendClaimRequest');
+                throw new Error('Invalid evidence photos array provided to sendClaimRequest');
+            }
+            
+            
             // Normalize participants to an array of user IDs (handles both old object and new array formats)
             const participants = conversationData.participants || [];
             const participantIds = Array.isArray(participants) ? participants : Object.keys(participants);
@@ -1051,9 +1108,19 @@ export const messageService = {
                 }
             };
 
-            // Add message to conversation
-            const messageRef = await addDoc(collection(db, 'conversations', conversationId, 'messages'), messageData);
+            let messageRef;
             const currentTimestamp = new Date();
+            
+            if (conversationData.hasClaimRequest && conversationData.claimRequestId) {
+                // Update existing message
+                messageRef = doc(db, 'conversations', conversationId, 'messages', conversationData.claimRequestId);
+                await updateDoc(messageRef, messageData);
+                console.log(`✅ Updated existing claim request: ${conversationData.claimRequestId}`);
+            } else {
+                // Create new message
+                messageRef = await addDoc(collection(db, 'conversations', conversationId, 'messages'), messageData);
+                console.log(`✅ Created new claim request: ${messageRef.id}`);
+            }
 
             // Update conversation with claim request info and unread counts
             await updateDoc(conversationRef, {

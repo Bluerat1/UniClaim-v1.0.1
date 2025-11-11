@@ -5,9 +5,11 @@ import React, {
   useMemo,
 } from "react";
 // Context
-import { useMessage } from "@/context/MessageContext";
 import { useAuth } from "@/context/AuthContext";
+import { useMessage } from "@/context/MessageContext";
 import { useToast } from "@/context/ToastContext";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/services/firebase/config";
 
 // Types
 import type { Conversation, Message } from "@/types/Post";
@@ -41,6 +43,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   onClearConversation,
   onRefreshConversation,
 }) => {
+  // Return null if no conversation is selected
+  if (!conversation) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-gray-50 p-4">
+        <img src={NoChat} alt="No chat selected" className="w-32 h-32 mb-4 opacity-50" />
+        <p className="text-gray-500 text-lg">Select a conversation to start chatting</p>
+      </div>
+    );
+  }
   const { user: authUser, userData: authUserData } = useAuth();
   const [userData, setUserData] = useState<{
     uid: string;
@@ -664,6 +675,30 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     setShowClaimModal(false);
   };
 
+  const checkForPendingClaimRequest = async (conversationId: string): Promise<boolean> => {
+    try {
+      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationDoc = await getDoc(conversationRef);
+      
+      if (conversationDoc.exists()) {
+        const conversationData = conversationDoc.data();
+        if (conversationData.hasClaimRequest && conversationData.claimRequestId) {
+          const existingRequestRef = doc(db, 'conversations', conversationId, 'messages', conversationData.claimRequestId);
+          const existingRequestDoc = await getDoc(existingRequestRef);
+          
+          if (existingRequestDoc.exists()) {
+            const existingRequest = existingRequestDoc.data();
+            return existingRequest.claimData?.status === 'pending';
+          }
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking for pending claim request:', error);
+      return false;
+    }
+  };
+
   const handleSubmitClaim = async (
     claimReason: string,
     idPhotoFile: File | null,
@@ -673,11 +708,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       return;
     }
 
+    // First check for pending claim request before any processing
+    const hasPendingRequest = await checkForPendingClaimRequest(conversation.id);
+    if (hasPendingRequest) {
+      showToast('error', 'Pending Request', 'There is already a pending claim request for this conversation');
+      return;
+    }
+
     const isAdminPost =
       conversation.postCreatorId === "admin" ||
       (conversation.postCreatorId?.includes("admin") ?? false) ||
       conversation.postCreatorId === "campus_security";
 
+    // Validate required fields
     if (isAdminPost) {
       if (!idPhotoFile) {
         showToast('error', 'Missing ID Photo', 'Please upload your ID photo');
@@ -691,6 +734,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
 
     setIsClaimSubmitting(true);
+
     try {
       const idPhotoUrl = await cloudinaryService.uploadImage(
         idPhotoFile,
