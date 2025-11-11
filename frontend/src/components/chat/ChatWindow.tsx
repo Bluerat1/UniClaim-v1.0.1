@@ -8,7 +8,7 @@ import React, {
 import { useAuth } from "@/context/AuthContext";
 import { useMessage } from "@/context/MessageContext";
 import { useToast } from "@/context/ToastContext";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, deleteField } from "firebase/firestore";
 import { db } from "@/services/firebase/config";
 
 // Types
@@ -544,8 +544,65 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
 
-  const handleOpenHandoverModal = () => {
-    setShowHandoverModal(true);
+  const checkForPendingHandoverRequest = async (conversationId: string): Promise<boolean> => {
+    try {
+      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationDoc = await getDoc(conversationRef);
+
+      if (!conversationDoc.exists()) {
+        return false; // No conversation found, so no pending request
+      }
+      
+      const conversationData = conversationDoc.data();
+      
+      // If there's no handover request flag or ID, definitely no pending request
+      if (!conversationData?.hasHandoverRequest || !conversationData.handoverRequestId) {
+        return false;
+      }
+      
+      // Try to get the actual message
+      const existingRequestRef = doc(db, 'conversations', conversationId, 'messages', conversationData.handoverRequestId);
+      const existingRequestDoc = await getDoc(existingRequestRef);
+
+      // If message doesn't exist or is deleted, clean up the conversation data
+      if (!existingRequestDoc.exists()) {
+        // Update conversation to remove the reference to the deleted message
+        await updateDoc(conversationRef, {
+          hasHandoverRequest: false,
+          handoverRequestId: deleteField()
+        });
+        return false;
+      }
+
+      // Check if the existing request is still pending
+      const existingRequest = existingRequestDoc.data();
+      return existingRequest.handoverData?.status === 'pending';
+      
+    } catch (error) {
+      console.error('Error checking for pending handover request:', error);
+      // In case of error, be permissive and allow the user to try submitting
+      return false;
+    }
+  };
+
+  const handleOpenHandoverModal = async () => {
+    if (!conversation) return;
+    
+    try {
+      // First check for pending requests before showing the modal
+      const hasPendingRequest = await checkForPendingHandoverRequest(conversation.id);
+      
+      if (hasPendingRequest) {
+        showToast('error', 'Pending Request', 'There is already a pending handover request for this conversation');
+        return;
+      }
+      
+      // Only show the modal if there are no pending requests
+      setShowHandoverModal(true);
+    } catch (error) {
+      console.error('Error checking for pending handover request:', error);
+      showToast('error', 'Error', 'Failed to check for existing requests. Please try again.');
+    }
   };
 
   const handleCloseHandoverModal = () => {
@@ -667,8 +724,24 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
 
-  const handleOpenClaimModal = () => {
-    setShowClaimModal(true);
+  const handleOpenClaimModal = async () => {
+    if (!conversation) return;
+    
+    try {
+      // First check for pending requests before showing the modal
+      const hasPendingRequest = await checkForPendingClaimRequest(conversation.id);
+      
+      if (hasPendingRequest) {
+        showToast('error', 'Pending Request', 'There is already a pending claim request for this conversation');
+        return;
+      }
+      
+      // Only show the modal if there are no pending requests
+      setShowClaimModal(true);
+    } catch (error) {
+      console.error('Error checking for pending claim request:', error);
+      showToast('error', 'Error', 'Failed to check for existing requests. Please try again.');
+    }
   };
 
   const handleCloseClaimModal = () => {
@@ -679,22 +752,39 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     try {
       const conversationRef = doc(db, 'conversations', conversationId);
       const conversationDoc = await getDoc(conversationRef);
-      
-      if (conversationDoc.exists()) {
-        const conversationData = conversationDoc.data();
-        if (conversationData.hasClaimRequest && conversationData.claimRequestId) {
-          const existingRequestRef = doc(db, 'conversations', conversationId, 'messages', conversationData.claimRequestId);
-          const existingRequestDoc = await getDoc(existingRequestRef);
-          
-          if (existingRequestDoc.exists()) {
-            const existingRequest = existingRequestDoc.data();
-            return existingRequest.claimData?.status === 'pending';
-          }
-        }
+
+      if (!conversationDoc.exists()) {
+        return false; // No conversation found, so no pending request
       }
-      return false;
+      
+      const conversationData = conversationDoc.data();
+      
+      // If there's no claim request flag or ID, definitely no pending request
+      if (!conversationData?.hasClaimRequest || !conversationData.claimRequestId) {
+        return false;
+      }
+      
+      // Try to get the actual message
+      const existingRequestRef = doc(db, 'conversations', conversationId, 'messages', conversationData.claimRequestId);
+      const existingRequestDoc = await getDoc(existingRequestRef);
+
+      // If message doesn't exist or is deleted, clean up the conversation data
+      if (!existingRequestDoc.exists()) {
+        // Update conversation to remove the reference to the deleted message
+        await updateDoc(conversationRef, {
+          hasClaimRequest: false,
+          claimRequestId: deleteField()
+        });
+        return false;
+      }
+
+      // Check if the existing request is still pending
+      const existingRequest = existingRequestDoc.data();
+      return existingRequest.claimData?.status === 'pending';
+      
     } catch (error) {
       console.error('Error checking for pending claim request:', error);
+      // In case of error, be permissive and allow the user to try submitting
       return false;
     }
   };

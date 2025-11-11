@@ -33,7 +33,7 @@ import HandoverModal from "../components/HandoverModal";
 import ClaimModal from "../components/ClaimModal";
 import ImagePicker from "../components/ImagePicker";
 import { getProfilePictureUrl } from "../utils/profileUtils";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, deleteField } from "firebase/firestore";
 import { db } from "../utils/firebase";
 
 type ChatRouteProp = RouteProp<RootStackParamList, "Chat">;
@@ -889,21 +889,38 @@ export default function Chat() {
       const conversationRef = doc(db, 'conversations', conversationId);
       const conversationDoc = await getDoc(conversationRef);
 
-      if (conversationDoc.exists()) {
-        const conversationData = conversationDoc.data();
-        if (conversationData?.hasClaimRequest && conversationData.claimRequestId) {
-          const existingRequestRef = doc(db, 'conversations', conversationId, 'messages', conversationData.claimRequestId);
-          const existingRequestDoc = await getDoc(existingRequestRef);
-
-          if (existingRequestDoc.exists()) {
-            const existingRequest = existingRequestDoc.data();
-            return existingRequest.claimData?.status === 'pending';
-          }
-        }
+      if (!conversationDoc.exists()) {
+        return false; // No conversation found, so no pending request
       }
-      return false;
+      
+      const conversationData = conversationDoc.data();
+      
+      // If there's no claim request flag or ID, definitely no pending request
+      if (!conversationData?.hasClaimRequest || !conversationData.claimRequestId) {
+        return false;
+      }
+      
+      // Try to get the actual message
+      const existingRequestRef = doc(db, 'conversations', conversationId, 'messages', conversationData.claimRequestId);
+      const existingRequestDoc = await getDoc(existingRequestRef);
+
+      // If message doesn't exist or is deleted, clean up the conversation data
+      if (!existingRequestDoc.exists()) {
+        // Update conversation to remove the reference to the deleted message
+        await updateDoc(conversationRef, {
+          hasClaimRequest: false,
+          claimRequestId: deleteField()
+        });
+        return false;
+      }
+
+      // Check if the existing request is still pending
+      const existingRequest = existingRequestDoc.data();
+      return existingRequest.claimData?.status === 'pending';
+      
     } catch (error) {
       console.error('Error checking for pending claim request:', error);
+      // In case of error, be permissive and allow the user to try submitting
       return false;
     }
   };
