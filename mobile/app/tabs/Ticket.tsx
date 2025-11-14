@@ -764,7 +764,7 @@ export default function Ticket() {
                   activeTab === "resolved" ? "text-white" : "text-black"
                 }`}
               >
-                Resolved
+                Completed
               </Text>
             </TouchableOpacity>
 
