@@ -751,14 +751,8 @@ export default function AdminPostModal({
                 />
               </div>
             )}
-
-<<<<<<< HEAD
-            {/* Conversation History - Show for resolved posts */}
-            {post.status === "resolved" && (
-=======
             {/* Conversation History - Show for resolved or completed posts */}
-            {(post.status === 'resolved' || post.status === 'completed') && (
->>>>>>> 2c5581b1065730d7f800b18d8fea82df6b31f734
+            {(post.status === "resolved" || post.status === "completed") && (
               <div className="mt-4 border-t border-gray-200 pt-4">
                 <h3 className="text-lg font-medium text-gray-900 mb-3">
                   Conversation History

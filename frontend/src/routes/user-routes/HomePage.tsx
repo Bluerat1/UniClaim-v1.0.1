@@ -38,28 +38,16 @@ function fuzzyMatch(text: string, query: string, postUser?: UserInfo): boolean {
 
   // Check if query matches user's name (excluding email)
   if (postUser) {
-<<<<<<< HEAD
     const userName = `${postUser.firstName || ""} ${postUser.lastName || ""}`
       .toLowerCase()
       .trim();
-    const userEmail = postUser.email?.toLowerCase() || "";
 
-    // Check if any query word matches user's name or email
+    // Check if any query word matches user's name (excluding email)
     const userMatch = queryWords.some(
       (word) =>
         userName.includes(word) ||
         postUser.firstName?.toLowerCase().includes(word) ||
-        postUser.lastName?.toLowerCase().includes(word) ||
-        userEmail.includes(word)
-=======
-    const userName = `${postUser.firstName || ''} ${postUser.lastName || ''}`.toLowerCase().trim();
-    
-    // Check if any query word matches user's name (excluding email)
-    const userMatch = queryWords.some(word => 
-      userName.includes(word) || 
-      (postUser.firstName?.toLowerCase().includes(word) || 
-       postUser.lastName?.toLowerCase().includes(word))
->>>>>>> 2c5581b1065730d7f800b18d8fea82df6b31f734
+        postUser.lastName?.toLowerCase().includes(word)
     );
 
     if (userMatch) return true;
@@ -228,59 +216,44 @@ export default function HomePage() {
     }
   }, [posts, selectedPost]);
 
-<<<<<<< HEAD
   const handleSearch = useCallback(
     async (query: string, filters: any) => {
       setLastDescriptionKeyword(filters?.description || "");
       setSearchQuery(query);
+      const locationQuery = filters?.location?.toLowerCase() || "";
+      const descriptionQuery = filters?.description?.toLowerCase() || "";
 
       // Use appropriate posts based on current viewType
       const postsToSearch = viewType === "completed" ? resolvedPosts : posts;
       const filteredResults = (postsToSearch ?? []).filter((item) => {
-        return (
+        // Check if location matches (if location filter is applied)
+        const locationMatch =
+          !locationQuery ||
+          (item.location &&
+            item.location.toLowerCase().includes(locationQuery));
+
+        // Check if description matches (if description filter is applied)
+        const descriptionMatch =
+          !descriptionQuery ||
+          (item.description &&
+            item.description.toLowerCase().includes(descriptionQuery));
+
+        // Check if search query matches title, description, or user info
+        const searchMatch =
+          !query ||
           fuzzyMatch(item.title, query, item.user) ||
           fuzzyMatch(item.description, query, item.user) ||
           (item.user?.firstName && fuzzyMatch(item.user.firstName, query)) ||
           (item.user?.lastName && fuzzyMatch(item.user.lastName, query)) ||
-          (item.user?.email && fuzzyMatch(item.user.email, query))
-        );
+          (item.user?.email && fuzzyMatch(item.user.email, query));
+
+        return locationMatch && descriptionMatch && searchMatch;
       });
+
       setRawResults(filteredResults);
     },
-    [rawResults, viewType, resolvedPosts, posts, searchQuery]
+    [viewType, resolvedPosts, posts]
   );
-=======
-  const handleSearch = useCallback(async (query: string, filters: any) => {
-    setLastDescriptionKeyword(filters?.description || "");
-    setSearchQuery(query);
-    const locationQuery = filters?.location?.toLowerCase() || "";
-    const descriptionQuery = filters?.description?.toLowerCase() || "";
-
-    // Use appropriate posts based on current viewType
-    const postsToSearch = viewType === "completed" ? resolvedPosts : posts;
-    const filteredResults = (postsToSearch ?? []).filter((item) => {
-      // Check if location matches (if location filter is applied)
-      const locationMatch = !locationQuery || 
-        (item.location && item.location.toLowerCase().includes(locationQuery));
-      
-      // Check if description matches (if description filter is applied)
-      const descriptionMatch = !descriptionQuery ||
-        (item.description && item.description.toLowerCase().includes(descriptionQuery));
-      
-      // Check if search query matches title, description, or user info
-      const searchMatch = !query || 
-        fuzzyMatch(item.title, query, item.user) ||
-        fuzzyMatch(item.description, query, item.user) ||
-        (item.user?.firstName && fuzzyMatch(item.user.firstName, query)) ||
-        (item.user?.lastName && fuzzyMatch(item.user.lastName, query)) ||
-        (item.user?.email && fuzzyMatch(item.user.email, query));
-      
-      return locationMatch && descriptionMatch && searchMatch;
-    });
-    
-    setRawResults(filteredResults);
-  }, [viewType, resolvedPosts, posts]);
->>>>>>> 2c5581b1065730d7f800b18d8fea82df6b31f734
 
   const filteredPosts = useMemo(() => {
     // If there are raw search results, filter them by view type
@@ -299,25 +272,15 @@ export default function HomePage() {
 
     return postsToShow.filter((post) => {
       // Check if the search query matches the post's title, description, or user info
-<<<<<<< HEAD
-      const matchesSearch =
-        fuzzyMatch(post.title, searchQuery, post.user) ||
-        fuzzyMatch(post.description, searchQuery, post.user) ||
-        (post.user?.firstName &&
-          fuzzyMatch(post.user.firstName, searchQuery)) ||
-        (post.user?.lastName && fuzzyMatch(post.user.lastName, searchQuery)) ||
-        (post.user?.email && fuzzyMatch(post.user.email, searchQuery));
-
-      // If viewType is 'all', we need to filter by type as well
-=======
       const debouncedQuery = searchQuery;
-      const searchMatch = debouncedQuery && (
-        fuzzyMatch(post.title, debouncedQuery, post.user) ||
-        fuzzyMatch(post.description, debouncedQuery, post.user) ||
-        (post.user?.firstName && fuzzyMatch(post.user.firstName, debouncedQuery)) ||
-        (post.user?.lastName && fuzzyMatch(post.user.lastName, debouncedQuery))
-      ); // If viewType is 'all', we need to filter by type as well
->>>>>>> 2c5581b1065730d7f800b18d8fea82df6b31f734
+      const searchMatch =
+        debouncedQuery &&
+        (fuzzyMatch(post.title, debouncedQuery, post.user) ||
+          fuzzyMatch(post.description, debouncedQuery, post.user) ||
+          (post.user?.firstName &&
+            fuzzyMatch(post.user.firstName, debouncedQuery)) ||
+          (post.user?.lastName &&
+            fuzzyMatch(post.user.lastName, debouncedQuery))); // If viewType is 'all', we need to filter by type as well
       if (viewType === "all") {
         return searchMatch && post.status !== "completed";
       }

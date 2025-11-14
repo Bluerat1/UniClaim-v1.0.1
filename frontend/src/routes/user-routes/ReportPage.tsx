@@ -540,7 +540,7 @@ export default function ReportPage() {
 
       // Store the selected action for the success modal before clearing
       setSuccessModalAction(selectedFoundAction);
-      
+
       // Clear form
       setTitle("");
       setDescription("");
@@ -799,18 +799,18 @@ export default function ReportPage() {
           <div className="flex flex-col items-center justify-center text-center bg-white rounded p-5 w-90 max-w-lg">
             <img src={successPic} alt="success_img" className="size-40" />
             <h1 className="text-medium text-xl text-[#39B54A] mb-5">
-              {successModalAction === 'turnover to Campus Security' 
-                ? 'Successfully created post!' 
-                : successModalAction === 'turnover to OSA'
-                ? 'Successfully submitted!' 
-                : 'Successfully added report!'}
+              {successModalAction === "turnover to Campus Security"
+                ? "Successfully created post!"
+                : successModalAction === "turnover to OSA"
+                ? "Successfully submitted!"
+                : "Successfully added report!"}
             </h1>
             <p className="text-[12px] mb-5">
-              {successModalAction === 'turnover to Campus Security' 
-                ? 'Your post has been successfully created! The name of the post will be changed to Campus Security, but your name will still remain visible.'
-                : successModalAction === 'turnover to OSA'
-                ? 'Your post has been successfully submitted to the admin! Please visit the OSA office to turn in the found item. Once you hand it over, the admin will publish your post under the admin\'s name, but your name will still remain visible.'
-                : 'Your report has been added successfully. You can manage your post in the my tickets dashboard'}
+              {successModalAction === "turnover to Campus Security"
+                ? "Your post has been successfully created! The name of the post will be changed to Campus Security, but your name will still remain visible."
+                : successModalAction === "turnover to OSA"
+                ? "Your post has been successfully submitted to the admin! Please visit the OSA office to turn in the found item. Once you hand it over, the admin will publish your post under the admin's name, but your name will still remain visible."
+                : "Your report has been added successfully. You can manage your post in the my tickets dashboard"}
             </p>
             <div className="h-1 my-5 rounded w-60 bg-[#39B54A]"></div>
             <button
