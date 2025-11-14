@@ -472,22 +472,34 @@ export class AdminNotificationService {
     private async getNotificationCount(adminId: string): Promise<number> {
         try {
             const adminNotificationsRef = collection(db, 'admin_notifications');
-
-            // Get broadcast notifications count
-            const broadcastQuery = query(
+            
+            // Get all notifications that this admin should see
+            // This includes both broadcast notifications and notifications specifically for this admin
+            const notificationsQuery = query(
                 adminNotificationsRef,
-                where('adminId', '==', 'all')
+                where('adminId', 'in', ['all', adminId])
             );
-            const broadcastSnapshot = await getDocs(broadcastQuery);
+            
+            const snapshot = await getDocs(notificationsQuery);
+            
+            // Count unique notifications (in case there are duplicates)
+            const uniqueNotificationIds = new Set();
+            snapshot.forEach(doc => {
+                // For broadcast notifications, we need to check if this admin has already seen it
+                const notification = doc.data();
+                if (notification.adminId === 'all') {
+                    // For broadcast notifications, we need to check if this admin has already seen it
+                    const seenBy = notification.seenBy || [];
+                    if (!seenBy.includes(adminId)) {
+                        uniqueNotificationIds.add(doc.id);
+                    }
+                } else {
+                    // For direct notifications, just count them
+                    uniqueNotificationIds.add(doc.id);
+                }
+            });
 
-            // Get specific admin notifications count
-            const specificQuery = query(
-                adminNotificationsRef,
-                where('adminId', '==', adminId)
-            );
-            const specificSnapshot = await getDocs(specificQuery);
-
-            return broadcastSnapshot.size + specificSnapshot.size;
+            return uniqueNotificationIds.size;
         } catch (error) {
             console.error('Error getting notification count:', error);
             return 0;

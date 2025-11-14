@@ -5,9 +5,9 @@ import { useAuth } from "../context/AuthContext";
 import { format } from "date-fns";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { userService } from "../utils/firebase/auth";
 // Using require for local image to avoid TypeScript module resolution issues
 const emptyProfile = require("../assets/images/empty_profile.jpg");
-import { userService } from "../utils/firebase/auth";
 
 interface Message {
   id: string;

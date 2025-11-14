@@ -10,6 +10,7 @@ import {
   Tooltip,
   Legend,
   TimeScale,
+  Filler,
 } from "chart.js";
 import type { ScriptableContext } from "chart.js";
 import "chartjs-adapter-date-fns";
@@ -32,7 +33,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  TimeScale
+  TimeScale,
+  Filler
 );
 
 type ViewMode = "daily" | "weekly" | "monthly";

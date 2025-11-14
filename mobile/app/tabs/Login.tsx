@@ -34,7 +34,9 @@ function Login() {
 
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [generalError, setGeneralError] = useState("");
+  const [isToastVisible, setIsToastVisible] = useState(false);
 
   // NEW: Get ban details for display
   const reason = banInfo?.reason || "No reason provided";
@@ -163,8 +165,11 @@ function Login() {
       setGeneralError(errorMessage);
 
       // Only show toast if there isn't already one showing
-      if (!showToast) {
+      if (!isToastVisible) {
+        setIsToastVisible(true);
         showToastMessage(errorMessage, "error", 5000);
+        // Reset toast visibility after it's hidden
+        setTimeout(() => setIsToastVisible(false), 5000);
       }
     }
   };

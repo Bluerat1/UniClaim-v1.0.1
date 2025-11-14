@@ -272,129 +272,119 @@ export class NotificationSender {
 
                     const userData = userDoc.data();
                     const isMobileUser = userData.pushToken && userData.pushToken.length > 0;
-                    const isAdmin = userData.role === 'admin' || userData.role === 'campus_security';
+                    const userRole = userData.role || 'user';
+                    const isAdmin = userRole === 'admin';
 
-                    if (isAdmin) {
-                        adminUserIds.push(userId);
+                // Only create admin notifications for actual admin users
+                if (isAdmin) {
+                    adminUserIds.push(userId);
 
-                        const adminNotificationData = {
-                            type: 'activity_summary' as const,
-                            title: messageData.trigger === 'read'
-                                ? `Message Seen`
-                                : `New Message Activity`,
-                            message: messageData.trigger === 'read'
-                                ? `${messageData.readByUserId === userId
-                                    ? 'You'
-                                    : `${messageData.senderName}`} saw a message in "${messageData.conversationData?.postTitle || 'Unknown Item'}"`
-                                : `${messageData.senderName} sent a message in conversation about "${messageData.conversationData?.postTitle || 'Unknown Item'}"`,
-                            priority: 'normal' as const,
-                            adminId: userId,
-                            data: {
-                                conversationId: messageData.conversationId,
-                                senderId: messageData.senderId,
-                                senderName: messageData.senderName,
-                                messageText: messageData.messageText,
-                                postId: messageData.conversationData?.postId || null,
-                                postTitle: messageData.conversationData?.postTitle || null,
-                                conversationParticipants: messageData.conversationData?.participants || {},
-                                trigger: messageData.trigger,
-                                readByUserId: messageData.readByUserId
-                            },
-                            actionRequired: false,
-                            relatedEntity: {
-                                type: 'conversation' as const,
-                                id: messageData.conversationId,
-                                name: `Conversation about ${messageData.conversationData?.postTitle || 'Unknown Item'}`
-                            }
-                        };
-
-                        adminNotifications.push(adminNotificationData);
-                    } else {
-                        const notificationData = {
-                            userId,
-                            type: 'message' as const,
-                            title: messageData.trigger === 'read'
-                                ? `Message seen by ${messageData.readByUserId === userId ? 'you' : messageData.senderName}`
-                                : `New message from ${messageData.senderName}`,
-                            body: messageData.trigger === 'read'
-                                ? `${messageData.senderName}'s message was seen`
-                                : messageData.messageText.length > 50
-                                    ? `${messageData.messageText.substring(0, 50)}...`
-                                    : messageData.messageText,
-                            data: {
-                                conversationId: messageData.conversationId,
-                                senderId: messageData.senderId,
-                                senderName: messageData.senderName,
-                                messageText: messageData.messageText,
-                                postId: messageData.conversationData?.postId || null,
-                                postTitle: messageData.conversationData?.postTitle || null,
-                                trigger: messageData.trigger,
-                                ...(messageData.readByUserId && { readByUserId: messageData.readByUserId })
-                            },
-                            read: false,
-                            createdAt: serverTimestamp(),
-                            conversationId: messageData.conversationId
-                        };
-
-                        notifications.push(notificationData);
-
-                        if (isMobileUser) {
-                            try {
-                                await notificationService.sendPushNotification(
-                                    userId,
-                                    notificationData.title,
-                                    notificationData.body,
-                                    {
-                                        type: 'message',
-                                        conversationId: messageData.conversationId,
-                                        senderId: messageData.senderId,
-                                        senderName: messageData.senderName,
-                                        messageText: messageData.messageText,
-                                        trigger: messageData.trigger,
-                                        readByUserId: messageData.readByUserId
-                                    }
-                                );
-                            } catch (pushError) {
-                                console.warn(`⚠️ Mobile: Failed to send push notification to ${userId}:`, pushError);
-                            }
+                    const adminNotificationData = {
+                        type: 'activity_summary' as const,
+                        title: messageData.trigger === 'read'
+                            ? `Message Seen`
+                            : `New Message Activity`,
+                        message: messageData.trigger === 'read'
+                            ? `${messageData.readByUserId === userId
+                                ? 'You'
+                                : `${messageData.senderName}`} saw a message in "${messageData.conversationData?.postTitle || 'Unknown Item'}"`
+                            : `${messageData.senderName} sent a message in conversation about "${messageData.conversationData?.postTitle || 'Unknown Item'}"`,
+                        priority: 'normal' as const,
+                        adminId: userId,
+                        data: {
+                            conversationId: messageData.conversationId,
+                            senderId: messageData.senderId,
+                            senderName: messageData.senderName,
+                            messageText: messageData.messageText,
+                            postId: messageData.conversationData?.postId || null,
+                            postTitle: messageData.conversationData?.postTitle || null,
+                            conversationParticipants: messageData.conversationData?.participants || {},
+                            trigger: messageData.trigger,
+                            readByUserId: messageData.readByUserId
+                        },
+                        actionRequired: false,
+                        relatedEntity: {
+                            type: 'conversation' as const,
+                            id: messageData.conversationId,
+                            name: `Conversation about ${messageData.conversationData?.postTitle || 'Unknown Item'}`
                         }
-                    }
+                    };
 
-                } catch (userError) {
-                    console.error(`❌ Mobile: Error processing notification for user ${userId}:`, userError);
+                    adminNotifications.push(adminNotificationData);
                 }
-            }
+                
+                // Create regular notification for all users (including campus security)
+                const notificationData = {
+                    userId,
+                    type: 'message' as const,
+                    title: messageData.trigger === 'read'
+                        ? `Message seen by ${messageData.readByUserId === userId ? 'you' : messageData.senderName}`
+                        : `New message from ${messageData.senderName}`,
+                    body: messageData.trigger === 'read'
+                        ? `${messageData.senderName}'s message was seen`
+                        : messageData.messageText.length > 50
+                            ? `${messageData.messageText.substring(0, 50)}...`
+                            : messageData.messageText,
+                    data: {
+                        conversationId: messageData.conversationId,
+                        senderId: messageData.senderId,
+                        senderName: messageData.senderName,
+                        messageText: messageData.messageText,
+                        postId: messageData.conversationData?.postId || null,
+                        postTitle: messageData.conversationData?.postTitle || null,
+                        trigger: messageData.trigger,
+                        ...(messageData.readByUserId && { readByUserId: messageData.readByUserId })
+                    },
+                    read: false,
+                    createdAt: serverTimestamp()
+                };
 
-            if (notifications.length > 0) {
-                for (const notification of notifications) {
+                notifications.push(notificationData);
+
+                // Send push notification for mobile users
+                if (isMobileUser) {
                     try {
-                        await notificationService.createNotification({
-                            userId: notification.userId,
-                            type: notification.type,
-                            title: notification.title,
-                            body: notification.body,
-                            data: notification.data,
-                            conversationId: notification.conversationId
-                        });
-                    } catch (error) {
-                        console.error(`❌ Mobile: Failed to create message notification for user ${notification.userId}:`, error);
+                        await notificationService.sendPushNotification(
+                            userId,
+                            notificationData.title,
+                            notificationData.body,
+                            notificationData.data
+                        );
+                    } catch (pushError) {
+                        console.warn(`⚠️ Mobile: Failed to send push notification to user ${userId}:`, pushError);
                     }
                 }
+            } catch (userError) {
+                console.error(`❌ Mobile: Error processing notification for user ${userId}:`, userError);
             }
-
-            if (adminNotifications.length > 0) {
-                const adminBatch = adminNotifications.map(adminNotification =>
-                    adminNotificationService.createAdminNotification(adminNotification)
-                );
-
-                await Promise.all(adminBatch);
-            }
-
-        } catch (error) {
-            console.error('❌ Mobile: Error sending message notifications:', error);
         }
+
+        // Process all notifications in parallel
+        const notificationPromises = notifications.map(notification => 
+            notificationService.createNotification(notification)
+                .catch(error => {
+                    console.error(`Failed to create notification for user ${notification.userId}:`, error);
+                    return null;
+                })
+        );
+
+        // Process admin notifications in parallel
+        const adminNotificationPromises = adminNotifications.map(notification => 
+            adminNotificationService.createAdminNotification(notification)
+                .catch(error => {
+                    console.error('Failed to create admin notification:', error);
+                    return null;
+                })
+        );
+
+        // Wait for all notifications to complete
+        await Promise.all([...notificationPromises, ...adminNotificationPromises]);
+    } catch (error) {
+        console.error('❌ Mobile: Error sending message notifications:', error);
     }
 }
+
+} // End of NotificationSender class
 
 // Export singleton instance
 export const notificationSender = NotificationSender.getInstance();

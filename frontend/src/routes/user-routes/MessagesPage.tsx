@@ -109,9 +109,10 @@ const MessagesPage: React.FC = () => {
               />
             </div>
 
-            {/* Chat Window - Right Side - Visible on sm and up, hidden only on xs */}
+            {/* Chat Window - Right Side - Visible on lg and up */}
             <div className="flex-1 hidden lg:flex flex-col">
               <ChatWindow
+                key={`desktop-${selectedConversation?.id || 'none'}`}
                 conversation={selectedConversation}
                 onClearConversation={() => {
                   setSelectedConversation(null);
@@ -121,9 +122,9 @@ const MessagesPage: React.FC = () => {
               />
             </div>
 
-            {/* Mobile Chat Overlay - Only on very small screens (xs) */}
-            {selectedConversation && (
-              <div className="lg:hidden fixed inset-0 z-50 bg-white flex flex-col">
+            {/* Mobile Chat Overlay - Only on small screens */}
+            {selectedConversation ? (
+              <div key={`mobile-overlay-${selectedConversation?.id || 'none'}`} className="lg:hidden fixed inset-0 z-50 bg-white flex flex-col">
                 {/* Mobile Header */}
                 <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-white flex-shrink-0">
                   <button
@@ -153,6 +154,7 @@ const MessagesPage: React.FC = () => {
                 {/* Mobile Chat */}
                 <div className="flex-1 overflow-hidden">
                   <ChatWindow
+                    key={`mobile-${selectedConversation?.id || 'none'}`}
                     conversation={selectedConversation}
                     onClearConversation={() => {
                       console.log("ChatWindow clearing conversation...");
@@ -163,7 +165,7 @@ const MessagesPage: React.FC = () => {
                   />
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

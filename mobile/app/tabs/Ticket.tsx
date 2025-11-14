@@ -20,6 +20,12 @@ import { postService , messageService } from "../../utils/firebase";
 
 import { db } from "../../utils/firebase/config";
 import { collection, query, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { handoverClaimService } from "../../utils/handoverClaimService";
+import { notificationSender } from "../../utils/firebase/notificationSender";
+import { deleteMessageImages, extractMessageImages } from "../../utils/cloudinary";
+import EditTicketModal from "../../components/EditTicketModal";
+import ViewTicketModal from "../../components/ViewTicketModal";
+import { Ionicons } from "@expo/vector-icons";
 
 // Create a context for ticket view actions
 const TicketViewContext = React.createContext<{
@@ -28,12 +34,6 @@ const TicketViewContext = React.createContext<{
 
 // Custom hook to use the ticket view context
 export const useTicketViewContext = () => React.useContext(TicketViewContext);
-import { handoverClaimService } from "../../utils/handoverClaimService";
-import { notificationSender } from "../../utils/firebase/notificationSender";
-import { deleteMessageImages, extractMessageImages } from "../../utils/cloudinary";
-import EditTicketModal from "../../components/EditTicketModal";
-import ViewTicketModal from "../../components/ViewTicketModal";
-import { Ionicons } from "@expo/vector-icons";
 const useDebounce = (value: string, delay: number) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
@@ -96,7 +96,7 @@ export default function Ticket() {
         activeTab === "active"
           ? !post.deletedAt && post.status === "pending"
           : activeTab === "resolved"
-            ? !post.deletedAt && post.status === "resolved"
+            ? !post.deletedAt && (post.status === "resolved" || post.status === "completed")
             : !!post.deletedAt; // Show deleted posts in the deleted tab
       const matchesSearch =
         post.title.toLowerCase().includes(debouncedSearchText.toLowerCase()) ||
@@ -875,6 +875,7 @@ const TicketCard = ({
   const getStatusColor = (status: string) => {
     switch (status) {
       case "resolved":
+      case "completed":
         return "bg-green-100";
       default:
         return "bg-yellow-100";
@@ -884,6 +885,7 @@ const TicketCard = ({
   const getStatusTextColor = (status: string) => {
     switch (status) {
       case "resolved":
+      case "completed":
         return "text-green-700";
       default:
         return "text-yellow-700";
@@ -1036,8 +1038,8 @@ const TicketCard = ({
               </TouchableOpacity>
             )}
 
-            {/* Show Delete button only for pending posts that are not deleted */}
-            {onDelete && !post.deletedAt && post.status !== "resolved" && (
+            {/* Show Delete button only for pending posts that are not deleted, resolved, or completed */}
+            {onDelete && !post.deletedAt && post.status !== "resolved" && post.status !== "completed" && (
               <TouchableOpacity
                 onPress={() => onDelete(post.id)}
                 className={`flex-1 py-2 rounded-md items-center ${
@@ -1080,11 +1082,13 @@ const TicketCard = ({
               </>
             )}
 
-            {/* Show message for resolved posts */}
-            {post.status === "resolved" && (
+            {/* Show message for resolved or completed posts */}
+            {(post.status === "resolved" || post.status === "completed") && (
               <View className="flex-1 py-2 rounded-md items-center bg-gray-100">
                 <Text className="text-gray-600 font-manrope-medium text-center">
-                  This ticket has been resolved
+                  {post.status === "resolved" 
+                    ? "This ticket has been resolved" 
+                    : "This ticket has been completed"}
                 </Text>
               </View>
             )}

@@ -1078,7 +1078,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       try {
         // Skip if participant is not an object or is null/undefined
         if (!participant || typeof participant !== 'object') {
-          console.log(`Skipping invalid participant: ${uid}`, participant);
           return;
         }
         
@@ -1090,7 +1089,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         
         // Skip Campus Security users
         if (role && (role === 'campus_security' || role.includes('campus_security'))) {
-          console.log(`🚫 Filtering out Campus Security participant: ${uid}`, { role });
           return;
         }
 
@@ -1131,7 +1129,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     Object.entries(participantInfo).forEach(([uid, info]) => {
       try {
         if (!info) {
-          console.log(`Skipping empty participant info for ${uid}`);
           return;
         }
         
@@ -1142,10 +1139,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     'user';
         
         if (role && (role === 'campus_security' || role.includes('campus_security'))) {
-          console.log(`🚫 Filtering out Campus Security participant info: ${uid}`, { role });
           // Remove from merged if somehow added earlier
           if (merged[uid]) {
-            console.log(`Removing previously added Campus Security user: ${uid}`);
             delete merged[uid];
           }
           return;
@@ -1197,11 +1192,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           uid: uid // Ensure UID is always included
         };
         
-        console.log(`✅ Updated participant info for ${uid}:`, {
-          name: displayName,
-          role: role || existing.role,
-          hasProfilePic: !!(info.photoURL || info.photo || existing.profilePicture || existing.profileImageUrl)
-        });
       } catch (error) {
         console.error(`Error processing participant info for ${uid}:`, error);
       }

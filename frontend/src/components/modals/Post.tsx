@@ -13,6 +13,7 @@ import TurnoverConfirmationModal from "@/components/modals/TurnoverConfirmation"
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { usePostCreatorData } from "@/hooks/usePostCreatorData";
 import { userService } from "@/services/firebase/users";
+import { messageService } from "@/utils/messageService";
 
 interface PostModalProps {
   post: Post;
@@ -165,6 +166,44 @@ export default function PostModal({
     post.turnoverDetails?.originalFinder?.profilePicture,
   ]);
 
+  // Generate a friendly greeting based on post type
+  const generateGreeting = () => {
+    const greetings = {
+      lost: `Hi! I found your ${post.title} and I think it matches the one you lost.`,
+      found: `Hello! I believe I might be the owner of the ${post.title} you found.`
+    };
+    return greetings[post.type] || `Hi! I'm reaching out about your ${post.type} item: ${post.title}`;
+  };
+
+  // Get the getUserConversations function from the MessageContext
+  const { getUserConversations } = useMessage();
+
+  // Check if a conversation already exists for this post and users
+  const checkExistingConversation = async (postId: string, currentUserId: string, postOwnerId: string): Promise<string | null> => {
+    return new Promise((resolve) => {
+      // Get the unsubscribe function from getUserConversations
+      const unsubscribe = getUserConversations(currentUserId, (conversations: any[]) => {
+        // Find if any conversation is for this post and involves both users
+        const existingConv = conversations.find((conv: any) => 
+          conv.postId === postId && 
+          (conv.participants?.[currentUserId] && conv.participants?.[postOwnerId])
+        );
+        
+        // Clean up the listener
+        unsubscribe();
+        
+        // Return the conversation ID if found, otherwise null
+        resolve(existingConv ? existingConv.id : null);
+      });
+      
+      // Set a timeout in case the callback never fires
+      setTimeout(() => {
+        unsubscribe();
+        resolve(null);
+      }, 5000); // 5 second timeout
+    });
+  };
+
   // Handle send message button click
   const handleSendMessage = async () => {
     // First, check if user is logged in
@@ -196,6 +235,16 @@ export default function PostModal({
       }
       const currentUserId = currentUser.uid;
 
+      // Check if conversation already exists
+      const existingConversationId = await checkExistingConversation(post.id, currentUserId, postOwnerId);
+      
+      if (existingConversationId) {
+        // If conversation exists, just navigate to it without sending a new greeting
+        onClose();
+        navigate(`/messages?conversation=${existingConversationId}`);
+        return;
+      }
+
       // Create a clean user data object with all required fields
       const currentUserData = {
         ...userData,  // Spread all userData first
@@ -208,22 +257,6 @@ export default function PostModal({
         displayName: currentUser.displayName || userData.displayName || ''
       };
 
-      // Debug log the parameters
-      console.log('createConversation params:', {
-        postId: post.id,
-        postTitle: post.title,
-        postOwnerId,
-        currentUserId,
-        hasCurrentUserData: !!currentUserData,
-        hasPostUserData: !!post.user,
-        userDataKeys: userData ? Object.keys(userData) : 'no userData',
-        authUser: currentUser ? {
-          uid: currentUser.uid,
-          email: currentUser.email,
-          displayName: currentUser.displayName
-        } : 'no auth user'
-      });
-
       // Create conversation and get the conversation ID
       const conversationId = await createConversation(
         post.id,
@@ -232,6 +265,16 @@ export default function PostModal({
         currentUserId,
         currentUserData,
         post.user || {}
+      );
+
+      // Send initial greeting message only for new conversations
+      const greeting = generateGreeting();
+      await messageService.sendMessage(
+        conversationId,
+        currentUserId,
+        currentUserData.displayName || 'User',
+        greeting,
+        currentUserData.profilePicture
       );
 
       // Close modal and navigate to messages page with the specific conversation

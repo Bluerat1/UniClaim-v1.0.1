@@ -761,8 +761,8 @@ const TicketModal = ({
                   </div>
                 </div>
               </div>
-              {/* Conversation History - Show for resolved tickets */}
-              {post.status === 'resolved' && (
+              {/* Conversation History - Show for resolved or completed tickets */}
+              {(post.status === 'resolved' || post.status === 'completed') && (
                 <div className="mt-6 border-t border-gray-200 pt-4 col-span-full">
                   <h3 className="text-lg font-medium text-gray-900 mb-3">Conversation History</h3>
                   <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">

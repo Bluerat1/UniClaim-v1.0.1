@@ -69,6 +69,15 @@ export default function PostCardMenu({
     openMenu(postId);
   };
 
+  // Generate a friendly greeting based on post type
+  const generateGreeting = (title: string, postType?: string) => {
+    const greetings: Record<string, string> = {
+      lost: `Hi! I found your ${title} and I think it matches the one you lost.`,
+      found: `Hello! I believe I might be the owner of the ${title} you found.`,
+    };
+    return greetings[postType || ''] || `Hi! I'm reaching out about your ${postType || 'item'}: ${title}`;
+  };
+
   const handleSendMessage = async () => {
     if (!userData) {
       Alert.alert("Login Required", "Please log in to send messages");
@@ -95,15 +104,50 @@ export default function PostCardMenu({
     closeMenu(); // Close menu when starting conversation
 
     try {
-      // Create conversation
-      const conversationId = await messageService.createConversation(
-        postId,
-        postTitle,
-        postOwnerId,
-        userData.uid,
-        userData,
-        postOwnerUserData
+      // First, check if a conversation already exists for this post and users
+      const conversations = await messageService.getCurrentConversations(userData.uid);
+      const existingConversation = conversations.find(conv => 
+        conv.postId === postId && 
+        conv.participants && 
+        conv.participants[postOwnerId] && 
+        conv.participants[userData.uid]
       );
+
+      let conversationId: string;
+      
+      if (existingConversation) {
+        // Use existing conversation
+        conversationId = existingConversation.id;
+      } else {
+        // Create new conversation
+        conversationId = await messageService.createConversation(
+          postId,
+          postTitle,
+          postOwnerId,
+          userData.uid,
+          userData,
+          postOwnerUserData,
+          postType,
+          postStatus,
+          foundAction
+        );
+
+        // Send greeting message for new conversations
+        try {
+          const greeting = generateGreeting(postTitle, postType);
+          await messageService.sendMessage(
+            conversationId,
+            userData.uid,
+            userData.firstName || 'User',
+            greeting,
+            userData.profilePicture
+          );
+          console.log('Greeting message sent successfully');
+        } catch (greetingError) {
+          console.error('Failed to send greeting message:', greetingError);
+          // Don't fail the whole operation if greeting fails
+        }
+      }
 
       // Navigate to chat
       navigation.navigate("Chat", {
@@ -112,9 +156,9 @@ export default function PostCardMenu({
         postId,
         postOwnerId,
         postOwnerUserData,
-        postType: postType, // Pass post type (lost/found)
-        postStatus: postStatus || "pending", // Pass post status
-        foundAction: foundAction, // Pass found action for found items
+        postType: postType,
+        postStatus: postStatus || "pending",
+        foundAction: foundAction,
       });
     } catch (error: any) {
       console.error("Error creating conversation:", error);

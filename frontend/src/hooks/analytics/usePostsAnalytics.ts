@@ -22,16 +22,23 @@ export const usePostsAnalytics = () => {
         const q = query(postsCollection, orderBy("createdAt", "desc"));
 
         const postsSnapshot = await getDocs(q);
-        const postsData = postsSnapshot.docs.map(
-          (doc) =>
-            ({
-              id: doc.id,
-              ...doc.data(),
-              // Convert Firestore Timestamp to Date
-              createdAt: doc.data().createdAt?.toDate(),
-              updatedAt: doc.data().updatedAt?.toDate(),
-            } as Post)
-        );
+        const postsData = postsSnapshot.docs.map((doc) => {
+          const data = doc.data();
+          const normalizeDate = (dateValue: any) => {
+            if (!dateValue) return null;
+            if (dateValue.toDate) return dateValue.toDate();
+            if (dateValue.seconds) return new Date(dateValue.seconds * 1000);
+            if (dateValue instanceof Date) return dateValue;
+            return new Date(dateValue);
+          };
+          
+          return {
+            id: doc.id,
+            ...data,
+            createdAt: normalizeDate(data.createdAt),
+            updatedAt: normalizeDate(data.updatedAt),
+          } as Post;
+        });
 
         setPosts(postsData);
       } catch (error) {

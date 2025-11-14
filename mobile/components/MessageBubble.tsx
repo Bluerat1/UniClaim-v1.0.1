@@ -410,7 +410,7 @@ const MessageBubble: FC<MessageBubbleProps> = ({
       idPhotoUrl?: string;
       photosDeleted?: boolean;
       ownerIdPhoto?: string;
-      itemPhotos?: Array<{ url: string }>;
+      itemPhotos?: { url: string }[];
       respondedAt?: any;
       idPhotoConfirmed?: boolean;
       itemPhotosConfirmed?: boolean;
@@ -633,8 +633,8 @@ const MessageBubble: FC<MessageBubbleProps> = ({
       idPhotoUrl?: string;
       photosDeleted?: boolean;
       ownerIdPhoto?: string;
-      evidencePhotos?: Array<{ url: string }>;
-      verificationPhotos?: Array<{ url: string }>;
+      evidencePhotos?: { url: string }[];
+      verificationPhotos?: { url: string }[];
       respondedAt?: any;
       idPhotoConfirmed?: boolean;
       evidencePhotosConfirmed?: boolean;

@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
-} from "react-native";
+ Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,7 +23,6 @@ import PageLayout from "../../layout/PageLayout";
 import { useMessage } from "../../context/MessageContext";
 import { useAuth } from "../../context/AuthContext";
 import ProfilePicture from "../../components/ProfilePicture";
-import { Alert } from 'react-native';
 import type { Conversation, RootStackParamList } from "../../types/type";
 
 type MessageNavigationProp = NativeStackNavigationProp<

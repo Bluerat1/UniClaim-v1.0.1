@@ -110,6 +110,15 @@ export default function PostCardMenu({
     }
   };
 
+  // Generate a friendly greeting based on post type
+  const generateGreeting = (postType: string, title: string) => {
+    const greetings: Record<string, string> = {
+      lost: `Hi! I found your ${title} and I think it matches the one you lost.`,
+      found: `Hello! I believe I might be the owner of the ${title} you found.`,
+    };
+    return greetings[postType] || `Hi! I'm reaching out about your ${postType} item: ${title}`;
+  };
+
   const handleSendMessage = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -119,16 +128,16 @@ export default function PostCardMenu({
       showToast("error", "Please log in to send messages");
       return;
     }
-    
+
     if (!userData) {
-      console.error('User data is missing');
+      console.error("User data is missing");
       showToast("error", "User information is not available. Please refresh the page and try again.");
       return;
     }
 
     // Validate post owner ID
     if (!postOwnerId) {
-      console.error('Post owner ID is missing');
+      console.error("Post owner ID is missing");
       showToast("error", "Cannot send message: Post owner information is missing");
       return;
     }
@@ -143,10 +152,10 @@ export default function PostCardMenu({
       setIsCreatingConversation(true);
       setIsOpen(false);
 
-      console.log('Starting conversation between:', {
+      console.log("Starting conversation between:", {
         currentUser: currentUserId,
         postOwner: postOwnerId,
-        postId
+        postId,
       });
 
       // First, check if a conversation already exists for this post and users
@@ -157,12 +166,12 @@ export default function PostCardMenu({
       );
 
       let conversationId = existingConversationId;
-      console.log('Existing conversation ID:', conversationId);
+      console.log("Existing conversation ID:", conversationId);
 
-      // If no existing conversation, create a new one
+      // If no existing conversation, create a new one and send greeting
       if (!conversationId) {
-        console.log('Creating new conversation...');
-        // We can safely pass userData here since we've already validated it's not null
+        console.log("Creating new conversation...");
+        // Create the conversation
         conversationId = await messageService.createConversation(
           postId,
           postTitle,
@@ -171,7 +180,23 @@ export default function PostCardMenu({
           userData,
           postOwnerUserData || {}
         );
-        console.log('New conversation created with ID:', conversationId);
+        console.log("New conversation created with ID:", conversationId);
+
+        // Send greeting message for new conversations
+        try {
+          const greeting = generateGreeting("found", postTitle);
+          await messageService.sendMessage(
+            conversationId,
+            currentUserId,
+            userData.displayName || "User",
+            greeting,
+            userData.profilePicture
+          );
+          console.log("Greeting message sent successfully");
+        } catch (greetingError) {
+          console.error("Failed to send greeting message:", greetingError);
+          // Don't fail the whole operation if greeting fails
+        }
       }
 
       // Navigate to messages page with the specific conversation

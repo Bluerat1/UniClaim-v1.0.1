@@ -16,8 +16,8 @@ interface Props {
   setSelectedFiles: (files: File[]) => void;
   showModal: boolean;
   setShowModal: (val: boolean) => void;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
-  modalInputRef: React.RefObject<HTMLInputElement | null>;
+  fileInputRef: React.RefObject<HTMLInputElement>;
+  modalInputRef: React.RefObject<HTMLInputElement>;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   removeFile: (name: string) => void;
   title: string;
@@ -164,8 +164,8 @@ export default function ItemInfoForm({
             </label>
             <div
               onClick={() => {
-                if (selectedFiles.length < 3) {
-                  fileInputRef.current?.click();
+                if (selectedFiles.length < 3 && fileInputRef?.current) {
+                  fileInputRef.current.click();
                 }
               }}
               className={`flex items-center justify-between px-4 py-3 rounded cursor-pointer focus-within:ring-2 focus-within:ring-blue-500 ${
@@ -256,7 +256,7 @@ export default function ItemInfoForm({
                       />
                       <button
                         type="button"
-                        onClick={() => modalInputRef.current?.click()}
+                        onClick={() => modalInputRef?.current?.click()}
                         className="flex items-center w-full justify-center gap-2 bg-brand text-white px-4 py-2 rounded hover:bg-yellow-600 transition"
                       >
                         <FiUpload className="size-4" />

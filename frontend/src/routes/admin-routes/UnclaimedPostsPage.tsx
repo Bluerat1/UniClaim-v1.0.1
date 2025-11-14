@@ -14,12 +14,39 @@ import { useAuth } from "../../context/AuthContext";
 import ActivationModal from "../../components/modals/Activation";
 import SearchBar from "../../components/common/SearchBar";
 
-function fuzzyMatch(text: string, query: string): boolean {
+function fuzzyMatch(text: string, query: string, postUser?: { firstName?: string; lastName?: string; email?: string }): boolean {
+  if (!text) return false;
+  
   const cleanedText = text.toLowerCase();
   const queryWords = query.toLowerCase().split(/\W+/).filter(Boolean);
 
-  // Make sure every keyword appears in the text
-  return queryWords.every((word) => cleanedText.includes(word));
+  // If no query words, return true
+  if (queryWords.length === 0) return true;
+
+  // Check if query matches user's name or email
+  if (postUser) {
+    const userName = `${postUser.firstName || ''} ${postUser.lastName || ''}`.toLowerCase().trim();
+    const userEmail = postUser.email?.toLowerCase() || '';
+    
+    // Check if any query word matches user's name or email
+    const userMatch = queryWords.some(word => 
+      userName.includes(word) || 
+      (postUser.firstName?.toLowerCase().includes(word) || 
+       postUser.lastName?.toLowerCase().includes(word)) ||
+      userEmail.includes(word)
+    );
+    
+    if (userMatch) return true;
+  }
+
+  // For single word queries, use partial matching
+  if (queryWords.length === 1) {
+    return cleanedText.includes(queryWords[0]);
+  }
+
+  // For multiple words, require at least 70% of words to match (more flexible)
+  const matchedWords = queryWords.filter((word) => cleanedText.includes(word));
+  return matchedWords.length >= Math.ceil(queryWords.length * 0.7);
 }
 
 export default function UnclaimedPostsPage() {
@@ -102,7 +129,13 @@ export default function UnclaimedPostsPage() {
     setLastDescriptionKeyword(filters.description || "");
 
     const filtered = unclaimedPosts.filter((item) => {
-      const matchesQuery = query.trim() ? fuzzyMatch(item.title, query) : true;
+      const matchesQuery = query.trim() ? (
+        fuzzyMatch(item.title, query, item.user) ||
+        fuzzyMatch(item.description, query, item.user) ||
+        (item.user?.firstName && fuzzyMatch(item.user.firstName, query)) ||
+        (item.user?.lastName && fuzzyMatch(item.user.lastName, query)) ||
+        (item.user?.email && fuzzyMatch(item.user.email, query))
+      ) : true;
 
       const matchesCategory =
         filters.selectedCategory &&

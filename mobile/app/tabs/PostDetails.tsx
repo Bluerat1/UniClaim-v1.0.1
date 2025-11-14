@@ -23,7 +23,16 @@ export default function PostDetailsScreen() {
   const route = useRoute<PostDetailsRouteProp>();
   const { post } = route.params;
   const { userData } = useAuth();
-  const { createConversation } = useMessage();
+  const { createConversation, conversations } = useMessage();
+  
+  // Generate a friendly greeting based on post type
+  const generateGreeting = (title: string, postType?: string) => {
+    const greetings: Record<string, string> = {
+      lost: `Hi! I found your ${title} and I think it matches the one you lost.`,
+      found: `Hello! I believe I might be the owner of the ${title} you found.`,
+    };
+    return greetings[postType || ''] || `Hi! I'm reaching out about your ${postType || 'item'}: ${title}`;
+  };
 
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -57,15 +66,51 @@ export default function PostDetailsScreen() {
 
     try {
       setIsSendingMessage(true);
-      // Create conversation
-      const conversationId = await createConversation(
-        post.id,
-        post.title,
-        postOwnerId,
-        userData.uid,
-        userData,
-        post.user // Pass the post owner's user data
+      
+      // Check if a conversation already exists for this post and users
+      const existingConversation = conversations.find(conv => 
+        conv.postId === post.id && 
+        conv.participants && 
+        conv.participants[postOwnerId] && 
+        conv.participants[userData.uid]
       );
+      
+      let conversationId: string;
+      
+      if (existingConversation) {
+        // Use existing conversation
+        conversationId = existingConversation.id;
+      } else {
+        // Create new conversation
+        conversationId = await createConversation(
+          post.id,
+          post.title,
+          postOwnerId,
+          userData.uid,
+          userData,
+          post.user, // Pass the post owner's user data
+          post.type,
+          post.status || "pending",
+          post.foundAction
+        );
+
+        // Send greeting message for new conversations
+        try {
+          const greeting = generateGreeting(post.title, post.type);
+          const { messageService } = await import("../../utils/firebase/messages");
+          await messageService.sendMessage(
+            conversationId,
+            userData.uid,
+            userData.firstName || 'User',
+            greeting,
+            userData.profilePicture
+          );
+          console.log('Greeting message sent successfully');
+        } catch (greetingError) {
+          console.error('Failed to send greeting message:', greetingError);
+          // Don't fail the whole operation if greeting fails
+        }
+      }
 
       // Navigate to chat
       navigation.navigate("Chat", {
@@ -159,19 +204,54 @@ export default function PostDetailsScreen() {
         throw new Error("Cannot identify original finder");
       }
 
-      // Create conversation with original finder
-      const conversationId = await createConversation(
-        post.id,
-        post.title,
-        originalFinderId, // Original finder's ID as postOwnerId
-        userData.uid, // Current user's UID
-        userData, // Current user's data
-        originalFinder // Original finder's data as postOwnerUserData
+      // Check if a conversation already exists for this post and users
+      const existingConversation = conversations.find(conv => 
+        conv.postId === post.id && 
+        conv.participants && 
+        conv.participants[originalFinderId] && 
+        conv.participants[userData.uid]
       );
+      
+      let conversationId: string;
+      
+      if (existingConversation) {
+        // Use existing conversation
+        conversationId = existingConversation.id;
+      } else {
+        // Create new conversation
+        conversationId = await createConversation(
+          post.id,
+          post.title,
+          originalFinderId, // Original finder's ID as postOwnerId
+          userData.uid, // Current user's UID
+          userData, // Current user's data
+          originalFinder, // Original finder's data as postOwnerUserData
+          post.type,
+          post.status || "pending",
+          post.foundAction
+        );
+
+        // Send greeting message for new conversations
+        try {
+          const greeting = `Hello! I'm reaching out regarding the item you found: ${post.title}`;
+          const { messageService } = await import("../../utils/firebase/messages");
+          await messageService.sendMessage(
+            conversationId,
+            userData.uid,
+            userData.firstName || 'User',
+            greeting,
+            userData.profilePicture
+          );
+          console.log('Greeting message to original finder sent successfully');
+        } catch (greetingError) {
+          console.error('Failed to send greeting message to original finder:', greetingError);
+          // Don't fail the whole operation if greeting fails
+        }
+      }
 
       // Navigate to Chat screen with the conversation
       (navigation as any).navigate("Chat", {
-        conversationId: conversationId,
+        conversationId,
         postTitle: post.title,
         postId: post.id,
         postOwnerId: originalFinderId,
@@ -736,10 +816,13 @@ export default function PostDetailsScreen() {
         )}
         */}
 
-        {/* Conversation History Section - Only show for resolved posts */}
-        {post.status === 'resolved' && (
-          <View className="mt-4">
-            <ConversationHistory 
+        {/* Conversation History - Only show for non-resolved posts */}
+        {!isCurrentUserCreator && post.status !== 'resolved' && (
+          <View className="mt-6">
+            <Text className="text-lg font-manrope-bold mb-3">
+              Conversation History
+            </Text>
+            <ConversationHistory
               postId={post.id}
               isAdmin={userData?.role === 'admin'}
             />

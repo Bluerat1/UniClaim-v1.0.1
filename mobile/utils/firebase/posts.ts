@@ -1,7 +1,7 @@
 // Posts service for lost and found items - Enhanced with performance optimizations
 import { db } from './config';
 import { cloudinaryService, extractPublicIdFromUrl } from '../cloudinary';
-import { doc, collection, getDoc, addDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot, where, getDocs, serverTimestamp, limit, startAfter } from 'firebase/firestore';
+import { writeBatch, doc, collection, getDoc, addDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot, where, getDocs, serverTimestamp, limit, startAfter } from 'firebase/firestore';
 import writeBatchManager from './writeBatchManager';
 
 // Import notification sender (mobile service)
@@ -304,7 +304,7 @@ export const postService = {
         if (updates.length === 0) return;
 
         try {
-            const batch = writeBatchManager.getBatch();
+            const batch = writeBatch(db);
 
             updates.forEach(({ id, data }) => {
                 const postRef = doc(db, 'posts', id);
@@ -313,6 +313,8 @@ export const postService = {
                     updatedAt: serverTimestamp()
                 });
             });
+            
+            await batch.commit();
 
             await batch.commit();
             console.log(`✅ Successfully batch updated ${updates.length} posts`);

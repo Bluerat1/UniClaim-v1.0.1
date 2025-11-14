@@ -12,8 +12,7 @@ import {
   View as RNView,
   ActivityIndicator as RNActivityIndicator,
   RefreshControl,
-} from "react-native";
-import {
+
   ActivityIndicator,
   Alert,
   Image,
@@ -23,8 +22,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
-} from "react-native";
+  View} from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import PageLayout from "../../layout/PageLayout";
 import type { RootStackParamList } from "../../types/type";
