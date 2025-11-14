@@ -52,15 +52,12 @@ const SearchBar: React.FC<SearchBarProps> = ({
     }
   }, [query]);
 
-  // Remove real-time filtering - only search when user clicks search button
-  // useEffect removed to prevent automatic filtering while typing
-
   return (
     <div className="w-full">
       <div className="flex gap-3 md:flex md:justify-center md:items-center lg:justify-start lg:items-center">
         <input
           type="text"
-          placeholder="Search an item"
+          placeholder="Search an item or a user"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {

@@ -693,7 +693,7 @@ export default function AdminPostModal({
                           🔄 Item Holder Transfer
                         </h3>
                       </div>
-                      <div className="text-sm text-blue-700 space-y-1 text-xs">
+                      <div className="text-sm text-blue-700 space-y-1">
                         <p>
                           <strong>Status:</strong> Item has been transferred
                           from Campus Security to OSA (Admin)
@@ -753,9 +753,11 @@ export default function AdminPostModal({
             )}
 
             {/* Conversation History - Show for resolved posts */}
-            {post.status === 'resolved' && (
+            {post.status === "resolved" && (
               <div className="mt-4 border-t border-gray-200 pt-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Conversation History</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">
+                  Conversation History
+                </h3>
                 <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                   <ConversationHistory postId={post.id} />
                 </div>
@@ -858,9 +860,9 @@ export default function AdminPostModal({
             <h3 className="font-semibold text-green-800 mb-2 text-sm">
               Claim Details
             </h3>
-            <ClaimDetailsDisplay 
-              claimDetails={post.claimDetails} 
-              conversationData={post.conversationData} 
+            <ClaimDetailsDisplay
+              claimDetails={post.claimDetails}
+              conversationData={post.conversationData}
             />
           </div>
         )}

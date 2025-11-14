@@ -8,7 +8,7 @@ import MobileNavText from "@/components/layout/NavHead";
 import SearchBar from "@/components/common/SearchBar";
 import FlagModal from "@/components/modals/Flag";
 import MobileFilter from "@/components/common/MobileFilter";
-type ViewType = 'all' | 'lost' | 'found' | 'completed';
+type ViewType = "all" | "lost" | "found" | "completed";
 
 // hooks
 import { usePosts, useResolvedPosts } from "@/hooks/usePosts";
@@ -29,7 +29,7 @@ type UserInfo = {
 
 function fuzzyMatch(text: string, query: string, postUser?: UserInfo): boolean {
   if (!text) return false;
-  
+
   const cleanedText = text.toLowerCase();
   const queryWords = query.toLowerCase().split(/\W+/).filter(Boolean);
 
@@ -38,17 +38,20 @@ function fuzzyMatch(text: string, query: string, postUser?: UserInfo): boolean {
 
   // Check if query matches user's name or email
   if (postUser) {
-    const userName = `${postUser.firstName || ''} ${postUser.lastName || ''}`.toLowerCase().trim();
-    const userEmail = postUser.email?.toLowerCase() || '';
-    
+    const userName = `${postUser.firstName || ""} ${postUser.lastName || ""}`
+      .toLowerCase()
+      .trim();
+    const userEmail = postUser.email?.toLowerCase() || "";
+
     // Check if any query word matches user's name or email
-    const userMatch = queryWords.some(word => 
-      userName.includes(word) || 
-      (postUser.firstName?.toLowerCase().includes(word) || 
-       postUser.lastName?.toLowerCase().includes(word)) ||
-      userEmail.includes(word)
+    const userMatch = queryWords.some(
+      (word) =>
+        userName.includes(word) ||
+        postUser.firstName?.toLowerCase().includes(word) ||
+        postUser.lastName?.toLowerCase().includes(word) ||
+        userEmail.includes(word)
     );
-    
+
     if (userMatch) return true;
   }
 
@@ -71,7 +74,7 @@ export default function HomePage() {
     error: resolvedError,
   } = useResolvedPosts();
 
-  // Get admin statuses for all posts
+  // get admin statuses for all posts
   const allPosts = [...posts, ...resolvedPosts];
   const adminStatuses = useAdminStatus(allPosts);
   const [viewType, setViewType] = useState<
@@ -171,11 +174,7 @@ export default function HomePage() {
           );
         }
 
-        // Refresh the posts list to ensure selectedPost has updated data
-        // This is a simple way to trigger a refresh of the posts data
         try {
-          // Force a refresh by calling the usePosts hook's internal refresh mechanism
-          // For now, we'll just log that we need to refresh
           console.log(
             "🔄 Post status updated, posts list should refresh automatically via real-time updates"
           );
@@ -194,7 +193,7 @@ export default function HomePage() {
     [user, showToast]
   );
 
-  // ✅ New state for instant category filtering
+  // New state for instant category filtering
   const [selectedCategoryFilter, setSelectedCategoryFilter] =
     useState<string>("All");
 
@@ -219,23 +218,26 @@ export default function HomePage() {
     }
   }, [posts, selectedPost]);
 
-  const handleSearch = useCallback(async (query: string, filters: any) => {
-    setLastDescriptionKeyword(filters?.description || "");
-    setSearchQuery(query);
+  const handleSearch = useCallback(
+    async (query: string, filters: any) => {
+      setLastDescriptionKeyword(filters?.description || "");
+      setSearchQuery(query);
 
-    // Use appropriate posts based on current viewType
-    const postsToSearch = viewType === "completed" ? resolvedPosts : posts;
-    const filteredResults = (postsToSearch ?? []).filter((item) => {
-      return (
-        fuzzyMatch(item.title, query, item.user) ||
-        fuzzyMatch(item.description, query, item.user) ||
-        (item.user?.firstName && fuzzyMatch(item.user.firstName, query)) ||
-        (item.user?.lastName && fuzzyMatch(item.user.lastName, query)) ||
-        (item.user?.email && fuzzyMatch(item.user.email, query))
-      );
-    });
-    setRawResults(filteredResults);
-  }, [rawResults, viewType, resolvedPosts, posts, searchQuery]);
+      // Use appropriate posts based on current viewType
+      const postsToSearch = viewType === "completed" ? resolvedPosts : posts;
+      const filteredResults = (postsToSearch ?? []).filter((item) => {
+        return (
+          fuzzyMatch(item.title, query, item.user) ||
+          fuzzyMatch(item.description, query, item.user) ||
+          (item.user?.firstName && fuzzyMatch(item.user.firstName, query)) ||
+          (item.user?.lastName && fuzzyMatch(item.user.lastName, query)) ||
+          (item.user?.email && fuzzyMatch(item.user.email, query))
+        );
+      });
+      setRawResults(filteredResults);
+    },
+    [rawResults, viewType, resolvedPosts, posts, searchQuery]
+  );
 
   const filteredPosts = useMemo(() => {
     // If there are raw search results, filter them by view type
@@ -249,7 +251,7 @@ export default function HomePage() {
 
     // Otherwise filter the current posts by view type and search query
     const postsToShow = viewType === "completed" ? resolvedPosts : posts;
-    
+
     if (!searchQuery) return postsToShow;
 
     return postsToShow.filter((post) => {
@@ -257,7 +259,8 @@ export default function HomePage() {
       const matchesSearch =
         fuzzyMatch(post.title, searchQuery, post.user) ||
         fuzzyMatch(post.description, searchQuery, post.user) ||
-        (post.user?.firstName && fuzzyMatch(post.user.firstName, searchQuery)) ||
+        (post.user?.firstName &&
+          fuzzyMatch(post.user.firstName, searchQuery)) ||
         (post.user?.lastName && fuzzyMatch(post.user.lastName, searchQuery)) ||
         (post.user?.email && fuzzyMatch(post.user.email, searchQuery));
 
@@ -466,7 +469,6 @@ export default function HomePage() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 mx-4 mt-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-        {/* ✅ Handle Firebase loading state */}
         {loading || resolvedLoading || isLoading ? (
           <div className="col-span-full flex items-center justify-center h-80">
             <span className="text-gray-400">
@@ -489,8 +491,6 @@ export default function HomePage() {
             No results found.
           </div>
         ) : (
-          // Show the oldest posts first by taking them from the start of the array
-          // and then reversing the order so oldest appear at the top
           postsToDisplay
             .slice(0, totalPostsToShow)
             .map((post) => (
