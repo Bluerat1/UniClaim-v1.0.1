@@ -1,10 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import {
-  FlatList,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { FlatList, Text, TouchableOpacity, View } from "react-native";
 import SearchWithToggle from "../../components/Input";
 import PostCard from "../../components/PostCard";
 import { PostCardSkeletonList } from "../../components/PostCardSkeleton";
@@ -73,19 +68,19 @@ export default function Home() {
         const dateA = a.updatedAt?.toDate
           ? a.updatedAt.toDate()
           : a.updatedAt
-          ? new Date(a.updatedAt)
-          : a.createdAt?.toDate
-          ? a.createdAt.toDate()
-          : new Date(a.createdAt || 0);
-          
+            ? new Date(a.updatedAt)
+            : a.createdAt?.toDate
+              ? a.createdAt.toDate()
+              : new Date(a.createdAt || 0);
+
         const dateB = b.updatedAt?.toDate
           ? b.updatedAt.toDate()
           : b.updatedAt
-          ? new Date(b.updatedAt)
-          : b.createdAt?.toDate
-          ? b.createdAt.toDate()
-          : new Date(b.createdAt || 0);
-          
+            ? new Date(b.updatedAt)
+            : b.createdAt?.toDate
+              ? b.createdAt.toDate()
+              : new Date(b.createdAt || 0);
+
         return dateB.getTime() - dateA.getTime(); // Most recent first
       });
     }
@@ -107,8 +102,8 @@ export default function Home() {
   // Fuzzy match function to search user details
   const fuzzyMatch = (text: string, query: string, postUser?: any): boolean => {
     if (!query.trim()) return false;
-    
-    const cleanedText = (text || '').toLowerCase();
+
+    const cleanedText = (text || "").toLowerCase();
     const queryWords = query.toLowerCase().split(/\s+/).filter(Boolean);
 
     // If no query words, return false (we don't want to match everything)
@@ -118,19 +113,20 @@ export default function Home() {
     if (postUser) {
       // Handle both direct user object and nested user data
       const userData = postUser.user || postUser;
-      
+
       if (userData) {
-        const firstName = (userData.firstName || '').toLowerCase();
-        const lastName = (userData.lastName || '').toLowerCase();
+        const firstName = (userData.firstName || "").toLowerCase();
+        const lastName = (userData.lastName || "").toLowerCase();
         const userName = `${firstName} ${lastName}`.trim();
-        
+
         // Check if any query word matches user's name (excluding email)
-        const userMatch = queryWords.some(word => 
-          (userName && userName.includes(word)) || 
-          (firstName && firstName.includes(word)) || 
-          (lastName && lastName.includes(word))
+        const userMatch = queryWords.some(
+          (word) =>
+            (userName && userName.includes(word)) ||
+            (firstName && firstName.includes(word)) ||
+            (lastName && lastName.includes(word))
         );
-        
+
         if (userMatch) return true;
       }
     }
@@ -144,7 +140,7 @@ export default function Home() {
     }
 
     // For multiple words, require at least one word to match
-    return queryWords.some(word => cleanedText.includes(word));
+    return queryWords.some((word) => cleanedText.includes(word));
   };
 
   // Memoized filtered posts - only recalculate when dependencies change
@@ -168,7 +164,12 @@ export default function Home() {
       if (!isResolvedTab && post.status === "completed") return false;
 
       // For resolved tab, only include resolved and completed posts
-      if (isResolvedTab && post.status !== "resolved" && post.status !== "completed") return false;
+      if (
+        isResolvedTab &&
+        post.status !== "resolved" &&
+        post.status !== "completed"
+      )
+        return false;
 
       // Filter out any posts that might have been missed by the service
       if (post.movedToUnclaimed || post.isHidden === true) {
@@ -188,12 +189,12 @@ export default function Home() {
 
       // Check if search query matches post title, description, or user details
       // Only search in title and description, not in user emails
-      const searchMatch = debouncedQuery && (
-        fuzzyMatch(post.title || '', debouncedQuery, post) ||
-        fuzzyMatch(post.description || '', debouncedQuery, post) ||
-        (post.user && fuzzyMatch('', debouncedQuery, post.user)) ||
-        (post.user?.firstName && fuzzyMatch('', debouncedQuery, post.user))
-      );
+      const searchMatch =
+        debouncedQuery &&
+        (fuzzyMatch(post.title || "", debouncedQuery, post) ||
+          fuzzyMatch(post.description || "", debouncedQuery, post) ||
+          (post.user && fuzzyMatch("", debouncedQuery, post.user)) ||
+          (post.user?.firstName && fuzzyMatch("", debouncedQuery, post.user)));
 
       const descriptionMatch = debouncedDescriptionSearch
         ? post.description
@@ -272,7 +273,7 @@ export default function Home() {
                     : activeButton === "found"
                       ? "Found Items"
                       : activeButton === "resolved"
-                        ? "Resolved Items"
+                        ? "Completed Items"
                         : "All Items"}
               </Text>
             </Text>
@@ -378,10 +379,7 @@ export default function Home() {
             data={filteredPosts}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <PostCard
-                post={item}
-                descriptionSearch={descriptionSearch}
-              />
+              <PostCard post={item} descriptionSearch={descriptionSearch} />
             )}
             scrollEventThrottle={16}
             ListEmptyComponent={
