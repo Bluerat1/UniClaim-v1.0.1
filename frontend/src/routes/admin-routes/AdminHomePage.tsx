@@ -27,17 +27,15 @@ export default function AdminHomePage() {
     // If no query words, return true
     if (queryWords.length === 0) return true;
 
-    // Check if query matches user's name or email
+    // Check if query matches user's name (excluding email)
     if (postUser) {
       const userName = `${postUser.firstName || ''} ${postUser.lastName || ''}`.toLowerCase().trim();
-      const userEmail = postUser.email?.toLowerCase() || '';
       
-      // Check if any query word matches user's name or email
+      // Check if any query word matches user's name (excluding email)
       const userMatch = queryWords.some(word => 
         userName.includes(word) || 
         (postUser.firstName?.toLowerCase().includes(word) || 
-         postUser.lastName?.toLowerCase().includes(word)) ||
-        userEmail.includes(word)
+         postUser.lastName?.toLowerCase().includes(word))
       );
       
       if (userMatch) return true;
@@ -986,42 +984,59 @@ export default function AdminHomePage() {
   };
 
   const handleSearch = async (query: string, filters: any) => {
-    setLastDescriptionKeyword(filters.description || "");
+    setLastDescriptionKeyword(filters?.description || "");
+    const locationQuery = filters?.location?.toLowerCase() || "";
+    const descriptionQuery = filters?.description?.toLowerCase() || "";
+    const categoryQuery = filters?.selectedCategory?.toLowerCase() || "";
 
     // Use appropriate posts based on current viewType
     const postsToSearch = viewType === "completed" ? resolvedPosts : posts;
 
     const filtered = (postsToSearch ?? []).filter((item) => {
-      const matchesQuery = query.trim() ? fuzzyMatch(item.title, query) : true;
+      // Check if search query matches title or user info
+      const searchMatch = !query.trim() || 
+        fuzzyMatch(item.title, query, item.user) ||
+        fuzzyMatch(item.description, query, item.user) ||
+        (item.user?.firstName && fuzzyMatch(item.user.firstName, query)) ||
+        (item.user?.lastName && fuzzyMatch(item.user.lastName, query));
 
-      const matchesCategory =
-        filters.selectedCategory &&
-        filters.selectedCategory.toLowerCase() != "all"
-          ? item.category.toLowerCase() ===
-            filters.selectedCategory.toLowerCase()
-          : true;
+      // Check category filter
+      const categoryMatch = !categoryQuery || 
+        categoryQuery === "all" ||
+        (item.category && item.category.toLowerCase() === categoryQuery);
 
-      const matchesDescription = filters.description
-        ? fuzzyMatch(item.description, filters.description)
-        : true;
+      // Check description filter
+      const descriptionMatch = !descriptionQuery ||
+        (item.description && item.description.toLowerCase().includes(descriptionQuery));
 
-      const matchesLocation = filters.location
-        ? item.location.toLowerCase() === filters.location.toLowerCase()
-        : true;
+      // Check location filter - using includes for partial matching
+      const locationMatch = !locationQuery ||
+        (item.location && item.location.toLowerCase().includes(locationQuery));
 
-      return (
-        matchesQuery && matchesCategory && matchesDescription && matchesLocation
-      );
+      return searchMatch && categoryMatch && descriptionMatch && locationMatch;
     });
+    
     setRawResults(filtered);
   };
 
-  // const postsToDisplay = (rawResults ?? posts ?? []).filter(
-  //   (post) => post.type === viewType
-  // );
-
-  // Apply view type filtering first
+  // View filtered posts based on search and view type
   const viewFilteredPosts = useMemo(() => {
+    // If there are raw search results, filter them by view type
+    if (rawResults) {
+      return rawResults.filter((post) => {
+        if (viewType === "all") return true;
+        if (viewType === "completed") return post.status === "completed";
+        if (viewType === "deleted") return true;
+        if (viewType === "flagged") return post.isFlagged === true;
+        if (viewType === "turnover") 
+          return post.turnoverDetails && 
+                 (post.turnoverDetails.turnoverStatus === 'declared' || 
+                  post.turnoverDetails.turnoverStatus === 'transferred');
+        if (viewType === "unclaimed") return post.status === "unclaimed";
+        return post.type === viewType && post.status !== "completed";
+      });
+    }
+
     // Handle deleted posts view
     if (viewType === "deleted") {
       return [...deletedPosts];
@@ -1059,20 +1074,25 @@ export default function AdminHomePage() {
     if (!searchQuery) return postsToShow;
 
     return postsToShow.filter((post) => {
-      // Check if the search query matches the post's title, description, or user info
-      const matchesSearch =
-        fuzzyMatch(post.title, searchQuery, post.user) ||
-        fuzzyMatch(post.description, searchQuery, post.user) ||
-        (post.user?.firstName && fuzzyMatch(post.user.firstName, searchQuery)) ||
-        (post.user?.lastName && fuzzyMatch(post.user.lastName, searchQuery)) ||
-        (post.user?.email && fuzzyMatch(post.user.email, searchQuery));
+      // Create user info object with only the fields we want to search in
+      const userInfo = post.user ? {
+        firstName: post.user.firstName,
+        lastName: post.user.lastName
+      } : undefined;
+
+      // Check if search query matches post title, description, or user name (excluding email)
+      const searchMatch = 
+        fuzzyMatch(post.title || '', searchQuery, userInfo) ||
+        fuzzyMatch(post.description || '', searchQuery, userInfo) ||
+        (post.user?.firstName && fuzzyMatch(post.user.firstName, searchQuery, { firstName: post.user.firstName })) ||
+        (post.user?.lastName && fuzzyMatch(post.user.lastName, searchQuery, { lastName: post.user.lastName }));
 
       // If viewType is 'all', we need to filter by type as well
       if (viewType === "all") {
-        return matchesSearch && post.status !== "completed" && !post.isDeleted;
+        return searchMatch && post.status !== "completed" && !post.isDeleted;
       }
 
-      return matchesSearch;
+      return searchMatch;
     });
   }, [rawResults, viewType, posts, resolvedPosts, deletedPosts, searchQuery]);
 

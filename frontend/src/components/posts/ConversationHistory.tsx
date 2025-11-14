@@ -6,6 +6,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { db } from '@/services/firebase/config';
 import { doc, getDoc } from 'firebase/firestore';
 
+interface HandoverData {
+  status?: 'pending' | 'accepted' | 'rejected' | 'pending_confirmation';
+  handoverReason?: string;
+  idPhotoUrl?: string;
+  // Add other handover data properties as needed
+}
+
 interface Message {
   id: string;
   text?: string;
@@ -15,6 +22,7 @@ interface Message {
   timestamp: any;
   messageType: string;
   images?: string[];
+  handoverData?: HandoverData;
 }
 
 interface ConversationHistoryProps {
@@ -72,13 +80,14 @@ export default function ConversationHistory({ postId }: ConversationHistoryProps
           
           // Check if we have archived conversation data in the post
           if (postData.conversationData) {
-            console.log('📦 Found archived conversation data in post');
+            console.log('📦 Found archived conversation data in post', postData.conversationData);
             const formattedMessages = postData.conversationData.messages
               .filter((msg: any) => 
                 msg.messageType === 'text' || 
                 msg.messageType === 'image' ||
                 msg.messageType === 'handover_request' ||
-                msg.messageType === 'claim_request'
+                msg.messageType === 'claim_request' ||
+                msg.handoverData // Include messages with handoverData
               )
               .map((msg: any) => ({
                 id: msg.id,
@@ -88,7 +97,8 @@ export default function ConversationHistory({ postId }: ConversationHistoryProps
                 senderProfilePicture: msg.senderProfilePicture,
                 timestamp: msg.timestamp,
                 messageType: msg.messageType,
-                images: msg.images || (msg.imageUrl ? [msg.imageUrl] : [])
+                images: msg.images || (msg.imageUrl ? [msg.imageUrl] : []),
+                handoverData: msg.handoverData
               }));
               
             setMessages(formattedMessages);
@@ -170,7 +180,8 @@ export default function ConversationHistory({ postId }: ConversationHistoryProps
                 senderProfilePicture: msg.senderProfilePicture,
                 timestamp: msg.timestamp,
                 messageType: msg.messageType,
-                images: msg.images || (msg.imageUrl ? [msg.imageUrl] : [])
+                images: msg.images || (msg.imageUrl ? [msg.imageUrl] : []),
+                handoverData: msg.handoverData
               }));
             
             allMessages.push(...formattedMessages);
@@ -280,12 +291,37 @@ export default function ConversationHistory({ postId }: ConversationHistoryProps
                   <div 
                     className={`rounded-lg px-4 py-2 ${message.senderId === userData?.uid ? 'bg-blue-100' : 'bg-gray-100'}`}
                   >
-                  {message.messageType === 'handover_request' ? (
+                  {message.messageType === 'handover_request' || message.handoverData ? (
                     <div className="text-sm text-gray-700">
-                      <p className="font-medium">Handover Request</p>
-                      <p className="text-xs text-gray-500">
-                        {message.text || 'No additional message'}
+                      <p className="font-medium">
+                        {message.handoverData?.status === 'accepted' 
+                          ? '✅ Handover Completed' 
+                          : message.handoverData?.status === 'rejected'
+                            ? '❌ Handover Rejected'
+                            : message.handoverData?.status === 'pending_confirmation'
+                              ? '⏳ Handover Pending Confirmation'
+                              : 'Handover Request'}
                       </p>
+                      {message.handoverData?.handoverReason && (
+                        <p className="text-xs text-gray-600 mt-1">
+                          <span className="font-medium">Reason:</span> {message.handoverData.handoverReason}
+                        </p>
+                      )}
+                      {message.text && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {message.text}
+                        </p>
+                      )}
+                      {message.handoverData?.idPhotoUrl && (
+                        <div className="mt-2">
+                          <p className="text-xs font-medium text-gray-700 mb-1">ID Photo:</p>
+                          <img 
+                            src={message.handoverData.idPhotoUrl} 
+                            alt="ID verification" 
+                            className="h-20 w-auto rounded border border-gray-200"
+                          />
+                        </div>
+                      )}
                     </div>
                   ) : message.messageType === 'claim_request' ? (
                     <div className="text-sm text-gray-700">

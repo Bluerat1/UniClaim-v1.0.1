@@ -130,21 +130,32 @@ export default function PostCard({
 
   const highlightText = (text: string, search: string) => {
     if (!search.trim()) return <Text>{text}</Text>;
-    const parts = text.split(new RegExp(`(${search})`, "gi"));
+    
+    // Create a regex pattern that matches any of the search terms
+    const searchTerms = search.trim().split(/\s+/);
+    const pattern = searchTerms.length > 1 
+      ? `(${searchTerms.map(term => `(${term})`).join('|')})` 
+      : `(${search})`;
+      
+    const regex = new RegExp(pattern, 'gi');
+    const parts = text.split(regex);
+    
     return (
       <Text>
-        {parts.map((part, i) => (
-          <Text
-            key={i}
-            className={
-              part.toLowerCase() === search.toLowerCase()
-                ? "bg-teal-300"
-                : "text-gray-800"
-            }
-          >
-            {part}
-          </Text>
-        ))}
+        {parts.map((part, i) => {
+          if (!part) return null;
+          const isMatch = searchTerms.some(term => 
+            term && part.toLowerCase().includes(term.toLowerCase())
+          );
+          return (
+            <Text
+              key={i}
+              className={isMatch ? "bg-teal-300 text-black" : "text-gray-800"}
+            >
+              {part}
+            </Text>
+          );
+        })}
       </Text>
     );
   };
@@ -318,7 +329,7 @@ export default function PostCard({
         </View>
 
         <Text className="text-2xl my-1.5 font-manrope-semibold text-black">
-          {post.title}
+          {highlightText(post.title, descriptionSearch)}
         </Text>
         <View className="flex-row items-center gap-2 mb-2">
           <ProfilePicture src={post.user?.profilePicture} size="xs" />

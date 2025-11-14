@@ -23,17 +23,15 @@ function fuzzyMatch(text: string, query: string, postUser?: { firstName?: string
   // If no query words, return true
   if (queryWords.length === 0) return true;
 
-  // Check if query matches user's name or email
+  // Check if query matches user's name (excluding email)
   if (postUser) {
     const userName = `${postUser.firstName || ''} ${postUser.lastName || ''}`.toLowerCase().trim();
-    const userEmail = postUser.email?.toLowerCase() || '';
     
-    // Check if any query word matches user's name or email
+    // Check if any query word matches user's name
     const userMatch = queryWords.some(word => 
       userName.includes(word) || 
       (postUser.firstName?.toLowerCase().includes(word) || 
-       postUser.lastName?.toLowerCase().includes(word)) ||
-      userEmail.includes(word)
+       postUser.lastName?.toLowerCase().includes(word))
     );
     
     if (userMatch) return true;
@@ -129,12 +127,16 @@ export default function UnclaimedPostsPage() {
     setLastDescriptionKeyword(filters.description || "");
 
     const filtered = unclaimedPosts.filter((item) => {
+      const userInfo = item.user ? {
+        firstName: item.user.firstName,
+        lastName: item.user.lastName
+      } : undefined;
+
       const matchesQuery = query.trim() ? (
-        fuzzyMatch(item.title, query, item.user) ||
-        fuzzyMatch(item.description, query, item.user) ||
-        (item.user?.firstName && fuzzyMatch(item.user.firstName, query)) ||
-        (item.user?.lastName && fuzzyMatch(item.user.lastName, query)) ||
-        (item.user?.email && fuzzyMatch(item.user.email, query))
+        fuzzyMatch(item.title, query, userInfo) ||
+        fuzzyMatch(item.description, query, userInfo) ||
+        (item.user?.firstName && fuzzyMatch(item.user.firstName, query, { firstName: item.user.firstName })) ||
+        (item.user?.lastName && fuzzyMatch(item.user.lastName, query, { lastName: item.user.lastName }))
       ) : true;
 
       const matchesCategory =
@@ -145,7 +147,9 @@ export default function UnclaimedPostsPage() {
           : true;
 
       const matchesDescription = filters.description
-        ? fuzzyMatch(item.description, filters.description)
+        ? fuzzyMatch(item.description, filters.description, userInfo) ||
+          (item.user?.firstName && fuzzyMatch(item.user.firstName, filters.description, { firstName: item.user.firstName })) ||
+          (item.user?.lastName && fuzzyMatch(item.user.lastName, filters.description, { lastName: item.user.lastName }))
         : true;
 
       const matchesLocation = filters.location
