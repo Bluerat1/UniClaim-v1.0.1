@@ -21,17 +21,15 @@ function fuzzyMatch(text: string, query: string, postUser?: { firstName?: string
   // If no query words, return true
   if (queryWords.length === 0) return true;
 
-  // Check if query matches user's name or email
+  // Check if query matches user's name (excluding email)
   if (postUser) {
     const userName = `${postUser.firstName || ''} ${postUser.lastName || ''}`.toLowerCase().trim();
-    const userEmail = postUser.email?.toLowerCase() || '';
     
-    // Check if any query word matches user's name or email
+    // Check if any query word matches user's name
     const userMatch = queryWords.some(word => 
       userName.includes(word) || 
       (postUser.firstName?.toLowerCase().includes(word) || 
-       postUser.lastName?.toLowerCase().includes(word)) ||
-      userEmail.includes(word)
+       postUser.lastName?.toLowerCase().includes(word))
     );
     
     if (userMatch) return true;
@@ -102,14 +100,19 @@ export default function FlaggedPostsPage() {
 
       if (!shouldShow) return false;
 
-      // Then apply search criteria with fuzzy matching
+      // Create user info object with only the fields we want to search in
+      const userInfo = post.user ? {
+        firstName: post.user.firstName,
+        lastName: post.user.lastName
+      } : undefined;
+
+      // Then apply search criteria with fuzzy matching (excluding email)
       const matchesQuery =
         query.trim() === "" ||
-        fuzzyMatch(post.title, query, post.user) ||
-        fuzzyMatch(post.description, query, post.user) ||
-        (post.user?.firstName && fuzzyMatch(post.user.firstName, query)) ||
-        (post.user?.lastName && fuzzyMatch(post.user.lastName, query)) ||
-        (post.user?.email && fuzzyMatch(post.user.email, query));
+        fuzzyMatch(post.title, query, userInfo) ||
+        fuzzyMatch(post.description, query, userInfo) ||
+        (post.user?.firstName && fuzzyMatch(post.user.firstName, query, { firstName: post.user.firstName })) ||
+        (post.user?.lastName && fuzzyMatch(post.user.lastName, query, { lastName: post.user.lastName }));
 
       const matchesCategory =
         selectedCategoryFilter === "All" ||
@@ -117,10 +120,9 @@ export default function FlaggedPostsPage() {
 
       const matchesDescription =
         description.trim() === "" ||
-        fuzzyMatch(post.description, description, post.user) ||
-        (post.user?.firstName && fuzzyMatch(post.user.firstName, description)) ||
-        (post.user?.lastName && fuzzyMatch(post.user.lastName, description)) ||
-        (post.user?.email && fuzzyMatch(post.user.email, description));
+        fuzzyMatch(post.description, description, userInfo) ||
+        (post.user?.firstName && fuzzyMatch(post.user.firstName, description, { firstName: post.user.firstName })) ||
+        (post.user?.lastName && fuzzyMatch(post.user.lastName, description, { lastName: post.user.lastName }));
 
       const matchesLocation =
         location.trim() === "" ||

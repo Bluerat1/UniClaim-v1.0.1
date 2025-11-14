@@ -19,56 +19,56 @@ const MAX_CACHE_SIZE = 50; // Prevent memory leaks
 
 // Cache management functions
 const getCacheKey = (collectionName: string, queryConstraints: string[]) => {
-  return `${collectionName}:${queryConstraints.join(':')}`;
+    return `${collectionName}:${queryConstraints.join(':')}`;
 };
 
 const setCache = (key: string, data: any) => {
-  // Clean cache if it gets too large
-  if (queryCache.size >= MAX_CACHE_SIZE) {
-    const oldestKey = Array.from(queryCache.keys())[0];
-    queryCache.delete(oldestKey);
-  }
+    // Clean cache if it gets too large
+    if (queryCache.size >= MAX_CACHE_SIZE) {
+        const oldestKey = Array.from(queryCache.keys())[0];
+        queryCache.delete(oldestKey);
+    }
 
-  queryCache.set(key, {
-    data,
-    timestamp: Date.now(),
-    expiry: Date.now() + CACHE_DURATION
-  });
+    queryCache.set(key, {
+        data,
+        timestamp: Date.now(),
+        expiry: Date.now() + CACHE_DURATION
+    });
 };
 
 const getCache = (key: string) => {
-  const cached = queryCache.get(key);
-  if (cached && Date.now() < cached.expiry) {
-    return cached.data;
-  }
-  if (cached) {
-    queryCache.delete(key); // Remove expired cache
-  }
-  return null;
+    const cached = queryCache.get(key);
+    if (cached && Date.now() < cached.expiry) {
+        return cached.data;
+    }
+    if (cached) {
+        queryCache.delete(key); // Remove expired cache
+    }
+    return null;
 };
 
 // Centralized cache invalidation function
 const invalidatePostCaches = (postId?: string) => {
-  // Clear all caches to ensure fresh data
-  queryCache.clear();
+    // Clear all caches to ensure fresh data
+    queryCache.clear();
 
-  // Note: In a production app, we might want to implement a more sophisticated
-  // cache invalidation strategy that only clears affected caches
-  console.log(`🧹 Invalidated all post caches${postId ? ` after updating post ${postId}` : ''}`);
+    // Note: In a production app, we might want to implement a more sophisticated
+    // cache invalidation strategy that only clears affected caches
+    console.log(`🧹 Invalidated all post caches${postId ? ` after updating post ${postId}` : ''}`);
 };
 
 // Connection state management
 export const setOnlineStatus = (online: boolean) => {
-  isOnline = online;
-  if (online) {
-    // Clear expired cache when coming back online
-    const now = Date.now();
-    for (const [key, cached] of queryCache.entries()) {
-      if (now >= cached.expiry) {
-        queryCache.delete(key);
-      }
+    isOnline = online;
+    if (online) {
+        // Clear expired cache when coming back online
+        const now = Date.now();
+        for (const [key, cached] of queryCache.entries()) {
+            if (now >= cached.expiry) {
+                queryCache.delete(key);
+            }
+        }
     }
-  }
 };
 
 // Export cache invalidation function for use by hooks and other modules
@@ -313,7 +313,7 @@ export const postService = {
                     updatedAt: serverTimestamp()
                 });
             });
-            
+
             await batch.commit();
 
             await batch.commit();
@@ -360,6 +360,7 @@ export const postService = {
     },
 
     // Get resolved posts with caching and optimization
+    // Matches web app's implementation for consistent sorting
     getResolvedPosts(callback: (posts: any[]) => void) {
         const cacheKey = getCacheKey('posts', ['resolved']);
 
@@ -368,21 +369,31 @@ export const postService = {
 
         const q = query(
             collection(db, 'posts'),
-            where('status', 'in', ['resolved', 'completed']),
-            orderBy('updatedAt', 'desc'),
-            limit(50)
+            where('status', 'in', ['resolved', 'completed'])
+            // Removed orderBy to match web app and avoid composite index requirement
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const posts = snapshot.docs.map(doc => ({
                 id: doc.id,
-                ...doc.data()
+                ...doc.data(),
+                // Ensure dates are properly converted to match web app
+                createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
+                updatedAt: doc.data().updatedAt?.toDate?.() || doc.data().updatedAt
             })) as any[];
 
-            // Cache the results
-            setCache(cacheKey, posts);
+            // Sort posts by updatedAt in JavaScript (most recent first)
+            // This matches the web app's implementation exactly
+            const sortedPosts = posts.sort((a, b) => {
+                const dateA = a.updatedAt instanceof Date ? a.updatedAt : new Date(a.updatedAt || a.createdAt);
+                const dateB = b.updatedAt instanceof Date ? b.updatedAt : new Date(b.updatedAt || b.createdAt);
+                return dateB.getTime() - dateA.getTime(); // Most recent first
+            });
 
-            callback(posts);
+            // Cache the results
+            setCache(cacheKey, sortedPosts);
+
+            callback(sortedPosts);
         }, (error) => {
             console.error('❌ Firebase getResolvedPosts failed:', error);
             const cachedData = getCache(cacheKey);
@@ -412,7 +423,7 @@ export const postService = {
                         const batch = postData.images.slice(i, i + BATCH_SIZE);
                         const uploaded = await cloudinaryService.uploadImages(batch, 'posts');
                         imageUrls = [...imageUrls, ...uploaded];
-                        
+
                         // Add a small delay between batches
                         if (i + BATCH_SIZE < postData.images.length) {
                             await new Promise(resolve => setTimeout(resolve, 500));
@@ -460,7 +471,7 @@ export const postService = {
                 ...enhancedPostData,
                 id: docRef.id // Ensure the ID is included in the document
             });
-            
+
             console.log('✅ Post queued for creation with ID:', docRef.id);
             return docRef.id;
         } catch (error: any) {
@@ -475,7 +486,7 @@ export const postService = {
                 ...updates,
                 updatedAt: serverTimestamp()
             }, { merge: true });
-            
+
             console.log(`✅ Update queued for post: ${postId}`);
         } catch (error) {
             console.error('❌ Error queuing post update:', error);
@@ -488,7 +499,7 @@ export const postService = {
         try {
             await writeBatchManager.deleteFromBatch('posts', postId);
             console.log(`✅ Delete queued for post: ${postId}`);
-            
+
             // Note: If you need to clean up Cloudinary images, do it here
             // but be careful with rate limits
         } catch (error) {

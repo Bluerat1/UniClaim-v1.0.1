@@ -66,8 +66,31 @@ export default function Home() {
     // Get the appropriate posts based on active tab
     let basePosts = isResolvedTab ? resolvedPostsHook.posts || [] : posts || [];
 
-    // Create a new array to avoid mutating the original
-    // Sort by createdAt in descending order (newest first)
+    // For resolved posts, sort by updatedAt (falling back to createdAt) in descending order
+    if (isResolvedTab) {
+      return [...basePosts].sort((a, b) => {
+        // Convert timestamps to Date objects if they're Firestore timestamps
+        const dateA = a.updatedAt?.toDate
+          ? a.updatedAt.toDate()
+          : a.updatedAt
+          ? new Date(a.updatedAt)
+          : a.createdAt?.toDate
+          ? a.createdAt.toDate()
+          : new Date(a.createdAt || 0);
+          
+        const dateB = b.updatedAt?.toDate
+          ? b.updatedAt.toDate()
+          : b.updatedAt
+          ? new Date(b.updatedAt)
+          : b.createdAt?.toDate
+          ? b.createdAt.toDate()
+          : new Date(b.createdAt || 0);
+          
+        return dateB.getTime() - dateA.getTime(); // Most recent first
+      });
+    }
+
+    // For active posts, sort by createdAt in descending order (newest first)
     return [...basePosts].sort((a, b) => {
       const dateA = a.createdAt?.toDate
         ? a.createdAt.toDate()
@@ -75,7 +98,7 @@ export default function Home() {
       const dateB = b.createdAt?.toDate
         ? b.createdAt.toDate()
         : new Date(b.createdAt || 0);
-      return dateB.getTime() - dateA.getTime(); // Newest first
+      return dateB.getTime() - dateA.getTime();
     });
   };
 
@@ -91,7 +114,7 @@ export default function Home() {
     // If no query words, return false (we don't want to match everything)
     if (queryWords.length === 0) return false;
 
-    // Check if query matches user's name or email if user data exists
+    // Check if query matches user's name (excluding email)
     if (postUser) {
       // Handle both direct user object and nested user data
       const userData = postUser.user || postUser;
@@ -100,14 +123,12 @@ export default function Home() {
         const firstName = (userData.firstName || '').toLowerCase();
         const lastName = (userData.lastName || '').toLowerCase();
         const userName = `${firstName} ${lastName}`.trim();
-        const userEmail = (userData.email || '').toLowerCase();
         
-        // Check if any query word matches user's name or email
+        // Check if any query word matches user's name (excluding email)
         const userMatch = queryWords.some(word => 
           (userName && userName.includes(word)) || 
           (firstName && firstName.includes(word)) || 
-          (lastName && lastName.includes(word)) ||
-          (userEmail && userEmail.includes(word))
+          (lastName && lastName.includes(word))
         );
         
         if (userMatch) return true;
@@ -143,8 +164,11 @@ export default function Home() {
       // Filter out unclaimed posts
       if (post.status === "unclaimed") return false;
 
-      // Filter out completed posts
-      if (post.status === "completed") return false;
+      // For active tabs (not resolved tab), filter out completed posts
+      if (!isResolvedTab && post.status === "completed") return false;
+
+      // For resolved tab, only include resolved and completed posts
+      if (isResolvedTab && post.status !== "resolved" && post.status !== "completed") return false;
 
       // Filter out any posts that might have been missed by the service
       if (post.movedToUnclaimed || post.isHidden === true) {
@@ -163,12 +187,12 @@ export default function Home() {
       const queryWords = debouncedQuery.toLowerCase().trim().split(/\s+/);
 
       // Check if search query matches post title, description, or user details
+      // Only search in title and description, not in user emails
       const searchMatch = debouncedQuery && (
         fuzzyMatch(post.title || '', debouncedQuery, post) ||
         fuzzyMatch(post.description || '', debouncedQuery, post) ||
         (post.user && fuzzyMatch('', debouncedQuery, post.user)) ||
-        (post.user && post.user.firstName && fuzzyMatch('', debouncedQuery, post.user)) ||
-        (post.user && post.user.email && fuzzyMatch('', debouncedQuery, { email: post.user.email }))
+        (post.user?.firstName && fuzzyMatch('', debouncedQuery, post.user))
       );
 
       const descriptionMatch = debouncedDescriptionSearch
@@ -323,7 +347,7 @@ export default function Home() {
                       activeButton === "resolved" ? "text-white" : "text-black"
                     }`}
                   >
-                    Resolved Items
+                    Completed Items
                   </Text>
                 </TouchableOpacity>
               </View>
