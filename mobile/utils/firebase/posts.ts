@@ -467,16 +467,78 @@ export const postService = {
 
             // Add the new post to Firestore using batch manager
             const docRef = doc(collection(db, 'posts'));
-            await writeBatchManager.addToBatch('posts', docRef.id, {
+            const postId = docRef.id;
+            await writeBatchManager.addToBatch('posts', postId, {
                 ...enhancedPostData,
-                id: docRef.id // Ensure the ID is included in the document
+                id: postId // Ensure the ID is included in the document
             });
 
-            console.log('✅ Post queued for creation with ID:', docRef.id);
-            return docRef.id;
+            console.log('✅ Post queued for creation with ID:', postId);
+
+            // Send notifications in the background
+            this._sendPostNotificationsInBackground(postId, {
+                ...enhancedPostData,
+                id: postId
+            }, postData.creatorId);
+
+            return postId;
         } catch (error: any) {
             throw new Error(error.message || 'Failed to create post');
         }
+    },
+
+    // Send post notifications in the background without blocking the UI
+    async _sendPostNotificationsInBackground(postId: string, post: any, creatorId: string): Promise<void> {
+        // Run in background without awaiting
+        (async () => {
+            try {
+                // Skip notifications for turnover posts until approved
+                if (post.turnoverDetails?.turnoverAction) {
+                    console.log(`📋 Post ${postId} has turnover details (${post.turnoverDetails.turnoverAction}) - skipping notifications until approved`);
+                    return;
+                }
+
+                // Get creator information for the notification
+                const { getDoc, doc } = await import('firebase/firestore');
+                const { db } = await import('./config');
+
+                const creatorDoc = await getDoc(doc(db, 'users', creatorId));
+                const creatorData = creatorDoc.exists() ? creatorDoc.data() : null;
+                const creatorName = creatorData ? `${creatorData.firstName || ''} ${creatorData.lastName || ''}`.trim() : 'Someone';
+                const creatorEmail = creatorData?.email || 'Unknown';
+
+                // Import notification services
+                const { notificationSender } = await import('./notificationSender');
+                const { adminNotificationService } = await import('./adminNotifications');
+
+                // Send notifications to all users
+                await notificationSender.sendNewPostNotification({
+                    id: postId,
+                    title: post.title,
+                    category: post.category,
+                    location: post.location,
+                    type: post.type,
+                    creatorId: creatorId,
+                    creatorName: creatorName
+                });
+
+                // Send notification to admins about the new post
+                await adminNotificationService.notifyAdminsNewPost({
+                    postId: postId,
+                    postTitle: post.title,
+                    postType: post.type,
+                    postCategory: post.category,
+                    postLocation: post.location,
+                    creatorId: creatorId,
+                    creatorName: creatorName,
+                    creatorEmail: creatorEmail
+                });
+
+                console.log(`✅ Successfully sent notifications for post: ${postId}`);
+            } catch (error) {
+                console.error('❌ Error sending notifications for post:', postId, error);
+            }
+        })();
     },
 
     // Update post with batched writes

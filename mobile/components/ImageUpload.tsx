@@ -1,6 +1,7 @@
-import { MaterialIcons } from "@expo/vector-icons";
+import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import React, { useState } from "react";
+import * as MediaLibrary from 'expo-media-library';
+import React, { useState, useEffect } from "react";
 import {
   Image,
   Modal,
@@ -8,6 +9,8 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Alert,
+  Platform,
 } from "react-native";
 
 type Props = {
@@ -17,19 +20,60 @@ type Props = {
 
 export default function ImageUploader({ images, setImages }: Props) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [showSourceDialog, setShowSourceDialog] = useState(false);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [hasMediaLibraryPermission, setHasMediaLibraryPermission] = useState<boolean | null>(null);
 
-  const pickImage = async () => {
+  useEffect(() => {
+    (async () => {
+      if (Platform.OS !== 'web') {
+        const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+        setHasCameraPermission(cameraStatus === 'granted');
+        
+        const { status: mediaLibraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        setHasMediaLibraryPermission(mediaLibraryStatus === 'granted');
+      }
+    })();
+  }, []);
+
+  const pickImage = async (source: 'camera' | 'library') => {
     if (images.length >= 3) return;
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: "images" as any, // Direct string value avoids all enum deprecation warnings
-      allowsMultipleSelection: false,
-      quality: 1,
-    });
+    try {
+      let result;
+      
+      if (source === 'camera') {
+        if (hasCameraPermission === false) {
+          Alert.alert("Permission required", "Camera permission is required to take photos");
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.7,
+        });
+      } else {
+        if (hasMediaLibraryPermission === false) {
+          Alert.alert("Permission required", "Media library permission is required to select photos");
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsMultipleSelection: false,
+          quality: 0.7,
+        });
+      }
 
-    if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      setImages((prev) => [...prev, uri]);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const uri = result.assets[0].uri;
+        setImages((prev) => [...prev, uri]);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert("Error", "Failed to pick image. Please try again.");
+    } finally {
+      setShowSourceDialog(false);
     }
   };
 
@@ -65,14 +109,54 @@ export default function ImageUploader({ images, setImages }: Props) {
       </View>
 
       {images.length < 3 ? (
-        <TouchableOpacity
-          onPress={pickImage}
-          className="border border-navyblue bg-navyblue h-[3.3rem] rounded-md items-center justify-center"
-        >
-          <Text className="text-white font-manrope-medium text-base">
-            Upload Image
-          </Text>
-        </TouchableOpacity>
+        <View className="space-y-2">
+          <TouchableOpacity
+            onPress={() => setShowSourceDialog(true)}
+            className="border border-navyblue bg-navyblue h-[3.3rem] rounded-md items-center justify-center flex-row space-x-2"
+          >
+            <Ionicons name="cloud-upload" size={20} color="white" />
+            <Text className="text-white font-manrope-medium text-base">
+              Upload Image
+            </Text>
+          </TouchableOpacity>
+          
+          <Modal
+            visible={showSourceDialog}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowSourceDialog(false)}
+          >
+            <View className="flex-1 bg-black/50 justify-center items-center">
+              <View className="bg-white rounded-xl p-5 w-4/5">
+                <Text className="text-lg font-manrope-bold mb-4 text-center">Select Image Source</Text>
+                <View className="space-y-3">
+                  <TouchableOpacity 
+                    onPress={() => pickImage('camera')}
+                    className="flex-row items-center justify-center space-x-2 bg-blue-50 p-3 rounded-lg border border-blue-100"
+                  >
+                    <Ionicons name="camera" size={24} color="#1e40af" />
+                    <Text className="text-blue-800 font-manrope-medium">Take Photo</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    onPress={() => pickImage('library')}
+                    className="flex-row items-center justify-center space-x-2 bg-purple-50 p-3 rounded-lg border border-purple-100"
+                  >
+                    <Ionicons name="images" size={24} color="#6b21a8" />
+                    <Text className="text-purple-800 font-manrope-medium">Choose from Library</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    onPress={() => setShowSourceDialog(false)}
+                    className="mt-2 p-3 rounded-lg items-center"
+                  >
+                    <Text className="text-gray-600 font-manrope-medium">Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        </View>
       ) : (
         <View className="border border-green-500 py-4 rounded-md items-center">
           <Text className="text-green-500 font-manrope-medium">

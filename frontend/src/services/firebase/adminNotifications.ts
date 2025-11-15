@@ -187,31 +187,17 @@ export class AdminNotificationService {
         }
     }
 
-    // Get unread count for admin
+    // Get unread count for admin (respects the 15-notification limit)
     async getUnreadCount(adminId: string): Promise<number> {
         try {
-            // console.log('🔢 Getting unread count for adminId:', adminId);
-            const adminNotificationsRef = collection(db, 'admin_notifications');
+            // Get the most recent 15 notifications (matching the limit in getAdminNotifications)
+            const notifications = await this.getAdminNotifications(adminId, 15);
 
-            // Get broadcast unread notifications
-            const broadcastQuery = query(
-                adminNotificationsRef,
-                where('adminId', '==', 'all'),
-                where('read', '==', false)
-            );
-            const broadcastSnapshot = await getDocs(broadcastQuery);
+            // Count how many of these are unread
+            const unreadCount = notifications.filter(notif => !notif.read).length;
 
-            // Get specific admin unread notifications
-            const specificQuery = query(
-                adminNotificationsRef,
-                where('adminId', '==', adminId),
-                where('read', '==', false)
-            );
-            const specificSnapshot = await getDocs(specificQuery);
-
-            const totalUnread = broadcastSnapshot.size + specificSnapshot.size;
-            // console.log('🔢 Total unread notifications:', totalUnread, `(broadcast: ${broadcastSnapshot.size}, specific: ${specificSnapshot.size})`);
-            return totalUnread;
+            // console.log('🔢 Unread count (limited to 15 most recent):', unreadCount);
+            return unreadCount;
         } catch (error) {
             console.error('❌ Error getting unread count:', error);
             return 0;
@@ -472,16 +458,16 @@ export class AdminNotificationService {
     private async getNotificationCount(adminId: string): Promise<number> {
         try {
             const adminNotificationsRef = collection(db, 'admin_notifications');
-            
+
             // Get all notifications that this admin should see
             // This includes both broadcast notifications and notifications specifically for this admin
             const notificationsQuery = query(
                 adminNotificationsRef,
                 where('adminId', 'in', ['all', adminId])
             );
-            
+
             const snapshot = await getDocs(notificationsQuery);
-            
+
             // Count unique notifications (in case there are duplicates)
             const uniqueNotificationIds = new Set();
             snapshot.forEach(doc => {
@@ -529,7 +515,7 @@ export class AdminNotificationService {
                 getDocs(specificQuery)
             ]);
 
-            const allNotifications: Array<{id: string, createdAt: any}> = [];
+            const allNotifications: Array<{ id: string, createdAt: any }> = [];
 
             // Collect all notifications with their creation times
             broadcastSnapshot.forEach((doc) => {
@@ -559,7 +545,7 @@ export class AdminNotificationService {
             if (notificationsToDelete.length > 0) {
                 const batch = writeBatch(db);
 
-                notificationsToDelete.forEach(({id}) => {
+                notificationsToDelete.forEach(({ id }) => {
                     const notificationRef = doc(db, 'admin_notifications', id);
                     batch.delete(notificationRef);
                 });
