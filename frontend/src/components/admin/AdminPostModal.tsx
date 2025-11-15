@@ -28,12 +28,11 @@ interface AdminPostModalProps {
   onDelete?: (post: Post) => void; // Uses confirmation modal system
   showDeleteButton?: boolean; // Controls whether delete button is visible
   showCampusSecurityButtons?: boolean; // Controls whether Campus Security buttons are visible
-  // Unclaimed post specific props
   showUnclaimedFeatures?: boolean; // Controls whether unclaimed-specific features are shown
   isActivating?: boolean; // Loading state for activation
   showFlaggedPostActions?: boolean; // Controls whether flagged post management buttons are shown
   showCampusSecurityActions?: boolean; // Controls whether campus security management buttons are shown
-  onActivatePost?: (postId: string) => void; // Callback for when post is activated
+  onActivatePost?: (postId: string) => void;
 }
 
 function formatDateTime(
@@ -753,8 +752,8 @@ export default function AdminPostModal({
             )}
             {/* Conversation History - Show for resolved or completed posts */}
             {(post.status === "resolved" || post.status === "completed") && (
-              <div className="mt-4 border-t border-gray-200 pt-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-3">
+              <div className="mt-4 border-t border-gray-200 pt-4 mb-5">
+                <h3 className="text-base font-medium text-gray-900 mb-3">
                   Conversation History
                 </h3>
                 <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
