@@ -54,7 +54,7 @@ export const AdminNotificationProvider = ({ children }: { children: ReactNode })
     }
   }, [isAuthenticated, userData?.uid, userData?.role, isAdmin]);
 
-  // Set up real-time listener for admin notifications
+  // Set up real-time listener for admin notifications with 15-notification limit
   useEffect(() => {
     if (!isAuthenticated || !userData?.uid || !isAdmin || !userData?.role) return;
 
@@ -62,20 +62,20 @@ export const AdminNotificationProvider = ({ children }: { children: ReactNode })
     const unsubscribe = adminNotificationService.setupRealtimeListener(
       userData.uid,
       (newNotifications) => {
-        // Update notifications when they change
-        setNotifications(prevNotifications => {
-          // Filter out any existing notifications to avoid duplicates
-          const filteredNotifications = newNotifications.filter(newNotif => 
-            !prevNotifications.some(prevNotif => prevNotif.id === newNotif.id)
-          );
-          
-          // Return combined notifications (existing + new)
-          return [...prevNotifications, ...filteredNotifications];
-        });
-        
-        // Update unread count
-        const unread = newNotifications.filter(notif => !notif.read).length;
+        // First sort and limit to 15 most recent notifications
+        const limitedNotifications = [...newNotifications]
+          .sort((a, b) => {
+            const aTime = a.createdAt?.toMillis?.() || 0;
+            const bTime = b.createdAt?.toMillis?.() || 0;
+            return bTime - aTime; // Newest first
+          })
+          .slice(0, 15);
+
+        // Update both notifications and unreadCount together
+        setNotifications(limitedNotifications);
+        const unread = limitedNotifications.filter(notif => !notif.read).length;
         setUnreadCount(unread);
+        
         setLoading(false);
         setError(null);
       },
@@ -91,22 +91,6 @@ export const AdminNotificationProvider = ({ children }: { children: ReactNode })
       }
     };
   }, [isAuthenticated, userData?.uid, userData?.role, isAdmin]);
-
-  // Enforce 15-notification limit when notifications change
-  useEffect(() => {
-    if (notifications.length > 15) {
-      // Sort notifications by createdAt descending (newest first)
-      const sortedNotifications = [...notifications].sort((a, b) => {
-        const aTime = a.createdAt?.toMillis?.() || 0;
-        const bTime = b.createdAt?.toMillis?.() || 0;
-        return bTime - aTime;
-      });
-
-      // Keep only the first 15 (most recent) notifications
-      const limitedNotifications = sortedNotifications.slice(0, 15);
-      setNotifications(limitedNotifications);
-    }
-  }, [notifications]);
 
   const loadNotifications = async () => {
     if (!userData?.uid || !isAdmin) {

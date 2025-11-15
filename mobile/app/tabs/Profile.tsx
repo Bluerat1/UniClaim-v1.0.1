@@ -1040,13 +1040,18 @@ export default function Profile() {
         <Modal
           visible={showDeleteModal}
           transparent
+          animationType="slide"
           onRequestClose={handleCloseDeleteModal}
         >
-          <View className="flex-1 bg-black/50 items-center justify-center z-50 p-4">
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            className="flex-1 bg-black/50 justify-center z-50"
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+          >
             {/* Loading Overlay */}
             {isDeleting && (
-              <View className="absolute inset-0 flex-1 bg-black/70 items-center justify-center z-50">
-                <View className="bg-white rounded-lg p-8 items-center">
+              <View className="absolute inset-0 bg-black/70 items-center justify-center z-50">
+                <View className="bg-white rounded-lg p-8 items-center mx-6">
                   <ActivityIndicator size="large" color="#dc2626" />
                   <Text className="mt-4 text-center font-manrope-medium text-gray-700 text-base">
                     Deleting your account...
@@ -1058,8 +1063,14 @@ export default function Profile() {
               </View>
             )}
 
-            <View className="bg-white rounded-lg max-w-md w-full p-6">
-              <View className="flex-row items-center gap-3 mb-4">
+            <KeyboardAwareScrollView 
+              contentContainerStyle={{flexGrow: 1, justifyContent: 'center'}}
+              extraScrollHeight={20}
+              enableOnAndroid={true}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View className="bg-white rounded-lg max-w-md w-full p-6 mx-auto my-4">
+                <View className="flex-row items-center gap-3 mb-4">
                 <View className="size-10 bg-red-100 rounded-full flex items-center justify-center">
                   <Ionicons name="warning" size={24} color="#dc2626" />
                 </View>
@@ -1138,9 +1149,10 @@ export default function Profile() {
                     </Text>
                   </TouchableOpacity>
                 </View>
+                </View>
               </View>
-            </View>
-          </View>
+            </KeyboardAwareScrollView>
+          </KeyboardAvoidingView>
         </Modal>
       )}
     </PageLayout>

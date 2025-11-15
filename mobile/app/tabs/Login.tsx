@@ -3,14 +3,14 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useState, useCallback, memo } from "react";
 import {
+  ActivityIndicator,
   Pressable,
+  SafeAreaView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import type { RootStackParamList } from "../../types/type";
 import { useAuth } from "../../context/AuthContext";
@@ -34,9 +34,8 @@ function Login() {
 
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [generalError, setGeneralError] = useState("");
-  const [isToastVisible, setIsToastVisible] = useState(false);
+  const [isToastVisible] = useState(false);
 
   // NEW: Get ban details for display
   const reason = banInfo?.reason || "No reason provided";
@@ -166,10 +165,7 @@ function Login() {
 
       // Only show toast if there isn't already one showing
       if (!isToastVisible) {
-        setIsToastVisible(true);
         showToastMessage(errorMessage, "error", 5000);
-        // Reset toast visibility after it's hidden
-        setTimeout(() => setIsToastVisible(false), 5000);
       }
     }
   };

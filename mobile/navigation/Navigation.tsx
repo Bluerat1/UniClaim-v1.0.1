@@ -16,6 +16,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import { View, ActivityIndicator, Text, SafeAreaView } from "react-native";
 import type { RootStackParamList } from "../types/type";
 import { useAuth } from "../context/AuthContext";
+import { onboardingStorage } from "../utils/onboardingStorage";
 
 // Simple loading component for Suspense fallback
 const ScreenLoader = () => (
@@ -243,6 +244,30 @@ export default function Navigation({
             </Text>
           </View>
         </SafeAreaView>
+      </NavigationWrapper>
+    );
+  } else if (!hasSeenOnBoarding) {
+    console.log("[NAVIGATION] Showing onboarding screen");
+    navigatorContent = (
+      <NavigationWrapper>
+        <Stack.Navigator
+          key={`onboarding-navigation-${renderKey}`}
+          screenOptions={{
+            headerShown: false,
+            animation: 'fade',
+          }}
+        >
+          <Stack.Screen name="OnBoarding">
+            {() => (
+              <OnBoarding onFinish={() => {
+                setHasSeenOnBoarding(true);
+                onboardingStorage.setOnboardingCompleted();
+                // After onboarding, show the index screen
+                setHasPassedIndex(false);
+              }} />
+            )}
+          </Stack.Screen>
+        </Stack.Navigator>
       </NavigationWrapper>
     );
   } else if (

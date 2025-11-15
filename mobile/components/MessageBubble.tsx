@@ -1,4 +1,4 @@
-import React, { useState, FC, useMemo } from "react";
+import React, { useState, FC, useMemo, useCallback } from "react";
 import {
   Text,
   TouchableOpacity,
@@ -186,7 +186,15 @@ const MessageBubble: FC<MessageBubbleProps> = ({
   };
 
   // Memoize the other participant data
-  const otherParticipant = useMemo(() => getOtherParticipantData(), [conversationParticipants, currentUserId]);
+  const getOtherParticipantDataMemoized = useCallback(
+    getOtherParticipantData,
+    [conversationParticipants, currentUserId]
+  );
+  
+  const otherParticipant = useMemo(
+    () => getOtherParticipantDataMemoized(),
+    [getOtherParticipantDataMemoized]
+  );
 
   const resolvedSenderProfilePicture = useMemo(() => {
     if (

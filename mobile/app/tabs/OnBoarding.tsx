@@ -34,7 +34,7 @@ const slides = [
   },
   {
     key: "3",
-    title: "Advanced Search Filter",
+    title: "Search Filter",
     description: "Use filters to quickly narrow down lost or found items.",
     image: require("../../assets/images/filter.png"),
   },

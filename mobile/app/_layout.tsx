@@ -110,19 +110,27 @@ export default function RootLayout() {
   const [hasPassedIndex, setHasPassedIndex] = useState(false);
 
   // Check onboarding status from storage when app starts
+  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
+
   useEffect(() => {
     const checkOnboardingStatus = async () => {
       try {
         const hasSeen = await onboardingStorage.hasSeenOnBoarding();
+        console.log('Onboarding status from storage:', hasSeen);
         setHasSeenOnBoarding(hasSeen);
       } catch (error) {
         console.error('Error checking onboarding status:', error);
         // Keep default false if there's an error
+        setHasSeenOnBoarding(false);
+      } finally {
+        setIsCheckingOnboarding(false);
       }
     };
 
     if (fontsLoaded) {
       checkOnboardingStatus();
+    } else {
+      setIsCheckingOnboarding(false);
     }
   }, [fontsLoaded]);
 

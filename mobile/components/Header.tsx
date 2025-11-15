@@ -14,6 +14,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNotifications } from "../context/NotificationContext";
+import { SafeAreaView } from "react-native-safe-area-context";
 import NotificationPreferencesModal from "./NotificationPreferences";
 import { postService } from "../utils/firebase/posts";
 import { messageService } from "../utils/firebase/messages";
@@ -251,9 +252,22 @@ export default function Header() {
             <Animated.View
               style={{
                 transform: [{ translateX: slideAnim }],
+                flex: 1,
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                right: 0,
+                left: 0,
               }}
-              className="absolute inset-y-0 right-0 w-full bg-white p-5 shadow-lg"
             >
+              <SafeAreaView 
+                style={{
+                  flex: 1,
+                  backgroundColor: 'white',
+                }}
+                edges={['top', 'right', 'bottom']}
+                className="w-full p-5 shadow-lg"
+              >
               <View className="flex-row justify-between items-center mb-4">
                 <View className="flex-row items-center">
                   <Text className="text-xl font-manrope-semibold text-black">
@@ -366,6 +380,7 @@ export default function Header() {
                   </View>
                 </View>
               )}
+              </SafeAreaView>
             </Animated.View>
           </View>
         </Modal>

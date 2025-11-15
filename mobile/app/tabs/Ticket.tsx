@@ -1056,29 +1056,32 @@ const TicketCard = ({
             {/* Show Restore and Delete Permanently buttons for deleted posts */}
             {post.deletedAt && (
               <>
-                <TouchableOpacity
-                  onPress={() => onRestore?.(post.id)}
-                  className={`flex-1 py-2 rounded-md items-center mr-1 ${
-                    isDeleting ? "bg-gray-400" : "bg-green-500"
-                  }`}
-                  disabled={isDeleting || !onRestore}
-                >
-                  <Text className="text-white font-manrope-medium">
-                    {isDeleting ? "Restoring..." : "Restore"}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => onDeletePermanently?.(post.id)}
-                  className={`flex-1 py-2 rounded-md items-center ml-1 ${
-                    isDeleting ? "bg-gray-400" : "bg-red-600"
-                  }`}
-                  disabled={isDeleting || !onDeletePermanently}
-                >
-                  <Text className="text-white font-manrope-medium">
-                    {isDeleting ? "Deleting..." : "Delete Permanently"}
-                  </Text>
-                </TouchableOpacity>
+                {onRestore && (
+                  <TouchableOpacity
+                    onPress={() => !isDeleting && onRestore(post.id)}
+                    className={`p-2 rounded-full ${isDeleting ? 'bg-gray-400' : 'bg-green-500'}`}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? (
+                      <ActivityIndicator size="small" color="white" />
+                    ) : (
+                      <Ionicons name="refresh-outline" size={20} color="white" />
+                    )}
+                  </TouchableOpacity>
+                )}
+                {onDeletePermanently && (
+                  <TouchableOpacity
+                    onPress={() => !isDeleting && onDeletePermanently(post.id)}
+                    className={`p-2 rounded-full ${isDeleting ? 'bg-gray-400' : 'bg-red-700'}`}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? (
+                      <ActivityIndicator size="small" color="white" />
+                    ) : (
+                      <Ionicons name="trash-bin-outline" size={20} color="white" />
+                    )}
+                  </TouchableOpacity>
+                )}
               </>
             )}
 

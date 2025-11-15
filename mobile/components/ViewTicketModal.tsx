@@ -1,13 +1,6 @@
 import React from "react";
-import {
-  View,
-  Text,
-  Modal,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  Linking
-} from "react-native";
+import { View, Text, Modal, TouchableOpacity, ScrollView, Image, Linking } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import type { Post } from "../types/type";
 import LocationMapView from "./LocationMapView";
@@ -91,7 +84,7 @@ export default function ViewTicketModal({
       animationType="slide"
       presentationStyle="pageSheet"
     >
-      <View className="flex-1 bg-white">
+      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
         {/* Header */}
         <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
           <TouchableOpacity onPress={onClose} className="p-2">
@@ -244,20 +237,22 @@ export default function ViewTicketModal({
             )}
           </View>
 
-          {/* Conversation History */}
-          <View className="mb-6">
-            <Text className="text-sm font-manrope-semibold text-gray-900 mb-2">
-              Conversation History
-            </Text>
-            <View className="bg-white rounded-lg border border-gray-200 p-3">
-              <ConversationHistory 
-                postId={post.id} 
-                isAdmin={false} 
-              />
+          {/* Conversation History - Only show if post is not pending */}
+          {post.status !== 'pending' && (
+            <View className="mb-6">
+              <Text className="text-sm font-manrope-semibold text-gray-900 mb-2">
+                Conversation History
+              </Text>
+              <View className="bg-white rounded-lg border border-gray-200 p-3">
+                <ConversationHistory 
+                  postId={post.id} 
+                  isAdmin={false} 
+                />
+              </View>
             </View>
-          </View>
+          )}
         </ScrollView>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }

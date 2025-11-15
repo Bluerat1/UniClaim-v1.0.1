@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../types/type";
 import {
@@ -10,18 +10,12 @@ import {
   Alert,
   SafeAreaView,
   Modal,
-  StyleSheet,
-  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
 import { authService } from "../../utils/firebase";
 import { onAuthStateChanged, getAuth } from "firebase/auth";
 
-type EmailVerificationScreenRouteProp = RouteProp<
-  RootStackParamList,
-  "EmailVerification"
->;
 type EmailVerificationNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   "EmailVerification"
@@ -32,7 +26,6 @@ const RESEND_COOLDOWN_DURATION = 30; // seconds
 const VERIFICATION_CHECK_TIMEOUT = 30000; // 30 seconds
 
 export default function EmailVerification() {
-  const route = useRoute<EmailVerificationScreenRouteProp>();
   const navigation = useNavigation<EmailVerificationNavigationProp>();
   const { user, refreshUserData, handleEmailVerificationComplete, logout } =
     useAuth();
@@ -42,7 +35,6 @@ export default function EmailVerification() {
     "pending" | "success" | "failed" | null
   >(null);
   const [isChecking, setIsChecking] = useState(false);
-  const [hasCheckedOnce, setHasCheckedOnce] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
 
   // Track if we've started the completion process to prevent duplicate runs
@@ -165,6 +157,7 @@ export default function EmailVerification() {
       setResendCooldown(RESEND_COOLDOWN_DURATION);
       Alert.alert("Success", "Verification email has been resent.");
     } catch (error) {
+      console.error("Error resending verification email:", error);
       Alert.alert(
         "Error",
         "Failed to resend verification email. Please try again later."
@@ -267,10 +260,9 @@ export default function EmailVerification() {
     completeVerification,
     navigation,
     handleResendVerification,
+    isNavigating
   ]);
 
-  // Alias for checkVerificationStatus for backward compatibility
-  const handleVerifyPress = checkVerificationStatus;
 
   // Countdown timer for resend button
   useEffect(() => {
@@ -281,7 +273,7 @@ export default function EmailVerification() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [resendCooldown]);
+  }, [resendCooldown, setResendCooldown]);
 
   const handleLogout = useCallback(async () => {
     try {
@@ -296,7 +288,7 @@ export default function EmailVerification() {
       console.error("Logout error:", error);
       Alert.alert("Error", "Failed to logout. Please try again.");
     }
-  }, [logout, navigation]);
+  }, [logout, navigation, setVerificationResult, setResendCooldown]);
 
   // Loading overlay component
   if (isNavigating || isChecking) {

@@ -11,7 +11,6 @@ interface ToastProps {
   duration?: number;
 }
 
-const ANIMATION_DURATION = 300;
 
 export default function Toast({
   visible,
@@ -47,7 +46,7 @@ export default function Toast({
         useNativeDriver: true,
       })
     ]).start();
-  }, [fadeAnim, slideAnim]);
+  }, [fadeAnim, slideAnim, isMounted]);
 
   // Handle hide animation
   const hide = useCallback((onComplete = () => {}) => {
@@ -78,7 +77,7 @@ export default function Toast({
         }
       }
     });
-  }, [fadeAnim, slideAnim]);
+  }, [fadeAnim, slideAnim, isMounted, onAnimationEnd]);
 
   // Handle visibility changes - prevent unnecessary re-renders
   useEffect(() => {
@@ -129,7 +128,7 @@ export default function Toast({
         clearTimeout(timerRef.current);
       }
     };
-  }, [visible, message, duration, onClose, show, hide]);
+  }, [visible, message, duration, onClose, show, hide, isVisible]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -139,7 +138,7 @@ export default function Toast({
         clearTimeout(timerRef.current);
       }
     };
-  }, []);
+  }, [isMounted, timerRef]);
 
   const getToastStyle = () => {
     switch (type) {

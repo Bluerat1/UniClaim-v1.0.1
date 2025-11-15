@@ -4,7 +4,7 @@
     "slug": "uniclaimApp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/uniclaimlogo.png",
+    "icon": "./assets/images/icon.jpg",
     "scheme": "uniclaimapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -13,12 +13,16 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/uniclaimlogo.png",
+        "foregroundImage": "./assets/images/icon.jpg",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
-      "package": "com.bluerat12.uniclaimApp",
+      "package": "com.bluerat12.UniClaim",
+      "notification": {
+        "icon": "./assets/images/icon.jpg",
+        "color": "#ffffff"
+      },
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
@@ -27,14 +31,14 @@
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/images/uniclaimlogo.png"
+      "favicon": "./assets/images/icon.jpg"
     },
     "plugins": [
       "./plugins/withAndroidNetworkSecurity",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/uniclaimlogo.png",
+          "image": "./assets/images/icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
@@ -43,9 +47,13 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/uniclaimlogo.png",
+          "icon": "./assets/images/icon.png",
           "color": "#ffffff",
-          "defaultChannel": "default"
+          "defaultChannel": "default",
+          "android": {
+            "channelId": "default",
+            "channelName": "UniClaim Notifications"
+          }
         }
       ]
     ],
