@@ -18,6 +18,7 @@ import * as ImagePicker from "expo-image-picker";
 import CustomDropdownWithSearch from "./DropdownWithSearch";
 import { cleanupRemovedPostImages } from "../utils/cloudinary";
 import { ITEM_CATEGORIES } from "../constants";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface EditTicketModalProps {
   post: Post;
@@ -166,167 +167,169 @@ export default function EditTicketModal({
       animationType="slide"
       presentationStyle="fullScreen"
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1 bg-white"
-      >
-        {/* Header */}
-        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
-          <TouchableOpacity onPress={handleCancel}>
-            <Ionicons name="close" size={24} color="#374151" />
-          </TouchableOpacity>
-          <Text className="text-lg font-manrope-bold text-gray-800">
-            Edit Ticket
-          </Text>
-          <TouchableOpacity
-            onPress={handleSave}
-            disabled={isSaving}
-            className={`px-4 py-2 rounded-md ${
-              isSaving ? "bg-gray-300" : "bg-yellow-500"
-            }`}
-          >
-            {isSaving ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <Text className="text-white text-sm font-manrope-semibold">
-                Save
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView className="flex-1 p-4">
-          {/* Title Input */}
-          <View className="mb-4">
-            <Text className="text-sm font-manrope-semibold text-black mb-2">
-              Title
+      <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="flex-1 bg-white"
+        >
+          {/* Header */}
+          <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
+            <TouchableOpacity onPress={handleCancel}>
+              <Ionicons name="close" size={24} color="#374151" />
+            </TouchableOpacity>
+            <Text className="text-lg font-manrope-bold text-gray-800">
+              Edit Ticket
             </Text>
-            <TextInput
-              className="border border-gray-300 rounded-md px-3 py-3 text-base text-gray-900"
-              value={editedTitle}
-              onChangeText={setEditedTitle}
-              placeholder="Enter ticket title"
-              placeholderTextColor="#9CA3AF"
-            />
-          </View>
-
-          {/* Description Input */}
-          <View className="mb-4">
-            <Text className="text-sm font-manrope-semibold text-black  mb-2">
-              Description
-            </Text>
-            <TextInput
-              className="border border-gray-300 rounded-md px-3 pb-3 text-base text-gray-900 min-h-24 text-top"
-              value={editedDescription}
-              onChangeText={setEditedDescription}
-              placeholder="Enter description"
-              placeholderTextColor="#9CA3AF"
-              multiline
-              textAlignVertical="top"
-            />
-          </View>
-
-          {/* Category Dropdown */}
-          <View className="mb-4">
-            <Text className="text-sm font-manrope-semibold text-black mb-2">
-              Category
-            </Text>
-            <CustomDropdownWithSearch
-              label=""
-              data={ITEM_CATEGORIES}
-              selected={editedCategory}
-              setSelected={setEditedCategory}
-              placeholder="Select a category"
-            />
-          </View>
-
-          {/* Images Section */}
-          <View className="mb-4">
-            <Text className="text-sm font-manrope-semibold text-black mb-4">
-              Images ({editedImages.length}/3)
-            </Text>
-
-            <View className="flex-row flex-wrap gap-2 mb-3">
-              {editedImages.map((image, index) => (
-                <View key={index} className="relative">
-                  <Image
-                    source={{ uri: image }}
-                    className="w-20 h-20 rounded-md"
-                    resizeMode="cover"
-                  />
-                  <TouchableOpacity
-                    onPress={() => handleDeleteImage(index)}
-                    className="absolute -top-1.5 -right-1.5 bg-red-500 w-6 h-6 rounded-full items-center justify-center"
-                  >
-                    <Ionicons name="close" size={16} color="white" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-
-            {editedImages.length < 3 && (
-              <TouchableOpacity
-                onPress={handleAddImage}
-                className="border-2 border-dashed border-gray-300 rounded-md p-4 items-center justify-center"
-              >
-                <Ionicons name="add" size={24} color="#9CA3AF" />
-                <Text className="text-sm font-manrope-semibold text-gray-500 mt-2">
-                  Add Image
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Current Status */}
-          <View className="mb-4">
-            <Text className="text-sm font-manrope-semibold text-black mb-2">
-              Current Status
-            </Text>
-            <View
-              className={`px-3 py-2 rounded-md ${
-                post.status === "resolved" ? "bg-green-100" : "bg-yellow-100"
+            <TouchableOpacity
+              onPress={handleSave}
+              disabled={isSaving}
+              className={`px-4 py-2 rounded-md ${
+                isSaving ? "bg-gray-300" : "bg-yellow-500"
               }`}
             >
-              <Text
-                className={`text-sm font-manrope-semibold capitalize ${
-                  post.status === "resolved"
-                    ? "text-green-700"
-                    : "text-yellow-700"
-                }`}
-              >
-                {post.status || "pending"}
-              </Text>
-            </View>
+              {isSaving ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Text className="text-white text-sm font-manrope-semibold">
+                  Save
+                </Text>
+              )}
+            </TouchableOpacity>
           </View>
 
-          {/* Cleanup Status */}
-          {cleanupStatus.isCleaning && (
-            <View className="mb-4 p-3 rounded-md border border-green-500 bg-green-50 flex-row items-center space-x-2">
-              <ActivityIndicator size="small" color="#10B981" />
-              <Text className="text-sm font-medium text-green-700">
-                Cleaning up removed images...
+          <ScrollView className="flex-1 p-4">
+            {/* Title Input */}
+            <View className="mb-4">
+              <Text className="text-sm font-manrope-semibold text-black mb-2">
+                Title
               </Text>
+              <TextInput
+                className="border border-gray-300 rounded-md px-3 py-3 text-base text-gray-900"
+                value={editedTitle}
+                onChangeText={setEditedTitle}
+                placeholder="Enter ticket title"
+                placeholderTextColor="#9CA3AF"
+              />
             </View>
-          )}
 
-          {cleanupStatus.deleted.length > 0 && (
-            <View className="mb-4 p-3 rounded-md border border-green-500 bg-green-50">
-              <Text className="text-sm font-medium text-green-700">
-                ✅ Successfully cleaned up {cleanupStatus.deleted.length}{" "}
-                image(s)
+            {/* Description Input */}
+            <View className="mb-4">
+              <Text className="text-sm font-manrope-semibold text-black  mb-2">
+                Description
               </Text>
+              <TextInput
+                className="border border-gray-300 rounded-md px-3 pb-3 text-base text-gray-900 min-h-24 text-top"
+                value={editedDescription}
+                onChangeText={setEditedDescription}
+                placeholder="Enter description"
+                placeholderTextColor="#9CA3AF"
+                multiline
+                textAlignVertical="top"
+              />
             </View>
-          )}
 
-          {cleanupStatus.failed.length > 0 && (
-            <View className="mb-4 p-3 rounded-md border border-yellow-500 bg-yellow-50">
-              <Text className="text-sm font-medium text-yellow-700">
-                ⚠️ Failed to clean up {cleanupStatus.failed.length} image(s)
+            {/* Category Dropdown */}
+            <View className="mb-4">
+              <Text className="text-sm font-manrope-semibold text-black mb-2">
+                Category
               </Text>
+              <CustomDropdownWithSearch
+                label=""
+                data={ITEM_CATEGORIES}
+                selected={editedCategory}
+                setSelected={setEditedCategory}
+                placeholder="Select a category"
+              />
             </View>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+
+            {/* Images Section */}
+            <View className="mb-4">
+              <Text className="text-sm font-manrope-semibold text-black mb-4">
+                Images ({editedImages.length}/3)
+              </Text>
+
+              <View className="flex-row flex-wrap gap-2 mb-3">
+                {editedImages.map((image, index) => (
+                  <View key={index} className="relative">
+                    <Image
+                      source={{ uri: image }}
+                      className="w-20 h-20 rounded-md"
+                      resizeMode="cover"
+                    />
+                    <TouchableOpacity
+                      onPress={() => handleDeleteImage(index)}
+                      className="absolute -top-1.5 -right-1.5 bg-red-500 w-6 h-6 rounded-full items-center justify-center"
+                    >
+                      <Ionicons name="close" size={16} color="white" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+
+              {editedImages.length < 3 && (
+                <TouchableOpacity
+                  onPress={handleAddImage}
+                  className="border-2 border-dashed border-gray-300 rounded-md p-4 items-center justify-center"
+                >
+                  <Ionicons name="add" size={24} color="#9CA3AF" />
+                  <Text className="text-sm font-manrope-semibold text-gray-500 mt-2">
+                    Add Image
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Current Status */}
+            <View className="mb-4">
+              <Text className="text-sm font-manrope-semibold text-black mb-2">
+                Current Status
+              </Text>
+              <View
+                className={`px-3 py-2 rounded-md ${
+                  post.status === "resolved" ? "bg-green-100" : "bg-yellow-100"
+                }`}
+              >
+                <Text
+                  className={`text-sm font-manrope-semibold capitalize ${
+                    post.status === "resolved"
+                      ? "text-green-700"
+                      : "text-yellow-700"
+                  }`}
+                >
+                  {post.status || "pending"}
+                </Text>
+              </View>
+            </View>
+
+            {/* Cleanup Status */}
+            {cleanupStatus.isCleaning && (
+              <View className="mb-4 p-3 rounded-md border border-green-500 bg-green-50 flex-row items-center space-x-2">
+                <ActivityIndicator size="small" color="#10B981" />
+                <Text className="text-sm font-medium text-green-700">
+                  Cleaning up removed images...
+                </Text>
+              </View>
+            )}
+
+            {cleanupStatus.deleted.length > 0 && (
+              <View className="mb-4 p-3 rounded-md border border-green-500 bg-green-50">
+                <Text className="text-sm font-medium text-green-700">
+                  ✅ Successfully cleaned up {cleanupStatus.deleted.length}{" "}
+                  image(s)
+                </Text>
+              </View>
+            )}
+
+            {cleanupStatus.failed.length > 0 && (
+              <View className="mb-4 p-3 rounded-md border border-yellow-500 bg-yellow-50">
+                <Text className="text-sm font-medium text-yellow-700">
+                  ⚠️ Failed to clean up {cleanupStatus.failed.length} image(s)
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </Modal>
   );
 }
