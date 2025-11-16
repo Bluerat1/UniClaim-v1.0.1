@@ -228,7 +228,9 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
       await sendMessage(
         conversation.id,
         userData.uid,
-        newMessage.trim()
+        `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'User',
+        newMessage.trim(),
+        userData.profilePicture || userData.profileImageUrl || ''
       );
       setNewMessage("");
     } catch (error) {

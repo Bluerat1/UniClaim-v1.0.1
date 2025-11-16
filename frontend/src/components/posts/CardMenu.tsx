@@ -188,9 +188,9 @@ export default function PostCardMenu({
           await messageService.sendMessage(
             conversationId,
             currentUserId,
-            userData.displayName || "User",
+            `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'User',
             greeting,
-            userData.profilePicture
+            userData.profilePicture || userData.profileImageUrl || ''
           );
           console.log("Greeting message sent successfully");
         } catch (greetingError) {

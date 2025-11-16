@@ -19,7 +19,6 @@ import {
     or,
     writeBatch
 } from 'firebase/firestore';
-import { userService } from './users';
 import { notificationSender } from './notificationSender';
 
 // Import Firebase instances and types
@@ -404,21 +403,21 @@ export const messageService = {
     },
 
     // Send a message
-    async sendMessage(conversationId: string, senderId: string, text: string): Promise<void> {
+    async sendMessage(conversationId: string, senderId: string, senderName: string, text: string, senderProfilePicture?: string): Promise<void> {
         try {
-            console.log('📤 [sendMessage] Starting to send message:', { conversationId, senderId, textLength: text.length });
-
-            // Get sender data for notification
-            const senderData = await userService.getUserById(senderId);
-            const senderName = senderData ?
-                (senderData.firstName && senderData.lastName ?
-                    `${senderData.firstName} ${senderData.lastName}` :
-                    senderData.displayName || 'Unknown User') :
-                'Unknown User';
+            console.log('📤 [sendMessage] Starting to send message:', {
+                conversationId,
+                senderId,
+                senderName,
+                textLength: text.length,
+                hasProfilePicture: !!senderProfilePicture
+            });
 
             const messagesRef = collection(db, 'conversations', conversationId, 'messages');
             const messageData = {
                 senderId,
+                senderName,
+                ...(senderProfilePicture && { senderProfilePicture }),
                 text,
                 timestamp: serverTimestamp(),
                 readBy: [senderId],
