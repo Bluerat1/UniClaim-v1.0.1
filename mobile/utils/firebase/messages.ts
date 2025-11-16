@@ -31,7 +31,7 @@ interface MessageService {
     markConversationAsRead(conversationId: string, userId: string): Promise<void>;
     markMessageAsRead(conversationId: string, messageId: string, userId: string): Promise<void>;
     hasUnreadMessages(conversationId: string, userId: string): Promise<boolean>;
-  markAllUnreadMessagesAsRead(conversationId: string, userId: string): Promise<boolean>;
+    markAllUnreadMessagesAsRead(conversationId: string, userId: string): Promise<boolean>;
     sendHandoverRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, handoverReason?: string, idPhotoUrl?: string, itemPhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void>;
     sendClaimRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, claimReason?: string, idPhotoUrl?: string, evidencePhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void>;
     updateHandoverResponse(conversationId: string, messageId: string, status: 'accepted' | 'rejected', userId: string, idPhotoUrl?: string): Promise<void>;
@@ -97,7 +97,7 @@ export const messageService: MessageService = {
 
             // Create new conversation if none exists
             const participantIds = [currentUserId, postOwnerId].filter((id, index, self) => id && self.indexOf(id) === index);
-            
+
             const conversationData: any = {
                 postId,
                 postTitle,
@@ -166,13 +166,13 @@ export const messageService: MessageService = {
                 // First pass: Process all messages to identify which to keep and which to delete
                 for (const doc of allMessages) {
                     const messageData = doc.data();
-                    
+
                     // Always keep claim and handover request messages
                     if (messageData.messageType === 'claim_request' || messageData.messageType === 'handover_request') {
                         messagesToKeep.push(doc.id);
                         continue;
                     }
-                    
+
                     // If we still need to delete more messages to reach the limit
                     if (deletedCount < totalToDelete) {
                         messagesToDelete.push(doc.id);
@@ -188,9 +188,9 @@ export const messageService: MessageService = {
                     // Find more messages to delete (excluding protected ones)
                     for (const doc of allMessages) {
                         if (messagesToDelete.length >= totalToDelete) break;
-                        
+
                         const messageData = doc.data();
-                        if (messageData.messageType !== 'claim_request' && 
+                        if (messageData.messageType !== 'claim_request' &&
                             messageData.messageType !== 'handover_request' &&
                             !messagesToDelete.includes(doc.id) &&
                             !messagesToKeep.includes(doc.id)) {
@@ -201,7 +201,7 @@ export const messageService: MessageService = {
 
                 if (messagesToDelete.length > 0) {
                     console.log(`🧹 Cleaning up ${messagesToDelete.length} old messages in conversation ${conversationId}`);
-                    
+
                     // Delete messages in batch
                     const batch = writeBatch(db);
                     messagesToDelete.forEach(messageId => {
@@ -240,14 +240,6 @@ export const messageService: MessageService = {
             }
 
             await addDoc(collection(db, `conversations/${conversationId}/messages`), messageData);
-            
-            // Cleanup old messages after sending new one
-            try {
-                await this.cleanupOldMessages(conversationId);
-            } catch (cleanupError) {
-                console.warn('Message cleanup failed, but message was sent successfully:', cleanupError);
-                // Don't throw error - cleanup failure shouldn't break message sending
-            }
 
             // Get conversation data to find other participants
             const conversationRef = doc(db, 'conversations', conversationId);
@@ -315,7 +307,7 @@ export const messageService: MessageService = {
                 limit(messageLimit)
             );
 
-            return onSnapshot(q, 
+            return onSnapshot(q,
                 (snapshot) => {
                     const messages = snapshot.docs.map(doc => ({
                         id: doc.id,
@@ -330,14 +322,14 @@ export const messageService: MessageService = {
             );
         } catch (error) {
             // Return empty cleanup function
-            return () => {};
+            return () => { };
         }
     },
 
     // Get user conversations with real-time updates
     getUserConversations(userId: string, callback: (conversations: any[]) => void) {
         if (!userId) {
-            return () => {}; // Return empty cleanup function
+            return () => { }; // Return empty cleanup function
         }
 
         try {
@@ -348,7 +340,7 @@ export const messageService: MessageService = {
                 limit(50)
             );
 
-            const unsubscribe = onSnapshot(q, 
+            const unsubscribe = onSnapshot(q,
                 (snapshot) => {
                     const conversations = snapshot.docs.map(doc => {
                         const data = doc.data();
@@ -374,10 +366,10 @@ export const messageService: MessageService = {
             );
 
             return unsubscribe;
-            
+
         } catch (error) {
             console.error('Error setting up conversation listener:', error);
-            return () => {}; // Return empty cleanup function in case of error
+            return () => { }; // Return empty cleanup function in case of error
         }
     },
 
@@ -438,7 +430,7 @@ export const messageService: MessageService = {
                 limit(1)
             );
             const snapshot = await getDocs(q);
-            
+
             // Double-check if the found messages are actually unread
             if (!snapshot.empty) {
                 for (const doc of snapshot.docs) {
@@ -459,20 +451,20 @@ export const messageService: MessageService = {
     async markAllUnreadMessagesAsRead(conversationId: string, userId: string): Promise<boolean> {
         const startTime = Date.now();
         const debugId = Math.random().toString(36).substring(2, 8);
-        
+
         try {
             console.log(`[MARK-READ:${debugId}] 🔍 Checking for unread messages in conversation ${conversationId}`);
-            
+
             // First check if there are any unread messages
             const hasUnread = await this.hasUnreadMessages(conversationId, userId);
-            
+
             if (!hasUnread) {
                 console.log(`[MARK-READ:${debugId}] ℹ️ No unread messages to mark as read`);
                 return false; // No unread messages to update
             }
 
             console.log(`[MARK-READ:${debugId}] 📝 Found unread messages, preparing batch update`);
-            
+
             // Get all unread messages for this conversation and user
             const q = query(
                 collection(db, `conversations/${conversationId}/messages`),
@@ -481,7 +473,7 @@ export const messageService: MessageService = {
 
             const snapshot = await getDocs(q);
             console.log(`[MARK-READ:${debugId}] 🔢 Found ${snapshot.size} unread messages`);
-            
+
             if (snapshot.empty) {
                 console.log(`[MARK-READ:${debugId}] ⚠️ No unread messages found in query, but hasUnread was true`);
                 return false;
@@ -595,7 +587,7 @@ export const messageService: MessageService = {
         }
     },
 
-    // Confirm handover ID photo with detail preservation (matches web implementation)
+    // Confirm handover ID photo with optimized batching and reduced data storage
     async confirmHandoverIdPhoto(conversationId: string, messageId: string, userId: string): Promise<{ success: boolean; conversationDeleted: boolean; postId?: string; error?: string }> {
         try {
             console.log('🔄 Mobile: confirmHandoverIdPhoto called with:', { conversationId, messageId, userId });
@@ -628,18 +620,21 @@ export const messageService: MessageService = {
                 throw new Error('No post ID found in conversation');
             }
 
-            // Update the handover request with confirmation
-            await updateDoc(messageRef, {
+            // Start a batch for all document updates
+            const batch = writeBatch(db);
+
+            // Update the handover request with confirmation in the batch
+            batch.update(messageRef, {
                 'handoverData.idPhotoConfirmed': true,
                 'handoverData.idPhotoConfirmedAt': serverTimestamp(),
                 'handoverData.idPhotoConfirmedBy': userId
             });
 
-            // Update the conversation's postCreatorId to the user who confirmed the handover
-            // This ensures the button behavior changes correctly when an admin collects the item
-            await updateDoc(conversationRef, {
+            // Update the conversation's postCreatorId in the batch
+            batch.update(conversationRef, {
                 postCreatorId: userId,
-                isAdminPost: true // Mark as admin post since an admin confirmed it
+                isAdminPost: true,
+                updatedAt: serverTimestamp()
             });
 
             console.log(`🔄 Mobile: Updated conversation ${conversationId} postCreatorId to ${userId} and set isAdminPost to true`);
@@ -649,58 +644,20 @@ export const messageService: MessageService = {
             if (handoverData) {
                 console.log('📋 Mobile: handoverData available:', JSON.stringify(handoverData, null, 2));
                 console.log('📋 Mobile: handoverData fields:', Object.keys(handoverData || {}));
-                // Get handover person user data
-                const handoverPersonId = messageData.senderId;
-                const handoverPersonDoc = await getDoc(doc(db, 'users', handoverPersonId));
-                const handoverPersonData = handoverPersonDoc.exists() ? handoverPersonDoc.data() : null;
+                // Get user data in parallel
+                const [handoverPersonDoc, ownerDoc] = await Promise.all([
+                    getDoc(doc(db, 'users', messageData.senderId)),
+                    getDoc(doc(db, 'users', userId))
+                ]);
 
-                // Get owner user data (person who confirmed)
-                const ownerDoc = await getDoc(doc(db, 'users', userId));
+                const handoverPersonData = handoverPersonDoc.exists() ? handoverPersonDoc.data() : null;
                 const ownerData = ownerDoc.exists() ? ownerDoc.data() : null;
                 const ownerName = ownerData ? `${ownerData.firstName || ''} ${ownerData.lastName || ''}`.trim() : 'Unknown';
 
-                // Prepare handover request details for the post
-                const handoverRequestDetails: any = {
-                    // Original message details
-                    messageId: messageId,
-                    messageText: messageData.text || '',
-                    messageTimestamp: messageData.timestamp,
-                    senderId: messageData.senderId,
-                    senderName: messageData.senderName || '',
-                    senderProfilePicture: messageData.senderProfilePicture || '',
-
-                    // Handover data from the message
-                    handoverReason: handoverData.handoverReason || '',
-                    handoverRequestedAt: handoverData.requestedAt || null,
-                    handoverRespondedAt: handoverData.respondedAt || null,
-                    handoverResponseMessage: handoverData.responseMessage || '',
-
-                    // ID photo verification details
-                    idPhotoUrl: handoverData.idPhotoUrl || '',
-                    idPhotoConfirmed: true,
-                    idPhotoConfirmedAt: serverTimestamp(),
-                    idPhotoConfirmedBy: userId,
-
-                    // Item photos
-                    itemPhotos: handoverData.itemPhotos || [],
-                    itemPhotosConfirmed: handoverData.itemPhotosConfirmed || false,
-                    itemPhotosConfirmedAt: handoverData.itemPhotosConfirmedAt || null,
-                    itemPhotosConfirmedBy: handoverData.itemPhotosConfirmedBy || '',
-
-                    // Owner verification details
-                    ownerIdPhoto: handoverData.ownerIdPhoto || '',
-                    ownerIdPhotoConfirmed: handoverData.ownerIdPhotoConfirmed || false,
-                    ownerIdPhotoConfirmedAt: handoverData.ownerIdPhotoConfirmedAt || null,
-                    ownerIdPhotoConfirmedBy: handoverData.ownerIdPhotoConfirmedBy || ''
-                };
-
-                // Add handover confirmed timestamp to request details
-                handoverRequestDetails.handoverConfirmedAt = serverTimestamp();
-                handoverRequestDetails.handoverConfirmedBy = userId;
-
                 // Prepare handover details for the post
                 const handoverDetails = {
-                    handoverPersonName: handoverPersonData ? `${handoverPersonData.firstName || ''} ${handoverPersonData.lastName || ''}`.trim() : 'Unknown',
+                    handoverPersonName: handoverPersonData ?
+                        `${handoverPersonData.firstName || ''} ${handoverPersonData.lastName || ''}`.trim() : 'Unknown',
                     handoverPersonContact: handoverPersonData?.contactNum || '',
                     handoverPersonStudentId: handoverPersonData?.studentId || '',
                     handoverPersonEmail: handoverPersonData?.email || '',
@@ -710,36 +667,18 @@ export const messageService: MessageService = {
                     handoverConfirmedAt: serverTimestamp(),
                     handoverConfirmedBy: userId,
                     ownerName: ownerName,
-                    // Store the complete handover request chat bubble details
-                    handoverRequestDetails: handoverRequestDetails
+                    conversationId: conversationId  // Store only the conversation ID instead of full history
                 };
 
-                // Get all messages from the conversation to preserve the chat history
-                const messagesRef = collection(db, 'conversations', conversationId, 'messages');
-                const messagesQuery = query(messagesRef, orderBy('timestamp', 'asc'));
-                const messagesSnap = await getDocs(messagesQuery);
-
-                const conversationMessages = messagesSnap.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-
-                // Update post with handover details, status, and conversation data
-                await updateDoc(doc(db, 'posts', postId), {
+                // Update post with handover details and status in the batch
+                const postRef = doc(db, 'posts', postId);
+                batch.update(postRef, {
                     status: 'resolved',
                     handoverDetails: handoverDetails,
-                    conversationData: {
-                        conversationId: conversationId,
-                        messages: conversationMessages,
-                        participants: conversationData.participants || {},
-                        createdAt: conversationData.createdAt || serverTimestamp(),
-                        lastMessage: conversationData.lastMessage || null
-                    },
                     updatedAt: serverTimestamp()
                 });
 
-                console.log('✅ Mobile: Post updated with complete handover details and conversation data');
-                console.log('📋 Mobile: handoverDetails saved:', JSON.stringify(handoverDetails, null, 2));
+                console.log('✅ Mobile: Post updated with handover details');
             } else {
                 console.warn('⚠️ Mobile: No handover data found in message, cannot store handover details');
                 // Fallback: just update post status
@@ -948,7 +887,7 @@ export const messageService: MessageService = {
         }
     },
 
-    // Confirm claim ID photo with detail preservation (matches web implementation)
+    // Confirm claim ID photo with optimized batching and reduced data storage
     async confirmClaimIdPhoto(conversationId: string, messageId: string, userId: string): Promise<{ success: boolean; conversationDeleted: boolean; postId?: string; error?: string }> {
         try {
             console.log('🔄 Mobile: confirmClaimIdPhoto called with:', { conversationId, messageId, userId });
@@ -957,8 +896,8 @@ export const messageService: MessageService = {
             const messageDoc = await getDoc(messageRef);
 
             if (!messageDoc.exists()) {
-                console.error('❌ Mobile: Message not found');
-                return { success: false, conversationDeleted: false, error: 'Message not found' };
+                console.error('❌ Mobile: Claim message not found');
+                return { success: false, conversationDeleted: false, error: 'Claim message not found' };
             }
 
             const messageData = messageDoc.data();
@@ -981,76 +920,41 @@ export const messageService: MessageService = {
                 throw new Error('No post ID found in conversation');
             }
 
-            // STEP 1: Update the claim message to confirm the ID photo
-            await updateDoc(messageRef, {
+            // Start a batch for all document updates
+            const batch = writeBatch(db);
+
+            // Update the claim request with confirmation in the batch
+            batch.update(messageRef, {
                 'claimData.idPhotoConfirmed': true,
                 'claimData.idPhotoConfirmedAt': serverTimestamp(),
                 'claimData.idPhotoConfirmedBy': userId
             });
 
-            // STEP 1.5: Update the conversation's postCreatorId to the user who confirmed the claim
-            // This ensures the button behavior changes correctly when an admin collects the item
-            await updateDoc(conversationRef, {
-                postCreatorId: userId
+            // Update the conversation's postCreatorId in the batch
+            batch.update(conversationRef, {
+                postCreatorId: userId,
+                updatedAt: serverTimestamp()
             });
 
             console.log(`🔄 Mobile: Updated conversation ${conversationId} postCreatorId to ${userId}`);
 
-            // STEP 2: Get conversation data and prepare claim details
+            // Get claim data from the message
             const claimData = messageData.claimData;
             if (claimData) {
-                // Get claimer user data
-                const claimerId = messageData.senderId;
-                const claimerDoc = await getDoc(doc(db, 'users', claimerId));
-                const claimerData = claimerDoc.exists() ? claimerDoc.data() : null;
+                // Get user data in parallel
+                const [claimerDoc, ownerDoc] = await Promise.all([
+                    getDoc(doc(db, 'users', messageData.senderId)),
+                    getDoc(doc(db, 'users', userId))
+                ]);
 
-                // Get owner user data
-                const ownerDoc = await getDoc(doc(db, 'users', userId));
+                const claimerData = claimerDoc.exists() ? claimerDoc.data() : null;
                 const ownerData = ownerDoc.exists() ? ownerDoc.data() : null;
                 const ownerName = ownerData ? `${ownerData.firstName || ''} ${ownerData.lastName || ''}`.trim() : 'Unknown';
 
-                // Prepare claim request details for the post
-                const claimRequestDetails: any = {
-                    // Original message details
-                    messageId: messageId,
-                    messageText: messageData.text || '',
-                    messageTimestamp: messageData.timestamp,
-                    senderId: messageData.senderId,
-                    senderName: messageData.senderName || '',
-                    senderProfilePicture: messageData.senderProfilePicture || '',
-
-                    // Claim data from the message
-                    claimReason: claimData.claimReason || '',
-                    claimRequestedAt: claimData.requestedAt || null,
-                    claimRespondedAt: claimData.respondedAt || null,
-                    claimResponseMessage: claimData.responseMessage || '',
-
-                    // ID photo verification details
-                    idPhotoUrl: claimData.idPhotoUrl || '',
-                    idPhotoConfirmed: true,
-                    idPhotoConfirmedAt: serverTimestamp(),
-                    idPhotoConfirmedBy: userId,
-
-                    // Evidence photos
-                    evidencePhotos: claimData.evidencePhotos || [],
-                    evidencePhotosConfirmed: claimData.evidencePhotosConfirmed || false,
-                    evidencePhotosConfirmedAt: claimData.evidencePhotosConfirmedAt || null,
-                    evidencePhotosConfirmedBy: claimData.evidencePhotosConfirmedBy || '',
-
-                    // Owner verification details
-                    ownerIdPhoto: claimData.ownerIdPhoto || '',
-                    ownerIdPhotoConfirmed: claimData.ownerIdPhotoConfirmed || false,
-                    ownerIdPhotoConfirmedAt: claimData.ownerIdPhotoConfirmedAt || null,
-                    ownerIdPhotoConfirmedBy: claimData.ownerIdPhotoConfirmedBy || ''
-                };
-
-                // Add claim confirmed timestamp to request details
-                claimRequestDetails.claimConfirmedAt = serverTimestamp();
-                claimRequestDetails.claimConfirmedBy = userId;
-
                 // Prepare claim details for the post
                 const claimDetails = {
-                    claimerName: claimerData ? `${claimerData.firstName || ''} ${claimerData.lastName || ''}`.trim() : 'Unknown',
+                    claimerName: claimerData ?
+                        `${claimerData.firstName || ''} ${claimerData.lastName || ''}`.trim() : 'Unknown',
                     claimerContact: claimerData?.contactNum || '',
                     claimerStudentId: claimerData?.studentId || '',
                     claimerEmail: claimerData?.email || '',
@@ -1060,35 +964,18 @@ export const messageService: MessageService = {
                     claimConfirmedAt: serverTimestamp(),
                     claimConfirmedBy: userId,
                     ownerName: ownerName,
-                    // Store the complete claim request chat bubble details
-                    claimRequestDetails: claimRequestDetails
+                    conversationId: conversationId  // Store only the conversation ID instead of full history
                 };
 
-                // Get all messages from the conversation to preserve the chat history
-                const messagesRef = collection(db, 'conversations', conversationId, 'messages');
-                const messagesQuery = query(messagesRef, orderBy('timestamp', 'asc'));
-                const messagesSnap = await getDocs(messagesQuery);
-
-                const conversationMessages = messagesSnap.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-
-                // Update post with claim details, status, and conversation data
-                await updateDoc(doc(db, 'posts', postId), {
+                // Update post with claim details and status in the batch
+                const postRef = doc(db, 'posts', postId);
+                batch.update(postRef, {
                     status: 'resolved',
                     claimDetails: claimDetails,
-                    conversationData: {
-                        conversationId: conversationId,
-                        messages: conversationMessages,
-                        participants: conversationData.participants || {},
-                        createdAt: conversationData.createdAt || serverTimestamp(),
-                        lastMessage: conversationData.lastMessage || null
-                    },
                     updatedAt: serverTimestamp()
                 });
 
-                console.log('✅ Mobile: Post updated with complete claim details and conversation data');
+                console.log('✅ Mobile: Post updated with claim details');
             } else {
                 console.warn('⚠️ Mobile: No claim data found in message, cannot store claim details');
                 // Fallback: just update post status
@@ -1301,74 +1188,74 @@ export const messageService: MessageService = {
     // Get current conversations (one-time query)
     // Delete conversation for a user
     async updateConversationParticipant(conversationId: string, participantId: string, data: any): Promise<void> {
-    const conversationRef = doc(db, 'conversations', conversationId);
-    await updateDoc(conversationRef, {
-      [`participants.${participantId}`]: data,
-      updatedAt: serverTimestamp()
-    });
-  },
+        const conversationRef = doc(db, 'conversations', conversationId);
+        await updateDoc(conversationRef, {
+            [`participants.${participantId}`]: data,
+            updatedAt: serverTimestamp()
+        });
+    },
 
-  async deleteConversation(conversationId: string, userId: string): Promise<{ success: boolean; error?: string }> {
-    const batch = writeBatch(db);
-    
-    try {
-      if (!conversationId || !userId) {
-        console.error('❌ [deleteConversation] Missing required parameters');
-        return { success: false, error: 'Missing required parameters' };
-      }
+    async deleteConversation(conversationId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+        const batch = writeBatch(db);
 
-      const conversationRef = doc(db, 'conversations', conversationId);
-      const conversationDoc = await getDoc(conversationRef);
-      
-      if (!conversationDoc.exists()) {
-        console.error(`❌ [deleteConversation] Conversation ${conversationId} not found`);
-        return { success: false, error: 'Conversation not found' };
-      }
+        try {
+            if (!conversationId || !userId) {
+                console.error('❌ [deleteConversation] Missing required parameters');
+                return { success: false, error: 'Missing required parameters' };
+            }
 
-      const conversationData = conversationDoc.data();
-      
-      // Check if user is a participant
-      if (!conversationData.participantIds?.includes(userId) && 
-          conversationData.participants?.[userId] !== true) {
-        console.error(`❌ [deleteConversation] User ${userId} is not a participant in conversation ${conversationId}`);
-        return { success: false, error: 'Not authorized to delete this conversation' };
-      }
+            const conversationRef = doc(db, 'conversations', conversationId);
+            const conversationDoc = await getDoc(conversationRef);
 
-      // Check if conversation is resolved
-      if (conversationData.status === 'resolved' || 
-          conversationData.status === 'handed_over' || 
-          conversationData.status === 'claimed' || 
-          conversationData.status === 'returned') {
-        console.log(`⚠️ [deleteConversation] Cannot delete resolved conversation ${conversationId}`);
-        return { success: false, error: 'Cannot delete a resolved conversation' };
-      }
+            if (!conversationDoc.exists()) {
+                console.error(`❌ [deleteConversation] Conversation ${conversationId} not found`);
+                return { success: false, error: 'Conversation not found' };
+            }
 
-      // Delete all messages in the conversation
-      const messagesQuery = query(
-        collection(db, `conversations/${conversationId}/messages`)
-      );
-      const messagesSnapshot = await getDocs(messagesQuery);
-      
-      // Delete each message in the conversation
-      messagesSnapshot.docs.forEach((doc) => {
-        batch.delete(doc.ref);
-      });
-      
-      // Delete the conversation document
-      batch.delete(conversationRef);
-      
-      // Commit the batch
-      await batch.commit();
-      
-      console.log(`✅ [deleteConversation] Successfully deleted conversation ${conversationId}`);
-      return { success: true };
-    } catch (error) {
-      console.error(`❌ [deleteConversation] Error deleting conversation ${conversationId}:`, error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to delete conversation' 
-      };
-    }
+            const conversationData = conversationDoc.data();
+
+            // Check if user is a participant
+            if (!conversationData.participantIds?.includes(userId) &&
+                conversationData.participants?.[userId] !== true) {
+                console.error(`❌ [deleteConversation] User ${userId} is not a participant in conversation ${conversationId}`);
+                return { success: false, error: 'Not authorized to delete this conversation' };
+            }
+
+            // Check if conversation is resolved
+            if (conversationData.status === 'resolved' ||
+                conversationData.status === 'handed_over' ||
+                conversationData.status === 'claimed' ||
+                conversationData.status === 'returned') {
+                console.log(`⚠️ [deleteConversation] Cannot delete resolved conversation ${conversationId}`);
+                return { success: false, error: 'Cannot delete a resolved conversation' };
+            }
+
+            // Delete all messages in the conversation
+            const messagesQuery = query(
+                collection(db, `conversations/${conversationId}/messages`)
+            );
+            const messagesSnapshot = await getDocs(messagesQuery);
+
+            // Delete each message in the conversation
+            messagesSnapshot.docs.forEach((doc) => {
+                batch.delete(doc.ref);
+            });
+
+            // Delete the conversation document
+            batch.delete(conversationRef);
+
+            // Commit the batch
+            await batch.commit();
+
+            console.log(`✅ [deleteConversation] Successfully deleted conversation ${conversationId}`);
+            return { success: true };
+        } catch (error) {
+            console.error(`❌ [deleteConversation] Error deleting conversation ${conversationId}:`, error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Failed to delete conversation'
+            };
+        }
     },
 
     // Get current conversations (one-time query)
@@ -1386,15 +1273,15 @@ export const messageService: MessageService = {
             );
 
             const snapshot = await getDocs(q);
-            
+
             const conversations = snapshot.docs.map(doc => {
                 const data = doc.data();
-                    // Ensure backward compatibility
-                    const participants = data.participants || {};
-                
+                // Ensure backward compatibility
+                const participants = data.participants || {};
+
                 // If participantIds doesn't exist, fall back to using participants keys
                 const participantIds = data.participantIds || Object.keys(participants);
-                
+
                 return {
                     id: doc.id,
                     ...data,

@@ -33,7 +33,6 @@ import {
   cloudinaryService,
   deleteOldProfilePicture,
 } from "../../utils/cloudinary";
-import { postUpdateService } from "../../utils/postUpdateService";
 import { userDeletionService } from "../../utils/firebase/userDeletion";
 import { credentialStorage } from "../../utils/credentialStorage";
 import { usePaginatedUserPosts } from "../../hooks/usePaginatedUserPosts";
@@ -316,21 +315,7 @@ export default function Profile() {
       // Update all user data across collections using the new service
       await profileUpdateService.updateAllUserData(user.uid, updateData);
 
-      // Update all existing posts with the new profile picture (or removal)
-      if (hasImageChanged) {
-        try {
-          await postUpdateService.updateUserPostsWithProfilePicture(
-            user.uid,
-            profileImageUrl || null
-          );
-        } catch (postUpdateError: any) {
-          console.error(
-            "Failed to update posts with profile picture change:",
-            postUpdateError.message
-          );
-          // Don't fail the save operation - profile was updated successfully
-        }
-      }
+      // Note: We no longer update posts with profile picture changes to reduce write amplification
 
       // Refresh user data to ensure UI shows updated information
       await refreshUserData();

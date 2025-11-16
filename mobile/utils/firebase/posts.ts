@@ -1,8 +1,7 @@
 // Posts service for lost and found items - Enhanced with performance optimizations
 import { db } from './config';
 import { cloudinaryService, extractPublicIdFromUrl } from '../cloudinary';
-import { writeBatch, doc, collection, getDoc, addDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot, where, getDocs, serverTimestamp, limit, startAfter } from 'firebase/firestore';
-import writeBatchManager from './writeBatchManager';
+import { writeBatch, doc, collection, getDoc, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot, where, getDocs, serverTimestamp, limit, startAfter } from 'firebase/firestore';
 
 // Import notification sender (mobile service)
 import { notificationSender } from './notificationSender';
@@ -440,8 +439,21 @@ export const postService = {
             const expiryDate = new Date();
             expiryDate.setDate(now.getDate() + 30);
 
+            // Extract only the essential user data we want to store
+            const { user, ...postDataWithoutUser } = postData;
+            const minimalUserData = user ? {
+                // Only include the minimal user data needed
+                user: {
+                    email: user.email,
+                    id: user.id || user.uid || postData.creatorId
+                },
+                // Keep creatorId at the root for backward compatibility
+                creatorId: user.id || user.uid || postData.creatorId
+            } : {};
+
             const enhancedPostData = {
-                ...postData,
+                ...postDataWithoutUser,
+                ...minimalUserData,
                 images: imageUrls,
                 status: postData.status || 'pending',
                 createdAt: serverTimestamp(),
@@ -465,10 +477,10 @@ export const postService = {
                 isExpired: enhancedPostData.isExpired
             });
 
-            // Add the new post to Firestore using batch manager
+            // Add the new post to Firestore
             const docRef = doc(collection(db, 'posts'));
             const postId = docRef.id;
-            await writeBatchManager.addToBatch('posts', postId, {
+            await setDoc(docRef, {
                 ...enhancedPostData,
                 id: postId // Ensure the ID is included in the document
             });
@@ -541,31 +553,33 @@ export const postService = {
         })();
     },
 
-    // Update post with batched writes
+    // Update post
     async updatePost(postId: string, updates: any): Promise<void> {
         try {
-            await writeBatchManager.addToBatch('posts', postId, {
+            const postRef = doc(db, 'posts', postId);
+            await updateDoc(postRef, {
                 ...updates,
                 updatedAt: serverTimestamp()
-            }, { merge: true });
+            });
 
-            console.log(`✅ Update queued for post: ${postId}`);
+            console.log(`✅ Post updated: ${postId}`);
         } catch (error) {
-            console.error('❌ Error queuing post update:', error);
+            console.error('❌ Error updating post:', error);
             throw error;
         }
     },
 
-    // Delete post using batch manager
+    // Delete post
     async deletePost(postId: string): Promise<void> {
         try {
-            await writeBatchManager.deleteFromBatch('posts', postId);
-            console.log(`✅ Delete queued for post: ${postId}`);
+            const postRef = doc(db, 'posts', postId);
+            await deleteDoc(postRef);
+            console.log(`✅ Post deleted: ${postId}`);
 
             // Note: If you need to clean up Cloudinary images, do it here
             // but be careful with rate limits
         } catch (error) {
-            console.error('❌ Error queuing post for deletion:', error);
+            console.error('❌ Error deleting post:', error);
             throw error;
         }
     },

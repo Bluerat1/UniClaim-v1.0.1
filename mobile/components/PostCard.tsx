@@ -5,6 +5,7 @@ import React, { useState, useCallback } from 'react';
 import { TouchableOpacity, View, Text, Image as RNImage, ActivityIndicator } from 'react-native';
 import type { Post, RootStackParamList } from "../types/type";
 import { useAdminStatus } from "../hooks/useAdminStatus";
+import { useUserData } from "../hooks/useUserData";
 import PostCardMenu from "./PostCardMenu";
 import ProfilePicture from "./ProfilePicture";
 
@@ -25,9 +26,21 @@ export default function PostCard({
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
 
+  // Get user data using the new hook
+  const { firstName, lastName, profilePicture, loading: userLoading } = useUserData(post.creatorId);
+  
   // Fallback to individual admin status fetch if not provided
   const fallbackAdminStatuses = useAdminStatus(adminStatuses ? [] : [post]);
   const effectiveAdminStatuses = adminStatuses || fallbackAdminStatuses;
+  
+  // Prepare user data for the post using the user object from the post
+  const userData = {
+    firstName,
+    lastName,
+    profilePicture,
+    email: post.user?.email || '',
+    id: post.creatorId
+  };
 
   const getCategoryBadgeStyle = (category: string) => {
     switch (category.toLowerCase()) {
@@ -182,244 +195,224 @@ export default function PostCard({
         }
       }}
     >
-      <View className="relative">
-        {renderImage()}
+      <View>
+        <View className="relative">
+          {renderImage()}
 
-        {/* Resolved Status Badge */}
-        {post.status === "resolved" && (
-          <View className="absolute top-3 left-3 bg-green-500 px-3 py-1 rounded-full">
-            <Text className="text-white text-xs font-inter-medium">
-              {post.claimDetails
-                ? "Claimed"
-                : post.handoverDetails
-                  ? "Handed Over"
-                  : "Resolved"}
-            </Text>
+          {/* Resolved Status Badge */}
+          {post.status === "resolved" && (
+            <View className="absolute top-3 left-3 bg-green-500 px-3 py-1 rounded-full">
+              <Text className="text-white text-xs font-inter-medium">
+                {post.claimDetails
+                  ? "Claimed"
+                  : post.handoverDetails
+                    ? "Handed Over"
+                    : "Resolved"}
+              </Text>
+            </View>
+          )}
+
+          {/* Triple dot menu positioned at top right of image */}
+          <View className="absolute top-3 right-3">
+            <PostCardMenu
+              postId={post.id}
+              postTitle={post.title}
+              postOwnerId={post.creatorId || post.postedById || ""}
+              postOwnerUserData={userData}
+              postType={post.type}
+              postStatus={post.status}
+              foundAction={post.foundAction}
+              isFlagged={post.isFlagged}
+              flaggedBy={post.flaggedBy}
+              onFlagSuccess={() => {
+                // Silent flagging - no visual feedback needed
+              }}
+            />
           </View>
-        )}
-
-        {/* Triple dot menu positioned at top right of image */}
-        <View className="absolute top-3 right-3">
-          <PostCardMenu
-            postId={post.id}
-            postTitle={post.title}
-            postOwnerId={post.creatorId || post.postedById || ""}
-            postOwnerUserData={post.user}
-            postType={post.type}
-            postStatus={post.status}
-            foundAction={post.foundAction}
-            isFlagged={post.isFlagged}
-            flaggedBy={post.flaggedBy}
-            onFlagSuccess={() => {
-              // Silent flagging - no visual feedback needed
-            }}
-          />
         </View>
-      </View>
 
-      <View className="p-3">
-        <View className="flex-col">
-          <View className="flex-row gap-2">
-            {/* Category Badge */}
-            <Text
-              className={`self-start px-3 py-1 mb-2 rounded-sm text-xs font-inter-medium ${getCategoryBadgeStyle(
-                post.category
-              )}`}
-            >
-              {post.category}
-            </Text>
+        <View className="p-3">
+          <View className="flex-col">
+            <View className="flex-row gap-2">
+              {/* Category Badge */}
+              <Text
+                className={`self-start px-3 py-1 mb-2 rounded-sm text-xs font-inter-medium ${getCategoryBadgeStyle(
+                  post.category
+                )}`}
+              >
+                {post.category}
+              </Text>
 
-            {/* Type Badge */}
-            <Text
-              className={`self-start px-3 py-1 mb-2 rounded-sm text-xs font-inter-medium ${
-                post.type === "lost"
-                  ? "bg-red-100 text-red-700"
-                  : "bg-green-100 text-green-700"
-              }`}
-            >
-              {post.type === "lost" ? "Lost" : "Found"}
-            </Text>
-          </View>
-
-          <View className="flex-row gap-2">
-            {/* Expiry Countdown Badge */}
-            {post.expiryDate && (
-              <>
-                {(() => {
-                  try {
-                    const now = new Date();
-                    let expiry: Date;
-
-                    // Handle Firebase Timestamp
-                    if (
-                      post.expiryDate &&
-                      typeof post.expiryDate === "object" &&
-                      "seconds" in post.expiryDate
-                    ) {
-                      // Firebase Timestamp
-                      expiry = new Date(post.expiryDate.seconds * 1000);
-                    } else if (post.expiryDate instanceof Date) {
-                      // Regular Date object
-                      expiry = post.expiryDate;
-                    } else if (post.expiryDate) {
-                      // String or other format
-                      expiry = new Date(post.expiryDate);
-                    } else {
-                      return null;
-                    }
-
-                    // Check if date is valid
-                    if (isNaN(expiry.getTime())) {
-                      return null;
-                    }
-
-                    const daysLeft = Math.ceil(
-                      (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-                    );
-
-                    if (daysLeft <= 0) {
-                      return (
-                        <Text className="self-start captialize px-3 py-1 mb-2 rounded-sm text-xs font-inter-medium bg-red-100 text-red-700">
-                          ⚠️ EXPIRED
-                        </Text>
-                      );
-                    } else if (daysLeft <= 3) {
-                      return (
-                        <Text className="self-start captialize px-3 py-1 mb-2 rounded-sm text-xs font-inter-medium bg-red-100 text-red-700">
-                          ⚠️ {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
-                        </Text>
-                      );
-                    } else if (daysLeft <= 7) {
-                      return (
-                        <Text className="self-start captialize px-3 py-1 mb-2 rounded-sm text-xs font-inter-medium bg-orange-100 text-orange-700">
-                          ⚠️ {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
-                        </Text>
-                      );
-                    } else {
-                      return (
-                        <Text className="self-start captialize px-3 py-1 mb-2 rounded-sm text-xs font-inter-medium bg-green-100 text-green-700">
-                          {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
-                        </Text>
-                      );
-                    }
-                  } catch (error) {
-                    console.error("Error calculating days left:", error);
-                    return null;
-                  }
-                })()}
-              </>
-            )}
-
-            {post.type === "found" && post.foundAction && (
+              {/* Type Badge */}
               <Text
                 className={`self-start px-3 py-1 mb-2 rounded-sm text-xs font-inter-medium ${
-                  post.foundAction === "keep"
-                    ? "bg-amber-200 text-amber-700"
-                    : "bg-fuchsia-200 text-fuchsia-700"
+                  post.type === "lost"
+                    ? "bg-red-100 text-red-700"
+                    : "bg-green-100 text-green-700"
                 }`}
               >
-                {post.foundAction === "keep"
-                  ? "Keep"
-                  : post.foundAction === "turnover to OSA"
-                    ? "OSA"
-                    : "Campus Security"}
+                {post.type === "lost" ? "Lost" : "Found"}
               </Text>
-            )}
-          </View>
-        </View>
+            </View>
 
-        <Text className="text-2xl my-1.5 font-manrope-semibold text-black">
-          {highlightText(post.title, descriptionSearch)}
-        </Text>
-        <View className="flex-row items-center gap-2 mb-2">
-          <ProfilePicture src={post.user?.profilePicture} size="xs" />
-          <View className="flex-row items-center gap-2">
-            <Text className="text-xs text-blue-800 font-manrope-bold">
-              Posted by{" "}
-              {(() => {
-                // ✅ Handle multiple data structure scenarios
-                if (post.user?.firstName && post.user?.lastName) {
-                  return `${post.user.firstName} ${post.user.lastName}`;
-                } else if (post.postedBy) {
-                  return post.postedBy;
-                } else if (post.user?.email) {
-                  return post.user.email.split("@")[0]; // Show username part of email
-                } else {
-                  return "Unknown User";
-                }
-              })()}
-            </Text>
-            {/* Admin Badge */}
-            {(post.user?.role === "admin" ||
-              (post.user?.email &&
-                effectiveAdminStatuses.get(post.user.email))) && (
-              <Text className="bg-amber-500 text-white text-xs px-2 py-1 rounded-full font-manrope-bold">
+            <View className="flex-row gap-2">
+              {/* Expiry Countdown Badge */}
+              {post.expiryDate && (
+                <>
+                  {(() => {
+                    try {
+                      const now = new Date();
+                      let expiry: Date;
+
+                      // Handle Firebase Timestamp
+                      if (
+                        post.expiryDate &&
+                        typeof post.expiryDate === "object" &&
+                        "seconds" in post.expiryDate
+                      ) {
+                        // Firebase Timestamp
+                        expiry = new Date(post.expiryDate.seconds * 1000);
+                      } else if (post.expiryDate instanceof Date) {
+                        // Regular Date object
+                        expiry = post.expiryDate;
+                      } else if (post.expiryDate) {
+                        // String or other format
+                        expiry = new Date(post.expiryDate);
+                      } else {
+                        return null;
+                      }
+
+                      // Check if date is valid
+                      if (isNaN(expiry.getTime())) {
+                        return null;
+                      }
+
+                      const daysLeft = Math.ceil(
+                        (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+                      );
+
+                      if (daysLeft <= 0) {
+                        return (
+                          <Text className="self-start captialize px-3 py-1 mb-2 rounded-sm text-xs font-inter-medium bg-red-100 text-red-700">
+                            ⚠️ EXPIRED
+                          </Text>
+                        );
+                      } else if (daysLeft <= 3) {
+                        return (
+                          <Text className="self-start captialize px-3 py-1 mb-2 rounded-sm text-xs font-inter-medium bg-red-100 text-red-700">
+                            ⚠️ {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
+                          </Text>
+                        );
+                      } else if (daysLeft <= 7) {
+                        return (
+                          <Text className="self-start captialize px-3 py-1 mb-2 rounded-sm text-xs font-inter-medium bg-orange-100 text-orange-700">
+                            ⚠️ {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
+                          </Text>
+                        );
+                      } else {
+                        return (
+                          <Text className="self-start captialize px-3 py-1 mb-2 rounded-sm text-xs font-inter-medium bg-green-100 text-green-700">
+                            {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
+                          </Text>
+                        );
+                      }
+                    } catch (error) {
+                      console.error("Error calculating days left:", error);
+                      return null;
+                    }
+                  })()}
+                </>
+              )}
+
+              {post.type === "found" && post.foundAction && (
+                <Text
+                  className={`self-start px-3 py-1 mb-2 rounded-sm text-xs font-inter-medium ${
+                    post.foundAction === "keep"
+                      ? "bg-amber-200 text-amber-700"
+                      : "bg-fuchsia-200 text-fuchsia-700"
+                  }`}
+                >
+                  {post.foundAction === "keep"
+                    ? "Keep"
+                    : post.foundAction === "turnover to OSA"
+                      ? "OSA"
+                      : "Campus Security"}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          {/* Admin Badge */}
+          {(post.user?.role === "admin" ||
+            (post.user?.email && effectiveAdminStatuses.get(post.user.email))) && (
+            <View className="mt-2">
+              <Text className="bg-amber-500 text-white text-xs px-2 py-1 rounded-full font-manrope-bold self-start">
                 ADMIN
               </Text>
-            )}
+            </View>
+          )}
+
+          <View className="flex-row flex-wrap items-center gap-2 mt-2">
+            <View className="flex-row items-center gap-1 flex-shrink">
+              <Ionicons name="location-outline" size={16} color="#4B5563" />
+              <Text
+                className="text-zinc-700 font-inter ml-1 flex-shrink"
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+              >
+                Last seen at {post.location}
+              </Text>
+            </View>
+
+            <View className="flex-row items-center gap-2">
+              <Ionicons name="calendar-outline" size={14} color="#6B7280" />
+              <Text className="text-sm font-inter text-zinc-700">
+                {(() => {
+                  // Priority: dateTime (when item was lost/found) > createdAt (when post was created)
+                  let dateToShow: Date | null = null;
+
+                  if (post.dateTime) {
+                    dateToShow = new Date(post.dateTime);
+                  } else if (post.createdAt) {
+                    dateToShow = new Date(post.createdAt);
+                  }
+
+                  if (!dateToShow || isNaN(dateToShow.getTime())) {
+                    return "Date not available";
+                  }
+
+                  const now = new Date();
+                  const diffInMs = now.getTime() - dateToShow.getTime();
+                  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+                  const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+                  const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+
+                  // Always show relative time for consistency
+                  if (diffInMinutes < 1) {
+                    return "just now";
+                  } else if (diffInMinutes < 60) {
+                    return `${diffInMinutes} min${diffInMinutes > 1 ? "s" : ""} ago`;
+                  } else if (diffInHours < 24) {
+                    return `${diffInHours} hour${diffInHours > 1 ? "s" : ""} ago`;
+                  } else if (diffInDays < 30) {
+                    return `${diffInDays} day${diffInDays > 1 ? "s" : ""} ago`;
+                  } else {
+                    const months = Math.floor(diffInDays / 30);
+                    return `${months} month${months > 1 ? "s" : ""} ago`;
+                  }
+                })()}
+              </Text>
+            </View>
           </View>
+
+          <Text
+            numberOfLines={2}
+            className="text-sm text-gray-700 mt-3 font-inter"
+          >
+            {highlightText(post.description, descriptionSearch)}
+          </Text>
         </View>
-
-        <View className="flex-row flex-wrap items-center gap-2">
-          <View className="flex-row items-center gap-1 flex-shrink">
-            <Ionicons name="location-outline" size={16} color="#4B5563" />
-            <Text
-              className="text-zinc-700 font-inter ml-1 flex-shrink"
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.8} // optional: don’t shrink smaller than 80% of original
-            >
-              Last seen at {post.location}
-            </Text>
-          </View>
-
-          <View className="flex-row items-center gap-2">
-            <Ionicons name="calendar-outline" size={14} color="#6B7280" />
-            <Text className="text-sm font-inter text-zinc-700">
-              {(() => {
-                // Priority: dateTime (when item was lost/found) > createdAt (when post was created)
-                let dateToShow: Date | null = null;
-
-                if (post.dateTime) {
-                  dateToShow = new Date(post.dateTime);
-                } else if (post.createdAt) {
-                  dateToShow = new Date(post.createdAt);
-                }
-
-                if (!dateToShow || isNaN(dateToShow.getTime())) {
-                  return "Date not available";
-                }
-
-                const now = new Date();
-                const diffInMs = now.getTime() - dateToShow.getTime();
-                const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
-                const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
-                const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
-
-                // Always show relative time for consistency
-                if (diffInMinutes < 1) {
-                  return "just now";
-                } else if (diffInMinutes < 60) {
-                  return `${diffInMinutes} min${diffInMinutes > 1 ? "s" : ""} ago`;
-                } else if (diffInHours < 24) {
-                  return `${diffInHours} hour${diffInHours > 1 ? "s" : ""} ago`;
-                } else if (diffInDays < 30) {
-                  return `${diffInDays} day${diffInDays > 1 ? "s" : ""} ago`;
-                } else {
-                  const months = Math.floor(diffInDays / 30);
-                  return `${months} month${months > 1 ? "s" : ""} ago`;
-                }
-              })()}
-            </Text>
-          </View>
-        </View>
-
-        <Text
-          numberOfLines={2}
-          className="text-sm text-gray-700 mt-3 font-inter"
-        >
-          {highlightText(post.description, descriptionSearch)}
-        </Text>
       </View>
     </TouchableOpacity>
   );

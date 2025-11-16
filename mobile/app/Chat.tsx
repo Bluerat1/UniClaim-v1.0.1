@@ -35,6 +35,7 @@ import ImagePicker from "../components/ImagePicker";
 import { getProfilePictureUrl } from "../utils/profileUtils";
 import { doc, getDoc, updateDoc, deleteField } from "firebase/firestore";
 import { db } from "../utils/firebase";
+import { messageService } from "../utils/firebase/messages";
 
 type ChatRouteProp = RouteProp<RootStackParamList, "Chat">;
 type ChatNavigationProp = NativeStackNavigationProp<RootStackParamList, "Chat">;
@@ -291,6 +292,21 @@ export default function Chat() {
     otherParticipantId,
     otherParticipantPic,
   ]);
+
+  // Mark all messages as read when the chat is opened
+  useEffect(() => {
+    const markMessagesAsRead = async () => {
+      try {
+        if (conversationId && user?.uid) {
+          await messageService.markAllUnreadMessagesAsRead(conversationId, user.uid);
+        }
+      } catch (error) {
+        console.error('Error marking messages as read:', error);
+      }
+    };
+
+    markMessagesAsRead();
+  }, [conversationId, user?.uid]);
 
   // Get the other participant's profile picture (exclude current user)
   const getOtherParticipantProfilePicture = useCallback(() => {

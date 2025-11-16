@@ -73,7 +73,6 @@ interface MessageBubbleProps {
     idPhotoUrl?: string
   ) => void;
   onConfirmIdPhotoSuccess?: (messageId: string) => void;
-  onMessageSeen?: () => void;
   onImageClick?: (imageUrl: string, altText: string) => void;
   triggerImagePicker?: (messageId: string, messageType: "handover_request" | "claim_request") => void;
   isConfirmationInProgress?: boolean;
@@ -93,7 +92,6 @@ const MessageBubble: FC<MessageBubbleProps> = ({
   onHandoverResponse,
   onClaimResponse,
   onConfirmIdPhotoSuccess,
-  onMessageSeen,
   onImageClick,
   triggerImagePicker,
   isConfirmationInProgress = false,

@@ -258,22 +258,15 @@ export const profileUpdateService: ProfileUpdateService = {
                 console.warn('Profile picture URL does not start with http/https, conversations might not update correctly');
             }
 
-            // Run posts and conversations updates in parallel for better performance
-            const [postsResult, conversationsResult] = await Promise.allSettled([
-                this.updateUserPosts(userId, updates),
-                this.updateUserConversations(userId, updates)
-            ]);
-
-            // Log any errors but don't fail the entire operation
-            if (postsResult.status === 'rejected') {
-                console.warn('Failed to update user posts:', postsResult.reason);
-            }
-
-            if (conversationsResult.status === 'rejected') {
-                console.error('Failed to update user conversations:', conversationsResult.reason);
+            // Only update conversations to reflect profile changes
+            // We no longer update posts to avoid write amplification
+            try {
+                await this.updateUserConversations(userId, updates);
+            } catch (conversationsError: any) {
+                console.error('Failed to update user conversations:', conversationsError);
                 // For profile picture updates, we want to know if this fails
                 if (updates.profilePicture) {
-                    throw new Error(`Failed to update conversations with new profile picture: ${conversationsResult.reason}`);
+                    throw new Error(`Failed to update conversations with new profile picture: ${conversationsError.message}`);
                 }
             }
 

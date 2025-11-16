@@ -409,39 +409,38 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
 
   const getMessageProfilePicture = useCallback(
     (message: Message) => {
-      if (message.senderProfilePicture) {
-        return message.senderProfilePicture;
-      }
-      if (!conversation) {
-        return null;
-      }
-      
-      // Try to get from participantInfo first
-      const info = conversation.participantInfo?.[message.senderId] as UserInfo | undefined;
-      if (info) {
+      // First try to get from participantInfo (most up-to-date)
+      if (conversation?.participantInfo?.[message.senderId]) {
+        const info = conversation.participantInfo[message.senderId] as UserInfo;
         return (
-          info.photoURL ||
-          info.photo ||
-          info.profilePicture ||
+          info.profilePicture ||  // Check profilePicture first
+          info.photoURL ||        // Then photoURL
+          info.photo ||           // Then other possible fields
           info.profileImageUrl ||
           info.avatar ||
           info.picture ||
           info.image ||
+          message.senderProfilePicture ||  // Fall back to message data
           null
         );
       }
-      
+
+      // Fall back to message data
+      if (message.senderProfilePicture) {
+        return message.senderProfilePicture;
+      }
+
       // Fall back to participants map
-      const participant = conversation.participants?.[message.senderId] as Participant | boolean | undefined;
+      const participant = conversation?.participants?.[message.senderId] as Participant | boolean | undefined;
       if (!participant || typeof participant === 'boolean') {
         return null;
       }
       
       return (
         participant.profilePicture ||
-        participant.profileImageUrl ||
         participant.photoURL ||
         participant.photo ||
+        participant.profileImageUrl ||
         participant.avatar ||
         participant.picture ||
         participant.image ||

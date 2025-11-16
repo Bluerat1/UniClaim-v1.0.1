@@ -112,9 +112,8 @@ export default function ImageUploader({ images, setImages }: Props) {
         <View className="space-y-2">
           <TouchableOpacity
             onPress={() => setShowSourceDialog(true)}
-            className="border border-navyblue bg-navyblue h-[3.3rem] rounded-md items-center justify-center flex-row space-x-2"
+            className="border border-navyblue bg-navyblue h-[3.3rem] rounded-md items-center justify-center"
           >
-            <Ionicons name="cloud-upload" size={20} color="white" />
             <Text className="text-white font-manrope-medium text-base">
               Upload Image
             </Text>
