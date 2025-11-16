@@ -22,6 +22,7 @@ type Props = {
   setLocationSearch: (val: string) => void;
   descriptionSearch: string;
   setDescriptionSearch: (val: string) => void;
+  numeric?: boolean;
 };
 
 export default function SearchWithToggle({
@@ -33,6 +34,7 @@ export default function SearchWithToggle({
   setLocationSearch,
   descriptionSearch,
   setDescriptionSearch,
+  numeric = false,
 }: Props) {
   const [filterVisible, setFilterVisible] = useState(false);
   const [categoryExpanded, setCategoryExpanded] = useState(false);
@@ -200,11 +202,20 @@ export default function SearchWithToggle({
               Description
             </Text>
             <TextInput
-              className="bg-white/30 border font-manrope border-gray-300 rounded-md h-[3.3rem] px-3 mb-3 text-[13px] text-black backdrop-blur-md tracking-tight"
-              placeholder="Search a description of the item"
+              className="flex-1 text-base font-manrope tracking-tight text-gray-500"
+              placeholder="Enter description"
+              placeholderTextColor="#9CA3AF"
               value={descriptionSearch}
-              onChangeText={setDescriptionSearch}
-              placeholderTextColor="#374151"
+              onChangeText={(text) => {
+                if (numeric) {
+                  // Only allow numeric input
+                  const numericText = text.replace(/[^0-9]/g, '');
+                  setDescriptionSearch(numericText);
+                } else {
+                  setDescriptionSearch(text);
+                }
+              }}
+              keyboardType={numeric ? 'numeric' : 'default'}
             />
           </View>
           {/* last known location */}

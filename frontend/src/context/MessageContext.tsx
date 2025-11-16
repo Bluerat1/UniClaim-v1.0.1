@@ -6,7 +6,7 @@ interface MessageContextType {
   conversations: Conversation[];
   loading: boolean;
   totalUnreadCount: number;
-  sendMessage: (conversationId: string, senderId: string, senderName: string, text: string, senderProfilePicture?: string) => Promise<void>;
+  sendMessage: (conversationId: string, senderId: string, text: string) => Promise<void>;
   createConversation: (postId: string, postTitle: string, postOwnerId: string, currentUserId: string, currentUserData: any, postOwnerUserData?: any) => Promise<string>;
   getConversationMessages: (conversationId: string, callback: (messages: Message[]) => void) => () => void;
   getUserConversations: (userId: string, callback: (conversations: any[]) => void) => () => void;
@@ -69,9 +69,9 @@ export const MessageProvider = ({ children, userId }: { children: ReactNode; use
     };
   }, [userId]);
 
-  const sendMessage = async (conversationId: string, senderId: string, senderName: string, text: string, senderProfilePicture?: string): Promise<void> => {
+  const sendMessage = async (conversationId: string, senderId: string, text: string): Promise<void> => {
     try {
-      await messageService.sendMessage(conversationId, senderId, senderName, text, senderProfilePicture);
+      await messageService.sendMessage(conversationId, senderId, text);
     } catch (error: any) {
       throw new Error(error.message || 'Failed to send message');
     }

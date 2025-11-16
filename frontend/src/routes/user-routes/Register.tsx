@@ -205,6 +205,7 @@ export default function Register() {
               label="Student ID"
               name="studentId"
               type="text"
+              numeric
               value={studentId}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                 setStudentId(e.target.value);

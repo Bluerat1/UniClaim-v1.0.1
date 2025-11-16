@@ -228,9 +228,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
       await sendMessage(
         conversation.id,
         userData.uid,
-        `[ADMIN] ${userData.firstName} ${userData.lastName}`,
-        newMessage.trim(),
-        userData.profilePicture || userData.profileImageUrl
+        newMessage.trim()
       );
       setNewMessage("");
     } catch (error) {
@@ -414,40 +412,36 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
         const info = conversation.participantInfo[message.senderId] as UserInfo;
         return (
           info.profilePicture ||  // Check profilePicture first
-          info.photoURL ||        // Then photoURL
-          info.photo ||           // Then other possible fields
           info.profileImageUrl ||
+          info.photoURL ||        
+          info.photo ||           
           info.avatar ||
           info.picture ||
           info.image ||
-          message.senderProfilePicture ||  // Fall back to message data
           null
         );
       }
 
-      // Fall back to message data
-      if (message.senderProfilePicture) {
-        return message.senderProfilePicture;
+      // Fall back to participants map if participantInfo not available
+      const participant = conversation?.participants?.[message.senderId];
+      if (participant && typeof participant === 'object') {
+        const part = participant as Participant;
+        return (
+          part.profilePicture ||
+          part.profileImageUrl ||
+          part.photoURL ||
+          part.photo ||
+          part.avatar ||
+          part.picture ||
+          part.image ||
+          null
+        );
       }
 
-      // Fall back to participants map
-      const participant = conversation?.participants?.[message.senderId] as Participant | boolean | undefined;
-      if (!participant || typeof participant === 'boolean') {
-        return null;
-      }
-      
-      return (
-        participant.profilePicture ||
-        participant.photoURL ||
-        participant.photo ||
-        participant.profileImageUrl ||
-        participant.avatar ||
-        participant.picture ||
-        participant.image ||
-        null
-      );
+      // Finally, fall back to message data (should be rare after our updates)
+      return message.senderProfilePicture || null;
     },
-    [conversation]
+    [conversation?.participantInfo, conversation?.participants]
   );
 
   if (!conversation) {
@@ -572,14 +566,16 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
               {!message.senderName?.startsWith('[ADMIN]') && (
                 <ProfilePicture
                   src={getMessageProfilePicture(message) || undefined}
-                  alt={message.senderName}
+                  alt={conversation.participantInfo?.[message.senderId]?.displayName || 'User'}
                   className="size-6"
                 />
               )}
               <div className="flex-1 min-w-0">
                 <div className={`flex items-center gap-2 mb-1 ${message.senderName?.startsWith('[ADMIN]') ? 'justify-end' : 'justify-start'}`}>
                   <span className="font-medium text-sm text-gray-900">
-                    {message.senderName}
+                    {conversation.participantInfo?.[message.senderId]?.displayName || 
+                     `${conversation.participantInfo?.[message.senderId]?.firstName || ''} ${conversation.participantInfo?.[message.senderId]?.lastName || ''}`.trim() || 
+                     message.senderName || 'Unknown User'}
                   </span>
                   {message.senderId === userData?.uid && (
                     <span className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">
@@ -594,6 +590,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
                     showSenderName={false}
                     conversationId={conversation.id}
                     currentUserId={userData?.uid || ""}
+                    conversationParticipants={conversation.participantInfo || {}}
                     onClaimResponse={handleClaimResponse}
                   />
 

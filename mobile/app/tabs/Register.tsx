@@ -60,7 +60,11 @@ function Register() {
   }, []);
 
   const handleStudentIdChange = useCallback((text: string) => {
-    setStudentId(text);
+    // Only allow numeric input
+    const numericText = text.replace(/[^0-9]/g, '');
+    setStudentId(numericText);
+    // Clear any existing error when user types
+    setErrors(prev => ({ ...prev, studentId: '' }));
   }, []);
 
   const handleEmailChange = useCallback((text: string) => {
@@ -357,12 +361,8 @@ function Register() {
       <SafeAreaView className="flex-1 bg-white justify-center items-center px-6">
         <View className="items-center">
           <ActivityIndicator size="large" color="#1e40af" />
-          <Text className="text-lg font-manrope-bold text-brand mt-4">
-            Account created successfully!
-          </Text>
-          <Text className="text-sm font-manrope-medium text-gray-600 mt-2 text-center">
-            Please verify your email to access the app. Check your inbox for the
-            verification link.
+          <Text className="text-sm font-manrope-medium text-gray-600 mt-4 text-center">
+            Creating your account...
           </Text>
           <Text className="text-xs font-manrope-medium text-gray-500 mt-2 text-center">
             This may take a few moments...
@@ -472,6 +472,8 @@ function Register() {
               onBlur={handleBlur}
               placeholder="Ex. 2022123456"
               placeholderTextColor="#747476"
+              keyboardType="numeric"
+              maxLength={10}
               style={{ fontFamily: "ManropeRegular", fontSize: 15 }}
               className={inputClass("studentId")}
             />

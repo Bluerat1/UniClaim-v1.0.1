@@ -109,7 +109,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const { showToast } = useToast();
   const userRole = userData?.role ?? "";
 
+  // Get sender's profile picture from conversationParticipants first, then fall back to message data
   const resolvedSenderProfilePicture = useMemo(() => {
+    // First try to get from participant data
+    const participantData = conversationParticipants?.[message.senderId];
+    const participantPicture = getProfilePictureFromData(participantData);
+    if (participantPicture) {
+      return participantPicture;
+    }
+
+    // Fall back to message data if participant data not available
     if (
       typeof message.senderProfilePicture === "string" &&
       message.senderProfilePicture.trim() !== ""
@@ -117,12 +126,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       return message.senderProfilePicture;
     }
 
-    const participantData = conversationParticipants?.[message.senderId];
-    const participantPicture = getProfilePictureFromData(participantData);
-    if (participantPicture) {
-      return participantPicture;
-    }
-
+    // Finally, use fallback if provided and this is not our own message
     if (!isOwnMessage && typeof fallbackProfilePicture === "string") {
       const trimmed = fallbackProfilePicture.trim();
       if (trimmed !== "") {
@@ -132,12 +136,37 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
     return null;
   }, [
-    message.senderProfilePicture,
     conversationParticipants,
     message.senderId,
+    message.senderProfilePicture,
     isOwnMessage,
     fallbackProfilePicture,
   ]);
+
+  // Get sender's name from conversationParticipants first, then fall back to message data
+  const resolvedSenderName = useMemo(() => {
+    // First try to get from participant data
+    const participantData = conversationParticipants?.[message.senderId];
+    if (participantData) {
+      if (participantData.firstName && participantData.lastName) {
+        return `${participantData.firstName} ${participantData.lastName}`;
+      }
+      if (participantData.displayName) {
+        return participantData.displayName;
+      }
+      if (participantData.name) {
+        return participantData.name;
+      }
+    }
+
+    // Fall back to message data if participant data not available
+    if (message.senderName) {
+      return message.senderName;
+    }
+
+    // Default fallback
+    return 'Unknown User';
+  }, [conversationParticipants, message.senderId, message.senderName]);
 
   const formatTime = (timestamp: any) => {
     if (!timestamp) return "";
@@ -174,12 +203,20 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           }
         }
 
-        const firstName =
-          (participant?.firstName as string | undefined) ||
-          "Unknown";
-        const lastName =
-          (participant?.lastName as string | undefined) ||
-          "User";
+        // Get name from participant data
+        let firstName = "Unknown";
+        let lastName = "User";
+        
+        if (participant) {
+          if (participant.firstName && participant.lastName) {
+            firstName = participant.firstName;
+            lastName = participant.lastName;
+          } else if (participant.displayName) {
+            const nameParts = participant.displayName.split(' ');
+            firstName = nameParts[0];
+            lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+          }
+        }
 
         return {
           uid,
@@ -1305,25 +1342,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           <div className="flex items-center gap-2">
             <ProfilePicture
               src={resolvedSenderProfilePicture || undefined}
-              alt={`${
-                message.senderName ||
-                `${
-                  conversationParticipants[message.senderId]?.firstName ||
-                  "Unknown"
-                } ${
-                  conversationParticipants[message.senderId]?.lastName || "User"
-                }`
-              } profile`}
+              alt={`${resolvedSenderName}'s profile`}
               className="size-6"
             />
             <div className="text-xs font-medium text-gray-600">
-              {message.senderName ||
-                `${
-                  conversationParticipants[message.senderId]?.firstName ||
-                  "Unknown"
-                } ${
-                  conversationParticipants[message.senderId]?.lastName || "User"
-                }`}
+              {resolvedSenderName}
             </div>
           </div>
         </div>

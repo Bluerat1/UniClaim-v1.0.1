@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
 import { authService } from "../../utils/firebase";
 import { onAuthStateChanged, getAuth } from "firebase/auth";
+import { useToast } from "../../context/ToastContext";
 
 type EmailVerificationNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -29,6 +30,7 @@ export default function EmailVerification() {
   const navigation = useNavigation<EmailVerificationNavigationProp>();
   const { user, refreshUserData, handleEmailVerificationComplete, logout } =
     useAuth();
+  const { showToastMessage } = useToast();
 
   const [resendCooldown, setResendCooldown] = useState(0);
   const [verificationResult, setVerificationResult] = useState<
@@ -91,6 +93,9 @@ export default function EmailVerification() {
 
       console.log("[DEBUG] Setting verification result to success");
       setVerificationResult("success");
+      
+      // Show success toast
+      showToastMessage("Account successfully verified!", "success");
 
       // Add a small delay to ensure state updates are processed
       console.log("[DEBUG] Preparing to navigate to RootBottomTabs...");

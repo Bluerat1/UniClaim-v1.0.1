@@ -19,6 +19,7 @@ import {
     or,
     writeBatch
 } from 'firebase/firestore';
+import { userService } from './users';
 import { notificationSender } from './notificationSender';
 
 // Import Firebase instances and types
@@ -57,11 +58,11 @@ export const messageService = {
                         const conversations = snapshot.docs.map(doc => {
                             try {
                                 const data = doc.data();
-                                
+
                                 // Handle both participant formats
                                 const participants = data.participants || {};
                                 const participantInfo = data.participantInfo || {};
-                                
+
                                 // Extract participant IDs from either participantIds array or participants map
                                 let participantIds: string[] = [];
                                 if (Array.isArray(data.participantIds)) {
@@ -69,7 +70,7 @@ export const messageService = {
                                 } else if (typeof participants === 'object' && participants !== null) {
                                     participantIds = Object.keys(participants).filter(id => participants[id] === true);
                                 }
-                                
+
                                 // Ensure current user is in participantIds if they're in the participants map
                                 if (participants[userId] === true && !participantIds.includes(userId)) {
                                     participantIds.push(userId);
@@ -99,9 +100,9 @@ export const messageService = {
                                 console.warn('⚠️ [getUserConversations] Filtered out invalid conversation');
                                 return false;
                             }
-                            
+
                             // No need to filter deleted conversations as we're using hard deletes
-                            
+
                             return true;
                         });
 
@@ -118,12 +119,12 @@ export const messageService = {
                         stack: error?.stack,
                         name: error?.name
                     };
-                    
+
                     console.error('❌ [getUserConversations] Listener error:', errorDetails);
 
                     // If the error is due to missing permissions, try the fallback query
                     if (error.code === 'permission-denied' || error.code === 'missing-permissions') {
-                        
+
                         // Try with the old participants field as fallback
                         const fallbackQ = query(
                             collection(db, 'conversations'),
@@ -161,18 +162,18 @@ export const messageService = {
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             const errorStack = error instanceof Error ? error.stack : undefined;
-            
+
             console.error('❌ [getUserConversations] Error setting up conversations listener:', {
                 error: errorMessage,
                 stack: errorStack
             });
-            
+
             if (errorCallback && error instanceof Error) {
                 errorCallback(error);
             } else if (errorCallback) {
                 errorCallback(new Error(errorMessage));
             }
-            
+
             return () => { }; // Return empty cleanup function
         }
     },
@@ -403,15 +404,21 @@ export const messageService = {
     },
 
     // Send a message
-    async sendMessage(conversationId: string, senderId: string, senderName: string, text: string, senderProfilePicture?: string): Promise<void> {
+    async sendMessage(conversationId: string, senderId: string, text: string): Promise<void> {
         try {
-            console.log('📤 [sendMessage] Starting to send message:', { conversationId, senderId, senderName, textLength: text.length });
+            console.log('📤 [sendMessage] Starting to send message:', { conversationId, senderId, textLength: text.length });
+
+            // Get sender data for notification
+            const senderData = await userService.getUserById(senderId);
+            const senderName = senderData ?
+                (senderData.firstName && senderData.lastName ?
+                    `${senderData.firstName} ${senderData.lastName}` :
+                    senderData.displayName || 'Unknown User') :
+                'Unknown User';
 
             const messagesRef = collection(db, 'conversations', conversationId, 'messages');
             const messageData = {
                 senderId,
-                senderName,
-                senderProfilePicture: senderProfilePicture || null,
                 text,
                 timestamp: serverTimestamp(),
                 readBy: [senderId],
@@ -641,9 +648,9 @@ export const messageService = {
                     // Find more messages to delete (excluding protected ones)
                     for (const doc of allMessages) {
                         if (messagesToDelete.length >= totalToDelete) break;
-                        
+
                         const messageData = doc.data();
-                        if (messageData.messageType !== 'claim_request' && 
+                        if (messageData.messageType !== 'claim_request' &&
                             messageData.messageType !== 'handover_request' &&
                             !messagesToDelete.includes(doc.id) &&
                             !messagesToKeep.includes(doc.id)) {
@@ -654,7 +661,7 @@ export const messageService = {
 
                 if (messagesToDelete.length > 0) {
                     console.log(`🗑️ [cleanupOldMessages] Deleting ${messagesToDelete.length} old messages`);
-                    
+
                     // Delete messages in batch
                     const batch = writeBatch(db);
                     messagesToDelete.forEach(messageId => {
@@ -804,15 +811,15 @@ export const messageService = {
     // Send handover request
     async sendHandoverRequest(conversationId: string, senderId: string, senderName: string, senderProfilePicture: string, postId: string, postTitle: string, handoverReason?: string, idPhotoUrl?: string, itemPhotos?: { url: string; uploadedAt: any; description?: string }[]): Promise<void> {
         try {
-            console.log('🔄 Firebase: sendHandoverRequest called with:', { 
-                conversationId, 
-                senderId, 
-                senderName, 
-                postId, 
-                postTitle, 
-                handoverReason, 
-                hasIdPhoto: !!idPhotoUrl, 
-                itemPhotosCount: itemPhotos?.length || 0 
+            console.log('🔄 Firebase: sendHandoverRequest called with:', {
+                conversationId,
+                senderId,
+                senderName,
+                postId,
+                postTitle,
+                handoverReason,
+                hasIdPhoto: !!idPhotoUrl,
+                itemPhotosCount: itemPhotos?.length || 0
             });
 
             // Get conversation data first to check for pending requests
@@ -824,12 +831,12 @@ export const messageService = {
             }
 
             const conversationData = conversationDoc.data();
-            
+
             // Check for existing handover request first, before any photo processing
             if (conversationData.hasHandoverRequest && conversationData.handoverRequestId) {
                 const existingRequestRef = doc(db, 'conversations', conversationId, 'messages', conversationData.handoverRequestId);
                 const existingRequestDoc = await getDoc(existingRequestRef);
-                
+
                 if (existingRequestDoc.exists()) {
                     const existingRequest = existingRequestDoc.data();
                     if (existingRequest.handoverData?.status === 'pending') {
@@ -870,8 +877,8 @@ export const messageService = {
                     status: 'pending'
                 }
             };
-            
-            
+
+
             // Normalize participants to an array of user IDs (handles both old object and new array formats)
             const participants = conversationData.participants || [];
             const participantIds = Array.isArray(participants) ? participants : Object.keys(participants);
@@ -885,7 +892,7 @@ export const messageService = {
 
             let messageRef;
             const currentTimestamp = new Date();
-            
+
             if (conversationData.hasHandoverRequest && conversationData.handoverRequestId) {
                 // Update existing message
                 messageRef = doc(db, 'conversations', conversationId, 'messages', conversationData.handoverRequestId);
@@ -1048,12 +1055,12 @@ export const messageService = {
             }
 
             const conversationData = conversationDoc.data();
-            
+
             // Check for existing claim request first, before any photo processing
             if (conversationData.hasClaimRequest && conversationData.claimRequestId) {
                 const existingRequestRef = doc(db, 'conversations', conversationId, 'messages', conversationData.claimRequestId);
                 const existingRequestDoc = await getDoc(existingRequestRef);
-                
+
                 if (existingRequestDoc.exists()) {
                     const existingRequest = existingRequestDoc.data();
                     if (existingRequest.claimData?.status === 'pending') {
@@ -1076,8 +1083,8 @@ export const messageService = {
                 console.error('❌ Invalid evidence photos array in sendClaimRequest');
                 throw new Error('Invalid evidence photos array provided to sendClaimRequest');
             }
-            
-            
+
+
             // Normalize participants to an array of user IDs (handles both old object and new array formats)
             const participants = conversationData.participants || [];
             const participantIds = Array.isArray(participants) ? participants : Object.keys(participants);
@@ -1110,7 +1117,7 @@ export const messageService = {
 
             let messageRef;
             const currentTimestamp = new Date();
-            
+
             if (conversationData.hasClaimRequest && conversationData.claimRequestId) {
                 // Update existing message
                 messageRef = doc(db, 'conversations', conversationId, 'messages', conversationData.claimRequestId);
@@ -1374,12 +1381,12 @@ export const messageService = {
             const messagesRef = collection(db, 'conversations', conversationId, 'messages');
             const messagesQuery = query(messagesRef, orderBy('timestamp', 'asc'));
             const messagesSnapshot = await getDocs(messagesQuery);
-            
+
             const conversationMessages = messagesSnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
-            
+
             // Update post with conversation data before deleting
             await updateDoc(postRef, {
                 conversationData: {
@@ -1390,7 +1397,7 @@ export const messageService = {
                     lastMessage: conversationData.lastMessage || null
                 }
             });
-            
+
             console.log('✅ Conversation history saved to post before deletion');
 
             // Send confirmation notification to other participants BEFORE deleting conversation
@@ -1569,12 +1576,12 @@ export const messageService = {
             const messagesRef = collection(db, 'conversations', conversationId, 'messages');
             const messagesQuery = query(messagesRef, orderBy('timestamp', 'asc'));
             const messagesSnapshot = await getDocs(messagesQuery);
-            
+
             const conversationMessages = messagesSnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
-            
+
             // Update post with conversation data before deleting
             await updateDoc(postRef, {
                 conversationData: {
@@ -1585,7 +1592,7 @@ export const messageService = {
                     lastMessage: conversationData.lastMessage || null
                 }
             });
-            
+
             console.log('✅ Conversation history saved to post before deletion');
 
             // Send confirmation notification to other participants BEFORE deleting conversation
@@ -2008,7 +2015,7 @@ export const messageService = {
     // Delete a conversation if it's not resolved
     async deleteConversation(conversationId: string, userId: string): Promise<{ success: boolean; error?: string }> {
         const batch = writeBatch(db);
-        
+
         try {
             if (!conversationId || !userId) {
                 console.error('❌ [deleteConversation] Missing required parameters');
@@ -2017,25 +2024,25 @@ export const messageService = {
 
             const conversationRef = doc(db, 'conversations', conversationId);
             const conversationDoc = await getDoc(conversationRef);
-            
+
             if (!conversationDoc.exists()) {
                 console.error(`❌ [deleteConversation] Conversation ${conversationId} not found`);
                 return { success: false, error: 'Conversation not found' };
             }
 
             const conversationData = conversationDoc.data();
-            
+
             // Check if user is a participant
-            if (!conversationData.participantIds?.includes(userId) && 
+            if (!conversationData.participantIds?.includes(userId) &&
                 conversationData.participants?.[userId] !== true) {
                 console.error(`❌ [deleteConversation] User ${userId} is not a participant in conversation ${conversationId}`);
                 return { success: false, error: 'Not authorized to delete this conversation' };
             }
 
             // Check if conversation is resolved
-            if (conversationData.status === 'resolved' || 
-                conversationData.status === 'handed_over' || 
-                conversationData.status === 'claimed' || 
+            if (conversationData.status === 'resolved' ||
+                conversationData.status === 'handed_over' ||
+                conversationData.status === 'claimed' ||
                 conversationData.status === 'returned') {
                 console.log(`⚠️ [deleteConversation] Cannot delete resolved conversation ${conversationId}`);
                 return { success: false, error: 'Cannot delete a resolved conversation' };
@@ -2046,25 +2053,25 @@ export const messageService = {
                 collection(db, `conversations/${conversationId}/messages`)
             );
             const messagesSnapshot = await getDocs(messagesQuery);
-            
+
             // Delete each message in the conversation
             messagesSnapshot.docs.forEach((doc) => {
                 batch.delete(doc.ref);
             });
-            
+
             // Delete the conversation document
             batch.delete(conversationRef);
-            
+
             // Commit the batch
             await batch.commit();
-            
+
             console.log(`✅ [deleteConversation] Successfully deleted conversation ${conversationId}`);
             return { success: true };
         } catch (error) {
             console.error(`❌ [deleteConversation] Error deleting conversation ${conversationId}:`, error);
-            return { 
-                success: false, 
-                error: error instanceof Error ? error.message : 'Failed to delete conversation' 
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Failed to delete conversation'
             };
         }
     },
@@ -2078,7 +2085,7 @@ export const messageService = {
         try {
             const conversationRef = doc(db, 'conversations', conversationId);
             await deleteDoc(conversationRef);
-            
+
             // Also delete all messages in the conversation
             const messagesRef = collection(db, `conversations/${conversationId}/messages`);
             const messagesSnapshot = await getDocs(messagesRef);
@@ -2087,7 +2094,7 @@ export const messageService = {
                 batch.delete(doc.ref);
             });
             await batch.commit();
-            
+
             console.log(`✅ [adminDeleteConversation] Successfully deleted conversation ${conversationId}`);
         } catch (error) {
             console.error(`❌ [adminDeleteConversation] Error deleting conversation ${conversationId}:`, error);
@@ -2099,24 +2106,24 @@ export const messageService = {
     async fixConversationParticipantInfo(conversationId: string): Promise<boolean> {
         try {
             console.log(`🔧 [fixConversationParticipantInfo] Starting to fix conversation ${conversationId}`);
-            
+
             // Get the conversation document
             const conversationRef = doc(db, 'conversations', conversationId);
             const conversationSnap = await getDoc(conversationRef);
-            
+
             if (!conversationSnap.exists()) {
                 console.error(`❌ [fixConversationParticipantInfo] Conversation ${conversationId} not found`);
                 return false;
             }
-            
+
             const conversationData = conversationSnap.data();
             const participantIds = conversationData.participantIds || [];
-            
+
             if (participantIds.length !== 2) {
                 console.error(`❌ [fixConversationParticipantInfo] Expected 2 participants, found ${participantIds.length}`);
                 return false;
             }
-            
+
             // Define user data interface
             interface UserData {
                 displayName?: string;
@@ -2128,22 +2135,22 @@ export const messageService = {
                 contactNum?: string;
                 [key: string]: any; // Allow additional properties
             }
-            
+
             // Get user data for both participants
             const [user1Ref, user2Ref] = participantIds.map((id: string) => doc(db, 'users', id));
             const [user1Snap, user2Snap] = await Promise.all([
                 getDoc(user1Ref),
                 getDoc(user2Ref)
             ]);
-            
+
             if (!user1Snap.exists() || !user2Snap.exists()) {
                 console.error('❌ [fixConversationParticipantInfo] One or both users not found');
                 return false;
             }
-            
+
             const user1Data = user1Snap.data() as UserData;
             const user2Data = user2Snap.data() as UserData;
-            
+
             // Helper function to get user info
             const getUserInfo = (data: UserData) => ({
                 displayName: data.displayName || `${data.firstName || ''} ${data.lastName || ''}`.trim(),
@@ -2151,22 +2158,22 @@ export const messageService = {
                 ...(data.email && { email: data.email }),
                 ...(data.contactNum && { contactNum: data.contactNum })
             });
-            
+
             // Prepare participantInfo object
             const participantInfo = {
                 [user1Snap.id]: getUserInfo(user1Data),
                 [user2Snap.id]: getUserInfo(user2Data)
             };
-            
+
             // Update the conversation
             await updateDoc(conversationRef, {
                 participantInfo,
                 updatedAt: serverTimestamp()
             } as any); // Type assertion to handle Firestore types
-            
+
             console.log(`✅ [fixConversationParticipantInfo] Successfully updated participant info for conversation ${conversationId}`);
             return true;
-            
+
         } catch (error) {
             console.error(`❌ [fixConversationParticipantInfo] Error fixing conversation ${conversationId}:`, error);
             return false;
@@ -2180,7 +2187,7 @@ export const messageService = {
             const conversationsRef = collection(db, 'conversations');
             const q = query(conversationsRef);
             const querySnapshot = await getDocs(q);
-            
+
             let updatedCount = 0;
             const batch = writeBatch(db);
             let batchCount = 0;
@@ -2194,7 +2201,7 @@ export const messageService = {
                 // Check each participant's info for old field names
                 Object.keys(participantInfo).forEach(userId => {
                     const info = participantInfo[userId] || {};
-                    
+
                     // If using old field names, update to new ones
                     if (info.name || info.photo) {
                         participantInfo[userId] = {
@@ -2208,7 +2215,7 @@ export const messageService = {
                 });
 
                 if (needsUpdate) {
-                    batch.update(doc.ref, { 
+                    batch.update(doc.ref, {
                         participantInfo,
                         updatedAt: serverTimestamp()
                     });
@@ -2230,9 +2237,9 @@ export const messageService = {
             }
 
             console.log(`✅ Migration complete. Updated ${updatedCount} of ${querySnapshot.size} conversations`);
-            return { 
-                updated: updatedCount, 
-                total: querySnapshot.size 
+            return {
+                updated: updatedCount,
+                total: querySnapshot.size
             };
         } catch (error: any) {
             console.error('Error during migration:', error);
