@@ -39,7 +39,8 @@ export default function PostCard({
     lastName,
     profilePicture,
     email: post.user?.email || '',
-    id: post.creatorId
+    id: post.creatorId,
+    role: post.user?.role || 'user' // Add role with default value
   };
 
   const getCategoryBadgeStyle = (category: string) => {
@@ -233,6 +234,11 @@ export default function PostCard({
 
         <View className="p-3">
           <View className="flex-col">
+            {/* Post Title */}
+            <Text className="text-lg font-inter-bold text-gray-900 mb-2">
+              {post.title}
+            </Text>
+
             <View className="flex-row gap-2">
               {/* Category Badge */}
               <Text
@@ -342,15 +348,25 @@ export default function PostCard({
             </View>
           </View>
 
-          {/* Admin Badge */}
-          {(post.user?.role === "admin" ||
-            (post.user?.email && effectiveAdminStatuses.get(post.user.email))) && (
-            <View className="mt-2">
-              <Text className="bg-amber-500 text-white text-xs px-2 py-1 rounded-full font-manrope-bold self-start">
+          {/* User Information and Admin Badge */}
+          <View className="flex-row items-center gap-2 mt-2">
+            <ProfilePicture
+              src={profilePicture}
+              size="xs"
+              style={{ borderRadius: 10 }}
+            />
+            <Text className="text-sm text-gray-600">
+              {!userLoading && (firstName || lastName)
+                ? `Posted by ${firstName} ${lastName}`
+                : 'Loading...'}
+            </Text>
+            {(post.user?.role === "admin" ||
+              (post.user?.email && effectiveAdminStatuses.get(post.user.email))) && (
+              <Text className="ml-1 bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full font-manrope-bold">
                 ADMIN
               </Text>
-            </View>
-          )}
+            )}
+          </View>
 
           <View className="flex-row flex-wrap items-center gap-2 mt-2">
             <View className="flex-row items-center gap-1 flex-shrink">

@@ -195,6 +195,12 @@ const MessageBubble: FC<MessageBubbleProps> = ({
   );
 
   const resolvedSenderProfilePicture = useMemo(() => {
+    // For other users' messages, prioritize the fallbackProfilePicture if available
+    if (!isOwnMessage && fallbackProfilePicture) {
+      return fallbackProfilePicture;
+    }
+
+    // For own messages or if no fallback is available, check other sources
     if (
       typeof message.senderProfilePicture === "string" &&
       message.senderProfilePicture.trim() !== ""
@@ -215,6 +221,7 @@ const MessageBubble: FC<MessageBubbleProps> = ({
       }
     }
 
+    // Fallback to the fallbackProfilePicture if not already returned
     if (fallbackProfilePicture && typeof fallbackProfilePicture === "string") {
       return fallbackProfilePicture;
     }

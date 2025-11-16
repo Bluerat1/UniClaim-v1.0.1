@@ -15,7 +15,6 @@ import LocationMapView from "../../components/LocationMapView";
 import { useAuth } from "../../context/AuthContext";
 import { useMessage } from "../../context/MessageContext";
 import ProfilePicture from "../../components/ProfilePicture";
-import ConversationHistory from "../../components/ConversationHistory";
 
 type PostDetailsRouteProp = RouteProp<RootStackParamList, "PostDetails">;
 
@@ -819,13 +818,6 @@ export default function PostDetailsScreen() {
         {/* Conversation History - Only show for non-resolved posts */}
         {!isCurrentUserCreator && post.status !== 'resolved' && (
           <View className="mt-6">
-            <Text className="text-lg font-manrope-bold mb-3">
-              Conversation History
-            </Text>
-            <ConversationHistory
-              postId={post.id}
-              isAdmin={userData?.role === 'admin'}
-            />
           </View>
         )}
       </ScrollView>

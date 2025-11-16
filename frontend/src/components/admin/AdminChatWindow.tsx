@@ -564,8 +564,8 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
           </div>
         ) : (
           messages.map((message) => (
-            <div key={message.id} className="flex items-start gap-3 group">
-              {!message.senderName?.startsWith('[ADMIN]') && (
+            <div key={message.id} className={`flex items-start gap-3 group ${message.senderId === userData?.uid ? 'flex-row-reverse' : ''}`}>
+              {message.senderId !== userData?.uid && (
                 <ProfilePicture
                   src={getMessageProfilePicture(message) || undefined}
                   alt={conversation.participantInfo?.[message.senderId]?.displayName || 'User'}
@@ -573,7 +573,7 @@ const AdminChatWindow: React.FC<AdminChatWindowProps> = ({ conversation }) => {
                 />
               )}
               <div className="flex-1 min-w-0">
-                <div className={`flex items-center gap-2 mb-1 ${message.senderName?.startsWith('[ADMIN]') ? 'justify-end' : 'justify-start'}`}>
+                <div className={`flex items-center gap-2 mb-1 ${message.senderId === userData?.uid ? 'justify-end' : 'justify-start'}`}>
                   <span className="font-medium text-sm text-gray-900">
                     {conversation.participantInfo?.[message.senderId]?.displayName || 
                      `${conversation.participantInfo?.[message.senderId]?.firstName || ''} ${conversation.participantInfo?.[message.senderId]?.lastName || ''}`.trim() || 
