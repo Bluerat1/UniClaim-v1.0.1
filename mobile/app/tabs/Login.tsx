@@ -272,8 +272,8 @@ function Login() {
                     emailError
                       ? "border-red-500"
                       : emailFocused
-                      ? "border-navyblue"
-                      : "border-gray-300"
+                        ? "border-navyblue"
+                        : "border-gray-300"
                   }`}
                 />
                 {emailError !== "" && (
@@ -293,8 +293,8 @@ function Login() {
                     passwordError
                       ? "border-red-500"
                       : passwordFocused
-                      ? "border-navyblue"
-                      : "border-gray-300"
+                        ? "border-navyblue"
+                        : "border-gray-300"
                   }`}
                 >
                   <TextInput
@@ -334,7 +334,7 @@ function Login() {
                 >
                   <View
                     className={`w-5 h-5 rounded border ${
-                      rememberMe ? "bg-brand" : "bg-white"
+                      rememberMe ? "bg-navyblue" : "bg-white"
                     } border-gray-300 mr-2 flex items-center justify-center`}
                   >
                     {rememberMe && (
@@ -347,7 +347,7 @@ function Login() {
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={handleForgotPasswordNavigation}>
-                  <Text className="text-base font-manrope-medium text-brand underline">
+                  <Text className="text-sm font-manrope-medium text-blue-600 underline">
                     Forgot Password?
                   </Text>
                 </TouchableOpacity>
