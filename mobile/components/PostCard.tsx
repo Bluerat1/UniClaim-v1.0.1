@@ -1,8 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import React, { useState, useCallback } from 'react';
-import { TouchableOpacity, View, Text, Image as RNImage, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback } from "react";
+import {
+  TouchableOpacity,
+  View,
+  Text,
+  Image as RNImage,
+  ActivityIndicator,
+} from "react-native";
 import type { Post, RootStackParamList } from "../types/type";
 import { useAdminStatus } from "../hooks/useAdminStatus";
 import { useUserData } from "../hooks/useUserData";
@@ -20,27 +26,33 @@ export default function PostCard({
   descriptionSearch = "",
   adminStatuses,
 }: Props) {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   // Image optimization state
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
 
   // Get user data using the new hook
-  const { firstName, lastName, profilePicture, loading: userLoading } = useUserData(post.creatorId);
-  
+  const {
+    firstName,
+    lastName,
+    profilePicture,
+    loading: userLoading,
+  } = useUserData(post.creatorId);
+
   // Fallback to individual admin status fetch if not provided
   const fallbackAdminStatuses = useAdminStatus(adminStatuses ? [] : [post]);
   const effectiveAdminStatuses = adminStatuses || fallbackAdminStatuses;
-  
+
   // Prepare user data for the post using the user object from the post
   const userData = {
     firstName,
     lastName,
     profilePicture,
-    email: post.user?.email || '',
+    email: post.user?.email || "",
     id: post.creatorId,
-    role: post.user?.role || 'user' // Add role with default value
+    role: post.user?.role || "user", // Add role with default value
   };
 
   const getCategoryBadgeStyle = (category: string) => {
@@ -73,10 +85,10 @@ export default function PostCard({
   const getOptimizedImageSource = (imageSource: string | number | File) => {
     if (typeof imageSource === "string") {
       // For remote images, add query parameters for optimization
-      const separator = imageSource.includes('?') ? '&' : '?';
+      const separator = imageSource.includes("?") ? "&" : "?";
       return {
         uri: `${imageSource}${separator}w=400&h=300&q=80&f=webp`,
-        cache: 'force-cache' as const,
+        cache: "force-cache" as const,
       };
     }
     if (imageSource instanceof File) {
@@ -144,22 +156,23 @@ export default function PostCard({
 
   const highlightText = (text: string, search: string) => {
     if (!search.trim()) return <Text>{text}</Text>;
-    
+
     // Create a regex pattern that matches any of the search terms
     const searchTerms = search.trim().split(/\s+/);
-    const pattern = searchTerms.length > 1 
-      ? `(${searchTerms.map(term => `(${term})`).join('|')})` 
-      : `(${search})`;
-      
-    const regex = new RegExp(pattern, 'gi');
+    const pattern =
+      searchTerms.length > 1
+        ? `(${searchTerms.map((term) => `(${term})`).join("|")})`
+        : `(${search})`;
+
+    const regex = new RegExp(pattern, "gi");
     const parts = text.split(regex);
-    
+
     return (
       <Text>
         {parts.map((part, i) => {
           if (!part) return null;
-          const isMatch = searchTerms.some(term => 
-            term && part.toLowerCase().includes(term.toLowerCase())
+          const isMatch = searchTerms.some(
+            (term) => term && part.toLowerCase().includes(term.toLowerCase())
           );
           return (
             <Text
@@ -191,7 +204,9 @@ export default function PostCard({
             },
           });
         } else {
-          console.log('Navigation not available - cannot navigate to PostDetails');
+          console.log(
+            "Navigation not available - cannot navigate to PostDetails"
+          );
           // TODO: Show a message to the user that navigation is not available
         }
       }}
@@ -235,7 +250,7 @@ export default function PostCard({
         <View className="p-3">
           <View className="flex-col">
             {/* Post Title */}
-            <Text className="text-lg font-inter-bold text-gray-900 mb-2">
+            <Text className="text-lg font-manrope-bold text-gray-900 mb-2">
               {post.title}
             </Text>
 
@@ -294,7 +309,8 @@ export default function PostCard({
                       }
 
                       const daysLeft = Math.ceil(
-                        (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+                        (expiry.getTime() - now.getTime()) /
+                          (1000 * 60 * 60 * 24)
                       );
 
                       if (daysLeft <= 0) {
@@ -355,13 +371,14 @@ export default function PostCard({
               size="xs"
               style={{ borderRadius: 10 }}
             />
-            <Text className="text-sm text-gray-600">
+            <Text className="text-sm font-manrope-semibold text-blue-800">
               {!userLoading && (firstName || lastName)
                 ? `Posted by ${firstName} ${lastName}`
-                : 'Loading...'}
+                : "Loading..."}
             </Text>
             {(post.user?.role === "admin" ||
-              (post.user?.email && effectiveAdminStatuses.get(post.user.email))) && (
+              (post.user?.email &&
+                effectiveAdminStatuses.get(post.user.email))) && (
               <Text className="ml-1 bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full font-manrope-bold">
                 ADMIN
               </Text>
@@ -372,7 +389,7 @@ export default function PostCard({
             <View className="flex-row items-center gap-1 flex-shrink">
               <Ionicons name="location-outline" size={16} color="#4B5563" />
               <Text
-                className="text-zinc-700 font-inter ml-1 flex-shrink"
+                className="text-zinc-700 font-inter ml-1 text-sm flex-shrink"
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.8}
@@ -400,7 +417,9 @@ export default function PostCard({
 
                   const now = new Date();
                   const diffInMs = now.getTime() - dateToShow.getTime();
-                  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+                  const diffInDays = Math.floor(
+                    diffInMs / (1000 * 60 * 60 * 24)
+                  );
                   const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
                   const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
 

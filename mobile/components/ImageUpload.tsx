@@ -1,6 +1,6 @@
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import * as MediaLibrary from 'expo-media-library';
+// import * as MediaLibrary from "expo-media-library";
 import React, { useState, useEffect } from "react";
 import {
   Image,
@@ -21,30 +21,39 @@ type Props = {
 export default function ImageUploader({ images, setImages }: Props) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showSourceDialog, setShowSourceDialog] = useState(false);
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [hasMediaLibraryPermission, setHasMediaLibraryPermission] = useState<boolean | null>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState<
+    boolean | null
+  >(null);
+  const [hasMediaLibraryPermission, setHasMediaLibraryPermission] = useState<
+    boolean | null
+  >(null);
 
   useEffect(() => {
     (async () => {
-      if (Platform.OS !== 'web') {
-        const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-        setHasCameraPermission(cameraStatus === 'granted');
-        
-        const { status: mediaLibraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        setHasMediaLibraryPermission(mediaLibraryStatus === 'granted');
+      if (Platform.OS !== "web") {
+        const { status: cameraStatus } =
+          await ImagePicker.requestCameraPermissionsAsync();
+        setHasCameraPermission(cameraStatus === "granted");
+
+        const { status: mediaLibraryStatus } =
+          await ImagePicker.requestMediaLibraryPermissionsAsync();
+        setHasMediaLibraryPermission(mediaLibraryStatus === "granted");
       }
     })();
   }, []);
 
-  const pickImage = async (source: 'camera' | 'library') => {
+  const pickImage = async (source: "camera" | "library") => {
     if (images.length >= 3) return;
 
     try {
       let result;
-      
-      if (source === 'camera') {
+
+      if (source === "camera") {
         if (hasCameraPermission === false) {
-          Alert.alert("Permission required", "Camera permission is required to take photos");
+          Alert.alert(
+            "Permission required",
+            "Camera permission is required to take photos"
+          );
           return;
         }
         result = await ImagePicker.launchCameraAsync({
@@ -55,7 +64,10 @@ export default function ImageUploader({ images, setImages }: Props) {
         });
       } else {
         if (hasMediaLibraryPermission === false) {
-          Alert.alert("Permission required", "Media library permission is required to select photos");
+          Alert.alert(
+            "Permission required",
+            "Media library permission is required to select photos"
+          );
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync({
@@ -70,7 +82,7 @@ export default function ImageUploader({ images, setImages }: Props) {
         setImages((prev) => [...prev, uri]);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
+      console.error("Error picking image:", error);
       Alert.alert("Error", "Failed to pick image. Please try again.");
     } finally {
       setShowSourceDialog(false);
@@ -118,7 +130,7 @@ export default function ImageUploader({ images, setImages }: Props) {
               Upload Image
             </Text>
           </TouchableOpacity>
-          
+
           <Modal
             visible={showSourceDialog}
             transparent
@@ -126,30 +138,38 @@ export default function ImageUploader({ images, setImages }: Props) {
             onRequestClose={() => setShowSourceDialog(false)}
           >
             <View className="flex-1 bg-black/50 justify-center items-center">
-              <View className="bg-white rounded-xl p-5 w-4/5">
-                <Text className="text-lg font-manrope-bold mb-4 text-center">Select Image Source</Text>
-                <View className="space-y-3">
-                  <TouchableOpacity 
-                    onPress={() => pickImage('camera')}
-                    className="flex-row items-center justify-center space-x-2 bg-blue-50 p-3 rounded-lg border border-blue-100"
+              <View className="bg-white rounded-lg p-5 w-4/5">
+                <Text className="text-lg font-manrope-bold mb-4 text-center">
+                  Select Image Source
+                </Text>
+                <View className="">
+                  <TouchableOpacity
+                    onPress={() => pickImage("camera")}
+                    className="flex-row items-center mb-3 justify-center bg-navyblue p-3 rounded-md"
                   >
-                    <Ionicons name="camera" size={24} color="#1e40af" />
-                    <Text className="text-blue-800 font-manrope-medium">Take Photo</Text>
+                    <Ionicons name="camera" size={20} color="#FFFFFF" />
+                    <Text className="text-white font-manrope-medium ml-3">
+                      Take Photo
+                    </Text>
                   </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    onPress={() => pickImage('library')}
-                    className="flex-row items-center justify-center space-x-2 bg-purple-50 p-3 rounded-lg border border-purple-100"
+
+                  <TouchableOpacity
+                    onPress={() => pickImage("library")}
+                    className="flex-row items-center mb-3 justify-center bg-navyblue p-3 rounded-md"
                   >
-                    <Ionicons name="images" size={24} color="#6b21a8" />
-                    <Text className="text-purple-800 font-manrope-medium">Choose from Library</Text>
+                    <Ionicons name="images" size={20} color="#FFFFFF" />
+                    <Text className="text-white font-manrope-medium ml-3">
+                      Choose from Library
+                    </Text>
                   </TouchableOpacity>
-                  
-                  <TouchableOpacity 
+
+                  <TouchableOpacity
                     onPress={() => setShowSourceDialog(false)}
                     className="mt-2 p-3 rounded-lg items-center"
                   >
-                    <Text className="text-gray-600 font-manrope-medium">Cancel</Text>
+                    <Text className="text-red-600 font-manrope-medium">
+                      Cancel
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
