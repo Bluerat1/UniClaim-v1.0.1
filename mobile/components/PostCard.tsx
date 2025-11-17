@@ -161,7 +161,7 @@ export default function PostCard({
     const searchTerms = search.trim().split(/\s+/);
     const pattern =
       searchTerms.length > 1
-        ? `(${searchTerms.map((term) => `(${term})`).join("|")})`
+        ? `(${searchTerms.map((term) => `(?:${term})`).join("|")})`
         : `(${search})`;
 
     const regex = new RegExp(pattern, "gi");
