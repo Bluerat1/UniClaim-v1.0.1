@@ -56,7 +56,11 @@ function Register() {
   }, []);
 
   const handleContactNumberChange = useCallback((text: string) => {
-    setContactNumber(text);
+    // Only allow numeric input
+    const numericText = text.replace(/[^0-9]/g, '');
+    setContactNumber(numericText);
+    // Clear any existing error when user types
+    setErrors(prev => ({ ...prev, contactNumber: '' }));
   }, []);
 
   const handleStudentIdChange = useCallback((text: string) => {
@@ -451,6 +455,8 @@ function Register() {
               onBlur={handleBlur}
               placeholder="Enter contact number"
               placeholderTextColor="#747476"
+              keyboardType="numeric"
+              maxLength={11}
               style={{ fontFamily: "ManropeRegular", fontSize: 15 }}
               className={inputClass("contactNumber")}
             />

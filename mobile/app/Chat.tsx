@@ -409,27 +409,13 @@ export default function Chat() {
     setIsFlatListReady(true);
   };
 
-  // Ref to track pending scroll operations to prevent duplicate animations
+  // Ref to track pending scroll operations
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Track if we just sent a message to avoid redundant scroll on Firebase confirmation
   const [justSentMessageCount, setJustSentMessageCount] = useState(0);
   const justSentRef = useRef(false);
 
-  // Scroll to bottom function - defined after state declarations so it can be used in useEffect hooks
-  const scrollToBottom = useCallback(() => {
-    if (flatListRef.current && messages.length > 0 && isFlatListReady) {
-      // Clear any pending scroll operations
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-
-      // Use requestAnimationFrame for better timing with UI updates
-      requestAnimationFrame(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      });
-    }
-  }, [messages.length, isFlatListReady]);
 
   // Create conversation if needed
   useEffect(() => {
@@ -611,20 +597,26 @@ export default function Chat() {
           return;
         }
 
+        const prevMessagesLength = messages.length;
+        const isNewMessage = loadedMessages.length > prevMessagesLength;
 
         setMessages(loadedMessages);
         setLoading(false); // Clear loading state when messages are received
 
-        // Skip animated scroll if this is just confirming our sent message
+        // Skip scroll if this is just confirming our sent message
         if (
           justSentRef.current &&
           loadedMessages.length === justSentMessageCount
         ) {
+          justSentRef.current = false; // Reset the flag
           return;
         }
 
-        // Scroll to bottom when messages are loaded (for any number of messages)
-        if (isFlatListReady) {
+        // It's a new message from someone else, so reset the flag
+        justSentRef.current = false;
+
+        // Always scroll to bottom for new messages
+        if (isNewMessage && isFlatListReady) {
           // Clear any pending timeouts to prevent multiple animations
           if (scrollTimeoutRef.current) {
             clearTimeout(scrollTimeoutRef.current);
@@ -656,7 +648,7 @@ export default function Chat() {
       }
 
       scrollTimeoutRef.current = setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: false }); // No animation on initial load
+        flatListRef.current?.scrollToEnd({ animated: false });
         scrollTimeoutRef.current = null;
       }, 50);
     }
@@ -734,11 +726,7 @@ export default function Chat() {
       justSentRef.current = true;
       setJustSentMessageCount(countBeforeSend + 1);
 
-      // Clear the flag after 2 seconds to allow normal scrolling again
-      setTimeout(() => {
-        justSentRef.current = false;
-      }, 2000);
-
+      // Scroll to bottom when user sends a message
       if (isFlatListReady) {
         requestAnimationFrame(() => {
           setTimeout(() => {

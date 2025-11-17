@@ -108,6 +108,7 @@ export const postService = {
             // Filter out expired posts and hidden posts on the client side (additional safety)
             const activePosts = posts.filter(post => {
                 if (post.isHidden === true) return false;
+                if (post.deletedAt) return false;
 
                 // Filter out items with turnoverStatus: "declared" for OSA turnover
                 if (post.turnoverDetails &&
@@ -280,7 +281,7 @@ export const postService = {
             })) as any[];
 
             // Filter for additional safety
-            const filteredPosts = posts.filter(post => !post.isHidden);
+            const filteredPosts = posts.filter(post => !post.isHidden && !post.deletedAt);
 
             const result = {
                 posts: filteredPosts,

@@ -188,6 +188,7 @@ export default function Register() {
               label="Contact Number"
               name="contactNum"
               type="text"
+              numeric
               value={contactNum}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                 setContactNum(e.target.value);
