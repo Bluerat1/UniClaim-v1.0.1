@@ -171,7 +171,6 @@ export default function Chat() {
     email?: string;
   }
 
-
   // State for other participant's profile picture
   const [otherParticipantPic, setOtherParticipantPic] = useState<string | null>(
     null
@@ -206,7 +205,6 @@ export default function Chat() {
     // Reset cached state so we don't briefly show the previous participant's avatar
     setOtherParticipantPic(null);
     setIsLoadingProfile(true);
-
 
     profileUnsubscribeRef.current?.();
     profileUnsubscribeRef.current = listenToParticipantProfile(
@@ -298,10 +296,13 @@ export default function Chat() {
     const markMessagesAsRead = async () => {
       try {
         if (conversationId && user?.uid) {
-          await messageService.markAllUnreadMessagesAsRead(conversationId, user.uid);
+          await messageService.markAllUnreadMessagesAsRead(
+            conversationId,
+            user.uid
+          );
         }
       } catch (error) {
-        console.error('Error marking messages as read:', error);
+        console.error("Error marking messages as read:", error);
       }
     };
 
@@ -457,7 +458,6 @@ export default function Chat() {
           return;
         }
 
-
         const newConversationId = await createConversation(
           postId,
           postTitle,
@@ -530,13 +530,22 @@ export default function Chat() {
         // Only mark as read if there are unread messages
         if (user?.uid && initialConversationId) {
           try {
-            const hasUnread = await hasUnreadMessages(initialConversationId, user.uid);
+            const hasUnread = await hasUnreadMessages(
+              initialConversationId,
+              user.uid
+            );
             if (hasUnread) {
               const startTime = Date.now();
-              const marked = await markAllUnreadMessagesAsRead(initialConversationId, user.uid);
+              const marked = await markAllUnreadMessagesAsRead(
+                initialConversationId,
+                user.uid
+              );
               if (marked) {
                 const elapsed = Date.now() - startTime;
-                debugLog("MESSAGES", `✅ Marked messages as read (${elapsed}ms)`);
+                debugLog(
+                  "MESSAGES",
+                  `✅ Marked messages as read (${elapsed}ms)`
+                );
               }
             }
           } catch (error) {
@@ -550,7 +559,9 @@ export default function Chat() {
           if (!isMounted) return;
 
           try {
-            const conversationData = await getConversation(initialConversationId);
+            const conversationData = await getConversation(
+              initialConversationId
+            );
 
             if (isMounted && conversationData) {
               setConversationData(conversationData);
@@ -797,26 +808,37 @@ export default function Chat() {
     setShowHandoverModal(true);
   };
 
-  const checkForPendingHandoverRequest = async (conversationId: string): Promise<boolean> => {
+  const checkForPendingHandoverRequest = async (
+    conversationId: string
+  ): Promise<boolean> => {
     try {
-      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationRef = doc(db, "conversations", conversationId);
       const conversationDoc = await getDoc(conversationRef);
 
       if (conversationDoc.exists()) {
         const conversationData = conversationDoc.data();
-        if (conversationData?.hasHandoverRequest && conversationData.handoverRequestId) {
-          const existingRequestRef = doc(db, 'conversations', conversationId, 'messages', conversationData.handoverRequestId);
+        if (
+          conversationData?.hasHandoverRequest &&
+          conversationData.handoverRequestId
+        ) {
+          const existingRequestRef = doc(
+            db,
+            "conversations",
+            conversationId,
+            "messages",
+            conversationData.handoverRequestId
+          );
           const existingRequestDoc = await getDoc(existingRequestRef);
 
           if (existingRequestDoc.exists()) {
             const existingRequest = existingRequestDoc.data();
-            return existingRequest.handoverData?.status === 'pending';
+            return existingRequest.handoverData?.status === "pending";
           }
         }
       }
       return false;
     } catch (error) {
-      console.error('Error checking for pending handover request:', error);
+      console.error("Error checking for pending handover request:", error);
       return false;
     }
   };
@@ -830,15 +852,22 @@ export default function Chat() {
 
     try {
       // First check for pending handover request before any processing
-      const hasPendingRequest = await checkForPendingHandoverRequest(conversationId);
+      const hasPendingRequest =
+        await checkForPendingHandoverRequest(conversationId);
       if (hasPendingRequest) {
-        showToastMessage('There is already a pending handover request for this conversation', 'error');
+        showToastMessage(
+          "There is already a pending handover request for this conversation",
+          "error"
+        );
         return;
       }
 
       // Validate required fields
       if (!data.idPhotoUrl || !data.itemPhotos?.length) {
-        showToastMessage('Please upload your ID photo and at least one item photo', 'error');
+        showToastMessage(
+          "Please upload your ID photo and at least one item photo",
+          "error"
+        );
         return;
       }
 
@@ -868,44 +897,62 @@ export default function Chat() {
 
   const handleClaimRequest = async () => {
     if (!conversationId) return;
-    
+
     try {
       setIsClaimSubmitting(true);
-      const hasPendingRequest = await checkForPendingClaimRequest(conversationId);
-      
+      const hasPendingRequest =
+        await checkForPendingClaimRequest(conversationId);
+
       if (hasPendingRequest) {
-        showToastMessage('There is already a pending claim request for this conversation', 'error');
+        showToastMessage(
+          "There is already a pending claim request for this conversation",
+          "error"
+        );
         return;
       }
-      
+
       // Only show the modal if there are no pending requests
       setShowClaimModal(true);
     } catch (error) {
-      console.error('Error checking for pending claim request:', error);
-      showToastMessage('Failed to check for existing requests. Please try again.', 'error');
+      console.error("Error checking for pending claim request:", error);
+      showToastMessage(
+        "Failed to check for existing requests. Please try again.",
+        "error"
+      );
     } finally {
       setIsClaimSubmitting(false);
     }
   };
 
-  const checkForPendingClaimRequest = async (conversationId: string): Promise<boolean> => {
+  const checkForPendingClaimRequest = async (
+    conversationId: string
+  ): Promise<boolean> => {
     try {
-      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationRef = doc(db, "conversations", conversationId);
       const conversationDoc = await getDoc(conversationRef);
 
       if (!conversationDoc.exists()) {
         return false; // No conversation found, so no pending request
       }
-      
+
       const conversationData = conversationDoc.data();
-      
+
       // If there's no claim request flag or ID, definitely no pending request
-      if (!conversationData?.hasClaimRequest || !conversationData.claimRequestId) {
+      if (
+        !conversationData?.hasClaimRequest ||
+        !conversationData.claimRequestId
+      ) {
         return false;
       }
-      
+
       // Try to get the actual message
-      const existingRequestRef = doc(db, 'conversations', conversationId, 'messages', conversationData.claimRequestId);
+      const existingRequestRef = doc(
+        db,
+        "conversations",
+        conversationId,
+        "messages",
+        conversationData.claimRequestId
+      );
       const existingRequestDoc = await getDoc(existingRequestRef);
 
       // If message doesn't exist or is deleted, clean up the conversation data
@@ -913,17 +960,16 @@ export default function Chat() {
         // Update conversation to remove the reference to the deleted message
         await updateDoc(conversationRef, {
           hasClaimRequest: false,
-          claimRequestId: deleteField()
+          claimRequestId: deleteField(),
         });
         return false;
       }
 
       // Check if the existing request is still pending
       const existingRequest = existingRequestDoc.data();
-      return existingRequest.claimData?.status === 'pending';
-      
+      return existingRequest.claimData?.status === "pending";
     } catch (error) {
-      console.error('Error checking for pending claim request:', error);
+      console.error("Error checking for pending claim request:", error);
       // In case of error, be permissive and allow the user to try submitting
       return false;
     }
@@ -938,26 +984,33 @@ export default function Chat() {
 
     try {
       // First check for pending claim request before any processing
-      const hasPendingRequest = await checkForPendingClaimRequest(conversationId);
+      const hasPendingRequest =
+        await checkForPendingClaimRequest(conversationId);
       if (hasPendingRequest) {
-        showToastMessage('There is already a pending claim request for this conversation', 'error');
+        showToastMessage(
+          "There is already a pending claim request for this conversation",
+          "error"
+        );
         return;
       }
 
       // Validate required fields
-      const isAdminPost = 
-        conversationData?.postCreatorId === 'admin' || 
-        (conversationData?.postCreatorId?.includes('admin') ?? false) || 
-        conversationData?.postCreatorId === 'campus_security';
+      const isAdminPost =
+        conversationData?.postCreatorId === "admin" ||
+        (conversationData?.postCreatorId?.includes("admin") ?? false) ||
+        conversationData?.postCreatorId === "campus_security";
 
       if (isAdminPost) {
         if (!data.idPhotoUrl) {
-          showToastMessage('Please upload your ID photo', 'error');
+          showToastMessage("Please upload your ID photo", "error");
           return;
         }
       } else {
         if (!data.idPhotoUrl || !data.evidencePhotos?.length) {
-          showToastMessage('Please upload your ID photo and at least one evidence photo', 'error');
+          showToastMessage(
+            "Please upload your ID photo and at least one evidence photo",
+            "error"
+          );
           return;
         }
       }
@@ -1594,7 +1647,7 @@ export default function Chat() {
         onSubmit={handleClaimRequestSubmit}
         isLoading={isClaimSubmitting}
         postTitle={postTitle}
-        conversationId={conversationId || ''}
+        conversationId={conversationId || ""}
       />
 
       {/* Enhanced Handover Modal */}
