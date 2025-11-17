@@ -682,11 +682,17 @@ export const messageService: MessageService = {
             } else {
                 console.warn('⚠️ Mobile: No handover data found in message, cannot store handover details');
                 // Fallback: just update post status
-                await updateDoc(doc(db, 'posts', postId), {
+                // We must use the batch here too.
+                const postRef = doc(db, 'posts', postId);
+                batch.update(postRef, {
                     status: 'resolved',
                     updatedAt: serverTimestamp()
                 });
             }
+
+            // ❗ COMMIT THE BATCH HERE
+            await batch.commit();
+            console.log('✅ Mobile: Batch committed. Post status is now "resolved" and details are saved.');
 
             // Delete ALL conversations tied to this post after successful data preservation
             try {
@@ -979,11 +985,17 @@ export const messageService: MessageService = {
             } else {
                 console.warn('⚠️ Mobile: No claim data found in message, cannot store claim details');
                 // Fallback: just update post status
-                await updateDoc(doc(db, 'posts', postId), {
+                // We must use the batch here too.
+                const postRef = doc(db, 'posts', postId);
+                batch.update(postRef, {
                     status: 'resolved',
                     updatedAt: serverTimestamp()
                 });
             }
+
+            // ❗ COMMIT THE BATCH HERE
+            await batch.commit();
+            console.log('✅ Mobile: Batch committed. Post status is now "resolved" and details are saved.');
 
             // Delete ALL conversations tied to this post after successful data preservation
             try {
