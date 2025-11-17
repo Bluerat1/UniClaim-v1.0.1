@@ -1571,7 +1571,7 @@ export default function Chat() {
           {/* Input Area with bottom spacing */}
           <View
             className={`bg-white px-4 pt-2 transition-all duration-300 ${
-              isKeyboardVisible ? "pb-0" : "pb-5"
+              isKeyboardVisible ? "pb-0" : "pb-11"
             }`}
           >
             <View className="flex-row items-center gap-3">
