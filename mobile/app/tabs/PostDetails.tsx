@@ -80,7 +80,8 @@ export default function PostDetailsScreen() {
         // Use existing conversation
         conversationId = existingConversation.id;
       } else {
-        // Create new conversation
+        // Create new conversation with initial greeting in a single batch
+        const greeting = generateGreeting(post.title, post.type);
         conversationId = await createConversation(
           post.id,
           post.title,
@@ -88,27 +89,15 @@ export default function PostDetailsScreen() {
           userData.uid,
           userData,
           post.user, // Pass the post owner's user data
-          post.type,
-          post.status || "pending",
-          post.foundAction
+          post.type as "lost" | "found",
+          (post.status || "pending") as "pending" | "resolved" | "unclaimed",
+          (post.foundAction as
+            | "keep"
+            | "turnover to OSA"
+            | "turnover to Campus Security"
+            | null) || null,
+          greeting
         );
-
-        // Send greeting message for new conversations
-        try {
-          const greeting = generateGreeting(post.title, post.type);
-          const { messageService } = await import("../../utils/firebase/messages");
-          await messageService.sendMessage(
-            conversationId,
-            userData.uid,
-            userData.firstName || 'User',
-            greeting,
-            userData.profilePicture
-          );
-          console.log('Greeting message sent successfully');
-        } catch (greetingError) {
-          console.error('Failed to send greeting message:', greetingError);
-          // Don't fail the whole operation if greeting fails
-        }
       }
 
       // Navigate to chat
@@ -217,7 +206,8 @@ export default function PostDetailsScreen() {
         // Use existing conversation
         conversationId = existingConversation.id;
       } else {
-        // Create new conversation
+        // Create new conversation with initial greeting in a single batch
+        const greeting = `Hello! I'm reaching out regarding the item you found: ${post.title}`;
         conversationId = await createConversation(
           post.id,
           post.title,
@@ -225,27 +215,15 @@ export default function PostDetailsScreen() {
           userData.uid, // Current user's UID
           userData, // Current user's data
           originalFinder, // Original finder's data as postOwnerUserData
-          post.type,
-          post.status || "pending",
-          post.foundAction
+          post.type as "lost" | "found",
+          (post.status || "pending") as "pending" | "resolved" | "unclaimed",
+          (post.foundAction as
+            | "keep"
+            | "turnover to OSA"
+            | "turnover to Campus Security"
+            | null) || null,
+          greeting
         );
-
-        // Send greeting message for new conversations
-        try {
-          const greeting = `Hello! I'm reaching out regarding the item you found: ${post.title}`;
-          const { messageService } = await import("../../utils/firebase/messages");
-          await messageService.sendMessage(
-            conversationId,
-            userData.uid,
-            userData.firstName || 'User',
-            greeting,
-            userData.profilePicture
-          );
-          console.log('Greeting message to original finder sent successfully');
-        } catch (greetingError) {
-          console.error('Failed to send greeting message to original finder:', greetingError);
-          // Don't fail the whole operation if greeting fails
-        }
       }
 
       // Navigate to Chat screen with the conversation

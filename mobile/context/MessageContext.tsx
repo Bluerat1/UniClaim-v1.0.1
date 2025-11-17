@@ -27,10 +27,11 @@ interface MessageContextType {
     postOwnerId: string,
     currentUserId: string,
     currentUserData: any,
-    postOwnerUserData?: any,
-    postType?: string,
-    postStatus?: string,
-    foundAction?: string
+    postOwnerUserData: any,
+    postType: "lost" | "found",
+    postStatus: "pending" | "resolved" | "unclaimed",
+    foundAction: "keep" | "turnover to OSA" | "turnover to Campus Security" | null,
+    greetingText: string
   ) => Promise<string>;
   getConversationMessages: (
     conversationId: string,
@@ -164,10 +165,11 @@ export const MessageProvider = ({
       postOwnerId: string,
       currentUserId: string,
       currentUserData: any,
-      postOwnerUserData?: any,
-      postType?: string,
-      postStatus?: string,
-      foundAction?: string
+      postOwnerUserData: any,
+      postType: "lost" | "found",
+      postStatus: "pending" | "resolved" | "unclaimed",
+      foundAction: "keep" | "turnover to OSA" | "turnover to Campus Security" | null,
+      greetingText: string
     ) => {
       return messageService.createConversation(
         postId,
@@ -178,7 +180,8 @@ export const MessageProvider = ({
         postOwnerUserData,
         postType,
         postStatus,
-        foundAction
+        foundAction,
+        greetingText
       );
     },
     []

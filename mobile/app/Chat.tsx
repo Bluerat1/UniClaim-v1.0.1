@@ -458,6 +458,10 @@ export default function Chat() {
           return;
         }
 
+        const greeting = postType === "found"
+          ? `Hello! I'm reaching out regarding the item you found: ${postTitle}`
+          : `Hi! I'm reaching out about your item: ${postTitle}`;
+
         const newConversationId = await createConversation(
           postId,
           postTitle,
@@ -465,9 +469,14 @@ export default function Chat() {
           userData.uid,
           userData,
           postOwnerUserData,
-          postType,
-          postStatus,
-          foundAction
+          (postType || "lost") as "lost" | "found",
+          (postStatus || "pending") as "pending" | "resolved" | "unclaimed",
+          (foundAction as
+            | "keep"
+            | "turnover to OSA"
+            | "turnover to Campus Security"
+            | null) || null,
+          greeting
         );
 
         if (!isMounted) return; // Component was unmounted

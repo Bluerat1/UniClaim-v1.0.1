@@ -119,7 +119,8 @@ export default function PostCardMenu({
         // Use existing conversation
         conversationId = existingConversation.id;
       } else {
-        // Create new conversation
+        // Create new conversation with initial greeting in a single batch
+        const greeting = generateGreeting(postTitle, postType);
         conversationId = await messageService.createConversation(
           postId,
           postTitle,
@@ -127,26 +128,15 @@ export default function PostCardMenu({
           userData.uid,
           userData,
           postOwnerUserData,
-          postType,
-          postStatus,
-          foundAction
+          (postType || "lost") as "lost" | "found",
+          (postStatus || "pending") as "pending" | "resolved" | "unclaimed",
+          (foundAction as
+            | "keep"
+            | "turnover to OSA"
+            | "turnover to Campus Security"
+            | null) || null,
+          greeting
         );
-
-        // Send greeting message for new conversations
-        try {
-          const greeting = generateGreeting(postTitle, postType);
-          await messageService.sendMessage(
-            conversationId,
-            userData.uid,
-            userData.firstName || 'User',
-            greeting,
-            userData.profilePicture
-          );
-          console.log('Greeting message sent successfully');
-        } catch (greetingError) {
-          console.error('Failed to send greeting message:', greetingError);
-          // Don't fail the whole operation if greeting fails
-        }
       }
 
       // Navigate to chat

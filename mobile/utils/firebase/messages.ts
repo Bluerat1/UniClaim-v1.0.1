@@ -24,7 +24,18 @@ import { notificationService } from './notifications';
 
 // Message service interface
 interface MessageService {
-    createConversation(postId: string, postTitle: string, postOwnerId: string, currentUserId: string, currentUserData: any, postOwnerUserData?: any, postType?: string, postStatus?: string, foundAction?: string): Promise<string>;
+    createConversation(
+        postId: string,
+        postTitle: string,
+        postOwnerId: string,
+        currentUserId: string,
+        currentUserData: any,
+        postOwnerUserData: any,
+        postType: "lost" | "found",
+        postStatus: "pending" | "resolved" | "unclaimed",
+        foundAction: "keep" | "turnover to OSA" | "turnover to Campus Security" | null,
+        greetingText: string
+    ): Promise<string>;
     sendMessage(conversationId: string, senderId: string, senderName: string, text: string, senderProfilePicture?: string): Promise<void>;
     getConversationMessages(conversationId: string, callback: (messages: any[]) => void, messageLimit?: number): () => void;
     getUserConversations(userId: string, callback: (conversations: any[]) => void): () => void;
@@ -50,63 +61,42 @@ interface MessageService {
 // Message service implementation
 export const messageService: MessageService = {
     // Create conversation
-    async createConversation(postId: string, postTitle: string, postOwnerId: string, currentUserId: string, currentUserData: any, postOwnerUserData?: any, postType?: string, postStatus?: string, foundAction?: string): Promise<string> {
+    async createConversation(
+        postId: string,
+        postTitle: string,
+        postOwnerId: string,
+        currentUserId: string,
+        currentUserData: any,
+        postOwnerUserData: any,
+        postType: "lost" | "found",
+        postStatus: "pending" | "resolved" | "unclaimed",
+        foundAction: "keep" | "turnover to OSA" | "turnover to Campus Security" | null,
+        greetingText: string
+    ): Promise<string> {
         try {
-            // Fetch post details to get type, status, and creator ID (like web version)
-            let actualPostType: "lost" | "found" = postType as "lost" | "found" || "lost";
-            let actualPostStatus: "pending" | "resolved" | "unclaimed" = postStatus as "pending" | "resolved" | "unclaimed" || "pending";
-            let actualPostCreatorId = postOwnerId; // Default to post owner ID
-            let actualFoundAction: "keep" | "turnover to OSA" | "turnover to Campus Security" | null = foundAction as "keep" | "turnover to OSA" | "turnover to Campus Security" | null || null;
-
-            try {
-                const postDoc = await getDoc(doc(db, 'posts', postId));
-                if (postDoc.exists()) {
-                    const postData = postDoc.data();
-                    actualPostType = postData.type || actualPostType;
-                    actualPostStatus = postData.status || actualPostStatus;
-                    actualPostCreatorId = postData.creatorId || postOwnerId;
-                    // Only set foundAction if it exists and is valid, otherwise keep as null
-                    if (postData.foundAction && typeof postData.foundAction === 'string') {
-                        // Validate that foundAction is one of the expected values
-                        const validFoundActions = ["keep", "turnover to OSA", "turnover to Campus Security"];
-                        if (validFoundActions.includes(postData.foundAction)) {
-                            actualFoundAction = postData.foundAction as "keep" | "turnover to OSA" | "turnover to Campus Security";
-                        }
-                    }
-                }
-            } catch (error) {
-                console.warn('Could not fetch post data:', error);
-                // Continue with provided values if fetch fails
-            }
-
-            // Check for existing conversation first (using participantIds array)
-            const userConversationsQuery = query(
-                collection(db, 'conversations'),
-                where('participantIds', 'array-contains', currentUserId)
-            );
-            const userConversationsSnapshot = await getDocs(userConversationsQuery);
-            const existingConversation = userConversationsSnapshot.docs.find((docSnap) => {
-                const data: any = docSnap.data();
-                return data.postId === postId && data.participants && data.participants[postOwnerId];
-            });
-
-            if (existingConversation) {
-                console.log('Reusing existing conversation:', existingConversation.id);
-                return existingConversation.id;
-            }
-
-            // Create new conversation if none exists
+            // Create new conversation (duplicate checks are handled client-side)
             const participantIds = [currentUserId, postOwnerId].filter((id, index, self) => id && self.indexOf(id) === index);
+
+            const conversationRef = doc(collection(db, 'conversations'));
+            const messageRef = doc(collection(db, `conversations/${conversationRef.id}/messages`));
+
+            const senderName = currentUserData?.firstName && currentUserData?.lastName
+                ? `${currentUserData.firstName} ${currentUserData.lastName}`
+                : currentUserData?.displayName || 'User';
+
+            const senderProfilePicture = currentUserData?.profilePicture || currentUserData?.profileImageUrl || currentUserData?.photoURL || '';
+
+            const now = new Date();
 
             const conversationData: any = {
                 postId,
                 postTitle,
                 postOwnerId,
-                postCreatorId: actualPostCreatorId, // Use the actual post creator ID
-                postType: actualPostType, // Use the actual post type
-                participantIds, // Add participantIds array for efficient querying
-                postStatus: actualPostStatus, // Use the actual post status
-                foundAction: actualFoundAction, // Use the actual found action
+                postCreatorId: postOwnerId,
+                postType,
+                participantIds,
+                postStatus,
+                foundAction,
                 participants: {
                     [currentUserId]: {
                         uid: currentUserId,
@@ -123,8 +113,13 @@ export const messageService: MessageService = {
                 },
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
+                lastMessage: {
+                    text: greetingText,
+                    senderId: currentUserId,
+                    timestamp: now
+                },
                 unreadCounts: {
-                    [postOwnerId]: 0,
+                    [postOwnerId]: 1,
                     [currentUserId]: 0
                 }
             };
@@ -137,7 +132,45 @@ export const messageService: MessageService = {
                 conversationData.participants[postOwnerId].profilePicture = postOwnerUserData.profilePicture || postOwnerUserData.profileImageUrl;
             }
 
-            const conversationRef = await addDoc(collection(db, 'conversations'), conversationData);
+            const greetingMessageData: any = {
+                senderId: currentUserId,
+                senderName,
+                text: greetingText,
+                timestamp: serverTimestamp(),
+                readBy: [currentUserId],
+                messageType: 'text'
+            };
+
+            if (senderProfilePicture) {
+                greetingMessageData.senderProfilePicture = senderProfilePicture;
+            }
+
+            const batch = writeBatch(db);
+            batch.set(conversationRef, conversationData);
+            batch.set(messageRef, greetingMessageData);
+
+            await batch.commit();
+
+            // Send notifications to other participants (mobile and web users)
+            const otherParticipantIds = participantIds.filter(id => id !== currentUserId);
+            if (otherParticipantIds.length > 0) {
+                try {
+                    await notificationSender.sendMessageNotifications(
+                        otherParticipantIds,
+                        {
+                            conversationId: conversationRef.id,
+                            senderId: currentUserId,
+                            senderName,
+                            messageText: greetingText,
+                            conversationData,
+                            trigger: 'message'
+                        }
+                    );
+                } catch (notificationError) {
+                    console.warn('⚠️ Firebase: Failed to send message notifications for new conversation, but conversation was created:', notificationError);
+                }
+            }
+
             return conversationRef.id;
         } catch (error: any) {
             throw new Error(error.message || 'Failed to create conversation');
