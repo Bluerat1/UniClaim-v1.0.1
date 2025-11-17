@@ -574,6 +574,10 @@ export default function Chat() {
 
             if (isMounted && conversationData) {
               setConversationData(conversationData);
+              setLoading(false);
+            } else if (isMounted) {
+              setLoading(false);
+              showToastMessage('This conversation no longer exists', 'error');
             }
           } catch (error) {
             console.error("Error loading conversation data:", error);

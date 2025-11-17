@@ -14,6 +14,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNotifications } from "../context/NotificationContext";
+import { useToast } from "../context/ToastContext";
 import { SafeAreaView } from "react-native-safe-area-context";
 import NotificationPreferencesModal from "./NotificationPreferences";
 import { postService } from "../utils/firebase/posts";
@@ -65,6 +66,8 @@ export default function Header() {
       setShowPreferences(true);
     }, 350); // Wait for panel close animation
   };
+  
+  const { showToastMessage } = useToast();
 
   const handleNotificationPress = async (notification: any) => {
     try {
@@ -76,135 +79,77 @@ export default function Header() {
       // Close the notification panel
       closePanel();
 
-      // Handle claim_response and handover_response notifications with conversation data
-      if (
-        (notification.type === "claim_response" ||
-          notification.type === "handover_response") &&
-        notification.data?.conversationId
-      ) {
-        try {
-          // Get conversation data using the messageService
-          const conversationData = await messageService.getConversation(
-            notification.data.conversationId
-          );
-
-          if (conversationData) {
-            // Get post owner user data if available
-            let postOwnerUserData = null;
-            if (
-              conversationData.postOwnerId ||
-              conversationData.postCreatorId
-            ) {
-              try {
-                const ownerId =
-                  conversationData.postOwnerId ||
-                  conversationData.postCreatorId;
-                if (ownerId && conversationData.participants?.[ownerId]) {
-                  postOwnerUserData = conversationData.participants[ownerId];
-                }
-              } catch {
-                console.warn(
-                  "⚠️ Mobile: Could not fetch post owner user data for response notification:"
-                );
-              }
-            }
-
-            // Navigate to Chat screen with required parameters
-            navigation.navigate("Chat", {
-              conversationId: notification.data.conversationId,
-              postTitle:
-                notification.data?.postTitle || conversationData.postTitle,
-              postOwnerId:
-                conversationData.postOwnerId || conversationData.postCreatorId,
-              postOwnerUserData: postOwnerUserData || {},
-              postId: notification.data?.postId || conversationData.postId,
-              postType: conversationData.postType,
-              postStatus: conversationData.postStatus,
-              foundAction: conversationData.foundAction,
-            });
-          } else {
-            // Fallback: Navigate to Messages tab
-            navigation.navigate("Message");
-          }
-        } catch {
-          // Fallback: Navigate to Messages tab
-          navigation.navigate("Message");
-        }
-        return;
+      // Handle conversation-related notifications
+      if (notification.data?.conversationId) {
+        await handleConversationNotification(notification);
+      } 
+      // Handle post notifications
+      else if (notification.postId) {
+        await handlePostNotification(notification);
       }
-
-      // Handle message notifications
-      if (
-        notification.type === "message" &&
-        notification.data?.conversationId
-      ) {
-        try {
-          // Get conversation data using the messageService
-          const conversationData = await messageService.getConversation(
-            notification.data.conversationId
-          );
-
-          if (conversationData) {
-            // Get post owner user data if available
-            let postOwnerUserData = null;
-            if (
-              conversationData.postOwnerId ||
-              conversationData.postCreatorId
-            ) {
-              try {
-                const ownerId =
-                  conversationData.postOwnerId ||
-                  conversationData.postCreatorId;
-                if (ownerId && conversationData.participants?.[ownerId]) {
-                  postOwnerUserData = conversationData.participants[ownerId];
-                }
-              } catch {
-                console.warn(
-                  "⚠️ Mobile: Could not fetch post owner user data:"
-                );
-              }
-            }
-
-            // Navigate to Chat screen with required parameters
-            navigation.navigate("Chat", {
-              conversationId: notification.data.conversationId,
-              postTitle:
-                notification.data?.postTitle || conversationData.postTitle,
-              postOwnerId:
-                conversationData.postOwnerId || conversationData.postCreatorId,
-              postOwnerUserData: postOwnerUserData || {},
-              postId: notification.data?.postId || conversationData.postId,
-              postType: conversationData.postType,
-              postStatus: conversationData.postStatus,
-              foundAction: conversationData.foundAction,
-            });
-          } else {
-            // Fallback: Navigate to Messages tab
-            navigation.navigate("Message");
-          }
-        } catch {
-          // Fallback: Navigate to Messages tab
-          navigation.navigate("Message");
-        }
-        return;
-      }
-
-      // Handle other notification types (existing post navigation)
-      if (notification.postId) {
-        try {
-          const post = await postService.getPostById(notification.postId);
-          if (post) {
-            navigation.navigate("PostDetails", { post });
-          } else {
-            console.error("❌ Mobile: Post not found:", notification.postId);
-          }
-        } catch {
-          console.error("❌ Mobile: Error fetching post data:");
-        }
-      }
-    } catch {
-      // Still close the panel even if navigation fails
+    } catch (error) {
+      console.error("Error in handleNotificationPress:", error);
       closePanel();
+    }
+  };
+
+  const handleConversationNotification = async (notification: any) => {
+    try {
+      // Get conversation data using the messageService
+      const conversationData = await messageService.getConversation(
+        notification.data.conversationId
+      );
+
+      if (!conversationData) {
+        // Show toast message for ghost conversation
+        showToastMessage('This conversation no longer exists', 'error');
+        return;
+      }
+
+      // Get post owner user data if available
+      let postOwnerUserData = null;
+      const ownerId = conversationData.postOwnerId || conversationData.postCreatorId;
+      
+      if (ownerId && conversationData.participants?.[ownerId]) {
+        try {
+          postOwnerUserData = conversationData.participants[ownerId];
+        } catch (error) {
+          console.warn(
+            "⚠️ Mobile: Could not fetch post owner user data:",
+            error
+          );
+        }
+      }
+
+      // Navigate to Chat screen with required parameters
+      navigation.navigate("Chat", {
+        conversationId: notification.data.conversationId,
+        postTitle: notification.data?.postTitle || conversationData.postTitle,
+        postOwnerId: ownerId,
+        postOwnerUserData: postOwnerUserData || {},
+        postId: notification.data?.postId || conversationData.postId,
+        postType: conversationData.postType,
+        postStatus: conversationData.postStatus,
+        foundAction: conversationData.foundAction,
+      });
+    } catch (error) {
+      console.error("Error handling conversation notification:", error);
+      showToastMessage('Error loading conversation', 'error');
+    }
+  };
+
+  const handlePostNotification = async (notification: any) => {
+    try {
+      const post = await postService.getPostById(notification.postId);
+      if (post) {
+        navigation.navigate("PostDetails", { post });
+      } else {
+        console.error("❌ Mobile: Post not found:", notification.postId);
+        showToastMessage('This post no longer exists', 'error');
+      }
+    } catch (error) {
+      console.error("❌ Mobile: Error fetching post data:", error);
+      showToastMessage('Error loading post', 'error');
     }
   };
 
