@@ -87,7 +87,8 @@ export default function ItemDetails({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showOSATurnoverModal, setShowOSATurnoverModal] = useState(false);
-  const [showCampusSecurityTurnoverModal, setShowCampusSecurityTurnoverModal] = useState(false);
+  const [showCampusSecurityTurnoverModal, setShowCampusSecurityTurnoverModal] =
+    useState(false);
 
   const handleReportClick = (type: "lost" | "found" | null) => {
     if (type === null) {
@@ -102,7 +103,9 @@ export default function ItemDetails({
     }
   };
 
-  const handleFoundActionSelect = (action: "keep" | "turnover to OSA" | "turnover to Campus Security") => {
+  const handleFoundActionSelect = (
+    action: "keep" | "turnover to OSA" | "turnover to Campus Security"
+  ) => {
     if (action === "turnover to OSA") {
       setShowOSATurnoverModal(true);
       setIsModalVisible(false);
@@ -154,7 +157,10 @@ export default function ItemDetails({
         const detectionResult = detectLocationFromCoordinates(coordinates);
         if (detectionResult.location && detectionResult.confidence >= 50) {
           setSelectedLocation(detectionResult.location);
-        } else if (detectionResult.alternatives && detectionResult.alternatives.length > 0) {
+        } else if (
+          detectionResult.alternatives &&
+          detectionResult.alternatives.length > 0
+        ) {
           // Show the top alternative if confidence is reasonable (>= 10)
           const topAlternative = detectionResult.alternatives[0];
           if (topAlternative.confidence >= 10) {
@@ -223,7 +229,11 @@ export default function ItemDetails({
                     hitSlop={10}
                     className="ml-1"
                   >
-                    <Ionicons name="close-outline" size={16} color={reportType === type ? "white" : "#4B5563"} />
+                    <Ionicons
+                      name="close-outline"
+                      size={16}
+                      color={reportType === type ? "white" : "#4B5563"}
+                    />
                   </Pressable>
                 )}
               </View>
@@ -339,6 +349,23 @@ export default function ItemDetails({
           Pin a location on the map to automatically detect the building or area
         </Text>
 
+        {/* Instructions */}
+        <View className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+          <View className="flex-row items-start">
+            <View className="flex-1">
+              <Text className="text-blue-800 text-base font-inter-medium mb-1 border-b border-blue-100 pb-2">
+                How to use the location pinning feature?
+              </Text>
+              <Text className="text-blue-700 text-sm font-inter pt-1">
+                • Click on the map to pin a location{"\n"}• Make sure to pin
+                within a building or campus area{"\n"}• The system will
+                automatically detect the location name{"\n"}• If no location is
+                detected, pin it more precisely inside the building.
+              </Text>
+            </View>
+          </View>
+        </View>
+
         {/* Detected Location Display */}
         {selectedLocation && (
           <View className="mb-3 p-3 bg-green-50 border border-green-200 rounded-md">
@@ -384,24 +411,6 @@ export default function ItemDetails({
             Open USTP CDO Map
           </Text>
         </TouchableOpacity>
-
-        {/* Instructions */}
-        <View className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
-          <View className="flex-row items-start">
-            <View className="w-2 h-2 bg-blue-500 rounded-full mr-2 mt-2" />
-            <View className="flex-1">
-              <Text className="text-blue-800 text-sm font-inter font-medium mb-1">
-                How to use:
-              </Text>
-              <Text className="text-blue-700 text-sm font-inter">
-                • Click on the map to pin a location{"\n"}• Make sure to pin
-                within a building or campus area{"\n"}• The system will
-                automatically detect the location name{"\n"}• If no location is
-                detected, pin it more precisely inside the building.
-              </Text>
-            </View>
-          </View>
-        </View>
       </View>
 
       <View className="w-full flex-row gap-2 justify-center bg-orange-50 rounded-md py-4">
@@ -487,9 +496,7 @@ export default function ItemDetails({
             {/* Header */}
             <View className="flex-row items-center gap-2">
               <MaterialIcons name="info-outline" size={18} color="black" />
-              <Text className="text-xl font-manrope-bold">
-                OSA Turnover
-              </Text>
+              <Text className="text-xl font-manrope-bold">OSA Turnover</Text>
             </View>
 
             {/* Question */}
