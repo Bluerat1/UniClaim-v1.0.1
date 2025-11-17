@@ -87,8 +87,14 @@ export default function Header() {
       else if (notification.postId) {
         await handlePostNotification(notification);
       }
+      // No valid content to handle
+      else {
+        showToastMessage('This notification is no longer available', 'info');
+        return;
+      }
     } catch (error) {
       console.error("Error in handleNotificationPress:", error);
+      showToastMessage('Error processing notification', 'error');
       closePanel();
     }
   };
