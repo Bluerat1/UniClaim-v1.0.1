@@ -197,12 +197,12 @@ export default function SearchWithToggle({
             options={ITEM_CATEGORIES}
             onSelect={setCategorySearch}
           />
-          <View>
+          <View className="mb-4">
             <Text className="text-sm font-manrope-semibold text-gray-700 mb-1 mt-3">
               Description
             </Text>
             <TextInput
-              className="flex-1 text-base font-manrope tracking-tight text-gray-500"
+              className="h-[3rem] w-full bg-white/30 border border-gray-300 rounded-md px-3 text-gray-700 text-base font-manrope tracking-tight"
               placeholder="Enter description"
               placeholderTextColor="#9CA3AF"
               value={descriptionSearch}
@@ -216,6 +216,7 @@ export default function SearchWithToggle({
                 }
               }}
               keyboardType={numeric ? 'numeric' : 'default'}
+              style={{ textAlignVertical: 'center' }}
             />
           </View>
           {/* last known location */}

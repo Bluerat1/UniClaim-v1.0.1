@@ -439,12 +439,12 @@ export const postService = {
             const expiryDate = new Date();
             expiryDate.setDate(now.getDate() + 30);
 
-            // Extract only the essential user data we want to store
+            // Extract user data and include all user details in the post
             const { user, ...postDataWithoutUser } = postData;
-            const minimalUserData = user ? {
-                // Only include the minimal user data needed
+            const userData = user ? {
+                // Include all user data
                 user: {
-                    email: user.email,
+                    ...user,  // Spread all user properties
                     id: user.id || user.uid || postData.creatorId
                 },
                 // Keep creatorId at the root for backward compatibility
@@ -453,7 +453,7 @@ export const postService = {
 
             const enhancedPostData = {
                 ...postDataWithoutUser,
-                ...minimalUserData,
+                ...userData,
                 images: imageUrls,
                 status: postData.status || 'pending',
                 createdAt: serverTimestamp(),
