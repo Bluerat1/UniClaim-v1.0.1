@@ -52,15 +52,55 @@ export default function AdminHeader({
       // Handle conversation/message notifications
       if (notification.data?.conversationId) {
         console.log(
-          "Admin navigating to conversation:",
+          "Admin checking conversation:",
           notification.data.conversationId
         );
-        // Navigate to admin messages page with conversation parameter
-        navigate(
-          `/admin/messages?conversation=${notification.data.conversationId}`
-        );
-        setShowNotif(false); // Close notification panel
-        return;
+        
+        try {
+          // Check if conversation exists before navigating
+          const { doc, getDoc } = await import("@firebase/firestore");
+          const { db } = await import("@/services/firebase/config");
+          const conversationRef = doc(db, "conversations", notification.data.conversationId);
+          const conversationSnap = await getDoc(conversationRef);
+
+          if (!conversationSnap.exists()) {
+            console.log("Conversation not found, showing toast");
+            toast.error("This conversation has been deleted.", {
+              position: "top-right",
+              autoClose: 5000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+              progress: undefined,
+              toastId: "conversation-deleted-admin",
+            });
+            setShowNotif(false); // Close notification panel
+            return;
+          }
+
+          // If we get here, the conversation exists
+          console.log("Admin navigating to conversation:", notification.data.conversationId);
+          navigate(
+            `/admin/messages?conversation=${notification.data.conversationId}`
+          );
+          setShowNotif(false); // Close notification panel
+          return;
+        } catch (error) {
+          console.error("Error checking conversation:", error);
+          toast.error("Error loading conversation. Please try again.", {
+            position: "top-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            toastId: "conversation-load-error-admin",
+          });
+          setShowNotif(false); // Close notification panel
+          return;
+        }
       }
 
       // Check for postId in different possible locations

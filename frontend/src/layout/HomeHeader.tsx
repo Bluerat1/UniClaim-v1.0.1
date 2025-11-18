@@ -159,12 +159,50 @@ export default function HomeHeader({
     // Handle different notification types
     if (notification.type === "message" && notification.data?.conversationId) {
       console.log(
-        "Navigating to conversation:",
+        "Checking conversation:",
         notification.data.conversationId
       );
-      // Navigate to messages page with conversation parameter
-      navigate(`/messages?conversation=${notification.data.conversationId}`);
-      toggleNotif(); // Close the notification dropdown
+      
+      try {
+        // Check if conversation exists before navigating
+        const { doc, getDoc } = await import("@firebase/firestore");
+        const { db } = await import("@/services/firebase/config");
+        const conversationRef = doc(db, "conversations", notification.data.conversationId);
+        const conversationSnap = await getDoc(conversationRef);
+
+        if (!conversationSnap.exists()) {
+          console.log("Conversation not found, showing toast");
+          toast.error("This conversation has been deleted.", {
+            position: "top-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            toastId: "conversation-deleted",
+          });
+          toggleNotif(); // Close the notification dropdown
+          return;
+        }
+
+        // If we get here, the conversation exists
+        console.log("Navigating to conversation:", notification.data.conversationId);
+        navigate(`/messages?conversation=${notification.data.conversationId}`);
+        toggleNotif(); // Close the notification dropdown
+      } catch (error) {
+        console.error("Error checking conversation:", error);
+        toast.error("Error loading conversation. Please try again.", {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          toastId: "conversation-load-error",
+        });
+      }
       return;
     }
 
