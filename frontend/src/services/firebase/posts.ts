@@ -387,7 +387,7 @@ export const postService = {
                     if (errorCallback) {
                         errorCallback(error);
                     }
-                    return () => {}; // Return empty cleanup function
+                    return () => { }; // Return empty cleanup function
                 }
             }
 
@@ -397,7 +397,7 @@ export const postService = {
             );
 
             const unsubscribe = onSnapshot(
-                q, 
+                q,
                 (snapshot) => {
                     try {
                         const posts = snapshot.docs.map(doc => {
@@ -444,7 +444,7 @@ export const postService = {
             if (errorCallback) {
                 errorCallback(error);
             }
-            return () => {}; // Return empty cleanup function
+            return () => { }; // Return empty cleanup function
         }
     },
 
@@ -2239,10 +2239,10 @@ export const postService = {
             console.log(`✅ Turnover status updated successfully for post ${postId}`);
 
             // Get the current turnover action, checking updateData first, then postData
-            const currentTurnoverAction = updateData['turnoverDetails.turnoverAction'] || 
-                                       postData.turnoverDetails?.turnoverAction;
-            const originalTurnoverAction = updateData['turnoverDetails.originalTurnoverAction'] || 
-                                        postData.turnoverDetails?.originalTurnoverAction;
+            const currentTurnoverAction = updateData['turnoverDetails.turnoverAction'] ||
+                postData.turnoverDetails?.turnoverAction;
+            const originalTurnoverAction = updateData['turnoverDetails.originalTurnoverAction'] ||
+                postData.turnoverDetails?.originalTurnoverAction;
 
             // Debug: Log current state before updating conversations
             console.log('📝 Current turnover state:', {
@@ -2258,17 +2258,17 @@ export const postService = {
             // Update existing conversations to reflect the new post creator
             // Check if this is an OSA turnover OR was originally a Campus Security transfer
             const isOSATurnover = currentTurnoverAction === "turnover to OSA";
-            const isCampusSecurityTransfer = originalTurnoverAction === "turnover to Campus Security" || 
-                                         (currentTurnoverAction === "turnover to Campus Security" && status === "confirmed");
-            
-            console.log('🔍 Conversation update check:', { 
-                isOSATurnover, 
-                isCampusSecurityTransfer, 
+            const isCampusSecurityTransfer = originalTurnoverAction === "turnover to Campus Security" ||
+                (currentTurnoverAction === "turnover to Campus Security" && status === "confirmed");
+
+            console.log('🔍 Conversation update check:', {
+                isOSATurnover,
+                isCampusSecurityTransfer,
                 status,
                 currentTurnoverAction,
                 originalTurnoverAction
             });
-            
+
             if (status === "confirmed" && (isOSATurnover || isCampusSecurityTransfer)) {
                 console.log('✅ Proceeding with conversation updates');
                 try {
@@ -2288,11 +2288,11 @@ export const postService = {
                         // Get the new admin's information
                         const adminRef = doc(db, 'users', confirmedBy);
                         const adminDoc = await getDoc(adminRef);
-                        
+
                         if (!adminDoc.exists()) {
                             throw new Error('Admin user not found');
                         }
-                        
+
                         const adminData = adminDoc.data();
                         const adminInfo = {
                             uid: confirmedBy,
@@ -2313,10 +2313,10 @@ export const postService = {
                             const updatedParticipants = {
                                 ...conversationData.participants
                             };
-                            
+
                             // Start with existing participantIds or derive from participants
                             let updatedParticipantIds = [...(conversationData.participantIds || Object.keys(updatedParticipants))];
-                            
+
                             // Initialize participantInfo with existing data or empty object
                             const updatedParticipantInfo = {
                                 ...(conversationData.participantInfo || {})
@@ -2325,7 +2325,7 @@ export const postService = {
                             // When collected button is clicked, remove the specific Campus Security user by UID
                             if (isCampusSecurityTransfer) {
                                 console.log('🔄 COLLECTED BUTTON: Removing specific Campus Security user by UID');
-                                
+
                                 // 1. Get all participant IDs from all sources
                                 const allParticipantIds = new Set([
                                     ...Object.keys(updatedParticipants),
@@ -2349,7 +2349,7 @@ export const postService = {
                                 // 3. Specific UID to remove (Campus Security)
                                 const campusSecurityUid = 'hedUWuv96VWQek5OucPzXTCkpQU2';
                                 const campusSecurityId = allParticipantIds.has(campusSecurityUid) ? campusSecurityUid : null;
-                                
+
                                 if (campusSecurityId) {
                                     console.log(`🔍 Found Campus Security user with UID: ${campusSecurityId}`);
                                 } else {
@@ -2359,30 +2359,30 @@ export const postService = {
                                 // 4. Remove only the specific Campus Security user by UID
                                 if (campusSecurityId) {
                                     console.log(`🔨 Removing Campus Security user with UID: ${campusSecurityId}`);
-                                    
+
                                     // Remove from participants
                                     if (updatedParticipants[campusSecurityId]) {
                                         console.log(`   - Removing from participants`);
                                         delete updatedParticipants[campusSecurityId];
                                         console.log(`   - Removed from participants`);
                                     }
-                                    
+
                                     // Remove from participantIds
                                     const initialCount = updatedParticipantIds.length;
                                     updatedParticipantIds = updatedParticipantIds.filter(id => id !== campusSecurityId);
                                     if (initialCount > updatedParticipantIds.length) {
                                         console.log(`   - Removed from participantIds`);
                                     }
-                                    
+
                                     // Remove from participantInfo
                                     if (updatedParticipantInfo[campusSecurityId]) {
                                         console.log(`   - Removing from participantInfo`);
                                         delete updatedParticipantInfo[campusSecurityId];
                                         console.log(`   - Removed from participantInfo`);
                                     }
-                                    
+
                                     console.log('✅ Specific Campus Security user removed successfully');
-                                    
+
                                     // Log remaining participants
                                     console.log('👥 Remaining participants after removal:', {
                                         participants: Object.keys(updatedParticipants),
@@ -2447,7 +2447,7 @@ export const postService = {
                                     ...updatedParticipants[confirmedBy],
                                     role: 'admin'
                                 };
-                                
+
                                 if (updatedParticipantInfo[confirmedBy]) {
                                     updatedParticipantInfo[confirmedBy] = {
                                         ...updatedParticipantInfo[confirmedBy],
@@ -2472,7 +2472,7 @@ export const postService = {
                                 participantInfo: updatedParticipantInfo,
                                 updatedAt: 'serverTimestamp()'
                             };
-                            
+
                             console.log('🔄 Updating conversation with:', {
                                 conversationId: convDoc.id,
                                 updates: {

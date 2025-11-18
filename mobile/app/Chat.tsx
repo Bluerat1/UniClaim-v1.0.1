@@ -805,7 +805,7 @@ export default function Chat() {
     if (currentPostCreatorId === userData.uid) return false;
 
     if (currentPostType !== "found") return false;
-    if (currentPostStatus !== "pending") return false;
+    if (currentPostStatus !== "pending" && currentPostStatus !== "transferred") return false;
 
     // Allow claiming for "keep" and "turnover to Campus Security" posts
     // Only exclude posts that are disposed or donated

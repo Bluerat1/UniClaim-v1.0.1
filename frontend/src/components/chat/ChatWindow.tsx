@@ -1257,7 +1257,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       return false;
     }
 
-    if (conversation.postStatus !== "pending") {
+    if (conversation.postStatus !== "pending" && conversation.postStatus !== "transferred") {
       return false;
     }
 

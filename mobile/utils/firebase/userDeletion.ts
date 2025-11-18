@@ -115,7 +115,7 @@ export const userDeletionService = {
     // Delete user account and all associated data
     async deleteUserAccount(user: FirebaseUser, password?: string): Promise<void> {
         const userId = user.uid;
-        
+
         try {
             // First, ensure we have a fresh token
             try {
@@ -154,11 +154,11 @@ export const userDeletionService = {
                 await deleteUser(user);
             } catch (authError: any) {
                 console.error('Auth user deletion failed:', authError);
-                
+
                 if (authError.code === 'auth/requires-recent-login') {
                     throw new Error('Your session has expired. Please sign in again to complete account deletion.');
                 }
-                
+
                 throw new Error(`Failed to delete authentication record: ${authError.message}`);
             }
 
@@ -172,10 +172,27 @@ export const userDeletionService = {
 
             // Wait for other clients to process the deletion
             await new Promise(resolve => setTimeout(resolve, 2000));
-            
+
         } catch (error: any) {
             console.error('User deletion process failed:', error);
             throw error instanceof Error ? error : new Error('An unexpected error occurred during account deletion');
+        }
+    },
+
+    // Helper function to delete conversations for a post
+    async deletePostConversations(postId: string, batch: any): Promise<void> {
+        const conversationsRef = collection(db, 'conversations');
+        const conversationsQuery = query(conversationsRef, where('postId', '==', postId));
+        const conversationsSnapshot = await getDocs(conversationsQuery);
+
+        // Delete all messages in each conversation first
+        for (const convDoc of conversationsSnapshot.docs) {
+            const messagesRef = collection(db, 'conversations', convDoc.id, 'messages');
+            const messagesSnapshot = await getDocs(messagesRef);
+            messagesSnapshot.docs.forEach(msgDoc => {
+                batch.delete(msgDoc.ref);
+            });
+            batch.delete(convDoc.ref);
         }
     },
 
@@ -185,7 +202,7 @@ export const userDeletionService = {
 
         try {
             const postsRef = collection(db, 'posts');
-            const userPostsQuery = query(postsRef, where('user.uid', '==', userId));
+            const userPostsQuery = query(postsRef, where('creatorId', '==', userId));
             const postsSnapshot = await getDocs(userPostsQuery);
 
             if (postsSnapshot.empty) {
@@ -193,31 +210,43 @@ export const userDeletionService = {
                 return;
             }
 
-            const batch = writeBatch(db);
-            const allImages: string[] = [];
+            // Process in chunks to avoid batch limits
+            const BATCH_LIMIT = 400; // Leave room for conversation deletes
+            const allPosts = postsSnapshot.docs;
 
-            // Collect all images and prepare batch delete
-            postsSnapshot.docs.forEach(doc => {
-                const post = doc.data();
-                const postImages = extractPostImages(post);
-                allImages.push(...postImages);
+            for (let i = 0; i < allPosts.length; i += BATCH_LIMIT) {
+                const batch = writeBatch(db);
+                const chunk = allPosts.slice(i, i + BATCH_LIMIT);
+                const allImages: string[] = [];
 
-                // Add to batch delete
-                batch.delete(doc.ref);
-            });
+                // Process each post in the current chunk
+                for (const doc of chunk) {
+                    const post = doc.data();
+                    const postImages = extractPostImages(post);
+                    allImages.push(...postImages);
 
-            // Execute batch delete
-            await batch.commit();
-            console.log(`Deleted ${postsSnapshot.docs.length} posts for user: ${userId}`);
+                    // Delete conversations for this post first
+                    await this.deletePostConversations(doc.id, batch);
 
-            // Delete all images from Cloudinary
-            if (allImages.length > 0) {
-                await imageService.deleteImages(allImages);
-                console.log(`Deleted ${allImages.length} post images from Cloudinary`);
+                    // Queue post for deletion
+                    batch.delete(doc.ref);
+                }
+
+                // Execute batch for this chunk
+                await batch.commit();
+                console.log(`Processed ${chunk.length} posts in batch ${i / BATCH_LIMIT + 1}`);
+
+                // Delete images after successful batch commit
+                if (allImages.length > 0) {
+                    await imageService.deleteImages(allImages);
+                    console.log(`Deleted ${allImages.length} post images from Cloudinary`);
+                }
             }
 
+            console.log(`✅ Successfully deleted all posts for user: ${userId}`);
+
         } catch (error: any) {
-            console.error(`Error deleting posts for user ${userId}:`, error);
+            console.error(`❌ Error deleting posts for user ${userId}:`, error);
             throw error;
         }
     },
@@ -318,17 +347,52 @@ export const userDeletionService = {
         console.log(`🔔 Deleting notifications for user: ${userId}`);
 
         try {
-            // Delete all notifications for the user
-            await notificationService.deleteAllNotifications(userId);
+            const notificationsRef = collection(db, 'notifications');
+
+            // Query for both received and sent notifications
+            const receivedQuery = query(notificationsRef, where('userId', '==', userId));
+            const sentQuery = query(notificationsRef, where('data.creatorId', '==', userId));
+
+            const [receivedSnapshot, sentSnapshot] = await Promise.all([
+                getDocs(receivedQuery),
+                getDocs(sentQuery)
+            ]);
+
+            // Combine and deduplicate notifications
+            const allNotifications = new Map();
+            [...receivedSnapshot.docs, ...sentSnapshot.docs].forEach(doc => {
+                allNotifications.set(doc.id, doc);
+            });
+
+            // Process in chunks to avoid batch limits
+            const BATCH_LIMIT = 400;
+            const allNotificationsArray = Array.from(allNotifications.values());
+
+            for (let i = 0; i < allNotificationsArray.length; i += BATCH_LIMIT) {
+                const batch = writeBatch(db);
+                const chunk = allNotificationsArray.slice(i, i + BATCH_LIMIT);
+
+                chunk.forEach(doc => {
+                    batch.delete(doc.ref);
+                });
+
+                await batch.commit();
+                console.log(`Processed ${chunk.length} notifications in batch ${i / BATCH_LIMIT + 1}`);
+            }
+
+            console.log(`✅ Deleted ${allNotifications.size} total notifications for user: ${userId}`);
 
             // Delete notification subscription
             const subscriptionRef = doc(db, 'notifications_subscriptions', userId);
-            await deleteDoc(subscriptionRef);
+            await deleteDoc(subscriptionRef).catch(error => {
+                console.warn(`Failed to delete notification subscription for user ${userId}:`, error);
+                // Continue even if subscription deletion fails
+            });
 
             console.log(`Deleted notifications and subscription for user: ${userId}`);
 
         } catch (error: any) {
-            console.error(`Error deleting notifications for user ${userId}:`, error);
+            console.error(`❌ Error deleting notifications for user ${userId}:`, error);
             throw error;
         }
     },

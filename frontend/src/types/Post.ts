@@ -291,7 +291,7 @@ export interface Conversation {
   postTitle: string;
   // New fields for handover button functionality
   postType: "lost" | "found";
-  postStatus?: "pending" | "resolved" | "unclaimed" | "completed";
+  postStatus?: "pending" | "resolved" | "unclaimed" | "completed" | "transferred";
   postCreatorId: string;
   foundAction?: "keep" | "turnover to OSA" | "turnover to Campus Security"; // For found items
   participants: {

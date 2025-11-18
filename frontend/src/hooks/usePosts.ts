@@ -388,24 +388,24 @@ export const useUserPostsWithSet = (userEmail: string) => {
 
         // Subscribe to non-deleted posts
         const unsubscribePosts = (postService.getUserPosts as any)(
-            userEmail, 
+            userEmail,
             (fetchedPosts: Post[]) => {
                 // Filter out deleted posts from the regular posts
                 const nonDeletedPosts = fetchedPosts.filter(post => !post.deletedAt);
                 setPosts(nonDeletedPosts);
                 setLoading(false);
-            }, 
+            },
             false
         );
 
         // Subscribe to deleted posts
         const unsubscribeDeleted = (postService.getUserPosts as any)(
-            userEmail, 
+            userEmail,
             (fetchedPosts: Post[]) => {
                 // Only include posts that have a deletedAt timestamp
                 const deletedOnly = fetchedPosts.filter(post => post.deletedAt);
                 setDeletedPosts(deletedOnly);
-            }, 
+            },
             true
         );
 
@@ -419,11 +419,11 @@ export const useUserPostsWithSet = (userEmail: string) => {
         };
     }, [userEmail, isAuthenticated, userData]);
 
-    return { 
-        posts, 
+    return {
+        posts,
         deletedPosts,
-        setPosts, 
-        loading 
+        setPosts,
+        loading
     };
 };
 
