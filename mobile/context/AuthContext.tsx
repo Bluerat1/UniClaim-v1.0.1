@@ -1467,16 +1467,7 @@ export const AuthProvider = ({
         autoLoginTimeoutRef.current = null;
       }
 
-      // 3. Clean up notifications before signing out
-      if (userId) {
-        console.log(`Clearing notifications for user: ${userId}`);
-        try {
-          await notificationService.deleteAllNotifications(userId);
-          console.log("✅ Notifications cleared successfully");
-        } catch (notifError) {
-          console.warn("Error clearing notifications:", notifError);
-        }
-      }
+      
 
       // 4. Sign out from Firebase (this will trigger the auth state listener cleanup)
       console.log("Signing out from Firebase...");
