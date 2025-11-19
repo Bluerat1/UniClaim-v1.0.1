@@ -1271,8 +1271,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         return conversation.isAdminPost === true;
       }
 
+      // When creatorData is a valid object, strictly check creatorData properties
+      // instead of using conversation.isAdminPost to avoid false positives
       return (
-        conversation.isAdminPost === true ||
         creatorData.role === "admin" ||
         creatorData.role === "campus_security" ||
         (creatorData.firstName === "System" && creatorData.lastName === "Administrator") ||

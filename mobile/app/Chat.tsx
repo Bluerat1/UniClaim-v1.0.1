@@ -70,7 +70,8 @@ export default function Chat() {
     postStatus,
     foundAction,
     postCreatorId, // Add postCreatorId parameter
-  } = route.params;
+    hideClaimButton,
+  } = route.params as any;
 
   // Log component mount with initial params
   const performanceStartRef = useRef(Date.now());
@@ -789,6 +790,11 @@ export default function Chat() {
   };
 
   const shouldShowClaimItemButton = () => {
+    // Check if we were instructed to hide the claim button
+    if ((route.params as any)?.hideClaimButton) {
+      return false;
+    }
+
     // Use conversation data if available, otherwise fall back to route params
     const currentPostType = conversationData?.postType || postType;
     const currentPostStatus = conversationData?.postStatus || postStatus;

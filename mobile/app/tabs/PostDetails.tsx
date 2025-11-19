@@ -101,7 +101,7 @@ export default function PostDetailsScreen() {
       }
 
       // Navigate to chat
-      navigation.navigate("Chat", {
+      (navigation as any).navigate("Chat", {
         conversationId,
         postTitle: post.title,
         postId: post.id,
@@ -111,6 +111,7 @@ export default function PostDetailsScreen() {
         postStatus: post.status || "pending",
         foundAction: post.foundAction,
         postCreatorId: post.creatorId || post.postedById,
+        hideClaimButton: true,
       });
     } catch (error: any) {
       console.error("Error creating conversation:", error);
@@ -237,6 +238,7 @@ export default function PostDetailsScreen() {
         postStatus: post.status || "pending",
         foundAction: post.foundAction,
         postCreatorId: post.creatorId || post.postedById, // Pass the actual post creator ID
+        hideClaimButton: true,
       });
     } catch (error: any) {
       console.error("Error creating conversation with original finder:", error);

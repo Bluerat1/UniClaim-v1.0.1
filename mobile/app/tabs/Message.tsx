@@ -615,6 +615,7 @@ export default function Message() {
         postType: conversation.postType,
         postStatus: conversation.postStatus,
         foundAction: conversation.foundAction,
+        hideClaimButton: true,
       });
 
       const totalElapsed = Date.now() - pressStartTime;
