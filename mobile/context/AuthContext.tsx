@@ -9,6 +9,7 @@ import React, {
   ReactNode,
   JSX,
 } from "react";
+import { unstable_batchedUpdates } from "react-native";
 import {
   onAuthStateChanged,
   User,
@@ -289,24 +290,26 @@ export const AuthProvider = ({
             );
             const isAdminUser = checkIfAdmin(userData.email);
 
-            // Update user state
-            setUser(firebaseUser);
-            setUserData(userData);
-            setIsBanned(isBannedUser);
-            setNeedsEmailVerification(needsVerification);
-            setIsAdmin(isAdminUser);
+            // Update user state in batch to prevent multiple re-renders
+            unstable_batchedUpdates(() => {
+              setUser(firebaseUser);
+              setUserData(userData);
+              setIsBanned(isBannedUser);
+              setNeedsEmailVerification(needsVerification);
+              setIsAdmin(isAdminUser);
 
-            // User is considered authenticated if:
-            // 1. Not banned
-            // 2. Doesn't need email verification (or is an admin)
-            const shouldAuthenticate =
-              !isBannedUser && (!needsVerification || isAdminUser);
+              // User is considered authenticated if:
+              // 1. Not banned
+              // 2. Doesn't need email verification (or is an admin)
+              const shouldAuthenticate =
+                !isBannedUser && (!needsVerification || isAdminUser);
 
-            // Only update isAuthenticated if this is not an auto-login attempt
-            // or if we're processing auto-login and the user should be authenticated
-            if (!isProcessingAutoLoginRef.current || shouldAuthenticate) {
-              setIsAuthenticated(shouldAuthenticate);
-            }
+              // Only update isAuthenticated if this is not an auto-login attempt
+              // or if we're processing auto-login and the user should be authenticated
+              if (!isProcessingAutoLoginRef.current || shouldAuthenticate) {
+                setIsAuthenticated(shouldAuthenticate);
+              }
+            });
 
             // If banned, set ban info
             if (isBannedUser) {
@@ -319,9 +322,11 @@ export const AuthProvider = ({
                 adminNote: userData.banInfo?.adminNote || "",
               };
 
-              setBanInfo(banInfo);
-              setShowBanNotification(true);
-              setIsAuthenticated(false);
+              unstable_batchedUpdates(() => {
+                setBanInfo(banInfo);
+                setShowBanNotification(true);
+                setIsAuthenticated(false);
+              });
 
               // Set up ban status listener for real-time updates
               if (firebaseUser) {
@@ -331,10 +336,12 @@ export const AuthProvider = ({
                     const updatedUserData = doc.data() as UserData;
                     if (updatedUserData.status !== "banned") {
                       // User is no longer banned
-                      setIsBanned(false);
-                      setBanInfo(null);
-                      setShowBanNotification(false);
-                      setIsAuthenticated(true);
+                      unstable_batchedUpdates(() => {
+                        setIsBanned(false);
+                        setBanInfo(null);
+                        setShowBanNotification(false);
+                        setIsAuthenticated(true);
+                      });
 
                       // Clean up the ban listener
                       if (banListenerRef.current) {
@@ -358,7 +365,9 @@ export const AuthProvider = ({
                           updatedUserData.banInfo?.adminNote ||
                           banInfo.adminNote,
                       };
-                      setBanInfo(updatedBanInfo);
+                      unstable_batchedUpdates(() => {
+                        setBanInfo(updatedBanInfo);
+                      });
                     }
                   }
                 });
@@ -367,14 +376,20 @@ export const AuthProvider = ({
                 banListenerRef.current = unsubscribe;
               }
             } else if (needsVerification && !isAdminUser) {
-              setIsAuthenticated(false);
+              unstable_batchedUpdates(() => {
+                setIsAuthenticated(false);
+              });
             } else {
-              setIsAuthenticated(true);
+              unstable_batchedUpdates(() => {
+                setIsAuthenticated(true);
+              });
             }
           }
         } catch (error) {
           console.error("❌ Error fetching user data:", error);
-          setIsAuthenticated(false);
+          unstable_batchedUpdates(() => {
+            setIsAuthenticated(false);
+          });
         } finally {
           setLoading(false);
         }
@@ -408,14 +423,16 @@ export const AuthProvider = ({
 
       // Handle null user (signed out) case first
       if (!firebaseUser) {
-        setUser(null);
-        setUserData(null);
-        setIsAuthenticated(false);
-        setIsBanned(false);
-        setIsAdmin(false);
-        setBanInfo(null);
-        setNeedsEmailVerification(false);
-        setLoginAttemptFailed(false);
+        unstable_batchedUpdates(() => {
+          setUser(null);
+          setUserData(null);
+          setIsAuthenticated(false);
+          setIsBanned(false);
+          setIsAdmin(false);
+          setBanInfo(null);
+          setNeedsEmailVerification(false);
+          setLoginAttemptFailed(false);
+        });
 
         // No authenticated user - try auto-login with improved logic
         if (
@@ -478,14 +495,16 @@ export const AuthProvider = ({
     console.log("[AUTH] Login attempt started", { email, rememberMe });
     // Reset login attempt flag and any previous auth state before attempting login
     console.log("[AUTH] Resetting auth state");
-    setLoginAttemptFailed(false);
-    setUser(null);
-    setUserData(null);
-    setIsAuthenticated(false);
-    setIsBanned(false);
-    setIsAdmin(false);
-    setBanInfo(null);
-    setNeedsEmailVerification(false);
+    unstable_batchedUpdates(() => {
+      setLoginAttemptFailed(false);
+      setUser(null);
+      setUserData(null);
+      setIsAuthenticated(false);
+      setIsBanned(false);
+      setIsAdmin(false);
+      setBanInfo(null);
+      setNeedsEmailVerification(false);
+    });
 
     // Clear any existing toast messages when starting a new login attempt
     if (navigation?.setParams) {
@@ -539,10 +558,12 @@ export const AuthProvider = ({
             });
             // Keep user logged in but mark as needing verification
             // Don't set isAuthenticated to true, but also don't log them out
-            setUser(user);
-            setUserData(userData);
-            setIsAuthenticated(false); // Explicitly set to false
-            setNeedsEmailVerification(true);
+            unstable_batchedUpdates(() => {
+              setUser(user);
+              setUserData(userData);
+              setIsAuthenticated(false); // Explicitly set to false
+              setNeedsEmailVerification(true);
+            });
 
             // Store credentials for auto-login if rememberMe is true (even for unverified users)
             if (rememberMe) {
@@ -568,12 +589,14 @@ export const AuthProvider = ({
             }
 
             // Explicitly set authentication state for verified users
-            setUser(user);
-            setUserData(userData);
-            setIsAuthenticated(true);
-            setNeedsEmailVerification(false);
-            setIsBanned(false);
-            setLoginAttemptFailed(false);
+            unstable_batchedUpdates(() => {
+              setUser(user);
+              setUserData(userData);
+              setIsAuthenticated(true);
+              setNeedsEmailVerification(false);
+              setIsBanned(false);
+              setLoginAttemptFailed(false);
+            });
           }
         } else {
           // User document should already exist from registration
@@ -620,8 +643,10 @@ export const AuthProvider = ({
               "Failed to create user document during login:",
               createError
             );
-            setNeedsEmailVerification(false);
-            setIsAuthenticated(false);
+            unstable_batchedUpdates(() => {
+              setNeedsEmailVerification(false);
+              setIsAuthenticated(false);
+            });
           }
         }
 
@@ -653,17 +678,21 @@ export const AuthProvider = ({
         !error.message.includes("EMAIL_VERIFICATION_REQUIRED")
       ) {
         // Reset auth state on login failure to ensure user stays on login screen
-        setUser(null);
-        setUserData(null);
-        setIsAuthenticated(false);
-        setIsBanned(false);
-        setIsAdmin(false);
-        setBanInfo(null);
-        setNeedsEmailVerification(false);
+        unstable_batchedUpdates(() => {
+          setUser(null);
+          setUserData(null);
+          setIsAuthenticated(false);
+          setIsBanned(false);
+          setIsAdmin(false);
+          setBanInfo(null);
+          setNeedsEmailVerification(false);
+        });
       } else {
         // For EMAIL_VERIFICATION_REQUIRED, ensure needsEmailVerification is set to true
-        setNeedsEmailVerification(true);
-        setIsAuthenticated(false); // User is logged in but not verified
+        unstable_batchedUpdates(() => {
+          setNeedsEmailVerification(true);
+          setIsAuthenticated(false); // User is logged in but not verified
+        });
       }
 
       // Don't log EMAIL_VERIFICATION_REQUIRED as an error since it's expected behavior
@@ -759,13 +788,15 @@ export const AuthProvider = ({
     }
 
     // Reset auth state
-    setUser(null);
-    setUserData(null);
-    setIsAuthenticated(false);
-    setIsBanned(false);
-    setBanInfo(null);
-    setNeedsEmailVerification(false);
-    setLoginAttemptFailed(false);
+    unstable_batchedUpdates(() => {
+      setUser(null);
+      setUserData(null);
+      setIsAuthenticated(false);
+      setIsBanned(false);
+      setBanInfo(null);
+      setNeedsEmailVerification(false);
+      setLoginAttemptFailed(false);
+    });
 
     // Reset navigation to Index screen
     if (navigationRef.current) {
@@ -904,20 +935,21 @@ export const AuthProvider = ({
             }
           }
         } else {
-          // User document doesn't exist - account has been deleted
+          // User document doesn't exist
           console.log(
             "🚨 refreshUserData: User document deleted - account has been deleted from web"
           );
 
-          // Clear all user data and force logout
-          setUser(null);
-          setUserData(null);
-          setIsAuthenticated(false);
-          setIsBanned(false);
-          setIsAdmin(false);
-          setBanInfo(null);
-          setNeedsEmailVerification(false);
-          setLoginAttemptFailed(false);
+          unstable_batchedUpdates(() => {
+            setUser(null);
+            setUserData(null);
+            setIsAuthenticated(false);
+            setIsBanned(false);
+            setIsAdmin(false);
+            setBanInfo(null);
+            setNeedsEmailVerification(false);
+            setLoginAttemptFailed(false);
+          });
 
           // Clear stored credentials
           credentialStorage.clearCredentials().catch((error) => {
@@ -948,15 +980,16 @@ export const AuthProvider = ({
             "🚨 refreshUserData: Permission denied - account may have been deleted from web"
           );
 
-          // Clear all user data and force logout
-          setUser(null);
-          setUserData(null);
-          setIsAuthenticated(false);
-          setIsBanned(false);
-          setIsAdmin(false);
-          setBanInfo(null);
-          setNeedsEmailVerification(false);
-          setLoginAttemptFailed(false);
+          unstable_batchedUpdates(() => {
+            setUser(null);
+            setUserData(null);
+            setIsAuthenticated(false);
+            setIsBanned(false);
+            setIsAdmin(false);
+            setBanInfo(null);
+            setNeedsEmailVerification(false);
+            setLoginAttemptFailed(false);
+          });
 
           // Clear stored credentials
           credentialStorage.clearCredentials().catch((credentialError) => {
@@ -994,9 +1027,11 @@ export const AuthProvider = ({
       // Check if email is actually verified in Firebase Auth
       if (!user.emailVerified) {
         console.log("❌ Firebase Auth still shows unverified");
-        setIsAuthenticated(false);
-        setNeedsEmailVerification(true);
-        setLoading(false);
+        unstable_batchedUpdates(() => {
+          setIsAuthenticated(false);
+          setNeedsEmailVerification(true);
+          setLoading(false);
+        });
         throw new Error("Email verification failed - please try again");
       }
 
@@ -1091,9 +1126,11 @@ export const AuthProvider = ({
             });
         } else {
           console.error("❌ Firebase Auth still shows unverified");
-          setIsAuthenticated(false);
-          setNeedsEmailVerification(true);
-          setLoading(false);
+          unstable_batchedUpdates(() => {
+            setIsAuthenticated(false);
+            setNeedsEmailVerification(true);
+            setLoading(false);
+          });
           throw new Error("Email verification failed - please try again");
         }
       } catch (reloadError) {
@@ -1101,9 +1138,11 @@ export const AuthProvider = ({
           "❌ Error reloading user after verification failure:",
           reloadError
         );
-        setIsAuthenticated(false);
-        setNeedsEmailVerification(true);
-        setLoading(false);
+        unstable_batchedUpdates(() => {
+          setIsAuthenticated(false);
+          setNeedsEmailVerification(true);
+          setLoading(false);
+        });
         throw new Error("Verification check failed - please try again");
       }
     }
@@ -1130,15 +1169,15 @@ export const AuthProvider = ({
       await authService.logout();
 
       // Reset all auth state completely
-      setUser(null);
-      setUserData(null);
-      setIsAuthenticated(false);
-      setIsBanned(true);
-      setIsAdmin(false);
-      setBanInfo(bannedUserData.banInfo || {});
-
-      // Don't show ban notification - user will be redirected to login
-      setShowBanNotification(false);
+      unstable_batchedUpdates(() => {
+        setUser(null);
+        setUserData(null);
+        setIsAuthenticated(false);
+        setIsBanned(true);
+        setIsAdmin(false);
+        setBanInfo(bannedUserData.banInfo || {});
+        setShowBanNotification(false);
+      });
 
       // Force navigation to login by setting user to null
       // This will trigger the navigation logic to redirect to login
@@ -1158,12 +1197,14 @@ export const AuthProvider = ({
       }
 
       // Even if logout fails, reset the state to force redirect
-      setUser(null);
-      setUserData(null);
-      setIsAuthenticated(false);
-      setIsBanned(true);
-      setIsAdmin(false);
-      setBanInfo(bannedUserData.banInfo || {});
+      unstable_batchedUpdates(() => {
+        setUser(null);
+        setUserData(null);
+        setIsAuthenticated(false);
+        setIsBanned(true);
+        setIsAdmin(false);
+        setBanInfo(bannedUserData.banInfo || {});
+      });
     }
   };
 
@@ -1257,14 +1298,16 @@ export const AuthProvider = ({
               );
               clearInterval(intervalId);
               // Clear all user data and force logout for account deletion
-              setUser(null);
-              setUserData(null);
-              setIsAuthenticated(false);
-              setIsBanned(false);
-              setIsAdmin(false);
-              setBanInfo(null);
-              setNeedsEmailVerification(false);
-              setLoginAttemptFailed(false);
+              unstable_batchedUpdates(() => {
+                setUser(null);
+                setUserData(null);
+                setIsAuthenticated(false);
+                setIsBanned(false);
+                setIsAdmin(false);
+                setBanInfo(null);
+                setNeedsEmailVerification(false);
+                setLoginAttemptFailed(false);
+              });
 
               // Clear stored credentials
               credentialStorage.clearCredentials().catch((credentialError) => {
@@ -1415,6 +1458,9 @@ export const AuthProvider = ({
       // 1. Clear any stored credentials on logout
       await credentialStorage.clearCredentials();
 
+      // Clear tab state to prevent new users from seeing previous user's last active screen
+      await AsyncStorage.removeItem('lastActiveTab');
+
       // 2. Clear any pending timeouts
       if (autoLoginTimeoutRef.current) {
         clearTimeout(autoLoginTimeoutRef.current);
@@ -1438,14 +1484,16 @@ export const AuthProvider = ({
 
       // 5. Reset all auth state
       console.log("Resetting auth state...");
-      setUser(null);
-      setUserData(null);
-      setIsAuthenticated(false);
-      setIsBanned(false);
-      setIsAdmin(false);
-      setBanInfo(null);
-      setShowBanNotification(false);
-      setNeedsEmailVerification(false);
+      unstable_batchedUpdates(() => {
+        setUser(null);
+        setUserData(null);
+        setIsAuthenticated(false);
+        setIsBanned(false);
+        setIsAdmin(false);
+        setBanInfo(null);
+        setShowBanNotification(false);
+        setNeedsEmailVerification(false);
+      });
     } catch (error) {
       console.error("Logout error:", error);
       throw error;
@@ -1498,8 +1546,10 @@ export const AuthProvider = ({
 
       if (!user.emailVerified) {
         console.log("❌ Email still not verified after reload");
-        setNeedsEmailVerification(true);
-        setIsAuthenticated(false);
+        unstable_batchedUpdates(() => {
+          setNeedsEmailVerification(true);
+          setIsAuthenticated(false);
+        });
         return;
       }
 
@@ -1525,14 +1575,18 @@ export const AuthProvider = ({
 
       // Update local state in a single batch to prevent multiple re-renders
       // This prevents the renderKey from incrementing multiple times
-      setNeedsEmailVerification(false);
-      setIsAuthenticated(true);
+      unstable_batchedUpdates(() => {
+        setNeedsEmailVerification(false);
+        setIsAuthenticated(true);
+      });
 
       console.log("✅ Email verification flow completed successfully");
     } catch (error) {
       console.error("❌ Error in handleEmailVerificationComplete:", error);
-      setNeedsEmailVerification(true);
-      setIsAuthenticated(false);
+      unstable_batchedUpdates(() => {
+        setNeedsEmailVerification(true);
+        setIsAuthenticated(false);
+      });
     }
   }, [user, refreshUserDataHandler]);
 

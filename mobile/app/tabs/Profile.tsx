@@ -24,6 +24,7 @@ import {
   TouchableOpacity,
   View} from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import PageLayout from "../../layout/PageLayout";
 import type { RootStackParamList } from "../../types/type";
 import { useAuth } from "../../context/AuthContext";
@@ -494,6 +495,9 @@ export default function Profile() {
         console.log(
           "[Account Deletion] Successfully cleared stored credentials"
         );
+        
+        // Clear tab state to prevent new users from seeing previous user's last active screen
+        await AsyncStorage.removeItem('lastActiveTab');
       } catch (credentialError) {
         console.error(
           "[Account Deletion] Error clearing credentials after account deletion:",
