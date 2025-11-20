@@ -477,7 +477,8 @@ export default function Chat() {
             | "turnover to OSA"
             | "turnover to Campus Security"
             | null) || null,
-          greeting
+          greeting,
+          postCreatorId || postOwnerId // Use postCreatorId if available, fallback to postOwnerId for backward compatibility
         );
 
         if (!isMounted) return; // Component was unmounted

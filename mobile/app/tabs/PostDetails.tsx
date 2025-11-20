@@ -96,7 +96,8 @@ export default function PostDetailsScreen() {
             | "turnover to OSA"
             | "turnover to Campus Security"
             | null) || null,
-          greeting
+          greeting,
+          post.creatorId || post.postedById // Pass the post creator ID
         );
       }
 
@@ -111,7 +112,8 @@ export default function PostDetailsScreen() {
         postStatus: post.status || "pending",
         foundAction: post.foundAction,
         postCreatorId: post.creatorId || post.postedById,
-        hideClaimButton: true,
+        // Show the Claim Item button when chatting with the post creator
+        hideClaimButton: false,
       });
     } catch (error: any) {
       console.error("Error creating conversation:", error);
@@ -223,7 +225,8 @@ export default function PostDetailsScreen() {
             | "turnover to OSA"
             | "turnover to Campus Security"
             | null) || null,
-          greeting
+          greeting,
+          post.creatorId || post.postedById // Pass the post creator ID
         );
       }
 

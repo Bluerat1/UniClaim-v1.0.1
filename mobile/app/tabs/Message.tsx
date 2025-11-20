@@ -598,24 +598,50 @@ export default function Message() {
           });
       }
 
-      const postOwnerData =
-        conversation.participants?.[conversation.postCreatorId] || {};
+      // Get all participant IDs (excluding the current user)
+      const participantIds = Object.keys(conversation.participants || {});
+      
+      // Find the ID of the user we're chatting with (the one who is not the current user)
+      const targetUserId = participantIds.find(id => id !== userData?.uid) || conversation.postCreatorId;
+      
+      // For turnover conversations, we need to check if we're chatting with the post creator or the finder
+      const isChattingWithCreator = targetUserId === conversation.postCreatorId;
+      
+      // Get the target user's data
+      const targetUserData = conversation.participants?.[targetUserId] || {};
+      
       const navigateStartTime = Date.now();
       debugLog("ITEM-PRESS", "🚀 Navigating to Chat screen", {
-        hasPostOwnerData:
-          !!postOwnerData && Object.keys(postOwnerData).length > 0,
+        currentUserId: userData?.uid,
+        targetUserId,
+        isChattingWithCreator,
+        postCreatorId: conversation.postCreatorId,
+        participantIds,
+        foundAction: conversation.foundAction,
+        postType: conversation.postType
+      });
+
+      // For turnover chats, we want to hide the claim button when chatting with the finder
+      // and show it only when chatting with the original post creator
+      const shouldHideClaimButton = !isChattingWithCreator;
+      
+      debugLog("ITEM-PRESS", `Claim button visibility - Hidden: ${shouldHideClaimButton}`, {
+        reason: shouldHideClaimButton ? 
+          'Chatting with finder (not post creator)' : 
+          'Chatting with post creator'
       });
 
       navigation.navigate("Chat", {
         conversationId: conversation.id,
         postTitle: conversation.postTitle,
-        postOwnerId: conversation.postCreatorId,
+        postOwnerId: targetUserId, // The user we're actually chatting with
+        postCreatorId: conversation.postCreatorId, // Explicitly pass the post creator ID
         postId: conversation.postId,
-        postOwnerUserData: postOwnerData,
+        postOwnerUserData: targetUserData,
         postType: conversation.postType,
         postStatus: conversation.postStatus,
         foundAction: conversation.foundAction,
-        hideClaimButton: true,
+        hideClaimButton: shouldHideClaimButton
       });
 
       const totalElapsed = Date.now() - pressStartTime;

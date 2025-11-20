@@ -31,7 +31,8 @@ interface MessageContextType {
     postType: "lost" | "found",
     postStatus: "pending" | "resolved" | "unclaimed",
     foundAction: "keep" | "turnover to OSA" | "turnover to Campus Security" | null,
-    greetingText: string
+    greetingText: string,
+    postCreatorId?: string
   ) => Promise<string>;
   getConversationMessages: (
     conversationId: string,
@@ -169,7 +170,8 @@ export const MessageProvider = ({
       postType: "lost" | "found",
       postStatus: "pending" | "resolved" | "unclaimed",
       foundAction: "keep" | "turnover to OSA" | "turnover to Campus Security" | null,
-      greetingText: string
+      greetingText: string,
+      postCreatorId: string = postOwnerId // Default to postOwnerId for backward compatibility
     ) => {
       return messageService.createConversation(
         postId,
@@ -181,7 +183,8 @@ export const MessageProvider = ({
         postType,
         postStatus,
         foundAction,
-        greetingText
+        greetingText,
+        postCreatorId
       );
     },
     []

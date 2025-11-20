@@ -34,7 +34,8 @@ interface MessageService {
         postType: "lost" | "found",
         postStatus: "pending" | "resolved" | "unclaimed",
         foundAction: "keep" | "turnover to OSA" | "turnover to Campus Security" | null,
-        greetingText: string
+        greetingText: string,
+        postCreatorId: string
     ): Promise<string>;
     sendMessage(conversationId: string, senderId: string, senderName: string, text: string, senderProfilePicture?: string): Promise<void>;
     getConversationMessages(conversationId: string, callback: (messages: any[]) => void, messageLimit?: number): () => void;
@@ -71,7 +72,8 @@ export const messageService: MessageService = {
         postType: "lost" | "found",
         postStatus: "pending" | "resolved" | "unclaimed",
         foundAction: "keep" | "turnover to OSA" | "turnover to Campus Security" | null,
-        greetingText: string
+        greetingText: string,
+        postCreatorId: string = postOwnerId // Default to postOwnerId for backward compatibility
     ): Promise<string> {
         try {
             // Create new conversation (duplicate checks are handled client-side)
@@ -92,7 +94,7 @@ export const messageService: MessageService = {
                 postId,
                 postTitle,
                 postOwnerId,
-                postCreatorId: postOwnerId,
+                postCreatorId: postCreatorId,
                 postType,
                 participantIds,
                 postStatus,
