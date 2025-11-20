@@ -258,11 +258,11 @@ export default function Login() {
                 Scan the qr code or click the link to download the UniClaim app.
               </p>
               <a
-                href="/path/to/your/file.apk"
+                href="https://expo.dev/artifacts/eas/r5H94cEgLBQiiAxaHjVcnR.apk"
                 download
                 className="underline text-sm font-medium text-teal-600 cursor-pointer block text-center hover:text-teal-700 transition-colors duration-300"
               >
-                Soon to be Available, Stay Tuned
+                Click here to download the app!
               </a>
             </div>
           </div>

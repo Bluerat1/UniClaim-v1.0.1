@@ -20,7 +20,7 @@
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.bluerat12.UniClaim",
       "notification": {
-        "icon": "./assets/images/icon.jpg",
+        "icon": "./assets/images/adaptive-icon.png",
         "color": "#ffffff"
       },
       "permissions": [
@@ -47,7 +47,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/icon1.png",
+          "icon": "./assets/images/adaptive-icon.png",
           "color": "#ffffff",
           "defaultChannel": "default",
           "android": {
