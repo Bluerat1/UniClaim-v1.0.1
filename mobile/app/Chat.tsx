@@ -1085,7 +1085,10 @@ export default function Chat() {
               ...msg,
               claimData: {
                 ...msg.claimData,
-                status: status === "accepted" ? "pending_confirmation" : status,
+              status: 
+                status === "accepted" && (msg.claimData.idPhotoUrl || idPhotoUrl)
+                  ? "pending_confirmation" 
+                  : status,
                 respondedAt: new Date(),
                 respondedBy: user.uid,
               } as any, // Type assertion to handle optional properties
@@ -1154,6 +1157,25 @@ export default function Chat() {
 
       // Update the appropriate response based on message type
       if (imagePickerMessageType === "handover_request") {
+        // Optimistically update local state
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) => {
+            if (msg.id === imagePickerMessageId && msg.handoverData) {
+              return {
+                ...msg,
+                handoverData: {
+                  ...msg.handoverData,
+                  status: "pending_confirmation",
+                  ownerIdPhoto: uploadResult.url,
+                  respondedAt: new Date(),
+                  respondedBy: user.uid,
+                } as any,
+              };
+            }
+            return msg;
+          })
+        );
+
         // Use the handoverClaimService to handle the response
         await handoverClaimService.updateHandoverResponse(
           conversationId,
@@ -1162,12 +1184,26 @@ export default function Chat() {
           user.uid,
           uploadResult.url
         );
-
-        // Refresh messages to show updated status
-        if (conversationId) {
-          getConversationMessages(conversationId, setMessages);
-        }
       } else if (imagePickerMessageType === "claim_request") {
+        // Optimistically update local state
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) => {
+            if (msg.id === imagePickerMessageId && msg.claimData) {
+              return {
+                ...msg,
+                claimData: {
+                  ...msg.claimData,
+                  status: "pending_confirmation",
+                  ownerIdPhoto: uploadResult.url,
+                  respondedAt: new Date(),
+                  respondedBy: user.uid,
+                } as any,
+              };
+            }
+            return msg;
+          })
+        );
+
         // Use the handoverClaimService to handle the response
         await handoverClaimService.updateClaimResponse(
           conversationId,
@@ -1176,11 +1212,6 @@ export default function Chat() {
           user.uid,
           uploadResult.url
         );
-
-        // Refresh messages to show updated status
-        if (conversationId) {
-          getConversationMessages(conversationId, setMessages);
-        }
       }
 
       // Show success message
@@ -1461,7 +1492,12 @@ export default function Chat() {
                         isOwnMessage={item.senderId === userData?.uid}
                         conversationId={conversationId}
                         currentUserId={userData?.uid || ""}
-                        isCurrentUserPostOwner={postOwnerId === userData?.uid}
+                        isCurrentUserPostOwner={
+                          (conversationData?.postOwnerId || 
+                           conversationData?.postCreatorId || 
+                           postOwnerId || 
+                           postCreatorId) === userData?.uid
+                        }
                         onHandoverResponse={handleHandoverResponse}
                         onClaimResponse={handleClaimResponse}
                         onConfirmIdPhotoSuccess={handleConfirmIdPhotoSuccess}
@@ -1502,7 +1538,12 @@ export default function Chat() {
                       isOwnMessage={item.senderId === userData?.uid}
                       conversationId={conversationId}
                       currentUserId={userData?.uid || ""}
-                      isCurrentUserPostOwner={postOwnerId === userData?.uid}
+                      isCurrentUserPostOwner={
+                        (conversationData?.postOwnerId || 
+                         conversationData?.postCreatorId || 
+                         postOwnerId || 
+                         postCreatorId) === userData?.uid
+                      }
                       onHandoverResponse={handleHandoverResponse}
                       onClaimResponse={handleClaimResponse}
                       onConfirmIdPhotoSuccess={handleConfirmIdPhotoSuccess}
@@ -1525,6 +1566,7 @@ export default function Chat() {
                 viewabilityConfig={viewabilityConfig}
                 keyboardShouldPersistTaps="handled"
                 onLayout={handleFlatListLayout}
+                extraData={conversationData}
               />
             </View>
           )}

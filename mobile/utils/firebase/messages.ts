@@ -1680,9 +1680,11 @@ export const messageService: MessageService = {
                 'claimData.respondedBy': userId
             };
 
-            // If accepting with ID photo, add the owner photo URL and change status to pending confirmation
-            if (status === 'accepted' && idPhotoUrl) {
-                updateData['claimData.ownerIdPhoto'] = idPhotoUrl; // Store owner's photo with correct field name
+            // If accepting with ID photo OR if there is an existing ID photo, change status to pending confirmation
+            if (status === 'accepted' && (idPhotoUrl || messageData.claimData?.idPhotoUrl)) {
+                if (idPhotoUrl) {
+                    updateData['claimData.ownerIdPhoto'] = idPhotoUrl; // Store owner's photo with correct field name
+                }
                 updateData['claimData.status'] = 'pending_confirmation'; // New status for photo confirmation
             }
 

@@ -613,22 +613,24 @@ function AdminPostCard({
             <label className="text-xs text-gray-600 block mb-1">
               Status: {post.status}
             </label>
-            <select
-              value={post.status || "pending"}
-              onChange={handleStatusChange}
-              className="text-xs p-1 border rounded bg-white"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <option value="pending" disabled={post.status === "pending"}>
-                Pending
-              </option>
-              <option value="unclaimed" disabled={post.status === "unclaimed"}>
-                Unclaimed
-              </option>
-              <option value="resolved" disabled={post.status === "resolved"}>
-                Resolved
-              </option>
-            </select>
+            {post.user?.role === "admin" && (
+              <select
+                value={post.status || "pending"}
+                onChange={handleStatusChange}
+                className="text-xs p-1 border rounded bg-white"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <option value="pending" disabled={post.status === "pending"}>
+                  Pending
+                </option>
+                <option value="unclaimed" disabled={post.status === "unclaimed"}>
+                  Unclaimed
+                </option>
+                <option value="resolved" disabled={post.status === "resolved"}>
+                  Resolved
+                </option>
+              </select>
+            )}
           </div>
         )}
 

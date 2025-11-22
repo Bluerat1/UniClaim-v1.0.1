@@ -655,11 +655,29 @@ const MessageBubble: FC<MessageBubbleProps> = ({
     } | undefined;
     if (!claimData) return null;
 
-    const canRespond = claimData.status === "pending" && !isOwnMessage;
+    const hasIdPhoto = !!claimData.idPhotoUrl || !!claimData.ownerIdPhoto;
+    const isPhotoConfirmed = !!claimData.idPhotoConfirmed;
+
+    // Allow confirmation if status is pending_confirmation OR if it's accepted but has an unconfirmed photo
+    // This handles cases where the status might not have transitioned correctly
     const canConfirm =
-      claimData.status === "pending_confirmation" && !!isCurrentUserPostOwner;
+      (claimData.status === "pending_confirmation" ||
+        (claimData.status === "accepted" && hasIdPhoto)) &&
+      !isPhotoConfirmed &&
+      (!isOwnMessage || !!isCurrentUserPostOwner);
+
+    // Allow uploading photo if accepted but no photo exists yet (and user is owner)
+    const canUploadPhoto =
+      claimData.status === "accepted" &&
+      !hasIdPhoto &&
+      (!isOwnMessage || !!isCurrentUserPostOwner);
+
     const isCompleted =
-      claimData.status === "accepted" || claimData.status === "rejected";
+      (claimData.status === "accepted" &&
+        (isPhotoConfirmed || (!hasIdPhoto && !canUploadPhoto))) ||
+      claimData.status === "rejected";
+
+    const canRespond = claimData.status === "pending" && !isOwnMessage;
 
     return (
       <View className="mt-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
@@ -842,6 +860,25 @@ const MessageBubble: FC<MessageBubbleProps> = ({
                   ? "Confirming..."
                   : "Confirm ID Photo"}
               </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleClaimResponse("rejected")}
+              className="px-3 py-1 bg-red-500 rounded-md"
+            >
+              <Text className="text-white text-xs">Reject Claim</Text>
+            </TouchableOpacity>
+          </View>
+        ) : canUploadPhoto ? (
+          <View className="flex-row gap-2">
+            <TouchableOpacity
+              onPress={() => {
+                if (triggerImagePicker) {
+                  triggerImagePicker(message.id, "claim_request");
+                }
+              }}
+              className="px-3 py-1 bg-blue-500 rounded-md"
+            >
+              <Text className="text-white text-xs">Upload ID Photo</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => handleClaimResponse("rejected")}
