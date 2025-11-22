@@ -15,6 +15,7 @@ import CustomDropdown from "../../components/Dropdown";
 import ImageUpload from "../../components/ImageUpload";
 import Info from "../../components/Info";
 import { useCoordinates } from "../../context/CoordinatesContext";
+import { useToast } from "../../context/ToastContext";
 import { ITEM_CATEGORIES } from "../../constants";
 import { detectLocationFromCoordinates } from "../../utils/locationDetection";
 
@@ -83,6 +84,7 @@ export default function ItemDetails({
 }: ItemDetailsProps) {
   const navigation = useNavigation<NavigationProps>();
   const { coordinates, setCoordinates } = useCoordinates();
+  const { showToastMessage } = useToast();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -319,6 +321,16 @@ export default function ItemDetails({
             onChange={(event, date) => {
               setShowDatePicker(false);
               if (event.type === "set" && date) {
+                // Check if the selected date is in the future
+                const now = new Date();
+                if (date > now) {
+                  showToastMessage(
+                    "You cannot set a future date when creating a post",
+                    "warning"
+                  );
+                  setSelectedDate(null);
+                  return;
+                }
                 setSelectedDate(new Date(date));
                 setShowTimePicker(true);
               }
@@ -335,6 +347,18 @@ export default function ItemDetails({
               if (event.type === "set" && time) {
                 const updated = new Date(selectedDate);
                 updated.setHours(time.getHours(), time.getMinutes());
+                
+                // Check if the combined date and time is in the future
+                const now = new Date();
+                if (updated > now) {
+                  showToastMessage(
+                    "You cannot set a future date and time when creating a post",
+                    "warning"
+                  );
+                  setSelectedDate(null);
+                  return;
+                }
+                
                 setSelectedDate(updated);
               }
             }}

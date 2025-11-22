@@ -1,6 +1,7 @@
 // src/components/ItemInfoForm.tsx
 import { FiX, FiUpload, FiEye } from "react-icons/fi";
 import { useState, useRef, useEffect } from "react";
+import { useToast } from "@/context/ToastContext";
 
 interface Props {
   titleError: boolean;
@@ -50,6 +51,27 @@ export default function ItemInfoForm({
 }: Props) {
   const dateTimeInputRef = useRef<HTMLInputElement>(null);
   const [isDateTimeFocused, setIsDateTimeFocused] = useState(false);
+  const { showToast } = useToast();
+
+  // Handle date/time change with validation
+  const handleDateTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedDate = new Date(e.target.value);
+    const currentDate = new Date();
+
+    // Check if selected date is in the future
+    if (selectedDate > currentDate) {
+      showToast(
+        "error",
+        "Invalid Date",
+        "You cannot set a future date. Please select a date and time in the past or present.",
+        6000
+      );
+      setSelectedDateTime("");
+      return;
+    }
+
+    setSelectedDateTime(e.target.value);
+  };
 
   // Handle clicking outside to close the date/time picker
   useEffect(() => {
@@ -149,7 +171,7 @@ export default function ItemInfoForm({
                 ref={dateTimeInputRef}
                 type="datetime-local"
                 value={selectedDateTime}
-                onChange={(e) => setSelectedDateTime(e.target.value)}
+                onChange={handleDateTimeChange}
                 onFocus={() => setIsDateTimeFocused(true)}
                 onBlur={() => setIsDateTimeFocused(false)}
                 className="w-full outline-none bg-transparent text-sm text-gray-700"
