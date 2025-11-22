@@ -288,7 +288,7 @@ export default function ItemDetails({
       {/* Date and Time */}
       <View className="mb-4">
         <Text className="text-base font-manrope-semibold mb-2">
-          Date and Time
+          Date and Time Found
         </Text>
         <TouchableOpacity
           onPress={() => setShowDatePicker(true)}

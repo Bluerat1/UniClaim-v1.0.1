@@ -445,7 +445,7 @@ export default function PostDetailsScreen() {
         </View>
 
         <View className="mt-1 mb-3">
-          <Text className="mb-2 font-manrope-semibold">Date and Time</Text>
+          <Text className="mb-2 font-manrope-semibold">Date and Time Found</Text>
           <View className="bg-zinc-100 justify-center w-full p-3 h-[3.5rem] border border-zinc-200 rounded-md">
             <Text className="text-base capitalize font-manrope-medium text-black">
               {(() => {

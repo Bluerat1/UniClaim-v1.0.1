@@ -566,10 +566,10 @@ const TicketModal = ({
                   <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2">
                     <p className="text-[12px]">{post.title}</p>
                   </div>
-                  <h1 className="text-sm mb-2">Date and Time</h1>
+                  <h1 className="text-sm mb-2">Date and Time Found</h1>
                   <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2">
                     <p className="text-[12px]">
-                      {getSafeDateDisplay(post.createdAt)}
+                      {getSafeDateDisplay(post.dateTime || post.createdAt)}
                     </p>
                   </div>
                   {/* Last seen location - HIDDEN AS REQUESTED */}

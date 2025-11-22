@@ -144,7 +144,7 @@ export default function ItemInfoForm({
         <div className="space-y-4 lg:flex lg:flex-row lg:gap-4">
           <div className="w-full">
             <label className="block font-medium text-[14px] text-gray-700 mb-3">
-              Date and Time
+              Date and Time Found
               <span className="text-red-500 ml-1">*</span>
             </label>
             <div

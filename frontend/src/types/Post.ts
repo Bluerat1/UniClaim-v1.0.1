@@ -19,7 +19,8 @@ export interface Post {
     profileImageUrl?: string;
     role?: 'user' | 'admin' | 'campus_security';
   };
-  createdAt?: string | Date | any; // Firebase timestamp or Date
+  createdAt?: string | Date | any; // Firebase timestamp or Date - when the post was created
+  dateTime?: string | Date | any; // When the item was actually found/lost
   updatedAt?: string | Date | any; // Firebase timestamp or Date
   // Status of the post (pending, resolved, unclaimed, completed)
   status?: "pending" | "resolved" | "unclaimed" | "completed";

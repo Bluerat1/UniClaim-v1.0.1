@@ -402,13 +402,36 @@ export default function PostCard({
               <Ionicons name="calendar-outline" size={14} color="#6B7280" />
               <Text className="text-sm font-inter text-zinc-700">
                 {(() => {
-                  // Priority: dateTime (when item was lost/found) > createdAt (when post was created)
+                  // Priority: createdAt (when post was created) > dateTime (when item was lost/found)
                   let dateToShow: Date | null = null;
 
-                  if (post.dateTime) {
-                    dateToShow = new Date(post.dateTime);
-                  } else if (post.createdAt) {
-                    dateToShow = new Date(post.createdAt);
+                  // Debug logging
+                  console.log('PostCard - post data:', {
+                    id: post.id,
+                    createdAt: post.createdAt,
+                    createdAtType: typeof post.createdAt,
+                    dateTime: post.dateTime,
+                    dateTimeType: typeof post.dateTime
+                  });
+
+                  if (post.createdAt) {
+                    // Handle Firebase Timestamp (with toDate method) or regular Date/string
+                    if (typeof post.createdAt === 'object' && post.createdAt && 'toDate' in post.createdAt) {
+                      dateToShow = (post.createdAt as any).toDate();
+                    } else if (post.createdAt instanceof Date) {
+                      dateToShow = post.createdAt;
+                    } else if (typeof post.createdAt === 'string' || typeof post.createdAt === 'number') {
+                      dateToShow = new Date(post.createdAt);
+                    }
+                  } else if (post.dateTime) {
+                    // Handle Firebase Timestamp (with toDate method) or regular Date/string
+                    if (typeof post.dateTime === 'object' && post.dateTime && 'toDate' in post.dateTime) {
+                      dateToShow = (post.dateTime as any).toDate();
+                    } else if (post.dateTime && Object.prototype.toString.call(post.dateTime) === '[object Date]' && !isNaN(((post.dateTime as unknown) as Date).getTime())) {
+                    dateToShow = (post.dateTime as unknown) as Date;
+                    } else if (typeof post.dateTime === 'string' || typeof post.dateTime === 'number') {
+                      dateToShow = new Date(post.dateTime);
+                    }
                   }
 
                   if (!dateToShow || isNaN(dateToShow.getTime())) {

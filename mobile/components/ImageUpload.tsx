@@ -58,8 +58,7 @@ export default function ImageUploader({ images, setImages }: Props) {
         }
         result = await ImagePicker.launchCameraAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
-          aspect: [4, 3],
+          allowsEditing: false,
           quality: 0.7,
         });
       } else {
