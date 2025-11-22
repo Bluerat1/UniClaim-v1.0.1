@@ -716,6 +716,7 @@ export default function ReportPage() {
               setDescription(val);
               setWasSubmitted(false);
             }}
+            selectedReport={selectedReport}
           />
         </div>
 

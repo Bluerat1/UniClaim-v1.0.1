@@ -402,19 +402,33 @@ export default function PostCard({
               <Ionicons name="calendar-outline" size={14} color="#6B7280" />
               <Text className="text-sm font-inter text-zinc-700">
                 {(() => {
-                  // Priority: createdAt (when post was created) > dateTime (when item was lost/found)
+                  // Priority: resolvedAt (when post was completed) > createdAt (when post was created) > dateTime (when item was lost/found)
                   let dateToShow: Date | null = null;
+                  let dateLabel = "";
 
                   // Debug logging
                   console.log('PostCard - post data:', {
                     id: post.id,
+                    status: post.status,
+                    resolvedAt: post.resolvedAt,
                     createdAt: post.createdAt,
                     createdAtType: typeof post.createdAt,
                     dateTime: post.dateTime,
                     dateTimeType: typeof post.dateTime
                   });
 
-                  if (post.createdAt) {
+                  // For resolved posts, show completion date
+                  if (post.status === "resolved" && post.resolvedAt) {
+                    // Handle Firebase Timestamp (with toDate method) or regular Date/string
+                    if (typeof post.resolvedAt === 'object' && post.resolvedAt && 'toDate' in post.resolvedAt) {
+                      dateToShow = (post.resolvedAt as any).toDate();
+                    } else if (post.resolvedAt instanceof Date) {
+                      dateToShow = post.resolvedAt;
+                    } else if (typeof post.resolvedAt === 'string' || typeof post.resolvedAt === 'number') {
+                      dateToShow = new Date(post.resolvedAt);
+                    }
+                    dateLabel = "completed";
+                  } else if (post.createdAt) {
                     // Handle Firebase Timestamp (with toDate method) or regular Date/string
                     if (typeof post.createdAt === 'object' && post.createdAt && 'toDate' in post.createdAt) {
                       dateToShow = (post.createdAt as any).toDate();
@@ -423,6 +437,7 @@ export default function PostCard({
                     } else if (typeof post.createdAt === 'string' || typeof post.createdAt === 'number') {
                       dateToShow = new Date(post.createdAt);
                     }
+                    dateLabel = "posted";
                   } else if (post.dateTime) {
                     // Handle Firebase Timestamp (with toDate method) or regular Date/string
                     if (typeof post.dateTime === 'object' && post.dateTime && 'toDate' in post.dateTime) {
@@ -432,6 +447,7 @@ export default function PostCard({
                     } else if (typeof post.dateTime === 'string' || typeof post.dateTime === 'number') {
                       dateToShow = new Date(post.dateTime);
                     }
+                    dateLabel = post.type === "lost" ? "lost" : "found";
                   }
 
                   if (!dateToShow || isNaN(dateToShow.getTime())) {
@@ -447,18 +463,21 @@ export default function PostCard({
                   const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
 
                   // Always show relative time for consistency
+                  let relativeTime = "";
                   if (diffInMinutes < 1) {
-                    return "just now";
+                    relativeTime = "just now";
                   } else if (diffInMinutes < 60) {
-                    return `${diffInMinutes} min${diffInMinutes > 1 ? "s" : ""} ago`;
+                    relativeTime = `${diffInMinutes} min${diffInMinutes > 1 ? "s" : ""} ago`;
                   } else if (diffInHours < 24) {
-                    return `${diffInHours} hour${diffInHours > 1 ? "s" : ""} ago`;
+                    relativeTime = `${diffInHours} hour${diffInHours > 1 ? "s" : ""} ago`;
                   } else if (diffInDays < 30) {
-                    return `${diffInDays} day${diffInDays > 1 ? "s" : ""} ago`;
+                    relativeTime = `${diffInDays} day${diffInDays > 1 ? "s" : ""} ago`;
                   } else {
                     const months = Math.floor(diffInDays / 30);
-                    return `${months} month${months > 1 ? "s" : ""} ago`;
+                    relativeTime = `${months} month${months > 1 ? "s" : ""} ago`;
                   }
+
+                  return `${dateLabel} ${relativeTime}`;
                 })()}
               </Text>
             </View>

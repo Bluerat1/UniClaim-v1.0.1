@@ -605,7 +605,7 @@ export default function AdminPostModal({
 
         <div className="grid grid-cols-1 gap-4 lg:gap-4 lg:grid-cols-2">
           <div>
-            <p className="text-[13px] mb-2">Date and Time Found</p>
+            <p className="text-[13px] mb-2">Date and Time {post.type === "lost" ? "Lost" : "Found"}</p>
             <div className="bg-gray-50 border border-gray-400 rounded py-2 px-2">
               {(post.dateTime || post.createdAt) && (
                 <p className="text-[13px] text-black">

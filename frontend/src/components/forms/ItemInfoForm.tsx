@@ -25,6 +25,7 @@ interface Props {
   setTitle: (val: string) => void;
   description: string;
   setDescription: (val: string) => void;
+  selectedReport: "lost" | "found" | null;
 }
 
 export default function ItemInfoForm({
@@ -48,6 +49,7 @@ export default function ItemInfoForm({
   setTitle,
   description,
   setDescription,
+  selectedReport,
 }: Props) {
   const dateTimeInputRef = useRef<HTMLInputElement>(null);
   const [isDateTimeFocused, setIsDateTimeFocused] = useState(false);
@@ -144,7 +146,7 @@ export default function ItemInfoForm({
         <div className="space-y-4 lg:flex lg:flex-row lg:gap-4">
           <div className="w-full">
             <label className="block font-medium text-[14px] text-gray-700 mb-3">
-              Date and Time Found
+              Date and Time {selectedReport === "lost" ? "Lost" : "Found"}
               <span className="text-red-500 ml-1">*</span>
             </label>
             <div
