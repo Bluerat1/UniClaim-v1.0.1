@@ -243,6 +243,9 @@ export default function TurnoverManagementPage() {
           status
         );
       }
+
+      // Close the AdminPostModal after successful confirmation
+      handleCloseAdminPostModal();
     } catch (error: any) {
       console.error("Failed to process turnover confirmation:", error);
       const errorMessage =

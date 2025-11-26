@@ -1389,15 +1389,21 @@ export const messageService: MessageService = {
                 }
             };
 
-            // Add message to conversation
-            await addDoc(collection(db, `conversations/${conversationId}/messages`), messageData);
+            // Use batch write for atomicity and performance
+            const batch = writeBatch(db);
 
-            // Get conversation data and update in parallel operations
+            // Create reference for new message
+            const messageRef = doc(collection(db, `conversations/${conversationId}/messages`));
+            batch.set(messageRef, messageData);
+
+            // Get conversation data to prepare updates
             const conversationRef = doc(db, 'conversations', conversationId);
             const conversationDoc = await getDoc(conversationRef);
 
+            let conversationData: any = null;
+
             if (conversationDoc.exists()) {
-                const conversationData = conversationDoc.data();
+                conversationData = conversationDoc.data();
                 const participantIds = Object.keys(conversationData.participants || {});
                 const otherParticipantIds = participantIds.filter(id => id !== senderId);
 
@@ -1407,8 +1413,8 @@ export const messageService: MessageService = {
                     unreadCountUpdates[`unreadCounts.${participantId}`] = increment(1);
                 });
 
-                // Single update call with all conversation updates
-                await updateDoc(conversationRef, {
+                // Update conversation with last message and unread counts
+                batch.update(conversationRef, {
                     handoverRequested: true,
                     updatedAt: serverTimestamp(),
                     lastMessage: {
@@ -1418,28 +1424,9 @@ export const messageService: MessageService = {
                     },
                     ...unreadCountUpdates
                 });
-
-                // Send notifications in parallel if there are participants
-                if (otherParticipantIds.length > 0) {
-                    try {
-                        await notificationSender.sendMessageNotifications(
-                            otherParticipantIds,
-                            {
-                                conversationId,
-                                senderId,
-                                senderName,
-                                messageText: `Handover Request: ${handoverReason || 'No reason provided'}`,
-                                conversationData
-                            }
-                        );
-                    } catch (notificationError) {
-                        console.warn('⚠️ Mobile: Failed to send handover request notifications, but request was sent:', notificationError);
-                        // Continue even if notifications fail - request is already sent
-                    }
-                }
             } else {
                 // Fallback if no conversation data
-                await updateDoc(conversationRef, {
+                batch.update(conversationRef, {
                     handoverRequested: true,
                     updatedAt: serverTimestamp(),
                     lastMessage: {
@@ -1448,7 +1435,33 @@ export const messageService: MessageService = {
                         timestamp: serverTimestamp()
                     }
                 });
-                console.warn('⚠️ Mobile: No conversation data available for handover request notifications');
+                console.warn('⚠️ Mobile: No conversation data available for handover request updates');
+            }
+
+            // Commit the batch
+            await batch.commit();
+            console.log('✅ Handover request sent successfully (batch committed)');
+
+            // Send notifications asynchronously after batch commit
+            if (conversationData) {
+                const participantIds = Object.keys(conversationData.participants || {});
+                const otherParticipantIds = participantIds.filter(id => id !== senderId);
+
+                if (otherParticipantIds.length > 0) {
+                    // Don't await notifications to keep UI responsive
+                    notificationSender.sendMessageNotifications(
+                        otherParticipantIds,
+                        {
+                            conversationId,
+                            senderId,
+                            senderName,
+                            messageText: `Handover Request: ${handoverReason || 'No reason provided'}`,
+                            conversationData
+                        }
+                    ).catch(notificationError => {
+                        console.warn('⚠️ Mobile: Failed to send handover request notifications:', notificationError);
+                    });
+                }
             }
         } catch (error: any) {
             console.error('❌ Mobile: Failed to send handover request:', error);
@@ -1587,27 +1600,32 @@ export const messageService: MessageService = {
                 }
             };
 
-            // Add message to conversation
-            const messageRef = await addDoc(collection(db, `conversations/${conversationId}/messages`), messageData);
+            // Use batch write for atomicity and performance
+            const batch = writeBatch(db);
 
-            // Get conversation data for notifications
+            // Create reference for new message
+            const messageRef = doc(collection(db, `conversations/${conversationId}/messages`));
+            batch.set(messageRef, messageData);
+
+            // Get conversation data to prepare updates
             const conversationRef = doc(db, 'conversations', conversationId);
             const conversationDoc = await getDoc(conversationRef);
-            const conversationData = conversationDoc.data();
 
-            // Increment unread count for all participants except the sender
-            if (conversationData) {
+            let conversationData: any = null;
+
+            if (conversationDoc.exists()) {
+                conversationData = conversationDoc.data();
                 const participantIds = Object.keys(conversationData.participants || {});
                 const otherParticipantIds = participantIds.filter(id => id !== senderId);
 
-                // Prepare unread count updates for each receiver
+                // Prepare unread count updates for all receivers in one object
                 const unreadCountUpdates: { [key: string]: any } = {};
                 otherParticipantIds.forEach(participantId => {
                     unreadCountUpdates[`unreadCounts.${participantId}`] = increment(1);
                 });
 
-                // Update conversation with claim request flag and unread counts
-                await updateDoc(conversationRef, {
+                // Update conversation with last message and unread counts
+                batch.update(conversationRef, {
                     claimRequested: true,
                     updatedAt: serverTimestamp(),
                     lastMessage: {
@@ -1619,7 +1637,7 @@ export const messageService: MessageService = {
                 });
             } else {
                 // Fallback if no conversation data
-                await updateDoc(conversationRef, {
+                batch.update(conversationRef, {
                     claimRequested: true,
                     updatedAt: serverTimestamp(),
                     lastMessage: {
@@ -1628,32 +1646,33 @@ export const messageService: MessageService = {
                         timestamp: serverTimestamp()
                     }
                 });
+                console.warn('⚠️ Mobile: No conversation data available for claim request updates');
             }
 
-            // Send notifications to other participants for claim request
+            // Commit the batch
+            await batch.commit();
+            console.log('✅ Claim request sent successfully (batch committed)');
+
+            // Send notifications asynchronously after batch commit
             if (conversationData) {
                 const participantIds = Object.keys(conversationData.participants || {});
                 const otherParticipantIds = participantIds.filter(id => id !== senderId);
 
                 if (otherParticipantIds.length > 0) {
-                    try {
-                        await notificationSender.sendMessageNotifications(
-                            otherParticipantIds,
-                            {
-                                conversationId,
-                                senderId,
-                                senderName,
-                                messageText: `Claim Request: ${claimReason || 'No reason provided'}`,
-                                conversationData
-                            }
-                        );
-                    } catch (notificationError) {
-                        console.warn('⚠️ Mobile: Failed to send claim request notifications, but request was sent:', notificationError);
-                        // Continue even if notifications fail - request is already sent
-                    }
+                    // Don't await notifications to keep UI responsive
+                    notificationSender.sendMessageNotifications(
+                        otherParticipantIds,
+                        {
+                            conversationId,
+                            senderId,
+                            senderName,
+                            messageText: `Claim Request: ${claimReason || 'No reason provided'}`,
+                            conversationData
+                        }
+                    ).catch(notificationError => {
+                        console.warn('⚠️ Mobile: Failed to send claim request notifications:', notificationError);
+                    });
                 }
-            } else {
-                console.warn('⚠️ Mobile: No conversation data available for claim request notifications');
             }
         } catch (error: any) {
             console.error('❌ Mobile: Failed to send claim request:', error);

@@ -546,26 +546,26 @@ const MessageBubble: FC<MessageBubbleProps> = ({
 
         {/* Action buttons */}
         {canRespond ? (
-          <View className="flex-row gap-2">
+          <View className="flex-row gap-2 flex-wrap">
             <TouchableOpacity
               onPress={() => handleHandoverResponse("accepted")}
-              className="px-3 py-1 bg-green-500 rounded-md"
+              className="px-3 py-1 bg-green-500 rounded-md flex-shrink"
             >
               <Text className="text-white text-xs">Accept</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => handleHandoverResponse("rejected")}
-              className="px-3 py-1 bg-red-500 rounded-md"
+              className="px-3 py-1 bg-red-500 rounded-md flex-shrink"
             >
               <Text className="text-white text-xs">Reject</Text>
             </TouchableOpacity>
           </View>
         ) : canConfirm ? (
-          <View className="flex-row gap-2">
+          <View className="flex-row gap-2 flex-wrap">
             <TouchableOpacity
               onPress={handleConfirmIdPhoto}
               disabled={isConfirmationInProgress}
-              className={`px-3 py-1 rounded-md ${isConfirmationInProgress ? "bg-gray-400" : "bg-blue-500"}`}
+              className={`px-3 py-1 rounded-md flex-shrink ${isConfirmationInProgress ? "bg-gray-400" : "bg-blue-500"}`}
             >
               <Text className="text-white text-xs">
                 {isConfirmationInProgress
@@ -575,7 +575,7 @@ const MessageBubble: FC<MessageBubbleProps> = ({
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => handleHandoverResponse("rejected")}
-              className="px-3 py-1 bg-red-500 rounded-md"
+              className="px-3 py-1 bg-red-500 rounded-md flex-shrink"
             >
               <Text className="text-white text-xs">Reject Handover</Text>
             </TouchableOpacity>
@@ -834,26 +834,26 @@ const MessageBubble: FC<MessageBubbleProps> = ({
 
         {/* Action buttons */}
         {canRespond ? (
-          <View className="flex-row gap-2">
+          <View className="flex-row gap-2 flex-wrap">
             <TouchableOpacity
               onPress={() => handleClaimResponse("accepted")}
-              className="px-3 py-1 bg-green-500 rounded-md"
+              className="px-3 py-1 bg-green-500 rounded-md flex-shrink"
             >
               <Text className="text-white text-xs">Accept Claim</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => handleClaimResponse("rejected")}
-              className="px-3 py-1 bg-red-500 rounded-md"
+              className="px-3 py-1 bg-red-500 rounded-md flex-shrink"
             >
               <Text className="text-white text-xs">Reject Claim</Text>
             </TouchableOpacity>
           </View>
         ) : canConfirm ? (
-          <View className="flex-row gap-2">
+          <View className="flex-row gap-2 flex-wrap">
             <TouchableOpacity
               onPress={handleConfirmIdPhoto}
               disabled={isConfirmationInProgress}
-              className={`px-3 py-1 rounded-md ${isConfirmationInProgress ? "bg-gray-400" : "bg-blue-500"}`}
+              className={`px-3 py-1 rounded-md flex-shrink ${isConfirmationInProgress ? "bg-gray-400" : "bg-blue-500"}`}
             >
               <Text className="text-white text-xs">
                 {isConfirmationInProgress
@@ -863,26 +863,26 @@ const MessageBubble: FC<MessageBubbleProps> = ({
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => handleClaimResponse("rejected")}
-              className="px-3 py-1 bg-red-500 rounded-md"
+              className="px-3 py-1 bg-red-500 rounded-md flex-shrink"
             >
               <Text className="text-white text-xs">Reject Claim</Text>
             </TouchableOpacity>
           </View>
         ) : canUploadPhoto ? (
-          <View className="flex-row gap-2">
+          <View className="flex-row gap-2 flex-wrap">
             <TouchableOpacity
               onPress={() => {
                 if (triggerImagePicker) {
                   triggerImagePicker(message.id, "claim_request");
                 }
               }}
-              className="px-3 py-1 bg-blue-500 rounded-md"
+              className="px-3 py-1 bg-blue-500 rounded-md flex-shrink"
             >
               <Text className="text-white text-xs">Upload ID Photo</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => handleClaimResponse("rejected")}
-              className="px-3 py-1 bg-red-500 rounded-md"
+              className="px-3 py-1 bg-red-500 rounded-md flex-shrink"
             >
               <Text className="text-white text-xs">Reject Claim</Text>
             </TouchableOpacity>

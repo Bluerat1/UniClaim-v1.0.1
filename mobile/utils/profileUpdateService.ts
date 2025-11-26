@@ -110,6 +110,10 @@ export const profileUpdateService: ProfileUpdateService = {
                 if (updates.studentId !== undefined) {
                     postUpdates['user.studentId'] = updates.studentId;
                 }
+                if (updates.profilePicture !== undefined) {
+                    postUpdates['user.profilePicture'] = updates.profilePicture;
+                    postUpdates['user.profileImageUrl'] = updates.profilePicture; // Update both fields for compatibility
+                }
 
                 batch.update(postRef, postUpdates);
                 updateCount++;
@@ -258,17 +262,11 @@ export const profileUpdateService: ProfileUpdateService = {
                 console.warn('Profile picture URL does not start with http/https, conversations might not update correctly');
             }
 
-            // Only update conversations to reflect profile changes
-            // We no longer update posts to avoid write amplification
-            try {
-                await this.updateUserConversations(userId, updates);
-            } catch (conversationsError: any) {
-                console.error('Failed to update user conversations:', conversationsError);
-                // For profile picture updates, we want to know if this fails
-                if (updates.profilePicture) {
-                    throw new Error(`Failed to update conversations with new profile picture: ${conversationsError.message}`);
-                }
-            }
+            // Update conversations to reflect profile changes
+            await this.updateUserConversations(userId, updates);
+
+            // Update posts to reflect profile changes (including profile picture)
+            await this.updateUserPosts(userId, updates);
 
         } catch (error: any) {
             console.error('Error in comprehensive user data update:', error);

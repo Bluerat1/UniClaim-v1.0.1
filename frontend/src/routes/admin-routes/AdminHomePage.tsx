@@ -1024,16 +1024,26 @@ export default function AdminHomePage() {
     // If there are raw search results, filter them by view type
     if (rawResults) {
       return rawResults.filter((post) => {
-        if (viewType === "all") return true;
+        if (viewType === "all") 
+          return !(post.type === "found" &&
+                  post.turnoverDetails && 
+                  post.turnoverDetails.turnoverAction === "turnover to OSA" &&
+                  post.turnoverDetails.turnoverStatus === "declared");
         if (viewType === "completed") return post.status === "completed";
         if (viewType === "deleted") return true;
         if (viewType === "flagged") return post.isFlagged === true;
         if (viewType === "turnover") 
-          return post.turnoverDetails && 
-                 (post.turnoverDetails.turnoverStatus === 'declared' || 
-                  post.turnoverDetails.turnoverStatus === 'transferred');
+          return post.type === "found" &&
+                 post.turnoverDetails && 
+                 post.turnoverDetails.turnoverAction === "turnover to OSA" &&
+                 post.turnoverDetails.turnoverStatus === "declared";
         if (viewType === "unclaimed") return post.status === "unclaimed";
-        return post.type === viewType && post.status !== "completed";
+        return post.type === viewType && 
+               post.status !== "completed" &&
+               !(post.type === "found" &&
+                 post.turnoverDetails && 
+                 post.turnoverDetails.turnoverAction === "turnover to OSA" &&
+                 post.turnoverDetails.turnoverStatus === "declared");
       });
     }
 
@@ -1053,22 +1063,36 @@ export default function AdminHomePage() {
         postsToShow = posts.filter(post => post.isFlagged === true);
         break;
       case "turnover":
-        // Show posts with turnoverStatus 'declared' or where turnoverDetails exists
+        // Show posts specifically created for turnover to OSA
         postsToShow = posts.filter(post => 
+          post.type === "found" &&
           post.turnoverDetails && 
-          (post.turnoverDetails.turnoverStatus === 'declared' || 
-           post.turnoverDetails.turnoverStatus === 'transferred')
+          post.turnoverDetails.turnoverAction === "turnover to OSA" &&
+          post.turnoverDetails.turnoverStatus === "declared"
         );
         break;
       case "unclaimed":
         postsToShow = posts.filter(post => post.status === "unclaimed");
         break;
       case "all":
-        // No additional filtering needed for 'all' view
+        // Show all posts except those created specifically for turnover to OSA
+        postsToShow = posts.filter(post => 
+          !(post.type === "found" &&
+            post.turnoverDetails && 
+            post.turnoverDetails.turnoverAction === "turnover to OSA" &&
+            post.turnoverDetails.turnoverStatus === "declared")
+        );
         break;
       default:
-        // Handle other view types (lost, found)
-        postsToShow = posts.filter(post => post.type === viewType && post.status !== "completed");
+        // Handle other view types (lost, found) - exclude turnover posts
+        postsToShow = posts.filter(post => 
+          post.type === viewType && 
+          post.status !== "completed" &&
+          !(post.type === "found" &&
+            post.turnoverDetails && 
+            post.turnoverDetails.turnoverAction === "turnover to OSA" &&
+            post.turnoverDetails.turnoverStatus === "declared")
+        );
     }
     
     if (!searchQuery) return postsToShow;

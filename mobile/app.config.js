@@ -8,17 +8,17 @@ require('dotenv').config({ path: '.env' });
 function withAndroidNetworkSecurityConfig(config) {
   return withAndroidManifest(config, async (config) => {
     const androidManifest = config.modResults.manifest;
-    
+
     // Ensure the application element exists
     if (!androidManifest.application) {
       androidManifest.application = [];
     }
-    
+
     // Add network security config
     androidManifest.application[0].$['android:networkSecurityConfig'] = "@xml/network_security_config";
     androidManifest.application[0].$['android:usesCleartextTraffic'] = "true";
     androidManifest.application[0].$['android:requestLegacyExternalStorage'] = "true";
-    
+
     return config;
   });
 }
@@ -28,6 +28,9 @@ export default ({ config }) => {
   // Add environment variables to the app's extra field
   const extra = {
     ...config.extra,
+    eas: {
+      projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID
+    },
     cloudinaryCloudName: process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || '',
     cloudinaryUploadPreset: process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '',
     cloudinaryApiKey: process.env.EXPO_PUBLIC_CLOUDINARY_API_KEY || '',

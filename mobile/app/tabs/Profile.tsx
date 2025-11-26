@@ -37,6 +37,7 @@ import {
 import { userDeletionService } from "../../utils/firebase/userDeletion";
 import { credentialStorage } from "../../utils/credentialStorage";
 import { usePaginatedUserPosts } from "../../hooks/usePaginatedUserPosts";
+import { invalidateUserCache } from "../../hooks/useUserData";
 
 type Post = {
   id: string;
@@ -315,6 +316,9 @@ export default function Profile() {
 
       // Update all user data across collections using the new service
       await profileUpdateService.updateAllUserData(user.uid, updateData);
+
+      // Invalidate user cache to ensure fresh data is fetched next time
+      invalidateUserCache(user.uid);
 
       // Note: We no longer update posts with profile picture changes to reduce write amplification
 

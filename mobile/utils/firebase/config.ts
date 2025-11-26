@@ -5,25 +5,25 @@ import { getFirestore } from 'firebase/firestore';
 
 // Import environment variables using @env (from react-native-dotenv)
 import {
-  EXPO_PUBLIC_FIREBASE_API_KEY,
-  EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  EXPO_PUBLIC_FIREBASE_APP_ID,
-  EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
-  // Note: Cloudinary variables removed to fix build error - will be imported in cloudinary.ts
+    EXPO_PUBLIC_FIREBASE_API_KEY,
+    EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+    EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    EXPO_PUBLIC_FIREBASE_APP_ID,
+    EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
+    // Note: Cloudinary variables removed to fix build error - will be imported in cloudinary.ts
 } from '@env';
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
-    apiKey: EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyCgN70CTX2wQpcgoSZF6AK0fuq7ikcQgNs",
-    authDomain: EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "uniclaim2.firebaseapp.com",
-    projectId: EXPO_PUBLIC_FIREBASE_PROJECT_ID || "uniclaim2",
-    storageBucket: EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "uniclaim2.appspot.com",
-    messagingSenderId: EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "38339063459",
-    appId: EXPO_PUBLIC_FIREBASE_APP_ID || "1:38339063459:web:3b5650ebe6fabd352b1916",
-    measurementId: EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-E693CKMPSY"
+    apiKey: EXPO_PUBLIC_FIREBASE_API_KEY,
+    authDomain: EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: EXPO_PUBLIC_FIREBASE_APP_ID,
+    measurementId: EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase with duplicate check

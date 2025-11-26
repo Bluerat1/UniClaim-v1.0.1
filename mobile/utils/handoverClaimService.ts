@@ -25,11 +25,16 @@ export interface UploadResult {
 }
 
 // Utility Functions
+import { compressImage } from './imageUtils';
+
 export const uploadIdPhotoMobile = async (photoUri: string, type: 'handover' | 'claim'): Promise<UploadResult> => {
     try {
         console.log(`📸 Starting ${type} ID photo upload...`);
 
-        const uploadedUrl = await cloudinaryService.uploadImage(photoUri, "id_photos");
+        // Compress image before upload
+        const compressedUri = await compressImage(photoUri);
+
+        const uploadedUrl = await cloudinaryService.uploadImage(compressedUri, "id_photos");
 
         if (!uploadedUrl || typeof uploadedUrl !== 'string' || !uploadedUrl.includes("cloudinary.com")) {
             throw new Error("Invalid ID photo URL returned from upload");

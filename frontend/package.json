@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run generate-service-worker && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "ensure-subscriptions": "ts-node ../scripts/ensureUserSubscriptions.ts"
+    "ensure-subscriptions": "ts-node ../scripts/ensureUserSubscriptions.ts",
+    "generate-service-worker": "node scripts/generate-service-worker.js"
   },
   "dependencies": {
     "@cloudinary/react": "^1.14.3",

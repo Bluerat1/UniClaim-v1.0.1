@@ -74,3 +74,34 @@ export const useUserData = (userId: string | undefined) => {
 
     return userData;
 };
+
+// Export cache management functions
+export const invalidateUserCache = (userId: string) => {
+    userCache.delete(userId);
+};
+
+export const refreshUser = async (userId: string) => {
+    if (!userId) return;
+
+    // Remove from cache to force re-fetch
+    invalidateUserCache(userId);
+
+    try {
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        if (userDoc.exists()) {
+            const data = userDoc.data();
+            const userInfo = {
+                firstName: data.firstName,
+                lastName: data.lastName,
+                profilePicture: data.profilePicture,
+                email: data.email,
+                loading: false
+            };
+            // Update cache with fresh data
+            userCache.set(userId, userInfo);
+            return userInfo;
+        }
+    } catch (error) {
+        console.error('Error refreshing user data:', error);
+    }
+};
