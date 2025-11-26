@@ -42,8 +42,18 @@ function App() {
     if (messaging) {
       // Register service worker for push notifications
       if ('serviceWorker' in navigator) {
+        // Build service worker URL with Firebase config parameters
+        const swUrl = new URL('/firebase-messaging-sw.js', window.location.origin);
+        swUrl.searchParams.set('apiKey', import.meta.env.VITE_FIREBASE_API_KEY || '');
+        swUrl.searchParams.set('authDomain', import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '');
+        swUrl.searchParams.set('projectId', import.meta.env.VITE_FIREBASE_PROJECT_ID || '');
+        swUrl.searchParams.set('storageBucket', import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '');
+        swUrl.searchParams.set('messagingSenderId', import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '');
+        swUrl.searchParams.set('appId', import.meta.env.VITE_FIREBASE_APP_ID || '');
+        swUrl.searchParams.set('measurementId', import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || '');
+
         navigator.serviceWorker
-          .register('/firebase-messaging-sw.js')
+          .register(swUrl.toString())
           .catch((error) => {
             console.error('Service Worker registration failed:', error);
           });
