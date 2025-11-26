@@ -33,7 +33,7 @@ import HandoverModal from "../components/HandoverModal";
 import ClaimModal from "../components/ClaimModal";
 import ImagePicker from "../components/ImagePicker";
 import { getProfilePictureUrl } from "../utils/profileUtils";
-import { doc, getDoc, updateDoc, deleteField } from "firebase/firestore";
+import { doc, getDoc, updateDoc, deleteField, onSnapshot } from "firebase/firestore";
 import { db } from "../utils/firebase";
 import { messageService } from "../utils/firebase/messages";
 
@@ -718,6 +718,48 @@ export default function Chat() {
     minimumViewTime: 100, // Minimum time item must be visible (100ms)
   };
 
+  // Listen for conversation deletion or updates
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const conversationRef = doc(db, "conversations", conversationId);
+
+    // Set up a real-time listener
+    const unsubscribe = onSnapshot(
+      conversationRef,
+      (docSnapshot) => {
+        // Check if the document still exists
+        if (!docSnapshot.exists()) {
+          console.log("Conversation deleted remotely. Redirecting...");
+          
+          // Clear messages to prevent display errors
+          setMessages([]);
+          setLoading(false);
+          
+          // Notify the user
+          showToastMessage("This conversation has been deleted", "error");
+          
+          // Navigate back to the list
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            // Fallback if we can't go back
+            navigation.navigate("Home" as never);
+          }
+        } else {
+          // Update local conversation data in real-time
+          setConversationData(docSnapshot.data());
+        }
+      },
+      (error) => {
+        console.error("Error listening to conversation updates:", error);
+      }
+    );
+
+    // Cleanup listener when component unmounts
+    return () => unsubscribe();
+  }, [conversationId, navigation, showToastMessage]);
+
   // Send message
   const handleSendMessage = async () => {
     if (!conversationId || !newMessage.trim() || !userData) {
@@ -1252,110 +1294,25 @@ export default function Chat() {
   };
 
   // Handle ID photo confirmation (like web version)
-  const handleConfirmIdPhotoSuccess = async (messageId: string) => {
-    if (!conversationId || !user?.uid || isConfirmationInProgress) return;
-
-    // Prevent duplicate confirmations
+  const handleConfirmIdPhotoSuccess = (messageId: string) => {
+    // Prevent duplicate actions if already navigating
+    if (isConfirmationInProgress) return;
     setIsConfirmationInProgress(true);
 
-    try {
-      // Import the handoverClaimService
-      const handoverClaimService = await import(
-        "../utils/handoverClaimService"
-      );
+    // The confirmation logic (service call) was already handled in the MessageBubble component.
+    // We simply need to clear the state and redirect the user to the list.
+    
+    console.log("✅ ID Photo Confirmed in Bubble. Redirecting user...");
 
-      // Get the message data before trying to confirm
-      // Find the message and log its details for debugging
-      const message = messages.find((m) => m.id === messageId);
-      if (!message) {
-        throw new Error("Message not found");
-      }
+    // Clear messages to prevent any flash of stale content
+    setMessages([]);
 
-      console.log("🔍 Message found for confirmation:", {
-        messageId: message.id,
-        messageType: message.messageType,
-        isHandover: message.messageType === "handover_request",
-        isClaim: message.messageType === "claim_request",
-        hasClaimData: !!message.claimData,
-        hasHandoverData: !!message.handoverData,
-      });
-
-      let result;
-
-      // Check both messageType and the existence of the corresponding data object
-      const isHandover =
-        message.messageType === "handover_request" || message.handoverData;
-      const isClaim =
-        message.messageType === "claim_request" || message.claimData;
-
-      console.log("🔍 Confirmation type check:", { isHandover, isClaim });
-
-      if (isHandover && !isClaim) {
-        console.log("🔄 Confirming handover ID photo...");
-        result = await handoverClaimService.confirmHandoverIdPhoto(
-          conversationId,
-          messageId,
-          user.uid
-        );
-
-        if (result && result.success) {
-          console.log("✅ Handover ID photo confirmed successfully");
-          showToastMessage(
-            "Handover ID photo confirmed! The post is now marked as completed.",
-            "success"
-          );
-        } else {
-          throw new Error(
-            result?.error || "Failed to confirm handover ID photo"
-          );
-        }
-      } else if (isClaim) {
-        console.log("🔄 Confirming claim ID photo...");
-        result = await handoverClaimService.confirmClaimIdPhoto(
-          conversationId,
-          messageId,
-          user.uid
-        );
-
-        if (result && result.success) {
-          console.log("✅ Claim ID photo confirmed successfully");
-          showToastMessage(
-            "Claim ID photo confirmed! The post is now marked as completed.",
-            "success"
-          );
-        } else {
-          throw new Error(result?.error || "Failed to confirm claim ID photo");
-        }
-      } else {
-        console.error(
-          "❌ Invalid message type for ID photo confirmation:",
-          message.messageType
-        );
-        throw new Error("Invalid message type for ID photo confirmation");
-      }
-
-      // Clear messages and navigate back after successful confirmation
-      setMessages([]);
+    // Navigate back to the previous screen (Conversation List / Message List)
+    if (navigation.canGoBack()) {
       navigation.goBack();
-    } catch (error: any) {
-      console.error("Error in handleConfirmIdPhotoSuccess:", error);
-      setIsConfirmationInProgress(false);
-
-      // Handle different error scenarios
-      if (
-        error.message?.includes("Conversation does not exist") ||
-        error.message?.includes("Message not found") ||
-        error.message?.includes("already processed")
-      ) {
-        // Clear messages and navigate back since conversation was already deleted
-        setMessages([]);
-        navigation.goBack();
-      } else {
-        Alert.alert(
-          "Confirmation Failed",
-          error.message || "Failed to confirm ID photo. Please try again."
-        );
-      }
+    } else {
+      // Fallback navigation if the stack doesn't allow going back
+      navigation.navigate("Home" as never); 
     }
   };
 
