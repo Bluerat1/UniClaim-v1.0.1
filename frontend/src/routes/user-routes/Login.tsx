@@ -267,41 +267,6 @@ export default function Login() {
             </div>
           </div>
         </div>
-
-        <div className="flex items-center justify-center">
-          <div className="h-0.5 w-full bg-gray-200 rounded-full my-15 mx-5 max-w-3xl"></div>
-        </div>
-
-        <div className="grid grid-cols-1">
-          <div className=" space-y-6 lg:space-y-7">
-            {/* title text */}
-            <h1 className="font-bold font-manrope text-xl text-center lg:text-2xl">
-              Take Our Survey
-            </h1>
-            {/* qr code image */}
-            <div className="flex items-center justify-center">
-              <img
-                src={UserSurvey}
-                alt="survey_qrcode"
-                className="size-45 lg:size-50"
-              />
-            </div>
-            {/* description */}
-            <div className="space-y-3 flex items-center justify-center flex-col px-5">
-              <p className="text-sm text-center font-inter w-full md:text-base max-w-lg">
-                Please tell us what you think about our system by scanning the
-                QR code or clicking the link to take the survey.
-              </p>
-              <a
-                href="https://docs.google.com/forms/d/e/1FAIpQLSdcKHISn8yHb-muHPqEzJkDS4bflXdZm98Mf6T6BWZvVl8xkg/viewform"
-                target="_blank"
-                className="underline text-sm font-medium text-teal-600 cursor-pointer block text-center hover:text-teal-700 transition-colors duration-300"
-              >
-                Click Here to Take the Survey
-              </a>
-            </div>
-          </div>
-        </div>
       </div>
     </>
   );
