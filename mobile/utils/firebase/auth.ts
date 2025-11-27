@@ -55,7 +55,7 @@ export const authService = {
     ): Promise<UserCredential> {
         const startTime = Date.now();
         const requestId = `reg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-        
+
         console.log('🔑 [AUTH] Starting user registration', {
             requestId,
             email,
@@ -73,11 +73,11 @@ export const authService = {
                 contactNumLength: contactNum.length,
                 studentIdLength: studentId.length
             });
-            
+
             const authStart = Date.now();
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const authTime = Date.now();
-            
+
             console.log(`✅ [AUTH:${requestId}] User created in Firebase Auth`, {
                 uid: userCredential.user.uid,
                 email: userCredential.user.email,
@@ -100,12 +100,12 @@ export const authService = {
                 console.log(`[AUTH:${requestId}] 2️⃣ Updating user profile with display name...`);
                 const profileStart = Date.now();
                 const displayName = `${firstName} ${lastName}`.trim();
-                
+
                 try {
                     await updateProfile(userCredential.user, {
                         displayName
                     });
-                    
+
                     console.log(`✅ [AUTH:${requestId}] Profile updated`, {
                         uid: userCredential.user.uid,
                         displayName,
@@ -131,11 +131,11 @@ export const authService = {
                         url: 'https://uniclaim2.firebaseapp.com/__/auth/action',
                         handleCodeInApp: true
                     };
-                    
+
                     console.log(`[AUTH:${requestId}] Email verification settings:`, verificationSettings);
-                    
+
                     await sendEmailVerification(userCredential.user, verificationSettings);
-                    
+
                     console.log(`🏁 [AUTH:${requestId}] Registration completed successfully`, {
                         uid: userCredential.user.uid,
                         email: userCredential.user.email,
@@ -186,9 +186,9 @@ export const authService = {
                             studentId: studentId ? `${studentId.substring(0, 2)}...${studentId.substring(studentId.length - 2)}` : ''
                         }
                     });
-                    
+
                     await userService.createUser(userCredential.user.uid, userData);
-                    
+
                     console.log(`✅ [AUTH:${requestId}] User document created successfully`, {
                         uid: userCredential.user.uid,
                         timeTaken: `${Date.now() - firestoreStart}ms`,
@@ -231,15 +231,15 @@ export const authService = {
                 phoneNumber: error?.phoneNumber ? '[REDACTED]' : undefined,
                 verificationId: error?.verificationId ? '[REDACTED]' : undefined
             };
-            
+
             console.error(`❌ [AUTH:${requestId}] Registration failed:`, errorDetails);
-            
+
             // Re-throw with additional context
             const enhancedError = new Error(`Registration failed: ${error.message}`);
             enhancedError.name = error.name || 'RegistrationError';
             enhancedError.stack = error.stack;
             (enhancedError as any).details = errorDetails;
-            
+
             throw enhancedError;
         }
     },

@@ -121,7 +121,7 @@ function Login() {
 
       // If we have an error in the result, handle it
       if (result?.error) {
-        const errorMessage = getFirebaseErrorMessage({ message: result.error });
+        const errorMessage = getFirebaseErrorMessage({ message: result.error, code: result.code });
         console.log("[Login] Login error:", { message: result.error });
         setGeneralError(errorMessage);
 

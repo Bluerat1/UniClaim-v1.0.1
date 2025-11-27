@@ -29,6 +29,7 @@ import { notificationSubscriptionService } from "../utils/firebase/notificationS
 
 interface LoginResult {
   error?: string;
+  code?: string;
   success?: boolean;
 }
 
@@ -1442,7 +1443,7 @@ export const AuthProvider = ({
         });
         setLoginAttemptFailed(true);
         // Return the error instead of throwing it
-        return { error: error.message };
+        return { error: error.message, code: error.code };
       }
     },
     []
