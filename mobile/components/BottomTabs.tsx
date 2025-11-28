@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import { useRoute, useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../context/AuthContext";
 import { useMessage } from "../context/MessageContext";
@@ -65,6 +66,8 @@ const tabs: TabConfig[] = [
 ];
 
 export default function CustomTabs() {
+  const route = useRoute<any>();
+  const navigation = useNavigation();
   const [currentTab, setCurrentTab] = useState("MyTickets");
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const insets = useSafeAreaInsets();
@@ -96,6 +99,14 @@ export default function CustomTabs() {
 
     loadSavedTab();
   }, []);
+
+  // Listen for route params to switch tabs
+  useEffect(() => {
+    if (route.params?.tab && tabs.some((tab) => tab.key === route.params.tab)) {
+      setCurrentTab(route.params.tab);
+      navigation.setParams({ tab: undefined } as any);
+    }
+  }, [route.params?.tab]);
 
   // Save tab state when it changes
   useEffect(() => {

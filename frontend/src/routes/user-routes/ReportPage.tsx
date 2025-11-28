@@ -1,6 +1,7 @@
 // src/pages/ReportPage.tsx
 import { useEffect, useRef, useState } from "react";
 import { FiX } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 import MobileNavText from "@/components/layout/NavHead";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
@@ -43,6 +44,7 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 
 export default function ReportPage() {
+  const navigate = useNavigate();
   const { userData, loading } = useAuth();
   const [selectedReport, setSelectedReport] = useState<"lost" | "found" | null>(
     null
@@ -815,7 +817,10 @@ export default function ReportPage() {
             </p>
             <div className="h-1 my-5 rounded w-60 bg-[#39B54A]"></div>
             <button
-              onClick={() => setShowSuccessModal(false)}
+              onClick={() => {
+                setShowSuccessModal(false);
+                navigate("/");
+              }}
               className="mt-4 text-sm w-full bg-[#39B54A] hover:bg-green-700 text-white p-2 rounded transition"
             >
               Close

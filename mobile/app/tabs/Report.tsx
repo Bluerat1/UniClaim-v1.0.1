@@ -8,17 +8,20 @@ import {
   View,
   Alert,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import PageWrapper from "../../layout/PageLayout";
 import ContactDetails from "./ContactDetails";
 import ItemDetails from "./ItemDetails";
 import { useAuth } from "../../context/AuthContext";
 import { useCoordinates } from "../../context/CoordinatesContext";
 import { postService } from "../../utils/firebase";
-import type { Post } from "../../types/type";
+import type { Post, RootStackParamList } from "../../types/type";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
 export default function Report() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user, userData } = useAuth();
   const { coordinates, setCoordinates } = useCoordinates();
 
@@ -226,6 +229,8 @@ export default function Report() {
             setFoundAction(null);
             setCoordinates(null);
             setActiveTab("item");
+            // Navigate to Home screen via tab parameter
+            navigation.setParams({ tab: "MyTickets" } as any);
           },
         },
       ]);
