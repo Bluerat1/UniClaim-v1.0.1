@@ -5,7 +5,7 @@ import InputFieldComp from "@/components/forms/InputFieldComp";
 import PasswordInput from "@/components/forms/InputFieldWithEye";
 import { useAuth } from "@/context/AuthContext";
 import { authService } from "@/utils/firebase";
-import UserSurvey from "../../assets/user_sruvey.png";
+import UniClaimApp from "@/assets/uniclaimMobileApp.png";
 import { LuArrowDown } from "react-icons/lu";
 
 export default function Login() {
@@ -242,15 +242,10 @@ export default function Login() {
             {/* qr code image */}
             <div className="flex items-center justify-center">
               <img
-                src={UserSurvey}
+                src={UniClaimApp}
                 alt="survey_qrcode"
-                className="size-45 lg:size-50 hidden"
+                className="size-50 lg:size-50"
               />
-              <div className="bg-yellow-100 size-45 lg:size-50 rounded-sm flex items-center justify-center">
-                <p className="text-sm text-center px-8">
-                  UniClaim Mobile App Coming Real Soon
-                </p>
-              </div>
             </div>
             {/* description */}
             <div className="space-y-3 flex items-center justify-center flex-col px-5">
@@ -258,9 +253,9 @@ export default function Login() {
                 Scan the qr code or click the link to download the UniClaim app.
               </p>
               <a
-                href="https://expo.dev/artifacts/eas/5ACtw9akDgTXyHZ7yeyVUe.apk"
+                href="https://expo.dev/artifacts/eas/nk6P4ahsEUsj47T6eLeSeW.apk"
                 download
-                className="underline text-sm font-medium text-teal-600 cursor-pointer block text-center hover:text-teal-700 transition-colors duration-300"
+                className="underline text-sm font-medium text-green-500 cursor-pointer block text-center hover:text-teal-700 transition-colors duration-300"
               >
                 Click here to download the app!
               </a>
