@@ -6,7 +6,6 @@ module.exports = function (api) {
       "nativewind/babel",
     ],
     plugins: [
-      "react-native-worklets/plugin",
       [
         "module:react-native-dotenv",
         {
@@ -21,7 +20,8 @@ module.exports = function (api) {
           "allowUndefined": true,
           "verbose": false
         }
-      ]
+      ],
+      "react-native-reanimated/plugin",
     ],
   };
 };
