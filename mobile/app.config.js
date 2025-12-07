@@ -29,7 +29,7 @@ export default ({ config }) => {
   const extra = {
     ...config.extra,
     eas: {
-      projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID
+      projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID || '9ee38d41-83ad-4306-bff2-97c396db3856'
     },
     cloudinaryCloudName: process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || '',
     cloudinaryUploadPreset: process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '',

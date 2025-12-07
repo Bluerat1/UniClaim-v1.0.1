@@ -66,10 +66,9 @@ const DropdownWithSearch = ({
         </View>
       </TouchableOpacity>
 
-      {/* Dropdown Menu */}
+
       {expanded && (
         <View className="mt-2 bg-white border border-gray-300 rounded-md shadow-md max-h-60 elevation-5">
-          {/* Search Input */}
           <View className="border-b font-inter border-gray-200 px-3 py-2">
             <TextInput
               placeholder="Search"
@@ -110,3 +109,6 @@ const DropdownWithSearch = ({
 };
 
 export default DropdownWithSearch;
+
+
+
