@@ -1,4 +1,4 @@
-package com.bluerat12.UniClaim
+package com.uniclaim.bluerat1
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

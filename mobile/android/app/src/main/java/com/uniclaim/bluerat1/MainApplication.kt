@@ -1,4 +1,4 @@
-package com.bluerat12.UniClaim
+package com.uniclaim.bluerat1
 
 import android.app.Application
 import android.content.res.Configuration

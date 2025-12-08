@@ -18,11 +18,12 @@
       },
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
-      "package": "com.bluerat12.UniClaim",
+      "package": "com.uniclaim.bluerat1",
       "notification": {
         "icon": "./assets/images/adaptive-icon.png",
         "color": "#ffffff"
       },
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
