@@ -22,6 +22,7 @@ export interface Post {
   createdAt?: string | Date | any; // Firebase timestamp or Date - when the post was created
   dateTime?: string | Date | any; // When the item was actually found/lost
   updatedAt?: string | Date | any; // Firebase timestamp or Date
+  resolvedAt?: string | Date | any; // Firebase timestamp or Date - when post was resolved/completed
   // Status of the post (pending, resolved, unclaimed, completed)
   status?: "pending" | "resolved" | "unclaimed" | "completed";
   // For found items, what action was taken
@@ -181,6 +182,26 @@ export interface Post {
       ownerIdPhotoConfirmedBy?: string;
     };
   };
+
+  // New field to store all claim requests (preserves data even after conversations are deleted)
+  allClaimRequests?: {
+    messageId: string;
+    senderId: string;
+    senderName: string;
+    senderProfilePicture?: string;
+    status: "pending" | "accepted" | "rejected" | "pending_confirmation";
+    claimReason?: string;
+    requestedAt: any;
+    respondedAt?: any;
+    responseMessage?: string;
+    isAccepted: boolean;
+    // Contact details for admin reference
+    senderEmail?: string;
+    senderContact?: string;
+    senderStudentId?: string;
+    // Flag for late requests (submitted after post was resolved/completed)
+    wasLateRequest?: boolean;
+  }[];
 
   // New field for turnover details (when item is turned over to OSA or Campus Security)
   turnoverDetails?: {

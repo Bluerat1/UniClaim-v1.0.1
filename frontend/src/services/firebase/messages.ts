@@ -20,6 +20,7 @@ import {
     writeBatch
 } from 'firebase/firestore';
 import { notificationSender } from './notificationSender';
+import { claimPreservationService } from '../claimPreservationService';
 
 // Import Firebase instances and types
 import { db } from './config';
@@ -1128,6 +1129,17 @@ export const messageService = {
                 console.log(`✅ Created new claim request: ${messageRef.id}`);
             }
 
+            // 🛡️ Preserve claim request in post document
+            await claimPreservationService.addClaimRequest(
+                postId,
+                messageRef.id,
+                senderId,
+                senderName,
+                senderProfilePicture || null,
+                claimReason || '',
+                messageData.timestamp
+            );
+
             // Update conversation with claim request info and unread counts
             await updateDoc(conversationRef, {
                 hasClaimRequest: true,
@@ -1238,6 +1250,19 @@ export const messageService = {
                 claimRequestStatus: status, // ← Use the actual status (accepted/rejected)
                 updatedAt: serverTimestamp()
             });
+
+            // 🛡️ Update preserved claim request status
+            if (conversationData && conversationData.postId) {
+                await claimPreservationService.updateClaimRequestStatus(
+                    conversationData.postId,
+                    messageId,
+                    status,
+                    {
+                        responderId: userId,
+                        respondedAt: serverTimestamp()
+                    }
+                );
+            }
 
             // Send response notification to other participants
             try {
@@ -1430,6 +1455,9 @@ export const messageService = {
                     const convId = convDoc.id;
                     console.log(`🗑️ Deleting conversation ${convId} for post ${postId}`);
 
+                    // 🛡️ Preserve claims before deletion
+                    await claimPreservationService.preserveClaimsBeforeDeletion(convId, postId);
+
                     // Delete all messages in this conversation first
                     const messagesQuery = query(collection(db, 'conversations', convId, 'messages'));
                     const messagesSnapshot = await getDocs(messagesQuery);
@@ -1498,6 +1526,17 @@ export const messageService = {
                 'claimData.respondedAt': serverTimestamp(),
                 'claimData.responderId': confirmBy
             });
+
+            // 🛡️ Update preserved claim request status to accepted
+            await claimPreservationService.updateClaimRequestStatus(
+                postId,
+                messageId,
+                'accepted',
+                {
+                    responderId: confirmBy,
+                    respondedAt: serverTimestamp()
+                }
+            );
 
             // Update the post status to resolved and preserve claim details to the post itself so they can be shown in resolved posts section
             const postRef = doc(db, 'posts', postId);
@@ -1620,8 +1659,20 @@ export const messageService = {
                 );
                 const conversationsSnapshot = await getDocs(conversationsQuery);
 
+                console.log(`📋 Found ${conversationsSnapshot.size} conversations for post ${postId}`);
+
+                // 🛡️ STEP 1: FIRST preserve ALL claim requests from ALL conversations (SEQUENTIALLY to avoid race conditions)
+                console.log(`🛡️ Preserving claim requests from all conversations before deletion...`);
+                for (const convDoc of conversationsSnapshot.docs) {
+                    const convId = convDoc.id;
+                    console.log(`🛡️ Preserving claims from conversation ${convId}...`);
+                    await claimPreservationService.preserveClaimsBeforeDeletion(convId, postId);
+                }
+                console.log(`✅ All claim requests preserved from ${conversationsSnapshot.size} conversations`);
+
+                // 🗑️ STEP 2: NOW delete all conversations (can be done in parallel since preservation is complete)
                 let deletedCount = 0;
-                const deletePromises = conversationsSnapshot.docs.map(async (convDoc) => {
+                for (const convDoc of conversationsSnapshot.docs) {
                     const convId = convDoc.id;
                     console.log(`🗑️ Deleting conversation ${convId} for post ${postId}`);
 
@@ -1636,9 +1687,8 @@ export const messageService = {
                     // Delete the conversation document
                     await deleteDoc(doc(db, 'conversations', convId));
                     deletedCount++;
-                });
+                }
 
-                await Promise.all(deletePromises);
                 console.log(`✅ Deleted ${deletedCount} conversations for post ${postId}`);
             } catch (deleteError) {
                 console.warn('⚠️ Failed to delete all conversations for post:', deleteError);
@@ -2047,6 +2097,11 @@ export const messageService = {
                 return { success: false, error: 'Cannot delete a resolved conversation' };
             }
 
+            // 🛡️ Preserve claims before deletion
+            if (conversationData.postId) {
+                await claimPreservationService.preserveClaimsBeforeDeletion(conversationId, conversationData.postId);
+            }
+
             // Delete all messages in the conversation
             const messagesQuery = query(
                 collection(db, `conversations/${conversationId}/messages`)
@@ -2083,6 +2138,16 @@ export const messageService = {
 
         try {
             const conversationRef = doc(db, 'conversations', conversationId);
+
+            // 🛡️ Preserve claims before deletion
+            const conversationDoc = await getDoc(conversationRef);
+            if (conversationDoc.exists()) {
+                const data = conversationDoc.data();
+                if (data.postId) {
+                    await claimPreservationService.preserveClaimsBeforeDeletion(conversationId, data.postId);
+                }
+            }
+
             await deleteDoc(conversationRef);
 
             // Also delete all messages in the conversation

@@ -607,6 +607,7 @@ function AdminPostCard({
           )}
         </div>
 
+        
         {/* Status dropdown moved here */}
         {!hideStatusDropdown && (
           <div className="mb-3">

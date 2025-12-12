@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -16,6 +17,7 @@ import ItemDetails from "./ItemDetails";
 import { useAuth } from "../../context/AuthContext";
 import { useCoordinates } from "../../context/CoordinatesContext";
 import { postService } from "../../utils/firebase";
+import { cloudinaryService } from "../../utils/cloudinary";
 import type { Post, RootStackParamList } from "../../types/type";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -38,6 +40,14 @@ export default function Report() {
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{
+    isUploading: boolean;
+    completed: number;
+    total: number;
+  }>({ isUploading: false, completed: 0, total: 0 });
+  
+  // Cache for campus security user data to avoid repeated queries
+  const [campusSecurityCache, setCampusSecurityCache] = useState<any>(null);
 
   // Toast visibility state
   const [showLostInfo, setShowLostInfo] = useState(true);
@@ -87,39 +97,84 @@ export default function Report() {
     setIsSubmitting(true);
 
     try {
+      // Upload images to Cloudinary first
+      let uploadedImages: string[] = [];
+      
+      if (images.length > 0) {
+        setUploadProgress({ isUploading: true, completed: 0, total: images.length });
+        
+        try {
+          uploadedImages = await cloudinaryService.uploadImages(
+            images,
+            'posts',
+            (progress) => {
+              setUploadProgress({
+                isUploading: true,
+                completed: progress.completed,
+                total: progress.total
+              });
+            }
+          );
+          setUploadProgress({ isUploading: false, completed: 0, total: 0 });
+        } catch (error: any) {
+          console.error("Image upload error:", error.message);
+          Alert.alert("Error", "Failed to upload images. Please try again.");
+          setUploadProgress({ isUploading: false, completed: 0, total: 0 });
+          return;
+        }
+      }
+
       // Check if this should be transferred to Campus Security
       const shouldTransferToCampusSecurity =
         reportType === "found" && foundAction === "turnover to Campus Security";
 
-      // Get real Campus Security user data
+      // Get real Campus Security user data (with caching)
       let campusSecurityData = null;
       let campusSecurityUserId = null;
 
       if (shouldTransferToCampusSecurity) {
-        const { userService } = await import("../../utils/firebase/auth");
-        const campusSecurityUser = await userService.getCampusSecurityUser();
-
-        if (campusSecurityUser) {
-          campusSecurityData = {
-            firstName: campusSecurityUser.firstName,
-            lastName: campusSecurityUser.lastName,
-            email: campusSecurityUser.email,
-            contactNum: campusSecurityUser.contactNum,
-            studentId: campusSecurityUser.studentId,
-            profilePicture: campusSecurityUser.profilePicture || null,
-          };
-          campusSecurityUserId = campusSecurityUser.uid;
+        // Use cached data if available, otherwise fetch
+        if (campusSecurityCache) {
+          campusSecurityData = campusSecurityCache.data;
+          campusSecurityUserId = campusSecurityCache.userId;
         } else {
-          // Fallback to hardcoded data if no Campus Security user found
-          campusSecurityData = {
-            firstName: "Campus",
-            lastName: "Security",
-            email: "cs@uniclaim.com",
-            contactNum: "",
-            studentId: "",
-            profilePicture: null,
-          };
-          campusSecurityUserId = "hedUWuv96VWQek5OucPzXTCkpQU2";
+          const { userService } = await import("../../utils/firebase/auth");
+          const campusSecurityUser = await userService.getCampusSecurityUser();
+
+          if (campusSecurityUser) {
+            campusSecurityData = {
+              firstName: campusSecurityUser.firstName,
+              lastName: campusSecurityUser.lastName,
+              email: campusSecurityUser.email,
+              contactNum: campusSecurityUser.contactNum,
+              studentId: campusSecurityUser.studentId,
+              profilePicture: campusSecurityUser.profilePicture || null,
+            };
+            campusSecurityUserId = campusSecurityUser.uid;
+            
+            // Cache the result for future use
+            setCampusSecurityCache({
+              data: campusSecurityData,
+              userId: campusSecurityUserId
+            });
+          } else {
+            // Fallback to hardcoded data if no Campus Security user found
+            campusSecurityData = {
+              firstName: "Campus",
+              lastName: "Security",
+              email: "cs@uniclaim.com",
+              contactNum: "",
+              studentId: "",
+              profilePicture: null,
+            };
+            campusSecurityUserId = "hedUWuv96VWQek5OucPzXTCkpQU2";
+            
+            // Cache the fallback data too
+            setCampusSecurityCache({
+              data: campusSecurityData,
+              userId: campusSecurityUserId
+            });
+          }
         }
       }
 
@@ -130,7 +185,7 @@ export default function Report() {
         category: selectedCategory!,
         location: selectedLocation!,
         type: reportType,
-        images: images,
+        images: uploadedImages, // Use Cloudinary URLs instead of local URIs
         dateTime: selectedDate!.toISOString(),
         user: shouldTransferToCampusSecurity && campusSecurityData
           ? campusSecurityData
@@ -244,6 +299,7 @@ export default function Report() {
       );
     } finally {
       setIsSubmitting(false);
+      setUploadProgress({ isUploading: false, completed: 0, total: 0 });
     }
   };
 
@@ -337,13 +393,25 @@ export default function Report() {
 
         {/* Submit Button */}
         <View className="absolute bg-yellow-50 bottom-0 left-0 w-full p-4">
+          {/* Upload Progress */}
+          {uploadProgress.isUploading && (
+            <View className="mb-3 p-3 rounded-md border border-blue-500 bg-blue-50 flex-row items-center justify-center space-x-2">
+              <ActivityIndicator size="small" color="#3B82F6" />
+              <Text className="text-sm font-medium text-blue-700">
+                Uploading images... {uploadProgress.completed}/{uploadProgress.total}
+              </Text>
+            </View>
+          )}
+          
           <TouchableOpacity
             onPress={handleSubmit}
-            disabled={isSubmitting}
-            className={`py-4 rounded-lg ${isSubmitting ? "bg-gray-400" : "bg-brand"}`}
+            disabled={isSubmitting || uploadProgress.isUploading}
+            className={`py-4 rounded-lg ${
+              isSubmitting || uploadProgress.isUploading ? "bg-gray-400" : "bg-brand"
+            }`}
           >
             <Text className="text-white text-center text-base font-manrope-semibold">
-              {isSubmitting ? "Submitting..." : "Submit Report"}
+              {isSubmitting ? "Submitting..." : uploadProgress.isUploading ? "Uploading Images..." : "Submit Report"}
             </Text>
           </TouchableOpacity>
         </View>

@@ -990,7 +990,8 @@ export default function AdminHomePage() {
     const categoryQuery = filters?.selectedCategory?.toLowerCase() || "";
 
     // Use appropriate posts based on current viewType
-    const postsToSearch = viewType === "completed" ? resolvedPosts : posts;
+    const postsToSearch = viewType === "completed" ? resolvedPosts : 
+                          viewType === "deleted" ? deletedPosts : posts;
 
     const filtered = (postsToSearch ?? []).filter((item) => {
       // Check if search query matches title or user info
@@ -1029,7 +1030,7 @@ export default function AdminHomePage() {
                   post.turnoverDetails && 
                   post.turnoverDetails.turnoverAction === "turnover to OSA" &&
                   post.turnoverDetails.turnoverStatus === "declared");
-        if (viewType === "completed") return post.status === "completed";
+        if (viewType === "completed") return post.status === "completed" || post.status === "resolved";
         if (viewType === "deleted") return true;
         if (viewType === "flagged") return post.isFlagged === true;
         if (viewType === "turnover") 
@@ -1075,19 +1076,22 @@ export default function AdminHomePage() {
         postsToShow = posts.filter(post => post.status === "unclaimed");
         break;
       case "all":
-        // Show all posts except those created specifically for turnover to OSA
+        // Show all posts except those created specifically for turnover to OSA and resolved/completed posts
         postsToShow = posts.filter(post => 
           !(post.type === "found" &&
             post.turnoverDetails && 
             post.turnoverDetails.turnoverAction === "turnover to OSA" &&
-            post.turnoverDetails.turnoverStatus === "declared")
+            post.turnoverDetails.turnoverStatus === "declared") &&
+          post.status !== "completed" &&
+          post.status !== "resolved"
         );
         break;
       default:
-        // Handle other view types (lost, found) - exclude turnover posts
+        // Handle other view types (lost, found) - exclude turnover posts and resolved/completed posts
         postsToShow = posts.filter(post => 
           post.type === viewType && 
           post.status !== "completed" &&
+          post.status !== "resolved" &&
           !(post.type === "found" &&
             post.turnoverDetails && 
             post.turnoverDetails.turnoverAction === "turnover to OSA" &&
@@ -1111,9 +1115,14 @@ export default function AdminHomePage() {
         (post.user?.firstName && fuzzyMatch(post.user.firstName, searchQuery, { firstName: post.user.firstName })) ||
         (post.user?.lastName && fuzzyMatch(post.user.lastName, searchQuery, { lastName: post.user.lastName }));
 
-      // If viewType is 'all', we need to filter by type as well
+      // If viewType is 'all', we need to filter by type as well and exclude resolved posts
       if (viewType === "all") {
-        return searchMatch && post.status !== "completed" && !post.isDeleted;
+        return searchMatch && post.status !== "completed" && post.status !== "resolved" && !post.isDeleted;
+      }
+
+      // For other view types (lost, found), also exclude resolved posts
+      if (viewType === "lost" || viewType === "found") {
+        return searchMatch && post.status !== "completed" && post.status !== "resolved";
       }
 
       return searchMatch;
@@ -1123,7 +1132,9 @@ export default function AdminHomePage() {
   // Apply instant category filtering
   const postsToDisplay = useMemo(() => {
     if (viewType === "deleted") {
-      return deletedPosts; // Skip category filtering for deleted posts
+      // For deleted posts, use the search results if available, otherwise use all deleted posts
+      // Skip category filtering for deleted posts
+      return viewFilteredPosts;
     }
 
     return selectedCategoryFilter && selectedCategoryFilter !== "All"
@@ -1133,7 +1144,7 @@ export default function AdminHomePage() {
             post.category.toLowerCase() === selectedCategoryFilter.toLowerCase()
         )
       : viewFilteredPosts;
-  }, [viewType, deletedPosts, selectedCategoryFilter, viewFilteredPosts]);
+  }, [viewType, deletedPosts, selectedCategoryFilter, viewFilteredPosts, rawResults]);
 
   // Clear selection when posts list changes due to filtering or search
   useEffect(() => {

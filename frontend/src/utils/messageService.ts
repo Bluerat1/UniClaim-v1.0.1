@@ -23,6 +23,7 @@ import {
 import { sanitizePostData } from './dataSanitizers';
 import { extractMessageImages, deleteMessageImages } from './cloudinary';
 import { notificationSender } from '../services/firebase/notificationSender';
+import { claimPreservationService } from '../services/claimPreservationService';
 
 // Message service functions
 export const messageService = {
@@ -454,8 +455,19 @@ export const messageService = {
             };
 
             logLevel('💾 Storing claim message in Firestore...');
-            await addDoc(messagesRef, claimMessage);
+            const messageRefResult = await addDoc(messagesRef, claimMessage);
             logLevel('✅ Claim message stored successfully');
+
+            // 🛡️ Preserve claim request in post document
+            await claimPreservationService.addClaimRequest(
+                postId,
+                messageRefResult.id,
+                senderId,
+                senderName,
+                senderProfilePicture || null,
+                claimReason || '',
+                claimMessage.timestamp
+            );
 
             // Get conversation data to find other participants for unread count updates
             const conversationDataForUnread = await getDoc(conversationRef);
@@ -513,6 +525,28 @@ export const messageService = {
             }
 
             await updateDoc(messageRef, updateData);
+
+            // 🛡️ Update preserved claim request status
+            try {
+                const conversationRef = doc(db, 'conversations', conversationId);
+                const conversationDoc = await getDoc(conversationRef);
+                if (conversationDoc.exists()) {
+                    const postId = conversationDoc.data().postId;
+                    if (postId) {
+                        await claimPreservationService.updateClaimRequestStatus(
+                            postId,
+                            messageId,
+                            status,
+                            {
+                                responderId,
+                                respondedAt: updateData['claimData.respondedAt']
+                            }
+                        );
+                    }
+                }
+            } catch (preservationError) {
+                console.warn('⚠️ Failed to update preserved claim status:', preservationError);
+            }
 
             // If claim is rejected, delete all photos and reset the claimRequested flag
             if (status === 'rejected') {
@@ -605,6 +639,29 @@ export const messageService = {
                 'claimData.idPhotoConfirmedBy': confirmBy,
                 'claimData.status': 'accepted' // Final status after confirmation
             });
+
+            // 🛡️ Update preserved claim request status to accepted
+            try {
+                // Get postId first (we need it for preservation update)
+                const conversationRef = doc(db, 'conversations', conversationId);
+                const conversationDoc = await getDoc(conversationRef);
+                if (conversationDoc.exists()) {
+                    const postId = conversationDoc.data().postId;
+                    if (postId) {
+                        await claimPreservationService.updateClaimRequestStatus(
+                            postId,
+                            messageId,
+                            'accepted',
+                            {
+                                responderId: confirmBy,
+                                respondedAt: serverTimestamp()
+                            }
+                        );
+                    }
+                }
+            } catch (preservationError) {
+                console.warn('⚠️ Failed to update preserved claim status on confirmation:', preservationError);
+            }
 
             console.log('✅ Claim ID photo confirmed successfully');
 
@@ -914,6 +971,11 @@ export const messageService = {
                 const conversationsSnapshot = await getDocs(conversationsQuery);
 
                 console.log(`🔍 Web: Found ${conversationsSnapshot.docs.length} conversations for post ${postId}`);
+
+                // 🛡️ STEP 0: Preserve any claim requests from these conversations before deletion
+                for (const conversationDoc of conversationsSnapshot.docs) {
+                    await claimPreservationService.preserveClaimsBeforeDeletion(conversationDoc.id, postId);
+                }
 
                 // STEP 1: Send reject notifications to other conversations before deletion
                 for (const conversationDoc of conversationsSnapshot.docs) {

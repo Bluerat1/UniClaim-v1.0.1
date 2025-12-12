@@ -11,7 +11,52 @@ const ImagePicker: React.FC<ImagePickerProps> = ({ onImageSelect, onClose, isUpl
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+
+      img.onload = () => {
+        // Calculate new dimensions
+        let { width, height } = img;
+        const maxDimension = 1200;
+        const quality = 0.7;
+
+        if (width > maxDimension || height > maxDimension) {
+          const ratio = Math.min(maxDimension / width, maxDimension / height);
+          width *= ratio;
+          height *= ratio;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        // Draw and compress image
+        ctx?.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            } else {
+              resolve(file); // Fallback to original
+            }
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+
+      img.onerror = () => resolve(file); // Fallback to original on error
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
       // Validate file size (max 5MB)
@@ -19,13 +64,16 @@ const ImagePicker: React.FC<ImagePickerProps> = ({ onImageSelect, onClose, isUpl
         alert('File size must be less than 5MB. Please choose a smaller image.');
         return;
       }
-      setSelectedImage(file);
+      
+      // Compress image
+      const compressedFile = await compressImage(file);
+      setSelectedImage(compressedFile);
     } else {
       alert('Please select a valid image file (JPEG, PNG, etc.)');
     }
   };
 
-  const handleCameraCapture = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCameraCapture = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
       // Validate file size (max 5MB)
@@ -33,7 +81,10 @@ const ImagePicker: React.FC<ImagePickerProps> = ({ onImageSelect, onClose, isUpl
         alert('File size must be less than 5MB. Please choose a smaller image.');
         return;
       }
-      setSelectedImage(file);
+      
+      // Compress image
+      const compressedFile = await compressImage(file);
+      setSelectedImage(compressedFile);
     } else {
       alert('Please select a valid image file (JPEG, PNG, etc.)');
     }

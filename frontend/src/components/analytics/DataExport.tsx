@@ -32,7 +32,7 @@ export const DataExport: React.FC<DataExportProps> = ({
   dateRange,
 }) => {
   const [isExporting, setIsExporting] = useState<string | null>(null);
-  const [exportType, setExportType] = useState<'all' | 'lost' | 'found'>('all');
+  const [exportType, setExportType] = useState<'all' | 'lost' | 'found' | 'completed'>('all');
   const [lastExport, setLastExport] = useState<{
     type: string;
     time: Date;
@@ -45,10 +45,13 @@ export const DataExport: React.FC<DataExportProps> = ({
 
   // Format posts for export
   const formatPostsForExport = () => {
-    // Filter posts by selected type
-    const filteredPosts = exportType === 'all' 
-      ? posts 
-      : posts.filter(post => post.type === exportType);
+    // Filter posts by selected type or status
+    let filteredPosts = posts;
+    if (exportType === 'completed') {
+      filteredPosts = posts.filter(post => post.status === 'completed');
+    } else if (exportType !== 'all') {
+      filteredPosts = posts.filter(post => post.type === exportType);
+    }
 
     return filteredPosts.map((post) => ({
       ID: post.id,
@@ -64,7 +67,9 @@ export const DataExport: React.FC<DataExportProps> = ({
         : "N/A",
       Description: post.description || "",
       Location: post.location || "",
-      "User ID": post.userId || "N/A",
+      "User Name": post.user ? `${post.user.firstName || ''} ${post.user.lastName || ''}`.trim() || "N/A" : "N/A",
+      "Student ID": post.user?.studentId || "N/A",
+      "User ID": post.creatorId || post.postedById || "N/A",
       Images: post.images ? post.images.length : 0,
     }));
   };
@@ -267,7 +272,7 @@ export const DataExport: React.FC<DataExportProps> = ({
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="w-full justify-between min-w-[180px] max-w-[180px]">
                   <span className="truncate">
-                    {exportType === 'all' ? 'All Items' : exportType === 'lost' ? 'Lost Items Only' : 'Found Items Only'}
+                    {exportType === 'all' ? 'All Items' : exportType === 'lost' ? 'Lost Items Only' : exportType === 'found' ? 'Found Items Only' : 'Completed Items Only'}
                   </span>
                   <ChevronDown className="ml-2 h-4 w-4 flex-shrink-0" />
                 </Button>
@@ -290,6 +295,12 @@ export const DataExport: React.FC<DataExportProps> = ({
                   className="whitespace-nowrap"
                 >
                   Found Items Only
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => setExportType('completed')}
+                  className="whitespace-nowrap"
+                >
+                  Completed Items Only
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

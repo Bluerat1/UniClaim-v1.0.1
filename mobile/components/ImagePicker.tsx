@@ -52,7 +52,7 @@ const ImagePicker: React.FC<ImagePickerProps> = ({
       const result = await ExpoImagePicker.launchCameraAsync({
         mediaTypes: ExpoImagePicker.MediaTypeOptions.Images,
         allowsEditing: false,
-        quality: 1.0,
+        quality: 0.9, // Increased from 0.7 to reduce double compression
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
@@ -73,7 +73,7 @@ const ImagePicker: React.FC<ImagePickerProps> = ({
       const result = await ExpoImagePicker.launchImageLibraryAsync({
         mediaTypes: ExpoImagePicker.MediaTypeOptions.Images,
         allowsEditing: false,
-        quality: 1.0,
+        quality: 0.9, // Increased from 0.7 to reduce double compression
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {

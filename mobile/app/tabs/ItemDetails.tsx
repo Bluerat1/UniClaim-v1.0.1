@@ -91,6 +91,7 @@ export default function ItemDetails({
   const [showOSATurnoverModal, setShowOSATurnoverModal] = useState(false);
   const [showCampusSecurityTurnoverModal, setShowCampusSecurityTurnoverModal] =
     useState(false);
+  const [showKeepInfoModal, setShowKeepInfoModal] = useState(false);
 
   const handleReportClick = (type: "lost" | "found" | null) => {
     if (type === null) {
@@ -99,6 +100,7 @@ export default function ItemDetails({
       setIsModalVisible(false);
       setShowOSATurnoverModal(false);
       setShowCampusSecurityTurnoverModal(false);
+      setShowKeepInfoModal(false);
     } else {
       setReportType(type);
       if (type === "found") setIsModalVisible(true);
@@ -113,6 +115,9 @@ export default function ItemDetails({
       setIsModalVisible(false);
     } else if (action === "turnover to Campus Security") {
       setShowCampusSecurityTurnoverModal(true);
+      setIsModalVisible(false);
+    } else if (action === "keep") {
+      setShowKeepInfoModal(true);
       setIsModalVisible(false);
     } else {
       setFoundAction(action);
@@ -142,6 +147,18 @@ export default function ItemDetails({
       setIsModalVisible(false);
     }
     setShowCampusSecurityTurnoverModal(false);
+  };
+
+  const handleKeepConfirmation = (confirmed: boolean) => {
+    if (confirmed) {
+      setFoundAction("keep");
+    } else {
+      // If they selected "No", reset the selection
+      setReportType(null);
+      setFoundAction(null);
+      setIsModalVisible(false);
+    }
+    setShowKeepInfoModal(false);
   };
 
   // Detect location when coordinates change
@@ -602,6 +619,63 @@ export default function ItemDetails({
               >
                 <Text className="text-white font-manrope-medium">
                   Yes, I turned it over
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Keep Info Modal */}
+      <Modal
+        visible={showKeepInfoModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowKeepInfoModal(false)}
+      >
+        <Pressable
+          className="flex-1 bg-black/60 justify-center items-center"
+          onPress={() => setShowKeepInfoModal(false)}
+        >
+          <View className="bg-white w-[23rem] h-auto rounded-xl p-4 items-center flex-col gap-6">
+            {/* Header */}
+            <View className="flex-row items-center gap-2">
+              <MaterialIcons name="info-outline" size={18} color="black" />
+              <Text className="text-xl font-manrope-bold">Keep Item</Text>
+            </View>
+
+            {/* Information */}
+            <Text className="text-lg font-inter text-center text-gray-600">
+              If you choose to keep the item, you are responsible for keeping it safe until you find the rightful owner.
+            </Text>
+
+            {/* Additional Info */}
+            <View className="bg-blue-50 w-full p-3 rounded-md">
+              <Text className="text-sm text-blue-800 font-inter-medium">
+                • Keep the item in a safe place{"\n"}• Respond to claimants right away{"\n"}• Verify ownership before returning{"\n"}• Report any issues to OSA
+              </Text>
+            </View>
+
+            {/* Action Buttons */}
+            <View className="flex-col w-full gap-3">
+              <TouchableOpacity
+                onPress={() => {
+                  handleKeepConfirmation(false);
+                }}
+                className="py-3 rounded-md items-center bg-zinc-200"
+              >
+                <Text className="text-black font-manrope-medium">
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  handleKeepConfirmation(true);
+                }}
+                className="py-3 rounded-md items-center bg-navyblue"
+              >
+                <Text className="text-white font-manrope-medium">
+                  I understand, I'll keep it
                 </Text>
               </TouchableOpacity>
             </View>

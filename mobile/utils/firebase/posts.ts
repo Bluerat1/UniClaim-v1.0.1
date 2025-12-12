@@ -426,7 +426,7 @@ export const postService = {
 
                         // Add a small delay between batches
                         if (i + BATCH_SIZE < postData.images.length) {
-                            await new Promise(resolve => setTimeout(resolve, 500));
+                            await new Promise(resolve => setTimeout(resolve, 100));
                         }
                     }
                 } catch (uploadError: any) {
@@ -488,11 +488,13 @@ export const postService = {
 
             console.log('✅ Post queued for creation with ID:', postId);
 
-            // Send notifications in the background
-            this._sendPostNotificationsInBackground(postId, {
-                ...enhancedPostData,
-                id: postId
-            }, postData.creatorId);
+            // Send notifications in the background without blocking
+            setTimeout(() => {
+                this._sendPostNotificationsInBackground(postId, {
+                    ...enhancedPostData,
+                    id: postId
+                }, postData.creatorId);
+            }, 0);
 
             return postId;
         } catch (error: any) {

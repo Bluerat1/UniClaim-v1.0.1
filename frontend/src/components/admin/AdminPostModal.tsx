@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { FiX } from "react-icons/fi";
 import type { Post } from "@/types/Post";
 import { useNavigate } from "react-router-dom";
@@ -9,6 +9,9 @@ import { postService } from "@/services/firebase/posts";
 import { useToast } from "@/context/ToastContext";
 import ActivationModal from "@/components/modals/Activation";
 import ConversationHistory from "@/components/posts/ConversationHistory";
+import { claimPreservationService } from "@/services/claimPreservationService";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/utils/authService";
 
 interface AdminPostModalProps {
   post: Post;
@@ -87,6 +90,9 @@ export default function AdminPostModal({
     null
   );
   const [isActivationModalOpen, setIsActivationModalOpen] = useState(false);
+  const [showClaimRequests, setShowClaimRequests] = useState(false);
+  const [showLateClaimRequests, setShowLateClaimRequests] = useState(false);
+  const [syncedClaimRequests, setSyncedClaimRequests] = useState<any[] | null>(null);
 
   const categoryStyles: Record<string, string> = {
     "Student Essentials": "bg-yellow-300 text-black",
@@ -97,6 +103,95 @@ export default function AdminPostModal({
   const typeStyles: Record<string, string> = {
     lost: "bg-red-100 text-red-700",
     found: "bg-green-100 text-green-700",
+  };
+
+  // Sync claims on mount
+  useEffect(() => {
+    const syncClaims = async () => {
+      if (!post.id) return;
+      
+      // Sync claims from active conversations to ensure completeness
+      await claimPreservationService.syncPostClaims(post.id);
+      
+      // Fetch updated post data to get the latest allClaimRequests
+      try {
+          const postRef = doc(db, 'posts', post.id);
+          const postSnap = await getDoc(postRef);
+          if (postSnap.exists()) {
+               const data = postSnap.data();
+               if (data.allClaimRequests) {
+                   setSyncedClaimRequests(data.allClaimRequests);
+               } else {
+                   setSyncedClaimRequests([]);
+               }
+          }
+      } catch (err) {
+          console.error("Failed to fetch synced claims:", err);
+      }
+    };
+    
+    syncClaims();
+  }, [post.id]);
+
+  // Cache for user profile pictures
+  const [userProfilePictures, setUserProfilePictures] = useState<Record<string, string | null>>({});
+
+  // Fetch profile pictures for claimers who don't have one stored
+  useEffect(() => {
+    // Helper to check if profile picture is valid URL
+    const isValidPicUrl = (value: any): boolean => {
+      if (!value || typeof value !== 'string') return false;
+      return value.startsWith('http') || value.startsWith('data:');
+    };
+
+    const fetchMissingProfilePictures = async () => {
+      const allClaims = syncedClaimRequests || post.allClaimRequests || [];
+      
+      // Find claims that don't have VALID profile pictures (stored or cached)
+      const claimsToFetch = allClaims.filter((claim: any) => {
+        if (!claim.senderId) return false;
+        if (isValidPicUrl(claim.senderProfilePicture)) return false;
+        if (isValidPicUrl(userProfilePictures[claim.senderId])) return false;
+        return true;
+      });
+
+      if (claimsToFetch.length === 0) return;
+
+      const newPictures: Record<string, string | null> = {};
+
+      for (const claim of claimsToFetch) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', claim.senderId));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            newPictures[claim.senderId] = userData.profilePicture || userData.profileImageUrl || userData.photoURL || null;
+          } else {
+            newPictures[claim.senderId] = null;
+          }
+        } catch (e) {
+          newPictures[claim.senderId] = null;
+        }
+      }
+
+      if (Object.keys(newPictures).length > 0) {
+        setUserProfilePictures(prev => ({ ...prev, ...newPictures }));
+      }
+    };
+
+    fetchMissingProfilePictures();
+  }, [syncedClaimRequests, post.allClaimRequests, userProfilePictures]);
+
+  // Helper function to check if a value is a valid profile picture URL
+  const isValidProfilePicture = (value: any): boolean => {
+    if (!value || typeof value !== 'string') return false;
+    return value.startsWith('http') || value.startsWith('data:');
+  };
+
+  // Helper function to get the best profile picture for a claim
+  const getClaimProfilePicture = (claim: any) => {
+    const storedPic = isValidProfilePicture(claim.senderProfilePicture) ? claim.senderProfilePicture : null;
+    const cachedPic = isValidProfilePicture(userProfilePictures[claim.senderId]) ? userProfilePictures[claim.senderId] : null;
+    return storedPic || cachedPic || null;
   };
 
   useEffect(() => {
@@ -126,6 +221,118 @@ export default function AdminPostModal({
       setImageLoadingError("Failed to load images");
     }
   }, [post.images]);
+
+  // Extract claim requests from all sources
+  const claimRequests = useMemo(() => {
+    // Helper to validate profile picture URLs
+    const isValidPicUrl = (value: any): boolean => {
+      if (!value || typeof value !== 'string') return false;
+      return value.startsWith('http') || value.startsWith('data:');
+    };
+
+    // Helper to get best profile picture (validated)
+    const getBestProfilePic = (...sources: any[]): string | null => {
+      for (const src of sources) {
+        if (isValidPicUrl(src)) return src;
+      }
+      return null;
+    };
+
+    const allClaimRequests: any[] = [];
+    
+    // First, get claim requests from the allClaimRequests field (preserved data)
+    // Prioritize the synced (fresher) data if available, otherwise use prop data
+    const preservedData = syncedClaimRequests !== null ? syncedClaimRequests : (post.allClaimRequests || []);
+    
+    if (preservedData.length > 0) {
+      allClaimRequests.push(...preservedData);
+    }
+    
+    // Also check conversation data if available
+    if (post.conversationData?.messages) {
+      const claimMessages = post.conversationData.messages.filter((message: any) => 
+        message.messageType === 'claim_request' && message.claimData
+      );
+      
+      const processedRequests = claimMessages.map((message: any) => ({
+        messageId: message.id,
+        senderId: message.senderId,
+        senderName: message.senderName,
+        senderProfilePicture: getBestProfilePic(message.senderProfilePicture),
+        status: message.claimData.status,
+        claimReason: message.claimData.claimReason,
+        requestedAt: message.claimData.requestedAt,
+        respondedAt: message.claimData.respondedAt,
+        responseMessage: message.claimData.responseMessage,
+        isAccepted: message.claimData.status === 'accepted',
+        wasLateRequest: message.wasLateRequest || false
+      }));
+      
+      // Merge with existing requests, avoiding duplicates
+      processedRequests.forEach(request => {
+        const existingIndex = allClaimRequests.findIndex(req => req.messageId === request.messageId);
+        if (existingIndex >= 0) {
+          // Update existing request with latest data, but preserve wasLateRequest and best profile picture
+          allClaimRequests[existingIndex] = {
+            ...request,
+            senderProfilePicture: getBestProfilePic(request.senderProfilePicture, allClaimRequests[existingIndex].senderProfilePicture),
+            wasLateRequest: allClaimRequests[existingIndex].wasLateRequest || request.wasLateRequest
+          };
+        } else {
+          // Add new request
+          allClaimRequests.push(request);
+        }
+      });
+    }
+    
+    // Also check if there are any claim details that might indicate accepted claims
+    if (post.claimDetails?.claimRequestDetails) {
+      const claimDetail = post.claimDetails.claimRequestDetails;
+      
+      // Check if this accepted claim is already in the list
+      const existingIndex = allClaimRequests.findIndex(req => req.messageId === claimDetail.messageId);
+      const existingClaim = existingIndex >= 0 ? allClaimRequests[existingIndex] : null;
+      
+      const acceptedClaim = {
+        messageId: claimDetail.messageId,
+        senderId: claimDetail.senderId,
+        senderName: claimDetail.senderName,
+        // 🛡️ Use validated profile picture - claimDetail might have "Unknown Profile Picture"
+        senderProfilePicture: getBestProfilePic(claimDetail.senderProfilePicture, existingClaim?.senderProfilePicture),
+        status: 'accepted',
+        claimReason: claimDetail.claimReason,
+        requestedAt: claimDetail.claimRequestedAt,
+        respondedAt: claimDetail.claimRespondedAt,
+        responseMessage: claimDetail.claimResponseMessage,
+        isAccepted: true,
+        wasLateRequest: false // Accepted claims are never late by definition
+      };
+      
+      if (existingIndex >= 0) {
+        // Update the existing request to mark it as accepted
+        allClaimRequests[existingIndex] = acceptedClaim;
+      } else {
+        // Add the accepted claim if not already present
+        allClaimRequests.push(acceptedClaim);
+      }
+    }
+
+    return allClaimRequests;
+  }, [post.allClaimRequests, post.conversationData, post.claimDetails, syncedClaimRequests]);
+
+  // Separate regular claim requests from late claim requests
+  const regularClaimRequests = useMemo(() => 
+    claimRequests.filter(req => !req.wasLateRequest), 
+    [claimRequests]
+  );
+  
+  const lateClaimRequests = useMemo(() => 
+    claimRequests.filter(req => req.wasLateRequest), 
+    [claimRequests]
+  );
+
+  const hasClaimRequests = regularClaimRequests.length > 0;
+  const hasLateClaimRequests = lateClaimRequests.length > 0;
 
   const handleToggleStatus = async () => {
     try {
@@ -679,6 +886,194 @@ export default function AdminPostModal({
                     {post.coordinates.lng.toFixed(5)}
                   </p>
                 </div>
+
+                {/* Claim Requests Section - Admin Only */}
+                {hasClaimRequests && (
+                  <div className="mt-3">
+                    <div 
+                      className="bg-purple-50 rounded-lg border border-purple-200 p-3 cursor-pointer hover:bg-purple-100 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowClaimRequests(!showClaimRequests);
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-purple-800">
+                            Claim Requests ({regularClaimRequests.length})
+                          </span>
+                          {regularClaimRequests.some(req => req.isAccepted) && (
+                            <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-medium">
+                              Accepted
+                            </span>
+                          )}
+                        </div>
+                        <svg 
+                          className={`w-4 h-4 text-purple-600 transition-transform ${showClaimRequests ? 'rotate-180' : ''}`}
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                      
+                      {showClaimRequests && (
+                        <div className="mt-3 space-y-2">
+                          {regularClaimRequests.map((request) => (
+                            <div 
+                              key={request.messageId}
+                              className={`p-2 rounded-lg border ${
+                                request.isAccepted 
+                                  ? 'bg-green-50 border-green-200' 
+                                  : 'bg-white border-gray-200'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <ProfilePicture
+                                  src={getClaimProfilePicture(request)}
+                                  alt="claimer profile"
+                                  className="size-4"
+                                  priority={false}
+                                />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`text-xs font-medium ${
+                                      request.isAccepted ? 'text-green-700' : 'text-gray-700'
+                                    }`}>
+                                      {request.senderName}
+                                    </span>
+                                    {request.isAccepted && (
+                                      <span className="bg-green-500 text-white text-xs px-1.5 py-0.5 rounded font-medium">
+                                        ✓ Accepted
+                                      </span>
+                                    )}
+                                    <span className={`text-xs px-2 py-1 rounded ${
+                                      request.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                      request.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                      'bg-green-100 text-green-700'
+                                    }`}>
+                                      {request.status}
+                                    </span>
+                                  </div>
+                                  {request.claimReason && (
+                                    <p className="text-xs text-gray-600 mt-1">
+                                      Reason: {request.claimReason}
+                                    </p>
+                                  )}
+                                  {request.responseMessage && (
+                                    <p className="text-xs text-gray-500 mt-1 italic">
+                                      Response: {request.responseMessage}
+                                    </p>
+                                  )}
+                                  <p className="text-xs text-gray-400 mt-1">
+                                    Requested: {request.requestedAt ? formatDateTime(request.requestedAt) : 'Unknown time'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Late Claim Requests Section - Shows users who claimed after post was resolved */}
+                {hasLateClaimRequests && (
+                  <div className="mt-3">
+                    <div 
+                      className="bg-amber-50 rounded-lg border border-amber-300 p-3 cursor-pointer hover:bg-amber-100 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowLateClaimRequests(!showLateClaimRequests);
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-amber-800">
+                            ⚠️ Late Claim Requests ({lateClaimRequests.length})
+                          </span>
+                          <span className="bg-amber-200 text-amber-800 text-xs px-2 py-1 rounded-full font-medium">
+                            After Resolution
+                          </span>
+                        </div>
+                        <svg 
+                          className={`w-4 h-4 text-amber-600 transition-transform ${showLateClaimRequests ? 'rotate-180' : ''}`}
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                      
+                      <p className="text-xs text-amber-700 mt-1">
+                        These users sent claim requests after the post was already resolved/completed.
+                      </p>
+                      
+                      {showLateClaimRequests && (
+                        <div className="mt-3 space-y-2">
+                          {lateClaimRequests.map((request) => (
+                            <div 
+                              key={request.messageId}
+                              className="p-2 rounded-lg border bg-amber-50 border-amber-200"
+                            >
+                              <div className="flex items-center gap-2">
+                                <ProfilePicture
+                                  src={getClaimProfilePicture(request)}
+                                  alt="claimer profile"
+                                  className="size-4"
+                                  priority={false}
+                                />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-amber-800">
+                                      {request.senderName}
+                                    </span>
+                                    <span className="bg-amber-300 text-amber-900 text-xs px-1.5 py-0.5 rounded font-medium">
+                                      Late Request
+                                    </span>
+                                    <span className={`text-xs px-2 py-1 rounded ${
+                                      request.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                      request.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                      'bg-green-100 text-green-700'
+                                    }`}>
+                                      {request.status}
+                                    </span>
+                                  </div>
+                                  {request.claimReason && (
+                                    <p className="text-xs text-gray-600 mt-1">
+                                      Reason: {request.claimReason}
+                                    </p>
+                                  )}
+                                  {request.senderEmail && (
+                                    <p className="text-xs text-amber-700 mt-1">
+                                      📧 {request.senderEmail}
+                                    </p>
+                                  )}
+                                  {request.senderContact && (
+                                    <p className="text-xs text-amber-700 mt-1">
+                                      📞 {request.senderContact}
+                                    </p>
+                                  )}
+                                  {request.senderStudentId && (
+                                    <p className="text-xs text-amber-700 mt-1">
+                                      🎓 {request.senderStudentId}
+                                    </p>
+                                  )}
+                                  <p className="text-xs text-gray-400 mt-1">
+                                    Requested: {request.requestedAt ? formatDateTime(request.requestedAt) : 'Unknown time'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Item Holder Transfer - show under coordinates in left column */}
                 {post.turnoverDetails &&

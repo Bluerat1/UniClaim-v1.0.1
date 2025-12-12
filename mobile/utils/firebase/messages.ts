@@ -1196,7 +1196,92 @@ export const messageService: MessageService = {
                     console.log('ℹ️ Mobile: No images to delete (all images are from confirmed request or no images found)');
                 }
 
-                // STEP 5: Delete each conversation and all its messages
+                // STEP 5: Preserve all claim requests from ALL conversations FIRST (SEQUENTIAL to avoid race conditions)
+                console.log(`🛡️ Mobile: Preserving claim requests from all ${conversationsSnapshot.docs.length} conversations...`);
+
+                for (const conversationDoc of conversationsSnapshot.docs) {
+                    const conversationId = conversationDoc.id;
+
+                    // 🛡️ IMPORTANT: Preserve ALL claim requests from this conversation before deletion
+                    try {
+                        const claimMessagesQuery = query(
+                            collection(db, `conversations/${conversationId}/messages`),
+                            where('messageType', '==', 'claim_request')
+                        );
+                        const claimMessagesSnapshot = await getDocs(claimMessagesQuery);
+
+                        if (claimMessagesSnapshot.docs.length > 0) {
+                            const postRef = doc(db, 'posts', postId);
+                            const postDoc = await getDoc(postRef);
+
+                            if (postDoc.exists()) {
+                                const existingRequests = postDoc.data().allClaimRequests || [];
+                                const existingMessageIds = new Set(existingRequests.map((req: any) => req.messageId));
+
+                                const newRequests: any[] = [];
+
+                                for (const claimMessageDoc of claimMessagesSnapshot.docs) {
+                                    // Skip if already preserved
+                                    if (existingMessageIds.has(claimMessageDoc.id)) continue;
+
+                                    const data = claimMessageDoc.data();
+                                    const claimData = data.claimData;
+
+                                    if (!claimData) continue;
+
+                                    // Get user details (including the most up-to-date profile picture)
+                                    let senderDetails: any = {};
+                                    try {
+                                        const userDoc = await getDoc(doc(db, 'users', data.senderId));
+                                        if (userDoc.exists()) {
+                                            senderDetails = userDoc.data();
+                                        }
+                                    } catch (e) {
+                                        // Ignore error
+                                    }
+
+                                    // Get the best available profile picture (user document takes priority)
+                                    const profilePicture = senderDetails.profilePicture
+                                        || senderDetails.profileImageUrl
+                                        || senderDetails.photoURL
+                                        || data.senderProfilePicture
+                                        || null;
+
+                                    // 🛡️ IMPORTANT: Firebase arrayUnion() doesn't accept undefined
+                                    newRequests.push({
+                                        messageId: claimMessageDoc.id,
+                                        senderId: data.senderId || '',
+                                        senderName: data.senderName || (senderDetails.firstName ? `${senderDetails.firstName || ''} ${senderDetails.lastName || ''}`.trim() : 'Unknown'),
+                                        senderProfilePicture: profilePicture,
+                                        status: claimData.status || 'pending',
+                                        claimReason: claimData.claimReason || '',
+                                        requestedAt: claimData.requestedAt || data.timestamp || null,
+                                        respondedAt: claimData.respondedAt || null,
+                                        responseMessage: claimData.responseMessage || null,
+                                        isAccepted: claimData.status === 'accepted' || claimData.status === 'confirmed',
+                                        senderEmail: senderDetails.email || null,
+                                        senderContact: senderDetails.contactNum || null,
+                                        senderStudentId: senderDetails.studentId || null
+                                    });
+                                }
+
+                                if (newRequests.length > 0) {
+                                    await updateDoc(postRef, {
+                                        allClaimRequests: arrayUnion(...newRequests)
+                                    });
+                                    console.log(`✅ Mobile: Preserved ${newRequests.length} claim requests from conversation ${conversationId}`);
+                                }
+                            }
+                        }
+                    } catch (preserveError: any) {
+                        console.warn(`⚠️ Mobile: Failed to preserve claims from conversation ${conversationId}:`, preserveError.message);
+                        // Continue with other conversations even if one fails
+                    }
+                }
+
+                console.log(`✅ Mobile: All claim requests preserved from ${conversationsSnapshot.docs.length} conversations`);
+
+                // STEP 6: NOW delete all conversations (after preservation is complete)
                 for (const conversationDoc of conversationsSnapshot.docs) {
                     const conversationId = conversationDoc.id;
                     const conversationRef = doc(db, 'conversations', conversationId);
@@ -1652,6 +1737,51 @@ export const messageService: MessageService = {
             // Commit the batch
             await batch.commit();
             console.log('✅ Claim request sent successfully (batch committed)');
+
+            // 🛡️ Preserve claim request in post document (for AdminPostModal tracking)
+            try {
+                // Get user details for preservation (including the most up-to-date profile picture)
+                let senderDetails: any = {};
+                try {
+                    const userDoc = await getDoc(doc(db, 'users', senderId));
+                    if (userDoc.exists()) {
+                        senderDetails = userDoc.data();
+                    }
+                } catch (e) {
+                    console.warn('Could not fetch user details for claim preservation:', e);
+                }
+
+                // Get the best available profile picture (user document takes priority)
+                const profilePicture = senderDetails.profilePicture
+                    || senderDetails.profileImageUrl
+                    || senderDetails.photoURL
+                    || senderProfilePicture
+                    || null;
+
+                const postRef = doc(db, 'posts', postId);
+                // 🛡️ IMPORTANT: Firebase arrayUnion() doesn't accept undefined values
+                const claimRequest = {
+                    messageId: messageRef.id,
+                    senderId: senderId || '',
+                    senderName: senderName || (senderDetails.firstName ? `${senderDetails.firstName || ''} ${senderDetails.lastName || ''}`.trim() : 'Unknown'),
+                    senderProfilePicture: profilePicture,
+                    status: 'pending',
+                    claimReason: claimReason || '',
+                    requestedAt: serverTimestamp(),
+                    isAccepted: false,
+                    senderEmail: senderDetails.email || null,
+                    senderContact: senderDetails.contactNum || null,
+                    senderStudentId: senderDetails.studentId || null
+                };
+
+                await updateDoc(postRef, {
+                    allClaimRequests: arrayUnion(claimRequest)
+                });
+                console.log(`✅ Mobile: Claim request preserved in post ${postId}`);
+            } catch (preserveError: any) {
+                console.warn('⚠️ Mobile: Failed to preserve claim request, but claim was sent:', preserveError.message);
+                // Don't fail the claim request if preservation fails
+            }
 
             // Send notifications asynchronously after batch commit
             if (conversationData) {

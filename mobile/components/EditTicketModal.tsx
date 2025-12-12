@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import type { Post } from "../types/type";
 import * as ImagePicker from "expo-image-picker";
 import CustomDropdownWithSearch from "./DropdownWithSearch";
-import { cleanupRemovedPostImages } from "../utils/cloudinary";
+import { cleanupRemovedPostImages, cloudinaryService } from "../utils/cloudinary";
 import { ITEM_CATEGORIES } from "../constants";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -50,6 +50,12 @@ export default function EditTicketModal({
     deleted: string[];
     failed: string[];
   }>({ isCleaning: false, deleted: [], failed: [] });
+
+  const [uploadStatus, setUploadStatus] = useState<{
+    isUploading: boolean;
+    completed: number;
+    total: number;
+  }>({ isUploading: false, completed: 0, total: 0 });
 
   useEffect(() => {
     ImagePicker.getMediaLibraryPermissionsAsync().then((permissionResult) => {
@@ -100,15 +106,56 @@ export default function EditTicketModal({
       setCleanupStatus({ isCleaning: false, deleted: [], failed: [] });
     }
 
-    const updatedPost: Post = {
-      ...post,
-      title: editedTitle.trim(),
-      description: editedDescription.trim(),
-      category: editedCategory,
-      images: editedImages,
-    };
+    // Upload new local images to Cloudinary
+    const localImages = editedImages.filter(img => !img.startsWith('http'));
+    const cloudinaryImages = editedImages.filter(img => img.startsWith('http'));
+    
+    if (localImages.length > 0) {
+      setUploadStatus({ isUploading: true, completed: 0, total: localImages.length });
+      
+      try {
+        const uploadedUrls = await cloudinaryService.uploadImages(
+          localImages,
+          'posts',
+          (progress) => {
+            setUploadStatus({
+              isUploading: true,
+              completed: progress.completed,
+              total: progress.total
+            });
+          }
+        );
+        
+        // Replace local images with Cloudinary URLs
+        const finalImages = [...cloudinaryImages, ...uploadedUrls];
+        
+        const updatedPost: Post = {
+          ...post,
+          title: editedTitle.trim(),
+          description: editedDescription.trim(),
+          category: editedCategory,
+          images: finalImages,
+        };
 
-    onSave(updatedPost);
+        onSave(updatedPost);
+      } catch (error: any) {
+        console.error("Upload error:", error.message);
+        Alert.alert("Error", "Failed to upload images. Please try again.");
+        setUploadStatus({ isUploading: false, completed: 0, total: 0 });
+        return;
+      }
+    } else {
+      // No new images to upload, use existing Cloudinary images
+      const updatedPost: Post = {
+        ...post,
+        title: editedTitle.trim(),
+        description: editedDescription.trim(),
+        category: editedCategory,
+        images: cloudinaryImages,
+      };
+
+      onSave(updatedPost);
+    }
   };
 
   const handleCancel = () => {
@@ -300,6 +347,16 @@ export default function EditTicketModal({
                 </Text>
               </View>
             </View>
+
+            {/* Upload Status */}
+            {uploadStatus.isUploading && (
+              <View className="mb-4 p-3 rounded-md border border-blue-500 bg-blue-50 flex-row items-center space-x-2">
+                <ActivityIndicator size="small" color="#3B82F6" />
+                <Text className="text-sm font-medium text-blue-700">
+                  Uploading images... {uploadStatus.completed}/{uploadStatus.total}
+                </Text>
+              </View>
+            )}
 
             {/* Cleanup Status */}
             {cleanupStatus.isCleaning && (

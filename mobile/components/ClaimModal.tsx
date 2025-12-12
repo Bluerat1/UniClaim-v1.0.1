@@ -78,27 +78,32 @@ export default function ClaimModal({
 
     try {
       setIsClaimSubmitting(true);
-      setUploadProgress(10); // 10% complete after initial check
+      setUploadProgress(5); // 5% complete after initial check
 
-      // Upload ID photo first
-      setCurrentUpload('ID photo');
-      const idPhotoUrl = await cloudinaryService.uploadImage(
+      // Start both uploads in parallel for maximum speed
+      setCurrentUpload('photos');
+      
+      // Create upload promises for both ID and evidence photos
+      const idPhotoPromise = cloudinaryService.uploadImage(
         idPhotoUri,
         "id_photos"
       );
-      setUploadProgress(20); // 20% complete after ID photo
-
-      // Upload evidence photos in parallel
-      setCurrentUpload('evidence photos');
-      const evidencePhotoUrls = await cloudinaryService.uploadImages(
+      
+      const evidencePhotosPromise = cloudinaryService.uploadImages(
         evidencePhotoUris,
         "evidence_photos",
         ({ completed, total }) => {
-          // Calculate progress: 20-80% for evidence photos (60% of total progress)
-          const progress = 20 + (completed / total) * 60;
+          // Calculate progress: 5-90% for all uploads (85% of total progress)
+          const progress = 5 + (completed / total) * 85;
           setUploadProgress(Math.round(progress));
         }
       );
+
+      // Wait for both uploads to complete in parallel
+      const [idPhotoUrl, evidencePhotoUrls] = await Promise.all([
+        idPhotoPromise,
+        evidencePhotosPromise
+      ]);
 
       // Map URLs to evidence photo objects
       const evidencePhotos = evidencePhotoUrls.map(url => ({
