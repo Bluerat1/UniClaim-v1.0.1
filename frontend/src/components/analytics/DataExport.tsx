@@ -48,7 +48,7 @@ export const DataExport: React.FC<DataExportProps> = ({
     // Filter posts by selected type or status
     let filteredPosts = posts;
     if (exportType === 'completed') {
-      filteredPosts = posts.filter(post => post.status === 'completed');
+      filteredPosts = posts.filter(post => post.status === 'completed' || post.status === 'resolved');
     } else if (exportType !== 'all') {
       filteredPosts = posts.filter(post => post.type === exportType);
     }
@@ -58,7 +58,7 @@ export const DataExport: React.FC<DataExportProps> = ({
       Title: post.title,
       Type: post.type,
       Category: post.category || "Uncategorized",
-      Status: post.status || "pending",
+      Status: (post.status === 'resolved' ? 'completed' : post.status) || "pending",
       "Created At": post.createdAt
         ? format(new Date(post.createdAt), "yyyy-MM-dd HH:mm")
         : "N/A",

@@ -133,10 +133,10 @@ export default function AdminPostModal({
     syncClaims();
   }, [post.id]);
 
-  // Cache for user profile pictures
-  const [userProfilePictures, setUserProfilePictures] = useState<Record<string, string | null>>({});
+  // Cache for user data (profile pic and contact info)
+  const [userCache, setUserCache] = useState<Record<string, any>>({});
 
-  // Fetch profile pictures for claimers who don't have one stored
+  // Fetch user data for claimers who are missing info
   useEffect(() => {
     // Helper to check if profile picture is valid URL
     const isValidPicUrl = (value: any): boolean => {
@@ -144,42 +144,59 @@ export default function AdminPostModal({
       return value.startsWith('http') || value.startsWith('data:');
     };
 
-    const fetchMissingProfilePictures = async () => {
+    const fetchMissingUserData = async () => {
       const allClaims = syncedClaimRequests || post.allClaimRequests || [];
       
-      // Find claims that don't have VALID profile pictures (stored or cached)
+      // Find claims that need data fetched
       const claimsToFetch = allClaims.filter((claim: any) => {
         if (!claim.senderId) return false;
-        if (isValidPicUrl(claim.senderProfilePicture)) return false;
-        if (isValidPicUrl(userProfilePictures[claim.senderId])) return false;
-        return true;
+        
+        // If we already have cached data for this user, skip
+        if (userCache[claim.senderId]) return false;
+
+        // Check if basics are missing
+        const missingPic = !isValidPicUrl(claim.senderProfilePicture);
+        // Check if ANY contact info is missing (we want to show all if possible)
+        const missingContact = !claim.senderStudentId || !claim.senderEmail || !claim.senderContact;
+        
+        return missingPic || missingContact;
       });
 
       if (claimsToFetch.length === 0) return;
 
-      const newPictures: Record<string, string | null> = {};
+      const newCacheData: Record<string, any> = {};
+      const processedIds = new Set<string>();
 
       for (const claim of claimsToFetch) {
+        if (processedIds.has(claim.senderId)) continue;
+        processedIds.add(claim.senderId);
+
         try {
           const userDoc = await getDoc(doc(db, 'users', claim.senderId));
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            newPictures[claim.senderId] = userData.profilePicture || userData.profileImageUrl || userData.photoURL || null;
+            newCacheData[claim.senderId] = {
+              profilePicture: userData.profilePicture || userData.profileImageUrl || userData.photoURL || null,
+              studentId: userData.studentId || null,
+              email: userData.email || null,
+              contact: userData.contactNum || null
+            };
           } else {
-            newPictures[claim.senderId] = null;
+            // Mark as null to prevent refetching
+            newCacheData[claim.senderId] = { notFound: true };
           }
         } catch (e) {
-          newPictures[claim.senderId] = null;
+             // Ignore error
         }
       }
 
-      if (Object.keys(newPictures).length > 0) {
-        setUserProfilePictures(prev => ({ ...prev, ...newPictures }));
+      if (Object.keys(newCacheData).length > 0) {
+        setUserCache(prev => ({ ...prev, ...newCacheData }));
       }
     };
 
-    fetchMissingProfilePictures();
-  }, [syncedClaimRequests, post.allClaimRequests, userProfilePictures]);
+    fetchMissingUserData();
+  }, [syncedClaimRequests, post.allClaimRequests, userCache]);
 
   // Helper function to check if a value is a valid profile picture URL
   const isValidProfilePicture = (value: any): boolean => {
@@ -190,7 +207,8 @@ export default function AdminPostModal({
   // Helper function to get the best profile picture for a claim
   const getClaimProfilePicture = (claim: any) => {
     const storedPic = isValidProfilePicture(claim.senderProfilePicture) ? claim.senderProfilePicture : null;
-    const cachedPic = isValidProfilePicture(userProfilePictures[claim.senderId]) ? userProfilePictures[claim.senderId] : null;
+    const cachedData = userCache[claim.senderId];
+    const cachedPic = (cachedData && !cachedData.notFound && isValidProfilePicture(cachedData.profilePicture)) ? cachedData.profilePicture : null;
     return storedPic || cachedPic || null;
   };
 
@@ -305,7 +323,11 @@ export default function AdminPostModal({
         respondedAt: claimDetail.claimRespondedAt,
         responseMessage: claimDetail.claimResponseMessage,
         isAccepted: true,
-        wasLateRequest: false // Accepted claims are never late by definition
+        wasLateRequest: false, // Accepted claims are never late by definition
+        // 🛡️ Preserve contact info from existing preserved claim if available
+        senderStudentId: existingClaim?.senderStudentId || null,
+        senderEmail: existingClaim?.senderEmail || null,
+        senderContact: existingClaim?.senderContact || null
       };
       
       if (existingIndex >= 0) {
@@ -317,8 +339,18 @@ export default function AdminPostModal({
       }
     }
 
+    // Hydrate missing contact info from userCache
+    allClaimRequests.forEach(req => {
+      const cached = userCache[req.senderId];
+      if (cached && !cached.notFound) {
+        if (!req.senderStudentId) req.senderStudentId = cached.studentId;
+        if (!req.senderEmail) req.senderEmail = cached.email;
+        if (!req.senderContact) req.senderContact = cached.contact;
+      }
+    });
+
     return allClaimRequests;
-  }, [post.allClaimRequests, post.conversationData, post.claimDetails, syncedClaimRequests]);
+  }, [post.allClaimRequests, post.conversationData, post.claimDetails, syncedClaimRequests, userCache]);
 
   // Separate regular claim requests from late claim requests
   const regularClaimRequests = useMemo(() => 
@@ -902,11 +934,6 @@ export default function AdminPostModal({
                           <span className="text-sm font-medium text-purple-800">
                             Claim Requests ({regularClaimRequests.length})
                           </span>
-                          {regularClaimRequests.some(req => req.isAccepted) && (
-                            <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-medium">
-                              Accepted
-                            </span>
-                          )}
                         </div>
                         <svg 
                           className={`w-4 h-4 text-purple-600 transition-transform ${showClaimRequests ? 'rotate-180' : ''}`}
@@ -948,13 +975,15 @@ export default function AdminPostModal({
                                         ✓ Accepted
                                       </span>
                                     )}
-                                    <span className={`text-xs px-2 py-1 rounded ${
-                                      request.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                      request.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                                      'bg-green-100 text-green-700'
-                                    }`}>
-                                      {request.status}
-                                    </span>
+                                    {!request.isAccepted && (
+                                      <span className={`text-xs px-2 py-1 rounded ${
+                                        request.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                        request.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                        'bg-green-100 text-green-700'
+                                      }`}>
+                                        {request.status}
+                                      </span>
+                                    )}
                                   </div>
                                   {request.claimReason && (
                                     <p className="text-xs text-gray-600 mt-1">
@@ -966,6 +995,24 @@ export default function AdminPostModal({
                                       Response: {request.responseMessage}
                                     </p>
                                   )}
+                                  {/* Contact Information */}
+                                  <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
+                                    {request.senderStudentId && (
+                                      <p className="text-xs text-gray-500">
+                                        Student ID: <span className="font-medium text-gray-700">{request.senderStudentId}</span>
+                                      </p>
+                                    )}
+                                    {request.senderEmail && (
+                                      <p className="text-xs text-gray-500">
+                                        Email: <span className="font-medium text-gray-700">{request.senderEmail}</span>
+                                      </p>
+                                    )}
+                                    {request.senderContact && (
+                                      <p className="text-xs text-gray-500">
+                                        Contact: <span className="font-medium text-gray-700">{request.senderContact}</span>
+                                      </p>
+                                    )}
+                                  </div>
                                   <p className="text-xs text-gray-400 mt-1">
                                     Requested: {request.requestedAt ? formatDateTime(request.requestedAt) : 'Unknown time'}
                                   </p>
@@ -1047,21 +1094,24 @@ export default function AdminPostModal({
                                       Reason: {request.claimReason}
                                     </p>
                                   )}
-                                  {request.senderEmail && (
-                                    <p className="text-xs text-amber-700 mt-1">
-                                      📧 {request.senderEmail}
-                                    </p>
-                                  )}
-                                  {request.senderContact && (
-                                    <p className="text-xs text-amber-700 mt-1">
-                                      📞 {request.senderContact}
-                                    </p>
-                                  )}
-                                  {request.senderStudentId && (
-                                    <p className="text-xs text-amber-700 mt-1">
-                                      🎓 {request.senderStudentId}
-                                    </p>
-                                  )}
+                                  {/* Contact Information */}
+                                  <div className="mt-2 pt-2 border-t border-amber-100 space-y-1">
+                                    {request.senderStudentId && (
+                                      <p className="text-xs text-amber-700">
+                                        Student ID: <span className="font-medium text-amber-900">{request.senderStudentId}</span>
+                                      </p>
+                                    )}
+                                    {request.senderEmail && (
+                                      <p className="text-xs text-amber-700">
+                                        Email: <span className="font-medium text-amber-900">{request.senderEmail}</span>
+                                      </p>
+                                    )}
+                                    {request.senderContact && (
+                                      <p className="text-xs text-amber-700">
+                                        Contact: <span className="font-medium text-amber-900">{request.senderContact}</span>
+                                      </p>
+                                    )}
+                                  </div>
                                   <p className="text-xs text-gray-400 mt-1">
                                     Requested: {request.requestedAt ? formatDateTime(request.requestedAt) : 'Unknown time'}
                                   </p>
