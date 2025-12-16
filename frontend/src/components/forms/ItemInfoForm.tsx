@@ -298,20 +298,25 @@ export default function ItemInfoForm({
       {/* Right column */}
       <div className="mt-6 lg:mt-0">
         <label className="mb-3 block text-[14px]">
-          Description of the item
+          Additional Remarks
           <span className="text-red-500 ml-1">*</span>
         </label>
         <textarea
           name="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Describe the item here..."
+          placeholder="Add any relevant details or remarks..."
           className={`w-full p-2 border rounded resize-none
             ${descriptionError ? "border-2 border-red-500" : "border-gray-500"}
             focus:outline-none focus:ring-1 focus:ring-black
             h-32 sm:h-36 md:h-38 lg:h-58
           `}
         />
+        <div className="mt-2 p-2 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+          <p className="text-xs text-yellow-700 font-medium">
+            ⚠️ Important: Do not include specific details about item contents or any personal/sensitive information in the remarks.
+          </p>
+        </div>
       </div>
     </div>
   );
