@@ -1,5 +1,5 @@
 // ItemDetails.tsx
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons, Feather } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useNavigation } from "@react-navigation/native";
 import React, { useState, useEffect } from "react";
@@ -277,19 +277,24 @@ export default function ItemDetails({
         />
       </View>
 
-      {/* Description Input */}
+      {/* Additional Remarks Input */}
       <View className="">
         <Text className="text-base font-manrope-semibold mb-2">
-          Description
+          Additional Remarks
         </Text>
         <TextInput
           className="bg-white border border-gray-300 rounded-md px-3 py-3 text-base font-manrope h-24"
-          placeholder="Describe the item in detail..."
+          placeholder="Add any relevant details or remarks..."
           value={description}
           onChangeText={setDescription}
           multiline={true}
           textAlignVertical="top"
         />
+        <View className="mt-2 p-2 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+          <Text className="text-xs text-yellow-700 font-manrope-medium">
+            ⚠️ Important: Do not include specific details about item contents or any personal/sensitive information in the remarks.
+          </Text>
+        </View>
       </View>
 
       {/* item category dropdown */}
@@ -469,54 +474,120 @@ export default function ItemDetails({
         onRequestClose={() => setIsModalVisible(false)}
       >
         <Pressable
-          className="flex-1 bg-black/60 justify-center items-center"
+          className="flex-1 bg-black/60 justify-center items-center p-4"
           onPress={() => setIsModalVisible(false)}
         >
-          <View className="bg-white w-[23rem] h-auto rounded-xl p-4 items-center flex-col gap-6">
+          <View className="bg-white w-full max-w-md rounded-xl p-6">
             {/* Header */}
-            <View className="flex-row items-center gap-2">
-              <MaterialIcons name="info-outline" size={18} color="black" />
-              <Text className="text-xl font-manrope-bold">
-                Keep or Turnover
-              </Text>
+            <View className="flex-row items-center justify-between mb-6">
+              <View className="flex-row items-center gap-2">
+                <MaterialIcons name="info-outline" size={20} color="#1e3a8a" />
+                <Text className="text-xl font-manrope-bold text-gray-900">
+                  Keep or Turnover
+                </Text>
+              </View>
+              <Pressable onPress={() => setIsModalVisible(false)} hitSlop={10}>
+                <Ionicons name="close" size={24} color="#6b7280" />
+              </Pressable>
             </View>
 
             {/* Description */}
-            <Text className="text-lg font-inter text-center text-gray-600">
+            <Text className="text-base text-gray-600 text-center mb-6 leading-relaxed">
               Will you keep the item and return it yourself, or turn it over to
               Campus Security or OSA?
             </Text>
 
-            {/* Action Buttons */}
-            <View className="flex-col w-full gap-3">
-              {["keep", "turnover to OSA", "turnover to Campus Security"].map(
-                (action) => (
-                  <TouchableOpacity
-                    key={action}
-                    onPress={() => {
-                      handleFoundActionSelect(
-                        action as
-                          | "keep"
-                          | "turnover to OSA"
-                          | "turnover to Campus Security"
-                      );
-                    }}
-                    className={`py-3 rounded-md items-center ${
-                      foundAction === action ? "bg-navyblue" : "bg-zinc-200"
-                    }`}
-                  >
-                    <Text
-                      className={
-                        foundAction === action
-                          ? "text-white font-manrope-medium"
-                          : "text-black font-manrope-medium"
-                      }
-                    >
-                      {action.charAt(0).toUpperCase() + action.slice(1)}
+            {/* Action Buttons with Descriptions */}
+            <View className="space-y-4">
+              {/* Keep Item Option */}
+              <Pressable
+                onPress={() => handleFoundActionSelect("keep")}
+                className={`p-4 rounded-lg border ${
+                  foundAction === "keep"
+                    ? "border-blue-700 bg-blue-50"
+                    : "border-gray-200"
+                }`}
+              >
+                <View className="flex-row items-start gap-3">
+                  <View className={`p-2 rounded-full ${
+                    foundAction === "keep"
+                      ? "bg-blue-100"
+                      : "bg-gray-100"
+                  }`}>
+                    <Ionicons 
+                      name="person-outline" 
+                      size={20} 
+                      color={foundAction === "keep" ? "#1d4ed8" : "#6b7280"} 
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="font-manrope-semibold text-gray-900">Keep Item</Text>
+                    <Text className="text-sm text-gray-500 mt-1">
+                      You will keep the item and handle returning it to the owner yourself. Choose this if you can easily identify the owner.
                     </Text>
-                  </TouchableOpacity>
-                )
-              )}
+                  </View>
+                </View>
+              </Pressable>
+
+              {/* Turnover to OSA Option */}
+              <Pressable
+                onPress={() => handleFoundActionSelect("turnover to OSA")}
+                className={`p-4 rounded-lg border ${
+                  foundAction === "turnover to OSA"
+                    ? "border-blue-700 bg-blue-50"
+                    : "border-gray-200"
+                }`}
+              >
+                <View className="flex-row items-start gap-3">
+                  <View className={`p-2 rounded-full ${
+                    foundAction === "turnover to OSA"
+                      ? "bg-blue-100"
+                      : "bg-gray-100"
+                  }`}>
+                    <Ionicons 
+                      name="shield-outline" 
+                      size={20} 
+                      color={foundAction === "turnover to OSA" ? "#1d4ed8" : "#6b7280"} 
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="font-manrope-semibold text-gray-900">Turnover to OSA</Text>
+                    <Text className="text-sm text-gray-500 mt-1">
+                      Give the item to the school office. They will keep it safe and help find the owner. The office is open during school hours.
+                    </Text>
+                  </View>
+                </View>
+              </Pressable>
+
+              {/* Turnover to Campus Security Option */}
+              <Pressable
+                onPress={() => handleFoundActionSelect("turnover to Campus Security")}
+                className={`p-4 rounded-lg border ${
+                  foundAction === "turnover to Campus Security"
+                    ? "border-blue-700 bg-blue-50"
+                    : "border-gray-200"
+                }`}
+              >
+                <View className="flex-row items-start gap-3">
+                  <View className={`p-2 rounded-full ${
+                    foundAction === "turnover to Campus Security"
+                      ? "bg-blue-100"
+                      : "bg-gray-100"
+                  }`}>
+                    <Ionicons 
+                      name="briefcase-outline" 
+                      size={20} 
+                      color={foundAction === "turnover to Campus Security" ? "#1d4ed8" : "#6b7280"} 
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="font-manrope-semibold text-gray-900">Turnover to Campus Security</Text>
+                    <Text className="text-sm text-gray-500 mt-1">
+                      For important items or when found at night. The school guards will keep it safe. Use this for valuable items or when the office is closed.
+                    </Text>
+                  </View>
+                </View>
+              </Pressable>
             </View>
           </View>
         </Pressable>
