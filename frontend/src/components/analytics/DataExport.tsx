@@ -1,7 +1,18 @@
 import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { FileText, FileSpreadsheet, FileJson, Check, ChevronDown } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  FileText,
+  FileSpreadsheet,
+  FileJson,
+  Check,
+  ChevronDown,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { DateRange } from "react-day-picker";
 import type { Post } from "@/types/Post";
 import { exportToExcel } from "@/utils/exportUtils";
@@ -32,7 +43,9 @@ export const DataExport: React.FC<DataExportProps> = ({
   dateRange,
 }) => {
   const [isExporting, setIsExporting] = useState<string | null>(null);
-  const [exportType, setExportType] = useState<'all' | 'lost' | 'found' | 'completed'>('all');
+  const [exportType, setExportType] = useState<
+    "all" | "lost" | "found" | "completed"
+  >("all");
   const [lastExport, setLastExport] = useState<{
     type: string;
     time: Date;
@@ -47,10 +60,12 @@ export const DataExport: React.FC<DataExportProps> = ({
   const formatPostsForExport = () => {
     // Filter posts by selected type or status
     let filteredPosts = posts;
-    if (exportType === 'completed') {
-      filteredPosts = posts.filter(post => post.status === 'completed' || post.status === 'resolved');
-    } else if (exportType !== 'all') {
-      filteredPosts = posts.filter(post => post.type === exportType);
+    if (exportType === "completed") {
+      filteredPosts = posts.filter(
+        (post) => post.status === "completed" || post.status === "resolved"
+      );
+    } else if (exportType !== "all") {
+      filteredPosts = posts.filter((post) => post.type === exportType);
     }
 
     return filteredPosts.map((post) => ({
@@ -58,7 +73,8 @@ export const DataExport: React.FC<DataExportProps> = ({
       Title: post.title,
       Type: post.type,
       Category: post.category || "Uncategorized",
-      Status: (post.status === 'resolved' ? 'completed' : post.status) || "pending",
+      Status:
+        (post.status === "resolved" ? "completed" : post.status) || "pending",
       "Created At": post.createdAt
         ? format(new Date(post.createdAt), "yyyy-MM-dd HH:mm")
         : "N/A",
@@ -67,9 +83,29 @@ export const DataExport: React.FC<DataExportProps> = ({
         : "N/A",
       Description: post.description || "",
       Location: post.location || "",
-      "User Name": post.user ? `${post.user.firstName || ''} ${post.user.lastName || ''}`.trim() || "N/A" : "N/A",
+      "Post Creator": post.user
+        ? `${post.user.firstName || ""} ${post.user.lastName || ""}`.trim() ||
+          "N/A"
+        : "N/A",
       "Student ID": post.user?.studentId || "N/A",
       "User ID": post.creatorId || post.postedById || "N/A",
+      // Claimer name: only populate for found posts
+      "Claimer Name":
+        post.type === "found"
+          ? post.claimDetails?.claimerName ||
+            post.claimDetails?.claimRequestDetails?.senderName ||
+            ""
+          : "",
+      // Handoverer name: only populate for lost posts
+      "Handoverer Name":
+        post.type === "lost"
+          ? post.handoverDetails?.handoverPersonName ||
+            (post.turnoverDetails && post.turnoverDetails.originalFinder
+              ? `${post.turnoverDetails.originalFinder.firstName || ""} ${
+                  post.turnoverDetails.originalFinder.lastName || ""
+                }`.trim()
+              : "")
+          : "",
       Images: post.images ? post.images.length : 0,
     }));
   };
@@ -84,7 +120,8 @@ export const DataExport: React.FC<DataExportProps> = ({
       }
 
       const timestamp = format(new Date(), "yyyy-MM-dd");
-      const typeSuffix = exportType === 'all' ? 'all' : exportType === 'lost' ? 'lost' : 'found';
+      const typeSuffix =
+        exportType === "all" ? "all" : exportType === "lost" ? "lost" : "found";
       const filename = `posts-${typeSuffix}-export-${timestamp}`;
 
       // Prepare charts for export
@@ -270,34 +307,43 @@ export const DataExport: React.FC<DataExportProps> = ({
             <label className="text-sm font-medium">Filter by Post Type</label>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full justify-between min-w-[180px] max-w-[180px]">
+                <Button
+                  variant="outline"
+                  className="w-full justify-between min-w-[180px] max-w-[180px]"
+                >
                   <span className="truncate">
-                    {exportType === 'all' ? 'All Items' : exportType === 'lost' ? 'Lost Items Only' : exportType === 'found' ? 'Found Items Only' : 'Completed Items Only'}
+                    {exportType === "all"
+                      ? "All Items"
+                      : exportType === "lost"
+                      ? "Lost Items Only"
+                      : exportType === "found"
+                      ? "Found Items Only"
+                      : "Completed Items Only"}
                   </span>
                   <ChevronDown className="ml-2 h-4 w-4 flex-shrink-0" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="min-w-[180px]">
-                <DropdownMenuItem 
-                  onClick={() => setExportType('all')}
+                <DropdownMenuItem
+                  onClick={() => setExportType("all")}
                   className="whitespace-nowrap"
                 >
                   All Items
                 </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => setExportType('lost')}
+                <DropdownMenuItem
+                  onClick={() => setExportType("lost")}
                   className="whitespace-nowrap"
                 >
                   Lost Items Only
                 </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => setExportType('found')}
+                <DropdownMenuItem
+                  onClick={() => setExportType("found")}
                   className="whitespace-nowrap"
                 >
                   Found Items Only
                 </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => setExportType('completed')}
+                <DropdownMenuItem
+                  onClick={() => setExportType("completed")}
                   className="whitespace-nowrap"
                 >
                   Completed Items Only
