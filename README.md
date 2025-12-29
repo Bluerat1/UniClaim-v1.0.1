@@ -1,7 +1,6 @@
 UniClaim - Lost and Found Platform
 UniClaim is a comprehensive platform designed to reunite lost items with their owners through a synchronized ecosystem of web and mobile applications. It leverages modern technologies to provide real-time reporting, in-app communication, and advanced location-based searches.
 
-
 🏗 Project Architecture
 The repository is organized into three main sections:
 
