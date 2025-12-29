@@ -1,75 +1,65 @@
-UniClaim - Lost and Found Platform
-UniClaim is a comprehensive platform designed to reunite lost items with their owners through a synchronized ecosystem of web and mobile applications. It leverages modern technologies to provide real-time reporting, in-app communication, and advanced location-based searches.
+# UniClaim - Lost and Found App
 
-🏗 Project Architecture
-The repository is organized into three main sections:
+UniClaim is a tool that helps people find things they lost. It has a website and a mobile app that work together to show reported items and help people talk to each other to get their things back.
 
-1. Frontend (Web)
-Core: Built with React 18/19 and Vite for fast development.
+## 🏗️ How it's Made
 
-Styling: Utilizes Tailwind CSS and Radix UI primitives for a responsive, accessible interface.
+### Website (Frontend)
+* **React 18/19**: The main building block for the website.
+* **Vite**: Makes the website load and run fast for developers.
+* **Tailwind CSS**: Used to make the website look good on all screens.
+* **Maps**: Uses Leaflet and OpenLayers to show where items were found.
 
-Mapping: Features interactive maps powered by Leaflet and OpenLayers.
+### Mobile App
+* **Expo & React Native**: Used to build the app for both Android and iPhones.
+* **Native Features**: Uses the phone's camera to take pictures of items and sends alerts (notifications) to your phone.
+* **NativeWind**: Makes the app look the same as the website.
 
-Analytics: Integrated Chart.js for data visualization within the admin dashboard.
+### Database & Storage (Backend)
+* **Firebase**: Handles user logins and saves all the item information.
+* **Cloudinary**: A safe place where all the item photos are stored.
+---
 
-2. Mobile (iOS & Android)
-Framework: Developed using Expo (v54) and React Native.
 
-Styling: Uses NativeWind (Tailwind for React Native) to maintain styling consistency with the web.
+## 🚀 Getting Started
 
-Native Features: Camera integration for quick photo reports, push notifications via expo-notifications, and offline support using AsyncStorage.
 
-3. Backend (Firebase & Cloudinary)
-Authentication: Firebase Auth for secure user and admin management.
+### What you need
+* **Node.js**: Version 18 or newer.
+* **Firebase & Expo CLI**: Tools to help run and put the app online.
 
-Database: Cloud Firestore and Firebase Realtime Database for live updates.
+### How to Install
+1. **Get the code:**
+   ```bash
+   git clone [repository-url]
+   cd "lost and found app 2"
 
-Storage: Cloudinary manages all image uploads and media assets.
-
-🚀 Getting Started
-Prerequisites
-Node.js (v18+)
-
-Firebase CLI & Expo CLI
-
-Installation
-Clone and Root Setup
-
-Bash
-git clone [repository-url]
-npm install
-Frontend Setup
+	 Install everything:
 
 Bash
-cd frontend
-npm install
-Mobile Setup
 
-Bash
-cd mobile
-npm install
-Development Commands
-Target	Command
-Web (Dev)	cd frontend && npm run dev
-Mobile (Expo)	cd mobile && npx expo start
-Web (Build)	cd frontend && npm run build
-🛠 Key Features
-Reporting System: Post lost/found items with photos and detailed location tagging.
+## Root folder
+```npm install```
 
-Communication: Direct in-app messaging between finders and owners.
+## Website folder
+```cd frontend && npm install```
 
-Admin Dashboard: Manage flagged posts, view system analytics, and handle user verification.
+## Mobile app folder
+```cd ../mobile && npm install```
 
-Data Export: Generate reports in PDF or Excel formats directly from the web application.
 
-Real-time Notifications: Instant alerts for matches, messages, and claim updates across platforms.
+## How to Run
+* **To start the website**: <br>
+cd frontend then npm run dev.
 
-📂 Documentation
-For deeper technical insights, refer to the /docs folder:
+* **To start the app**:  <br>
+cd mobile then npx expo start.
 
-DELETE_ACCOUNT_VALIDATION.md
+## 🛠️ Main Features
+* Report Items: Easily post about things you found or lost with photos and locations.
 
-EDITING_GUIDE.md
+* Chat: Send messages directly to other users to arrange a meetup.
 
-scripts/: Contains administrative scripts for user migration and setup.
+* Admin Tools: Special dashboard for staff to manage reports and see stats.
+
+* Export Data: Save lists of items as PDF or Excel files.
