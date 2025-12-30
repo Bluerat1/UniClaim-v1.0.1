@@ -1,4 +1,4 @@
-# UniClaim - Lost and Found App
+# [UniClaim - Lost and Found App](https://uniclaim.vercel.app)
 
 UniClaim is a tool that helps people find things they lost. It has a website and a mobile app that work together to show reported items and help people talk to each other to get their things back.
 
@@ -22,6 +22,7 @@ UniClaim is a tool that helps people find things they lost. It has a website and
 
 
 ## 🚀 Getting Started
+
 
 
 ### What you need
