@@ -4,24 +4,24 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { db, auth } from './config';
-import { 
-    collection, 
-    query, 
-    where, 
-    orderBy, 
-    limit, 
-    getDocs, 
-    addDoc, 
-    updateDoc, 
-    doc, 
-    deleteDoc, 
-    onSnapshot, 
-    serverTimestamp, 
-    getDoc, 
-    setDoc, 
-    writeBatch, 
-    DocumentData, 
-    Query, 
+import {
+    collection,
+    query,
+    where,
+    orderBy,
+    limit,
+    getDocs,
+    addDoc,
+    updateDoc,
+    doc,
+    deleteDoc,
+    onSnapshot,
+    serverTimestamp,
+    getDoc,
+    setDoc,
+    writeBatch,
+    DocumentData,
+    Query,
     QueryDocumentSnapshot,
     DocumentReference,
     FirestoreError as FirebaseError
@@ -69,6 +69,26 @@ export class NotificationService {
         if (finalStatus !== 'granted') {
             console.log('Failed to get push token for push notification!');
             return null;
+        }
+
+        // CRITICAL: Set up Android notification channel (required for Android 8.0+)
+        if (Platform.OS === 'android') {
+            try {
+                await Notifications.setNotificationChannelAsync('default', {
+                    name: 'UniClaim Notifications',
+                    importance: Notifications.AndroidImportance.MAX,
+                    vibrationPattern: [0, 250, 250, 250],
+                    lightColor: '#FF6B35',
+                    sound: 'notification.wav',
+                    enableLights: true,
+                    enableVibrate: true,
+                    showBadge: true,
+                });
+                console.log('✅ Android notification channel created successfully');
+            } catch (channelError) {
+                console.error('Error creating notification channel:', channelError);
+                // Continue even if channel creation fails - the default channel might work
+            }
         }
 
         try {
@@ -232,9 +252,12 @@ export class NotificationService {
                 title,
                 body,
                 data,
-                sound: 'default', // Play default notification sound
+                sound: 'notification.wav', // Use custom notification sound
+                priority: Notifications.AndroidNotificationPriority.HIGH,
             },
-            trigger: null, // Show immediately
+            trigger: {
+                channelId: 'default', // CRITICAL: Specify the channel ID for Android 8.0+
+            },
         });
     }
 
@@ -536,7 +559,7 @@ export class NotificationService {
     ): Promise<() => void> {
         if (!userId) {
             onError(new Error('setupRealtimeListener: userId is required'));
-            return () => {};
+            return () => { };
         }
 
         try {
@@ -558,7 +581,7 @@ export class NotificationService {
                         ...doc.data(),
                         createdAt: doc.data().createdAt?.toDate()
                     } as NotificationData));
-                    
+
                     onUpdate(notifications);
                 },
                 (error: any) => {
@@ -571,7 +594,7 @@ export class NotificationService {
             };
         } catch (error: any) {
             onError(error);
-            return () => {};
+            return () => { };
         }
     }
 }

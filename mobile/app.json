@@ -1,15 +1,21 @@
 {
   "expo": {
     "name": "UniClaim",
-    "slug": "uniclaimApp",
+    "slug": "uniclaim20",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.jpg",
     "scheme": "uniclaimapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.uniclaim.bluerat1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "The app needs access to your camera to take photos of lost/found items.",
+        "NSPhotoLibraryUsageDescription": "The app needs access to your photo library to upload images of lost/found items.",
+        "NSPhotoLibraryAddUsageDescription": "The app needs to save photos to your library."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -17,18 +23,31 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "softwareKeyboardLayoutMode": "resize",
       "package": "com.uniclaim.bluerat1",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.CAMERA",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.SCHEDULE_EXACT_ALARM"
+      ],
+      "softwareKeyboardLayoutMode": "resize",
+      "config": {
+        "googleMaps": {
+          "apiKey": "${process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}"
+        }
+      },
       "notification": {
         "icon": "./assets/images/adaptive-icon.png",
         "color": "#ffffff"
       },
-      "googleServicesFile": "./google-services.json",
-      "permissions": [
-        "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.ACCESS_WIFI_STATE"
-      ]
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
@@ -46,21 +65,45 @@
         }
       ],
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you upload images of lost/found items.",
+          "cameraPermission": "The app needs access to your camera to take photos of lost/found items."
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/images/adaptive-icon.png",
           "color": "#ffffff",
+          "sounds": [
+            "./assets/sounds/notification.wav"
+          ],
           "defaultChannel": "default",
+          "mode": "production",
           "android": {
             "channelId": "default",
-            "channelName": "UniClaim Notifications"
+            "channelName": "UniClaim Notifications",
+            "importance": "max",
+            "enableVibrate": true,
+            "enableLights": true
           }
         }
       ]
     ],
     "extra": {
-      "eas": {}
+      "firebaseApiKey": "@eas/EXPO_PUBLIC_FIREBASE_API_KEY",
+      "firebaseAuthDomain": "@eas/EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN",
+      "firebaseProjectId": "@eas/EXPO_PUBLIC_FIREBASE_PROJECT_ID",
+      "firebaseStorageBucket": "@eas/EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET",
+      "firebaseMessagingSenderId": "@eas/EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
+      "firebaseAppId": "@eas/EXPO_PUBLIC_FIREBASE_APP_ID",
+      "firebaseMeasurementId": "@eas/EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID",
+      "cloudinaryCloudName": "@eas/CLOUDINARY_CLOUD_NAME",
+      "cloudinaryUploadPreset": "@eas/CLOUDINARY_UPLOAD_PRESET",
+      "cloudinaryApiKey": "@eas/CLOUDINARY_API_KEY",
+      "cloudinaryApiSecret": "@eas/CLOUDINARY_API_SECRET"
     },
-    "owner": "bluerat12"
+    "owner": "chamd123x"
   }
 }

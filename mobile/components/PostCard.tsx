@@ -84,11 +84,24 @@ export default function PostCard({
 
   const getOptimizedImageSource = (imageSource: string | number | File) => {
     if (typeof imageSource === "string") {
-      // For remote images, add query parameters for optimization
-      const separator = imageSource.includes("?") ? "&" : "?";
+      // For Cloudinary URLs, don't modify them if they already have transformations
+      if (imageSource.includes('cloudinary.com')) {
+        // If the URL already has query parameters, don't modify it
+        if (imageSource.includes('?')) {
+          return { uri: imageSource };
+        }
+        // Otherwise, add optimization parameters
+        return {
+          uri: `${imageSource}?w=800&h=600&c_fill,q_auto:good,f_auto`,
+          cache: 'force-cache' as const,
+        };
+      }
+      
+      // For other remote images, add optimization parameters
+      const separator = imageSource.includes('?') ? '&' : '?';
       return {
-        uri: `${imageSource}${separator}w=400&h=300&q=80&f=webp`,
-        cache: "force-cache" as const,
+        uri: `${imageSource}${separator}w=800&h=600&q=80&f=webp`,
+        cache: 'force-cache' as const,
       };
     }
     if (imageSource instanceof File) {

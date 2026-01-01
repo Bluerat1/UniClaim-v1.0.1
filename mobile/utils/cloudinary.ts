@@ -8,10 +8,10 @@ import * as ImageManipulator from 'expo-image-manipulator';
 const extra = Constants.expoConfig?.extra || {};
 
 // Configuration values from app.config.js or environment variables
-const CLOUDINARY_CLOUD_NAME = extra.cloudinaryCloudName || process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
-const UPLOAD_PRESET = extra.cloudinaryUploadPreset || process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '';
-const CLOUDINARY_API_KEY = extra.cloudinaryApiKey || process.env.EXPO_PUBLIC_CLOUDINARY_API_KEY || '';
-const CLOUDINARY_API_SECRET = extra.cloudinaryApiSecret || process.env.EXPO_PUBLIC_CLOUDINARY_API_SECRET || '';
+const CLOUDINARY_CLOUD_NAME = extra.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
+const UPLOAD_PRESET = extra.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '';
+const CLOUDINARY_API_KEY = extra.EXPO_PUBLIC_CLOUDINARY_API_KEY || process.env.EXPO_PUBLIC_CLOUDINARY_API_KEY || '';
+const CLOUDINARY_API_SECRET = extra.EXPO_PUBLIC_CLOUDINARY_API_SECRET || process.env.EXPO_PUBLIC_CLOUDINARY_API_SECRET || '';
 
 // Upload optimization settings - optimized for speed
 const MAX_FILE_SIZE = 3 * 1024 * 1024; // Increased to 3MB to reduce compression time
@@ -160,32 +160,49 @@ export const cloudinaryService = {
     // Upload single image from React Native with optimization and retry
     async uploadImage(uri: string, folder: string = 'posts', retryCount = 0): Promise<string> {
         const MAX_RETRIES = 3;
+        const startTime = Date.now();
+
+        console.log(`[Cloudinary] Starting upload of image to folder: ${folder}`);
+        console.log(`[Cloudinary] Using Cloudinary cloud name: ${CLOUDINARY_CLOUD_NAME ? 'Configured' : 'MISSING'}`);
+        console.log(`[Cloudinary] Using upload preset: ${UPLOAD_PRESET ? 'Configured' : 'MISSING'}`);
 
         try {
             // Check if required environment variables are set
             if (!CLOUDINARY_CLOUD_NAME) {
-                throw new Error(`Cloudinary cloud name not configured. Please set EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME in your .env file`);
+                const error = new Error(`Cloudinary cloud name not configured. Please set EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME in your .env file`);
+                console.error('[Cloudinary] Configuration error:', error.message);
+                throw error;
             }
 
             if (!UPLOAD_PRESET) {
-                throw new Error(`Cloudinary upload preset not configured. Please set EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET in your .env file`);
+                const error = new Error(`Cloudinary upload preset not configured. Please set EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET in your .env file`);
+                console.error('[Cloudinary] Configuration error:', error.message);
+                throw error;
             }
 
-            // Optimize image before upload with folder-specific settings
+            console.log(`[Cloudinary] Optimizing image...`);
             const optimizedUri = await optimizeImage(uri, folder);
+            console.log(`[Cloudinary] Image optimized in ${Date.now() - startTime}ms`);
 
             // Create form data for React Native upload
             const formData = new FormData();
+            const fileName = `upload_${Date.now()}.jpg`;
 
-            // For React Native, we need to append the file differently
+            // For React Native, we need to append the file with proper type information
             formData.append('file', {
                 uri: optimizedUri,
-                type: 'image/jpeg', // Use JPEG format for consistency
-                name: `upload_${Date.now()}.jpg`,
+                type: 'image/jpeg',
+                name: fileName,
             } as any);
 
             formData.append('upload_preset', UPLOAD_PRESET);
             formData.append('folder', folder);
+
+            // Add timestamp for debugging
+            formData.append('timestamp', Date.now().toString());
+
+            console.log(`[Cloudinary] Starting upload to Cloudinary...`);
+            const uploadStartTime = Date.now();
 
             const response = await fetch(
                 `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
@@ -194,16 +211,29 @@ export const cloudinaryService = {
                     body: formData,
                     headers: {
                         'Content-Type': 'multipart/form-data',
+                        'Accept': 'application/json',
                     },
                 }
             );
 
+            const responseTime = Date.now() - uploadStartTime;
+            console.log(`[Cloudinary] Upload completed in ${responseTime}ms with status: ${response.status}`);
+
             if (!response.ok) {
                 const errorText = await response.text();
+                console.error(`[Cloudinary] Upload failed with status ${response.status}:`, errorText);
                 throw new Error(`Upload failed: ${response.status} ${errorText}`);
             }
 
             const data = await response.json();
+            console.log(`[Cloudinary] Upload successful! URL: ${data.secure_url}`);
+            console.log(`[Cloudinary] Full response:`, JSON.stringify(data, null, 2));
+
+            if (!data.secure_url) {
+                console.error('[Cloudinary] No secure_url in response:', data);
+                throw new Error('No secure_url in Cloudinary response');
+            }
+
             return data.secure_url;
         } catch (error: any) {
             console.error(`Error uploading image (attempt ${retryCount + 1}/${MAX_RETRIES}):`, error);
