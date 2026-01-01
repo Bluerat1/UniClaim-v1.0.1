@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "UniClaim",
-    "slug": "uniclaim20",
+    "slug": "uniclaim30",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.jpg",
@@ -38,14 +38,9 @@
         "android.permission.SCHEDULE_EXACT_ALARM"
       ],
       "softwareKeyboardLayoutMode": "resize",
-      "config": {
-        "googleMaps": {
-          "apiKey": "${process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}"
-        }
-      },
       "notification": {
         "icon": "./assets/images/adaptive-icon.png",
-        "color": "#ffffff"
+        "color": "#808080"
       },
       "googleServicesFile": "./google-services.json"
     },
@@ -75,7 +70,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/adaptive-icon.png",
-          "color": "#ffffff",
+          "color": "#808080",
           "sounds": [
             "./assets/sounds/notification.wav"
           ],
@@ -104,6 +99,6 @@
       "cloudinaryApiKey": "@eas/CLOUDINARY_API_KEY",
       "cloudinaryApiSecret": "@eas/CLOUDINARY_API_SECRET"
     },
-    "owner": "chamd123x"
+    "owner": "powmon"
   }
 }

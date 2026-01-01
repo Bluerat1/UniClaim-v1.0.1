@@ -70,7 +70,7 @@ export default ({ config }) => {
 
     // EAS
     eas: {
-      projectId: getEnv('EXPO_PUBLIC_EAS_PROJECT_ID', 'dd26889c-f8ea-4cfe-94f4-84d87f7fa8a0')
+      projectId: getEnv('EXPO_PUBLIC_EAS_PROJECT_ID', '77073aa4-2a35-410e-9117-fbf9d30347f3')
     },
 
     // Preserve any existing extra config
@@ -101,8 +101,14 @@ export default ({ config }) => {
       ...config.android,
       notification: {
         ...config.android?.notification,
-        icon: "./assets/images/notification-icon-large.png",
-        color: "#FF6B35"
+        icon: "./assets/images/adaptive-icon.png",
+        color: "#808080"
+      },
+      config: {
+        ...config.android?.config,
+        googleMaps: {
+          apiKey: getEnv('EXPO_PUBLIC_GOOGLE_MAPS_API_KEY')
+        }
       }
     },
     plugins: [
