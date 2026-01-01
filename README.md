@@ -64,3 +64,8 @@ cd mobile then npx expo start.
 * Admin Tools: Special dashboard for staff to manage reports and see stats.
 
 * Export Data: Save lists of items as PDF or Excel files.
+
+
+[ Download Mobile APK here](https://expo.dev/artifacts/eas/bdzyQjf6auzXkj8m9vHbMA.apk)
+
+
